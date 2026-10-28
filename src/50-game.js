@@ -85,8 +85,10 @@ function buildBody(E){
 }
 const X_=(B,i)=>[B.x[i*3],B.x[i*3+1],B.x[i*3+2]];
 function setX(B,i,v){ B.x[i*3]=v[0]; B.x[i*3+1]=v[1]; B.x[i*3+2]=v[2]; }
-function kickV(B,i,v,h){ for(let c=0;c<3;c++) B.p[i*3+c]-=v[c]*h; }
+function kickV(B,i,v,h){ for(let c=0;c<3;c++) B.p[i*3+c]-=v[c]*h; B.wake=1; }
 const H=1/240;
+/* tuning for bodies on the floor (see the stepBody/targetsFor comments) */
+const PHYS={k:.016,cr:.0011,kd:.02,kdDown:.1,fric:.82,wr:1}; /* on the floor: softer muscles, a lower force cap and much more damping, so a hurt man moves like a heavy body instead of buzzing */
 
 /* ---------- enemies ---------- */
 const RANGED={gunman:1,doorman:1,enforcer:1,landlord:1};
@@ -149,7 +151,7 @@ function spawnEnemy(sp){
 
 /* pose library: joint rotations by name (world-anchored poses use hipsY) */
 function setPose(E,name,t){
-  const J=E.J,C=E.C,c=E.cons; for(const k of JOINTS) J[k].r=[0,0,0];
+  const J=E.J,C=E.C; let c=E.cons; for(const k of JOINTS) J[k].r=[0,0,0];
   let hy=C.hy0,j={},rel=false;
   const s=Math.sin,ph=t+E.t0;
   switch(name){
@@ -157,11 +159,11 @@ function setPose(E,name,t){
     case 'idle': j=C.poses.idle.j; break;
     case 'beg': j=C.poses.beg.j; hy=C.poses.beg.hipsY; break;
     case 'kneel': j=Object.assign({},C.poses.beg.j,{spine:[.5,0,.08],neck:[.15,0,0],head:[.25,0,0],armL:[-.3,0,.2],elbowL:[-1.4,0,0],armR:[-.3,0,-.2],elbowR:[-1.4,0,0]}); hy=C.poses.beg.hipsY; break;
-    case 'writhe': rel=true; j={spine:[.35+.18*s(ph*.9)*c,0,.25*s(ph*.6)*c],neck:[.2,0,0],head:[.25,.4*s(ph*.5)*c,0],
+    case 'writhe': rel=true; c*=PHYS.wr; j={spine:[.35+.18*s(ph*.9)*c,0,.25*s(ph*.6)*c],neck:[.2,0,0],head:[.25,.4*s(ph*.5)*c,0],
       thighL:[-.9-.45*s(ph*1.1)*c,0,.1],kneeL:[1.3+.35*s(ph*1.3)*c,0,0],thighR:[-.6-.55*s(ph*.8+1)*c,0,-.1],kneeR:[1.1+.45*s(ph*.9+2)*c,0,0],
       armL:[-.6,0,.4],elbowL:[-1.4,0,0],armR:[-.6,0,-.4],elbowR:[-1.4,0,0]}; break;
     case 'downbeg': rel=true; j={spine:[.3,0,0],neck:[.1,0,0],head:[-.2,0,0],thighL:[-.9,0,.15],kneeL:[1.4,0,0],thighR:[-.4,0,-.1],kneeR:[.9,0,0],
-      armL:[-1.7+.12*s(ph*9),.2,.3],elbowL:[-.5,0,0],armR:[-1.1,0,-.3],elbowR:[-1.2,0,0]}; break;
+      armL:[-1.7+.05*s(ph*5),.2,.3],elbowL:[-.5,0,0],armR:[-1.1,0,-.3],elbowR:[-1.2,0,0]}; break;
     case 'crawl': { rel=true; const k=s(ph*2.4); j={spine:[-.15,0,.1*k],neck:[-.3,0,0],head:[-.45,0,0],armL:[-2.5+.75*k,0,.3],elbowL:[-.3-.7*Math.max(0,-k),0,0],armR:[-2.5-.75*k,0,-.3],elbowR:[-.3-.7*Math.max(0,k),0,0],
       thighL:[.1,0,.1],kneeL:[.25+.5*Math.max(0,k),0,0],thighR:[.1,0,-.1],kneeR:[.25+.5*Math.max(0,-k),0,0]}; break; }
     case 'scoot': { rel=true; const k=s(ph*2.6); j={spine:[.35,0,0],neck:[.3,0,0],head:[.35,0,0],armL:[.55,0,.45],elbowL:[-1.5,0,0],armR:[.55,0,-.45],elbowR:[-1.5,0,0],
@@ -220,10 +222,10 @@ function targetsFor(E,t,dt=1){
   let sup=0; if(!E.dead&&(st==='idle'||st==='alert')) sup=1; else if(!E.dead&&st==='kneel') sup=.95; else if(!E.dead&&st==='down'&&E.fallT>0) sup=.85*E.fallT/.8;
   if(rel) sup=0;
   sup*=clamp(c*1.7,0,1)*(1-(st==='down'?Math.min(E.stun,.5):E.stun))*E.rise*(E.grabbed?.35:1); E.sup=sup; /* held: off balance */
-  const twitch=E.dead?.014*Math.max(0,1-E.deadT/1.6):0;
+  const twitch=E.dead?.008*Math.max(0,1-E.deadT/1.2):0;
   for(let i=0;i<NP;i++){ const limb=PD[i][4]; let s=E.dead?twitch:c;
     if(!E.dead){ if(limb==='legL') s*=.2+.8*E.hp.legL; else if(limb==='legR') s*=.2+.8*E.hp.legR; else if(limb==='armL') s*=.12+.88*clamp(E.hp.armL,0,1); else if(limb==='armR') s*=.12+.88*clamp(E.hp.armR,0,1); }
-    E.K[i]=E.sevP[i]?0:(sup*.13+(1-sup)*.022)*s; E.KD[i]=E.sevP[i]?0:.02*s+.002; }
+    E.K[i]=E.sevP[i]?0:(sup*.13+(1-sup)*PHYS.k)*s; E.KD[i]=E.sevP[i]?0:(sup>.5?PHYS.kd:PHYS.kdDown)*s+.002; }
   E.relMode=rel;
 }
 
@@ -241,7 +243,7 @@ function stepBody(E,h){
   for(let i=0;i<NP;i++){ const k=E.K[i],o=i*3; CR[o]=CR[o+1]=CR[o+2]=0; if(PN&&PN[i]) continue; vx+=x[o]-p[o]; vy+=x[o+1]-p[o+1]; vz+=x[o+2]-p[o+2]; if(k<=0) continue;
     if(s>0) for(let c=0;c<3;c++) x[o+c]+=(E.Wt[o+c]-x[o+c])*k*s;
     if(Ha){ const r=v3.add(pel,mv(Ha,[E.Lc[o],E.Lc[o+1],E.Lc[o+2]])); r[1]=Math.max(r[1],B.r[i]+.004); /* never ask a limb to go through the floor: that would push the body up forever */
-      for(let c=0;c<3;c++){ CR[o+c]=clamp((r[c]-x[o+c])*k*(1-s),-.0015,.0015); }
+      for(let c=0;c<3;c++){ CR[o+c]=clamp((r[c]-x[o+c])*k*(1-s),-PHYS.cr,PHYS.cr); }
       if(B.ground[i]&&CR[o+1]<0) CR[o+1]=0; /* the floor would cancel a push into it; counting it would launch the rest of the body */
       sx+=CR[o]; sy+=CR[o+1]; sz+=CR[o+2]; } }
   sx/=na; sy/=na; sz/=na; vx/=na; vy/=na; vz/=na;
@@ -294,7 +296,7 @@ function collideBody(E){
       if(px>b.x0-r&&px<b.x1+r&&pz>b.z0-r&&pz<b.z1+r&&py<b.h+r&&py>b.y0-r){ const pens=[px-(b.x0-r),(b.x1+r)-px,pz-(b.z0-r),(b.z1+r)-pz,(b.h+r)-py,b.y0>0?py-(b.y0-r):1e9]; let m=0; for(let k=1;k<6;k++) if(pens[k]<pens[m]) m=k;
         if(m===0){ x[o]=b.x0-r; p[o]=Math.min(p[o],x[o]); } else if(m===1){ x[o]=b.x1+r; p[o]=Math.max(p[o],x[o]); } else if(m===2){ x[o+2]=b.z0-r; p[o+2]=Math.min(p[o+2],x[o+2]); } else if(m===3){ x[o+2]=b.z1+r; p[o+2]=Math.max(p[o+2],x[o+2]); }
         else if(m===4){ x[o+1]=b.h+r; p[o+1]=Math.max(p[o+1],x[o+1]); gr=true; } else { x[o+1]=b.y0-r; p[o+1]=Math.min(p[o+1],x[o+1]); } } }
-    if(gr){ p[o]=x[o]-(x[o]-p[o])*.82; p[o+2]=x[o+2]-(x[o+2]-p[o+2])*.82; }
+    if(gr){ p[o]=x[o]-(x[o]-p[o])*PHYS.fric; p[o+2]=x[o+2]-(x[o+2]-p[o+2])*PHYS.fric; }
     B.ground[i]=gr?1:0;
     { const dvx=x[o]-p[o]-v0x,dvy=x[o+1]-p[o+1]-v0y,dvz=x[o+2]-p[o+2]-v0z,im=Math.hypot(dvx,dvy,dvz)/H; if(im>B.imp[i]){ B.imp[i]=im; const vl=Math.hypot(v0x,v0y,v0z)||1; B.impDir[i]=[v0x/vl,v0y/vl,v0z/vl]; } } /* how hard it just hit something */
     /* the player is a solid cylinder: walking into a body shoves it */
@@ -307,13 +309,18 @@ function collidePair(A,Bd){
       const dh=Math.hypot(dx,dz); if(dh<1e-4) continue; const pen=m-Math.sqrt(d2),wa=A.sup>.5&&Bd.sup<=.5?.15:Bd.sup>.5&&A.sup<=.5?.85:.5;
       a[o]-=dx/dh*pen*wa; a[o+2]-=dz/dh*pen*wa; b[q]+=dx/dh*pen*(1-wa); b[q+2]+=dz/dh*pen*(1-wa); } }
 }
+/* a corpse that has come to rest goes to sleep: no physics, no skinning, until something touches it (a hit, a grab, you, another body) */
+function wakeBody(E){ E.asleep=false; E.calm=0; E.B.wake=0; }
 function physics(h){
-  for(const E of enemies) stepBody(E,h);
+  for(const E of enemies) if(E.asleep){ const q=E.B.x; if(E.B.wake||E.grabbed||Math.hypot(q[0]-PL.x,q[2]-PL.z)<.7||enemies.some(O=>O!==E&&!O.asleep&&Math.hypot(O.B.x[0]-q[0],O.B.x[2]-q[2])<1.1)) wakeBody(E); }
+  const live=enemies.filter(E=>!E.asleep);
+  for(const E of live) stepBody(E,h);
   applyGrabs(h);
-  for(let it=0;it<5;it++){ for(const E of enemies){ solveBody(E); if(it===4) limitBody(E); } if(it===2) applyGrabs(h); }
-  for(const E of enemies) collideBody(E);
-  for(const E of enemies) if(E.pins) for(const q of E.pins){ const a=q.a*3,i=q.i*3; for(let c=0;c<3;c++){ E.B.x[i+c]=E.B.x[a+c]+q.off[c]; E.B.p[i+c]=E.B.x[i+c]; } } /* a limb that no longer exists */
-  for(let i=0;i<enemies.length;i++) for(let j=i+1;j<enemies.length;j++) collidePair(enemies[i],enemies[j]);
+  for(let it=0;it<5;it++){ for(const E of live){ solveBody(E); if(it===4) limitBody(E); } if(it===2) applyGrabs(h); }
+  for(const E of live) collideBody(E);
+  for(const E of live){ E.B.wake=0; if(!E.dead||E.deadT<2.5){ E.calm=0; continue; } let mv=0; const x=E.B.x,p=E.B.p; for(let i=0;i<NP*3;i++) mv=Math.max(mv,Math.abs(x[i]-p[i])); E.calm=mv<.0003?(E.calm||0)+h:0; if(E.calm>1) E.asleep=true; }
+  for(const E of live) if(E.pins) for(const q of E.pins){ const a=q.a*3,i=q.i*3; for(let c=0;c<3;c++){ E.B.x[i+c]=E.B.x[a+c]+q.off[c]; E.B.p[i+c]=E.B.x[i+c]; } } /* a limb that no longer exists */
+  for(let i=0;i<live.length;i++) for(let j=i+1;j<live.length;j++) collidePair(live[i],live[j]);
 }
 /* skeleton from particles */
 function driveRig(E){
@@ -363,7 +370,7 @@ function holdLongGun(E){ const J=E.J,w=E.C.wpn,k=E.aimK||0,a=E.gunLow,b=E.gunUp,
 /* ---------- blood ---------- */
 const BP=[],DEC={splat:[],pool:[],hole:[]};
 const dynN={};
-function dynNode(key,mat){ const g=new Geo(); g.groups=[{start:0,count:0,mi:0}]; dynN[key]=mk(g,mat,world); }
+function dynNode(key,mat){ const g=new Geo(); g.noCull=true; g.groups=[{start:0,count:0,mi:0}]; dynN[key]=mk(g,mat,world); }
 function dynSet(key,A){ const n=dynN[key],g=n.mesh.geo; g.P=A.P; g.Nm=A.Nm; g.T=A.T; g.I=A.I;
   if(!A.I.length){ n.vis=false; return; } n.vis=true;
   if(!g.vao) upload(g); else { gl.bindVertexArray(g.vao); [A.P,A.Nm,A.T].forEach((a,i)=>{ gl.bindBuffer(gl.ARRAY_BUFFER,g.bufs[i]); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(a),gl.DYNAMIC_DRAW); });
@@ -377,7 +384,7 @@ function quad(A,c,n,s,rot=0,sy){ let X=Math.abs(n[1])>.9?[1,0,0]:norm3(v3.cross(
 function cube(A,c,s){ for(const n of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]) quad(A,v3.add(c,v3.sc(n,s)),n,s); }
 function emit(pos,vel,size,kind,life=3){ if(BP.length>820) BP.splice(0,40); BP.push({x:pos.slice(),v:vel.slice(),s:size,k:kind,life}); }
 function spray(pos,dir,n,speed,spread,kind='dark',size=.012){ for(let i=0;i<n;i++){ const v=v3.add(v3.sc(norm3(v3.add(dir,[rnd(-spread,spread),rnd(-spread,spread),rnd(-spread,spread)])),speed*rnd(.4,1.15)),[0,rnd(0,.6),0]); emit(pos,v,size*rnd(.6,1.6),kind); } }
-function addDecal(list,c,n,s,max=220,sy){ if(list.length>max) list.shift(); list.push({c,n,s,rot:Math.random()*6.28,sy}); }
+function addDecal(list,c,n,s,max=220,sy){ if(list.length>max) list.shift(); list.push({c,n,s,rot:Math.random()*6.28,sy}); list.ver=(list.ver||0)+1; }
 function updateBlood(dt){
   for(let i=BP.length-1;i>=0;i--){ const b=BP[i]; if(b.rest){ b.life-=dt; if(b.life<=0) BP.splice(i,1); continue; } b.v[1]-=9.8*dt; const dr=1-1.2*dt; b.v[0]*=dr; b.v[2]*=dr;
     b.x[0]+=b.v[0]*dt; b.x[1]+=b.v[1]*dt; b.x[2]+=b.v[2]*dt; b.life-=dt;
@@ -401,10 +408,13 @@ function updateBlood(dt){
     else if(b.life<=0) BP.splice(i,1); }
 }
 function buildBloodMeshes(){
-  const A={bright:newA(),dark:newA(),dust:newA(),gib:newA(),bone:newA()};
-  for(const b of BP) cube(A[b.k],b.x,b.s);
+  /* drops are single squares facing you (a sixth of the vertices of cubes); decals are only rebuilt when they change */
+  const A={bright:newA(),dark:newA(),dust:newA(),gib:newA(),bone:newA()},nf=v3.sc(camBasis().f,-1);
+  for(const b of BP) quad(A[b.k],b.x,nf,b.s*1.25);
   for(const k in A) dynSet(k,A[k]);
-  for(const key of ['splat','pool','hole']){ const Q=newA(); DEC[key].forEach((d,i)=>{ const c=d.n[1]>.9?[d.c[0],d.c[1]+i*.00003,d.c[2]]:d.c; quad(Q,c,d.n,d.s,d.n[1]===0?0:d.rot,d.sy); }); dynSet(key,Q); }
+  const now=performance.now(); buildBloodMeshes.at=buildBloodMeshes.at||{};
+  for(const key of ['splat','pool','hole']){ const L_=DEC[key],v=L_.ver||0,at=buildBloodMeshes.at; if(at[key]&&at[key].v===v) continue; if(key==='pool'&&at[key]&&now-at[key].t<200) continue; at[key]={v,t:now};
+    const Q=newA(); DEC[key].forEach((d,i)=>{ const c=d.n[1]>.9?[d.c[0],d.c[1]+i*.00003,d.c[2]]:d.c; quad(Q,c,d.n,d.s,d.n[1]===0?0:d.rot,d.sy); }); dynSet(key,Q); }
 }
 
 /* ---------- wounds ---------- */
@@ -432,8 +442,8 @@ function poolFx(E,dt){
   const pel=X_(E.B,PI_.pelvis),c=[lerp(p[0],pel[0],.3),0,lerp(p[2],pel[2],.3)];
   const rate=E.dead?Math.max(0,.6*(1-E.deadT/30)):E.wounds.reduce((s,x)=>s+x.rate,0)*clamp(E.blood/100,.25,1);
   if(rate<=0) return;
-  let P0=E.pool; if(!P0||dist2(P0.c,c)>.28){ P0={c:[c[0],.0025,c[2]],n:[0,1,0],s:.05,rot:Math.random()*6.28}; if(DEC.pool.length>70) DEC.pool.shift(); DEC.pool.push(P0); E.pool=P0; }
-  P0.s=Math.min(E.dead?1.0:.85,P0.s+rate*.0035); }
+  let P0=E.pool; if(!P0||dist2(P0.c,c)>.28){ P0={c:[c[0],.0025,c[2]],n:[0,1,0],s:.05,rot:Math.random()*6.28}; if(DEC.pool.length>70) DEC.pool.shift(); DEC.pool.push(P0); DEC.pool.ver=(DEC.pool.ver||0)+1; E.pool=P0; }
+  const ns=Math.min(E.dead?1.0:.85,P0.s+rate*.0035); if(ns!==P0.s){ P0.s=ns; DEC.pool.ver=(DEC.pool.ver||0)+1; } }
 
 /* ---------- player ---------- */
 const PL={x:0,z:3.2,yaw:0,pitch:0,hp:100,hurtT:9,ammo:12,reload:0,stabT:-1,stabDone:false,stabCd:0,kickCd:0,rec:0,flashT:0,dead:false};
@@ -800,7 +810,7 @@ function climb(){ GAME.climbing=true; const n=Math.min(30,FLOOR.n+1); sfx('door'
     $('floorTag').textContent='Floor '+String(n).padStart(2,'0')+' · test'; GAME.climbing=false; },350); }
 function resetGame(){
   clearEnemies(); for(const P of LOOSE.slice()) removePickup(P);
-  BP.length=0; DEC.splat.length=0; DEC.pool.length=0; DEC.hole.length=0;
+  BP.length=0; DEC.splat.length=0; DEC.pool.length=0; DEC.hole.length=0; for(const k in DEC) DEC[k].ver=(DEC[k].ver||0)+1;
   Object.assign(PL,{x:FLOOR.start.x,z:FLOOR.start.z,yaw:FLOOR.start.yaw,pitch:0,hp:100,hurtT:9,kickCd:0,dead:false});
   for(const D of FLOOR.doors) if(D.state==='open'&&D.u.doorState==='closed') setDoor(D,'closed',true);
   /* desk testing starts armed; in VR you start with your fists and walk to the rack */
@@ -855,9 +865,9 @@ function update(dt,now){
   if(!XR.on&&KEYS.Mouse0&&document.pointerLockElement&&HANDS.R.item&&WPN[HANDS.R.item.key].auto) useRight();
   updateGrabs(gdt);
   for(const E of enemies) think(E,gdt,GAME.t);
-  for(const E of enemies) targetsFor(E,GAME.t,gdt);
+  for(const E of enemies) if(!E.asleep) targetsFor(E,GAME.t,gdt);
   GAME.acc+=gdt; let n=0; while(GAME.acc>=H&&n<14){ physics(H); GAME.acc-=H; n++; } if(n>=14) GAME.acc=0;
-  for(const E of enemies){ driveRig(E); skinUpdate(E.C); bleedFx(E,gdt); poolFx(E,gdt); }
+  for(const E of enemies){ if(!E.asleep){ driveRig(E); skinUpdate(E.C); } bleedFx(E,gdt); poolFx(E,gdt); }
   updateBlood(gdt); updatePickups(gdt); updateEmbedded(); updateShells(gdt); tickRack(gdt); tickMap(dt); buildBloodMeshes(); voiceListener();
   if(!FLOOR.test&&!GAME.clear&&enemies.length&&enemies.every(E=>E.dead)){ GAME.clear=true; setTimeout(()=>{ if(GAME.clear){ showMsg('FLOOR 01 CLEAR','Three people lived here. Take the stairs, or reset and do it differently.'); if(XR.on) XR.clearT=6; } },2600); }
   if(FLOOR.flick){ const on=(Math.sin(GAME.t*23)+Math.sin(GAME.t*7.3)>-.7)||Math.sin(GAME.t*1.3)>.1,fk=on?1:.15,c=FLOOR.lights[0][1]; L.plCol.set([c[0]*fk,c[1]*fk,c[2]*fk],0); FLOOR.flick.mat.color=on?[1,1,1]:[.3,.3,.32]; }
@@ -869,9 +879,10 @@ function update(dt,now){
 }
 function collidePlayer(){ const p=[PL.x,PL.z]; pushOutXZ(p,.3,'player'); PL.x=p[0]; PL.z=p[1]; }
 /* draw the scene with the current view/proj into the low-res target, then put it on screen with the PS1 post pass */
-function renderWith(w,h){
-  updateWorld(world,null); gl.viewport(0,0,w,h); gl.clearColor(L.fog[0],L.fog[1],L.fog[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-  gl.enable(gl.DEPTH_TEST); gl.useProgram(MAIN.p); curCull=null; const u=MAIN.loc;
+function renderWith(w,h,noUpd){
+  if(!noUpd) updateWorld(world,null); gl.viewport(0,0,w,h); gl.clearColor(L.fog[0],L.fog[1],L.fog[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.useProgram(MAIN.p); curCull=null; curMat=null; curTex=null; gl.activeTexture(gl.TEXTURE0); const u=MAIN.loc;
+  { const v=view; setCull([-(v[0]*v[12]+v[1]*v[13]+v[2]*v[14]),-(v[4]*v[12]+v[5]*v[13]+v[6]*v[14]),-(v[8]*v[12]+v[9]*v[13]+v[10]*v[14])],L.fogFar+1.5); } /* skip what this eye can't see or the fog has swallowed */
   gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
   const wob=XR.on?XR.wobble:2; gl.uniform1f(u.uSnap,wob===2?1:wob===1?2.5:0); gl.uniform1f(u.uAffine,wob===2?1:wob===1?.15:0); gl.uniform2f(u.uRes,w,h); /* in a headset the PS1 vertex snap swims between the eyes: off unless asked for */
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
@@ -981,7 +992,7 @@ function xrFrame(t,xf){
     setLocal(h.node,m4.make(),h.M); h.node.vis=!PL.dead;
     const fp=mulP(h.M,FIST); if(h.prevPos) h.vel=v3.add(v3.sc(h.vel,.5),v3.sc(v3.sub(fp,h.prevPos),.5/Math.max(dt,1e-3))); h.prevPos=fp;
     const gp=src.gamepad; if(!gp) continue; const ax=gp.axes,b=gp.buttons,pressed=i=>!!(b[i]&&b[i].pressed),edge=i=>{ const kk=hand+i,p=pressed(i),was=XR.btn[kk]; XR.btn[kk]=p; return p&&!was; };
-    const trig=edge(0),grip=edge(1),stickC=edge(3),ab=edge(4),by=edge(5);
+    const trig=edge(0),grip=edge(1),stickC=edge(3),ab=edge(4),by=edge(5); h.trigHeld=pressed(0);
     if(PL.dead){ if(trig){ resetGame(); vrRecenter(); } continue; }
     if(grip) grabOrDrop(h);
     if(h.item&&WPN[h.item.key].gun){ if(trig||(WPN[h.item.key].auto&&pressed(0))) fireHand(h); }
@@ -1011,10 +1022,10 @@ function xrFrame(t,xf){
     if(ph){ drawPanel(ph,pp,bar); const fl=norm3([f[0],0,f[2]]),tg=v3.add(eye,v3.add(v3.sc(fl,.85),[0,-.1,0]));
       XR.panelP=!was||!XR.panelP?tg:v3.add(XR.panelP,v3.sc(v3.sub(tg,XR.panelP),Math.min(1,dt*2.5))); const p=XR.panelP; panelN.p=p.slice(); panelN.r=[0,Math.atan2(eye[0]-p[0],eye[2]-p[2]),0]; } }
   /* render both eyes */
-  const layer=session.renderState.baseLayer,hres=XR.res;
+  const layer=session.renderState.baseLayer,hres=XR.res; updateWorld(world,null); /* once for both eyes */
   for(const v of vp.views){ const vpt=layer.getViewport(v);
     proj.set(v.projectionMatrix); const em=new Float32Array(16); em.set(v.transform.matrix); const wm=m4.make(); m4.mul(wm,worldFromLocal(),em); view.set(rigidInv(wm));
-    const w=Math.max(1,Math.round(hres*vpt.width/vpt.height)); ensureFB(w,hres); gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderWith(w,hres);
+    const w=Math.max(1,Math.round(hres*vpt.width/vpt.height)); ensureFB(w,hres); gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderWith(w,hres,true);
     post(layer.framebuffer,vpt.x,vpt.y,vpt.width,vpt.height,w,hres); }
 }
 (async()=>{ if(navigator.xr&&navigator.xr.isSessionSupported){ try{ if(await navigator.xr.isSessionSupported('immersive-vr')){ for(const id of ['vrBtn','vrBtnT']) $(id).hidden=false; } }catch(_){} } })();

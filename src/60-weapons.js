@@ -35,7 +35,7 @@ function drawFps(v){ fpsN.vis=XR.on; const g=fpsTex.c.getContext('2d'); g.fillSt
 function equip(h,item){
   if(h.stuck) unstick(h); if(h.support) releaseSupport(h.support); if(h.supportOf) releaseSupport(h);
   if(h.itemNode){ disposeTree(h.itemNode); const i=h.node.kids.indexOf(h.itemNode); if(i>=0) h.node.kids.splice(i,1); }
-  h.item=item; h.itemNode=null; h.ammoN=null; h.prevPts=null; h.ammoShown=-9; h.itemL=null; h.itemPR=null; h.itemW=null; h.melQ=null;
+  h.item=item; h.itemNode=null; h.ammoN=null; h.prevPts=null; h.ammoShown=-9; h.itemL=null; h.itemPR=null; h.itemW=null; h.melQ=null; h.pumpSlide=0;
   const w=item&&WPN[item.key]; if(!w||!w.build) return;
   /* VR melee: turned so the handle runs through the fist and the blade comes out over the thumb (61-melee.js) */
   const a=XR.on&&w.melee?meleeAngle(item):0,c=Math.cos(a),sn=Math.sin(a),gr=w.grip,rg=[gr[0],gr[1]*c-gr[2]*sn,gr[1]*sn+gr[2]*c];
@@ -68,7 +68,7 @@ function trySupport(h){ const o=otherHand(h); if(h.item||!o.item||!WPN[o.item.ke
   else if(Math.hypot(...v3.sub(p,forePt(o)))>.2) return false;
   o.support=h; h.supportOf=o; h.supZ=z; o.melQ=null; sfx('click',.5); buzz(h.hand,.4,30); return true; }
 function releaseSupport(s){ const o=s.supportOf; if(!o) return; o.support=null; s.supportOf=null; o.itemW=null;
-  restoreItemNode(o); if(o.itemNode&&o.itemNode.pump) o.itemNode.pump.p[2]=.21; }
+  restoreItemNode(o); if(o.itemNode&&o.itemNode.pump) o.itemNode.pump.p[2]=.21-(o.pumpSlide||0); }
 function applySupport(h){ const s=h.support; if(!s||!h.item||!h.itemNode){ h.itemW=null; return; }
   const w=WPN[h.item.key],G=mulP(h.M,FIST),S=mulP(s.M,FIST); if(Math.hypot(...v3.sub(S,G))>.9){ releaseSupport(s); return; } /* hands pulled apart: let go */
   const v=v3.sub(w.fore,w.grip),zm=norm3(v),um=norm3(v3.sub([0,1,0],v3.sc(zm,zm[1]))),xm=v3.cross(um,zm);
@@ -79,7 +79,8 @@ function applySupport(h){ const s=h.support; if(!s||!h.item||!h.itemNode){ h.ite
   const O=v3.sub(v3.sub(G,mv(R,w.grip)),v3.sc(zw,h.rec*(w.pump?.045:.015)));
   h.itemW=fromCols(R[0],R[1],R[2],O); setLocal(h.itemNode,h.M,h.itemW);
   /* the pump: pull the fore-end back toward you and push it home */
-  let slide=0; if(w.pump){ const L0=Math.hypot(...v3.sub(w.fore,w.grip)); slide=clamp(L0-Math.hypot(...v3.sub(S,G)),0,.085); pumpTick(h,slide); if(h.itemNode.pump) h.itemNode.pump.p[2]=.21-slide; }
+  let slide=0; if(w.pump){ const L0=Math.hypot(...v3.sub(w.fore,w.grip)); /* the fore-end only moves while the support hand squeezes its trigger; let go and it stays where it is */
+    slide=h.pumpSlide=s.trigHeld||!XR.on?clamp(L0-Math.hypot(...v3.sub(S,G)),0,PUMP_STROKE):(h.pumpSlide||0); pumpTick(h,slide); if(h.itemNode.pump) h.itemNode.pump.p[2]=.21-slide; }
   /* the front hand sits on the fore-end (or wherever it took the axe handle) instead of floating next to it */
   /* the support hand cups the fore-end, its forearm running back and down toward your elbow (not cocked up at the controller's angle) */
   const fp=mulP(h.itemW,[w.fore[0],w.fore[1],(s.supZ??w.fore[2])-slide]),side=s.side==='L'?-1:1,arm=norm3(v3.add(v3.add(v3.sc(zw,-.5),[0,-.8,0]),v3.sc(xw,.25*side)));

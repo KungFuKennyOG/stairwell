@@ -514,24 +514,37 @@ function ensureFB(w,h){ if(w===fbW&&h===fbH) return; fbW=w; fbH=h;
   for(const k of [gl.TEXTURE_WRAP_S,gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D,k,gl.CLAMP_TO_EDGE);
   gl.bindRenderbuffer(gl.RENDERBUFFER,fbDepth); gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT24,w,h);
   gl.bindFramebuffer(gl.FRAMEBUFFER,fb); gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,fbTex,0); gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,fbDepth); gl.bindFramebuffer(gl.FRAMEBUFFER,null); }
-const view=m4.make(),proj=m4.make(); let curCull=null; const viewShift=[0,0];
+const view=m4.make(),proj=m4.make(); let curCull=null,curMat=null,curTex=null; const viewShift=[0,0];
+/* frustum culling: one bounding sphere per geometry (skinned bodies and the dynamic blood meshes are never culled), tested against
+   the current eye's clip planes and the fog distance. Material state is only re-sent when it actually changes. */
+const FR=new Float32Array(24),VPm=m4.make(); let cullOn=false,cullEye=[0,0,0],cullFar=1e9;
+function setCull(eye,far){ m4.mul(VPm,proj,view); const m=VPm;
+  const rows=[[m[3]+m[0],m[7]+m[4],m[11]+m[8],m[15]+m[12]],[m[3]-m[0],m[7]-m[4],m[11]-m[8],m[15]-m[12]],[m[3]+m[1],m[7]+m[5],m[11]+m[9],m[15]+m[13]],[m[3]-m[1],m[7]-m[5],m[11]-m[9],m[15]-m[13]],[m[3]+m[2],m[7]+m[6],m[11]+m[10],m[15]+m[14]],[m[3]-m[2],m[7]-m[6],m[11]-m[10],m[15]-m[14]]];
+  rows.forEach((r,i)=>{ const l=Math.hypot(r[0],r[1],r[2])||1; FR[i*4]=r[0]/l; FR[i*4+1]=r[1]/l; FR[i*4+2]=r[2]/l; FR[i*4+3]=r[3]/l; }); cullOn=true; cullEye=eye; cullFar=far; }
+function geoBounds(g){ if(g.bs) return g.bs; const P=g.P; let x0=1e9,y0=1e9,z0=1e9,x1=-1e9,y1=-1e9,z1=-1e9; for(let i=0;i<P.length;i+=3){ if(P[i]<x0)x0=P[i]; if(P[i]>x1)x1=P[i]; if(P[i+1]<y0)y0=P[i+1]; if(P[i+1]>y1)y1=P[i+1]; if(P[i+2]<z0)z0=P[i+2]; if(P[i+2]>z1)z1=P[i+2]; }
+  const c=[(x0+x1)/2,(y0+y1)/2,(z0+z1)/2]; let r=0; for(let i=0;i<P.length;i+=3) r=Math.max(r,Math.hypot(P[i]-c[0],P[i+1]-c[1],P[i+2]-c[2])); return g.bs={c,r}; }
+function culled(n,g){ if(!cullOn||g.noCull||!g.P.length) return false; const b=geoBounds(g),w=n.world,c=b.c;
+  const x=w[0]*c[0]+w[4]*c[1]+w[8]*c[2]+w[12],y=w[1]*c[0]+w[5]*c[1]+w[9]*c[2]+w[13],z=w[2]*c[0]+w[6]*c[1]+w[10]*c[2]+w[14];
+  const r=b.r*Math.max(Math.hypot(w[0],w[1],w[2]),Math.hypot(w[4],w[5],w[6]),Math.hypot(w[8],w[9],w[10]));
+  if(Math.hypot(x-cullEye[0],y-cullEye[1],z-cullEye[2])-r>cullFar) return true;
+  for(let i=0;i<24;i+=4) if(FR[i]*x+FR[i+1]*y+FR[i+2]*z+FR[i+3]<-r) return true; return false; }
 function runsOf(mesh){ if(mesh.runs) return mesh.runs; const runs=[]; const g=mesh.geo;
   if(mesh.mats.length===1){ runs.push({start:0,count:g.I.length,m:mesh.mats[0]}); }
   else for(const gr of g.groups){ const m=mesh.mats[gr.mi]||mesh.mats[0]; const last=runs[runs.length-1]; if(last&&last.m===m&&last.start+last.count===gr.start) last.count+=gr.count; else runs.push({start:gr.start,count:gr.count,m}); }
   return mesh.runs=runs; }
 function drawTree(n){ if(!n.vis) return;
-  if(n.mesh){ const g=n.mesh.geo; if(!g.vao) upload(g); gl.bindVertexArray(g.vao); gl.uniformMatrix4fv(MAIN.loc.modelMatrix,false,n.world);
+  if(n.mesh){ const g=n.mesh.geo; if(!culled(n,g)){ if(!g.vao) upload(g); gl.bindVertexArray(g.vao); gl.uniformMatrix4fv(MAIN.loc.modelMatrix,false,n.world);
     for(const run of runsOf(n.mesh)){ const m=run.m; const cull=!m.dbl; if(cull!==curCull){ cull?gl.enable(gl.CULL_FACE):gl.disable(gl.CULL_FACE); curCull=cull; }
-      if(m.tex){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,glTex(m.tex)); }
-      gl.uniform1f(MAIN.loc.uHasMap,m.tex?1:0); gl.uniform3fv(MAIN.loc.uColor,m.color); gl.uniform3fv(MAIN.loc.uEmissive,m.emis);
-      gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut);
-      gl.drawElements(gl.TRIANGLES,run.count,gl.UNSIGNED_SHORT,run.start*2); } }
+      if(m!==curMat){ curMat=m; if(m.tex){ const t=glTex(m.tex); if(t!==curTex){ gl.bindTexture(gl.TEXTURE_2D,t); curTex=t; } }
+        gl.uniform1f(MAIN.loc.uHasMap,m.tex?1:0); gl.uniform3fv(MAIN.loc.uColor,m.color); gl.uniform3fv(MAIN.loc.uEmissive,m.emis);
+        gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut); }
+      gl.drawElements(gl.TRIANGLES,run.count,gl.UNSIGNED_SHORT,run.start*2); } } }
   for(const k of n.kids) drawTree(k); }
 function renderScene(root,eye,target,w,h,snapRes){
   m4.persp(proj,50*Math.PI/180,w/h,0.05,120); proj[8]=-viewShift[0]; proj[9]=-viewShift[1]; m4.lookAt(view,eye,target,[0,1,0]);
   updateWorld(root,null);
   gl.viewport(0,0,w,h); gl.clearColor(L.fog[0],L.fog[1],L.fog[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-  gl.enable(gl.DEPTH_TEST); gl.useProgram(MAIN.p); curCull=null; const u=MAIN.loc;
+  gl.enable(gl.DEPTH_TEST); gl.useProgram(MAIN.p); curCull=null; curMat=null; curTex=null; gl.activeTexture(gl.TEXTURE0); cullOn=false; const u=MAIN.loc;
   gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
   gl.uniform1f(u.uSnap,state.ps1&&state.snap?1:0); gl.uniform1f(u.uAffine,state.ps1&&state.affine?1:0); gl.uniform2f(u.uRes,snapRes[0],snapRes[1]);
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
@@ -622,7 +635,7 @@ function rig(o,parent){
   const n=g.P.length/3,bi=new Uint8Array(n*2),bw=new Float32Array(n*2);
   sk.forEach((ws,i)=>{ ws.slice(0,2).forEach(([b,wt],k)=>{ bi[i*2+k]=BONES.indexOf(b); bw[i*2+k]=wt; }); });
   J.body=mk(g,[o.torsoM,o.armLM||o.armM,o.armM,o.legM,o.legM],root);
-  J.skin={geo:g,bi,bw,bindP:new Float32Array(g.P),bindN:new Float32Array(g.Nm),P:new Float32Array(g.P),N:new Float32Array(g.Nm),bpos:BONES.map(b=>P[b]),rel:BONES.map(()=>m4.make()),loc:m4.make()};
+  g.noCull=true; J.skin={geo:g,bi,bw,bindP:new Float32Array(g.P),bindN:new Float32Array(g.Nm),P:new Float32Array(g.P),N:new Float32Array(g.Nm),bpos:BONES.map(b=>P[b]),rel:BONES.map(()=>m4.make()),loc:m4.make()};
   /* rigid parts */
   const hs=o.headS||1;
   J.headMesh=mk(lathe(HEAD_RINGS.map(([y,rx,rz,cz])=>[y*hs,rx*hs,rz*hs,cz*hs]),12),o.headM,J.head);

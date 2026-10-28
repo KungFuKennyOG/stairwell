@@ -114,7 +114,8 @@ function updateShells(dt){ for(const s of SHELLS.slice()){ s.age+=dt; if(s.age>2
   const q=[s.n.p[0],s.n.p[2]]; pushOutXZ(q,.02,'body'); if(q[0]!==s.n.p[0]||q[1]!==s.n.p[2]){ s.n.p[0]=q[0]; s.n.p[2]=q[1]; s.v[0]*=-.3; s.v[2]*=-.3; } } }
 
 /* ---------- the pump ---------- */
+const PUMP_STROKE=.14; /* a full-length rack: about 14 cm back */
 function pumpTick(h,slide){ const it=h.item,s=h.support;
-  if(it.pumpSt!=='back'&&slide>.066){ it.pumpSt='back'; sfx('pumpback'); buzz(h.hand,.4,30); if(s) buzz(s.hand,.8,45);
+  if(it.pumpSt!=='back'&&slide>PUMP_STROKE*.82){ it.pumpSt='back'; sfx('pumpback'); buzz(h.hand,.4,30); if(s) buzz(s.hand,.8,45);
     if(it.spent||it.chambered){ ejectShell(h,it.spent); if(it.chambered&&!it.spent) it.ammo=Math.max(0,it.ammo-1); it.spent=false; it.chambered=false; } } /* rack a live one and you throw it away, like a real pump */
-  else if(it.pumpSt==='back'&&slide<.014){ it.pumpSt='in'; sfx('pumpfwd'); buzz(h.hand,.5,35); if(s) buzz(s.hand,.9,50); if(it.ammo>0&&!it.chambered) it.chambered=true; h.ammoShown=-9; } }
+  else if(it.pumpSt==='back'&&slide<.018){ it.pumpSt='in'; sfx('pumpfwd'); buzz(h.hand,.5,35); if(s) buzz(s.hand,.9,50); if(it.ammo>0&&!it.chambered) it.chambered=true; h.ammoShown=-9; } }
