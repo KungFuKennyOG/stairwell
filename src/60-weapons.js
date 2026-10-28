@@ -1,0 +1,137 @@
+/* =====================================================================
+   WEAPONS: what Ray holds.
+   VR: each hand holds one thing or makes a fist. Grip grabs (from the rack, the floor, a body) and grip again
+   drops or throws. Trigger fires that hand's gun, A/X reloads it. Melee is physical: a fist or blade has to
+   actually move fast into a body, and harder swings hit harder.
+   Flat screen (testing): the right hand holds what you pick with 1-9, click uses it; the left hand keeps a knife (F).
+   ===================================================================== */
+const FIST=[0,-.035,-.012];
+const WPN={
+  fists:   {label:'Fists',melee:'blunt',reach:1.05,pts:[[0,0,0]],speed:1.5},
+  bottle:  {label:'Broken bottle',build:pBottle,grip:[0,0,0],melee:'knife',bleed:.8,sever:.4,uses:6,reach:1.15,pts:[[0,0,.19],[0,0,.12]],speed:1.4},
+  knife:   {label:'Kitchen knife',build:pKnife,grip:[0,0,0],melee:'knife',reach:1.2,pts:[[0,0,.23],[0,0,.15]],speed:1.3},
+  machete: {label:'Machete',build:pMachete,grip:[0,0,0],melee:'knife',bleed:1.35,sever:1.7,stun:1.2,push:1.3,chop:true,reach:1.45,pts:[[0,-.012,.42],[0,-.012,.3],[0,-.012,.17]],speed:1.8},
+  axe:     {label:'Fire axe',build:pAxe,grip:[0,0,.04],melee:'knife',bleed:1.6,sever:3,stun:1.6,push:2,chop:true,heavy:true,reach:1.6,pts:[[0,-.13,.6],[0,-.07,.6],[0,.0,.6]],speed:2},
+  revolver:{label:'.38 revolver',build:pRevolver,grip:[0,-.035,-.015],gun:true,mag:6,rof:.3,muzzle:[0,.036,.15],axisY:.036,push:1.3,loadOne:true,snd:'revolver'},
+  pistol:  {label:'9mm pistol',build:pPistol,grip:[0,-.035,-.005],gun:true,mag:12,rof:.11,muzzle:[0,.045,.17],axisY:.045},
+  shotgun: {label:'Pump shotgun',build:pShotgun,grip:[0,-.04,-.08],gun:true,mag:5,rof:.8,muzzle:[0,.02,.6],axisY:.02,pellets:9,spread:.05,bleed:.5,sever:.55,push:.5,loadOne:true,snd:'shotgun'},
+  smg:     {label:'Compact SMG',build:pSMG,grip:[0,-.07,-.07],gun:true,mag:30,rof:.07,auto:true,muzzle:[0,.012,.23],axisY:.012,spread:.014,snd:'smg'}
+};
+const WPN_KEYS=['fists','bottle','knife','machete','axe','revolver','pistol','shotgun','smg'];
+const KIND_WPN={corner:'bottle',cutter:'machete',gunman:'pistol',doorman:'shotgun',enforcer:'smg',landlord:'revolver'};
+function newItem(key,ammo){ const w=WPN[key]; return {key,ammo:w.gun?(ammo??w.mag):0,reload:0,uses:w.uses||0,cd:0}; }
+
+/* ---------- hands ---------- */
+function ammoTexNew(){ return tex(16,8,'#0a0b0d'); }
+function makeHand(side){ const n=N(world);
+  mk(box(.072,.084,.094),M(side==='R'?tTape:tRayGlove),n,FIST[0],FIST[1],FIST[2]);
+  mk(lathe([[-.34,.05,.05],[0,.045,.045]],6),M(side==='R'?tRayArmR:tRayArmL),n,0,-.05,-.05,Math.PI/2,0,0);
+  return {side,hand:side==='R'?'right':'left',node:n,item:null,itemNode:null,M:m4.make(),prevPts:null,cd:0,rec:0,ammoTex:ammoTexNew(),ammoShown:-9,ammoN:null,swingT:-1,swingDone:false,vel:[0,0,0],prevPos:null}; }
+const HANDS={L:makeHand('L'),R:makeHand('R')};
+/* frame rate on the inside of the left wrist (VR) */
+const fpsTex=tex(24,8,'#0a0b0d'); const fpsN=mk(plane(.045,.015),M(fpsTex,{unlit:true}),HANDS.L.node,.035,-.03,-.09,0,Math.PI/2,0); fpsN.vis=false;
+function drawFps(v){ fpsN.vis=XR.on; const g=fpsTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,24,8); const s=String(v); text(g,s,(24-textW(s))>>1,1,v>=68?'#7ec27a':v>=55?'#e2a33d':'#ff3b30');
+  if(fpsTex.glt){ gl.bindTexture(gl.TEXTURE_2D,fpsTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,fpsTex.c); } }
+function equip(h,item){
+  if(h.itemNode){ disposeTree(h.itemNode); const i=h.node.kids.indexOf(h.itemNode); if(i>=0) h.node.kids.splice(i,1); }
+  h.item=item; h.itemNode=null; h.ammoN=null; h.prevPts=null; h.ammoShown=-9;
+  const w=item&&WPN[item.key]; if(!w||!w.build) return;
+  const g=N(h.node,FIST[0]-w.grip[0],FIST[1]-w.grip[1],FIST[2]-w.grip[2]); GEO_TEMP=true; w.build(g); GEO_TEMP=false; h.itemNode=g;
+  if(w.gun) h.ammoN=mk(plane(.032,.016),M(h.ammoTex,{unlit:true}),g,0,w.axisY+.03,.02,-Math.PI/2,0,0); }
+const transl=p=>{ const m=m4.make(); m[12]=p[0]; m[13]=p[1]; m[14]=p[2]; return m; };
+function itemM(h){ const o=m4.make(); m4.mul(o,h.M,transl(h.itemNode?h.itemNode.p:[0,0,0])); return o; }
+function handPts(h){ const w=WPN[h.item?h.item.key:'fists']; if(!h.item||!h.itemNode) return [mulP(h.M,FIST)]; const Mi=itemM(h); return w.pts.map(p=>mulP(Mi,p)); }
+function updateAmmoLabel(h){ const it=h.item; if(!it||!WPN[it.key].gun) return; const v=it.reload>0?-2:it.ammo; if(v===h.ammoShown) return; h.ammoShown=v;
+  const t=h.ammoTex,g=t.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,16,8); const s=v<0?'--':String(v).padStart(2,'0'); text(g,s,(16-textW(s))>>1,1,v===0?'#ff3b30':'#e2a33d');
+  if(t.glt){ gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,t.c); } }
+
+/* ---------- guns ---------- */
+function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye down the crosshair) */
+  const it=h.item; if(!it||!GAME.started||PL.dead) return false; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.cd>0) return false;
+  if(it.ammo<=0){ sfx('click'); it.cd=.25; if(!XR.on) reloadHand(h); return false; }
+  it.ammo--; it.cd=w.rof; h.rec=1; sfx(w.snd||'gun'); if(XR.on) buzz(h.hand,.9,w.pellets?110:60);
+  const Mi=itemM(h),mz=mulP(Mi,w.muzzle),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); muzzle(mz);
+  const o=aim?aim.o:mz,d0=aim?aim.d:bd; alertAll([PL.x,0,PL.z]);
+  const n=w.pellets||1,sp=w.spread||.006;
+  for(let i=0;i<n;i++) bullet(o,norm3(v3.add(d0,[rnd(-sp,sp),rnd(-sp,sp),rnd(-sp,sp)])),w,h);
+  if(it.ammo===0&&!XR.on) setTimeout(()=>reloadHand(h),250);
+  return true; }
+function bullet(o,d,w,h){
+  const wall=rayRoom(o,d),hit=rayEnemiesExact(o,d,wall.t);
+  if(hit){ const p=hit.p; hitEnemy(hit.E,hit.seg,p,d,'gun',{bleed:w.bleed||1,sever:w.sever||1,push:w.push||1});
+    const back=rayRoom(v3.add(p,v3.sc(d,.25)),d); if(back.t<2.6){ const wp=v3.add(v3.add(p,v3.sc(d,.25+back.t)),v3.sc(back.n,.004)); addDecal(DEC.splat,wp,back.n,rnd(.16,.3),260,back.n[1]===0?rnd(.25,.45):undefined); }
+    if(hit.t<1.3) screenBlood(w.pellets?1:3); hitMarker(); if(XR.on) buzz(h.hand,.4,40); }
+  else { const p=v3.add(v3.add(o,v3.sc(d,wall.t)),v3.sc(wall.n,.004)); addDecal(DEC.hole,p,wall.n,.028,140); for(let i=0;i<(w.pellets?2:8);i++) emit(p,v3.add(v3.sc(wall.n,rnd(.6,1.6)),[rnd(-.5,.5),rnd(0,.8),rnd(-.5,.5)]),rnd(.006,.012),'dust',.8); } }
+function reloadHand(h){ const it=h.item; if(!it) return; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.ammo>=w.mag) return;
+  it.reload=w.loadOne?.42:1.35; sfx(w.loadOne?'shell':'reload'); }
+function tickItem(h,dt){ const it=h.item; h.rec=Math.max(0,h.rec-dt*7); h.cd-=dt; if(!it) return; it.cd-=dt;
+  if(it.reload>0){ it.reload-=dt; if(it.reload<=0){ const w=WPN[it.key]; it.reload=0; it.ammo=w.loadOne?Math.min(w.mag,it.ammo+1):w.mag; if(w.loadOne&&it.key==='shotgun') sfx('pump',.7); } } }
+
+/* ---------- melee ---------- */
+function meleeHit(h,E,seg,p,dir,speed){
+  const key=h.item?h.item.key:'fists',w=WPN[key];
+  if(w.melee==='blunt'){ hitEnemy(E,seg,p,dir,'blunt',{power:clamp(speed/3.2,.45,1.7)}); sfx('punch'); }
+  else { hitEnemy(E,seg,p,dir,'knife',{bleed:w.bleed||1,sever:w.sever||1,stun:w.stun||1,push:w.push||1,chop:!!w.chop,heavy:!!w.heavy,power:clamp(speed/3,.6,1.6)}); sfx(w.chop?'chop':'stab');
+    if(w.uses){ h.item.uses--; if(h.item.uses<=0){ sfx('glass'); spray(p,v3.sc(dir,-1),10,1.6,.8,'dust',.008); equip(h,null); } } }
+  if(XR.on) buzz(h.hand,1,w.heavy?140:90); h.cd=w.heavy?.45:.28; }
+/* VR: every frame, each striking point of each hand is swept from where it was to where it is */
+function vrMelee(h,dt){
+  if(h.item&&WPN[h.item.key].gun){ h.prevPts=null; return; }
+  const pts=handPts(h),w=WPN[h.item?h.item.key:'fists'];
+  if(h.prevPts&&h.cd<=0&&GAME.started&&!PL.dead) for(let i=0;i<pts.length;i++){ const a=h.prevPts[i],b=pts[i],d=v3.sub(b,a),len=Math.hypot(...d),speed=len/Math.max(dt,1e-3);
+    if(speed<w.speed||len<1e-4) continue; const dir=v3.sc(d,1/len),o=v3.sub(a,v3.sc(dir,.04)),hit=rayEnemies(o,dir,len+.08,.03); if(!hit) continue;
+    const ex=rayMesh(hit.E,o,dir,0,len+.09); if(!ex) continue; const p=v3.add(o,v3.sc(dir,ex.t)); meleeHit(h,hit.E,segFor(hit.E,ex.bone,p),p,dir,speed); break; }
+  h.prevPts=pts; }
+/* flat screen: a swing that lands a moment after you click, down the crosshair */
+function flatSwing(h){ if(!GAME.started||PL.dead||h.swingT>=0||h.cd>0) return; h.swingT=0; h.swingDone=false; }
+function flatSwingHit(h){ const {f,eye}=camBasis(),w=WPN[h.item?h.item.key:'fists']; const hit=rayEnemies(eye,f,w.reach,.07);
+  if(hit){ const c=v3.add(eye,v3.sc(f,hit.t)),ex=rayMesh(hit.E,eye,f,Math.max(0,hit.t-.05),hit.t+.4)||nearestSkin(hit.E,c,.2),p=ex?(ex.p||v3.add(eye,v3.sc(f,ex.t))):c;
+    meleeHit(h,hit.E,ex?segFor(hit.E,ex.bone,p):hit.seg,p,f,w.heavy?3.6:3); screenBlood(w.melee==='blunt'?1:3); hitMarker(); }
+  else { sfx('swish'); const D=doorNear(eye[0]+f[0]*.8,eye[2]+f[2]*.8,.8); if(D&&D.state==='closed'&&w.heavy) kickDoor(D); } }
+function useRight(){ const h=HANDS.R; if(h.item&&WPN[h.item.key].gun) fireHand(h,(()=>{ const {f,eye}=camBasis(); return {o:eye,d:f}; })()); else flatSwing(h); }
+
+/* ---------- things lying around: dropped, thrown, taken off the dead ---------- */
+const LOOSE=[];
+function addPickup(item,Mw,v,spin){ const n=N(world); GEO_TEMP=true; WPN[item.key].build(n); GEO_TEMP=false; setLocal(n,m4.make(),Mw);
+  const P={item,node:n,v:v.slice(),spin:spin||[rnd(-5,5),rnd(-5,5),rnd(-5,5)],rest:false,thrown:Math.hypot(...v)>3,age:0}; LOOSE.push(P); return P; }
+function removePickup(P){ const i=LOOSE.indexOf(P); if(i>=0) LOOSE.splice(i,1); disposeTree(P.node); const k=world.kids.indexOf(P.node); if(k>=0) world.kids.splice(k,1); }
+function updatePickups(dt){ for(const P of LOOSE){ P.age+=dt; if(P.rest) continue; const n=P.node,old=n.p.slice();
+  P.v[1]-=9.8*dt; for(let c=0;c<3;c++){ n.p[c]+=P.v[c]*dt; n.r[c]+=P.spin[c]*dt; }
+  /* a thrown blade or bottle that reaches someone hurts him */
+  if(P.thrown&&P.age>.05){ const d=v3.sub(n.p,old),len=Math.hypot(...d); if(len>1e-4){ const dir=v3.sc(d,1/len),hit=rayEnemies(old,dir,len+.05,.05);
+    if(hit){ const ex=rayMesh(hit.E,old,dir,0,len+.1),p=ex?v3.add(old,v3.sc(dir,ex.t)):v3.add(old,v3.sc(dir,hit.t)),seg=ex?segFor(hit.E,ex.bone,p):hit.seg,w=WPN[P.item.key],sp=Math.hypot(...P.v);
+      if(w.melee==='knife'&&Math.random()<.65) hitEnemy(hit.E,seg,p,dir,'knife',{bleed:w.bleed||1,sever:(w.sever||1)*.6,stun:1.2,push:.8,power:clamp(sp/5,.6,1.4)}); else hitEnemy(hit.E,seg,p,dir,'blunt',{power:clamp(sp/5,.5,1.4)});
+      if(P.item.key==='bottle'){ sfx('glass'); spray(p,v3.sc(dir,-1),12,1.5,.8,'dust',.008); removePickup(P); return updatePickups(0); }
+      sfx(w.melee==='knife'?'stab':'punch'); hitMarker(); P.v=v3.sc(P.v,-.15); P.thrown=false; } } }
+  const r=.04,q=[n.p[0],n.p[2]]; let floorY=r;
+  for(const b of boxesAt(n.p[0],n.p[2])){ if(n.p[0]>b.x0&&n.p[0]<b.x1&&n.p[2]>b.z0&&n.p[2]<b.z1){ if(old[1]>=b.h-.02&&b.kind!=='wall'&&b.kind!=='door') floorY=Math.max(floorY,b.h+r); else if(n.p[1]<b.h&&n.p[1]>b.y0){ n.p[0]=old[0]; n.p[2]=old[2]; P.v[0]*=-.3; P.v[2]*=-.3; P.thrown=false; } } }
+  n.p[0]=clamp(n.p[0],-RX+.05,RX-.05); n.p[2]=clamp(n.p[2],-RZ+.05,RZ-.05); n.p[1]=Math.min(n.p[1],RH-.05);
+  if(n.p[1]<floorY){ n.p[1]=floorY; if(Math.abs(P.v[1])<1.2){ P.rest=true; P.thrown=false; n.r=[0,n.r[1],Math.PI/2]; } else { P.v[1]*=-.25; P.v[0]*=.5; P.v[2]*=.5; P.thrown=false; if(P.item.key==='bottle'&&Math.hypot(...P.v)>2.5){ sfx('glass'); removePickup(P); return updatePickups(0); } } } } }
+
+/* ---------- the armory rack (test floor): every weapon on a hook, take as many as you like ---------- */
+const RACK=[]; let rackN=null;
+function buildRack(){ if(rackN){ disposeTree(rackN); const i=world.kids.indexOf(rackN); if(i>=0) world.kids.splice(i,1); } RACK.length=0; if(!FLOOR.test) { rackN=null; return; }
+  rackN=N(world); const z=1.9,y=1.25; GEO_TEMP=true;
+  mk(box(2.7,.9,.04),M(tCrate),rackN,-11.5,y,z+.04); mk(box(2.7,.05,.06),mSteel,rackN,-11.5,y+.47,z+.02);
+  const lab=tex(256,16,null,g=>{ WPN_KEYS.forEach((k,i)=>{ const s=['FIST','BOTL','KNIF','MACH','AXE','.38','9MM','PUMP','SMG'][i]; text(g,s,i*28+14-(textW(s)>>1),4,'#e8e2cf'); }); });
+  mk(plane(2.52,.16),M(lab,{unlit:true,cut:true}),rackN,-11.5,y-.36,z+.005,0,Math.PI,0);
+  WPN_KEYS.forEach((k,i)=>{ const x=-11.5+1.26-(i+.5)*.28; const hook=N(rackN,x,y+.05,z-.06,-Math.PI/2,Math.PI,0);
+    if(WPN[k].build) WPN[k].build(N(hook,0,0,k==='axe'?-.3:k==='shotgun'?-.22:-.08)); else mk(box(.08,.09,.09),M(tTape),hook);
+    RACK.push({key:k,node:hook,x,y:y+.02,z:z-.08,taken:0}); });
+  GEO_TEMP=false; }
+function nearestGrabbable(p,maxD){ let best=null,bd=maxD;
+  for(const R of RACK){ if(R.taken>0) continue; const d=Math.hypot(p[0]-R.x,(p[1]-R.y)*.6,p[2]-R.z); if(d<bd){ bd=d; best={rack:R}; } }
+  for(const P of LOOSE){ const q=P.node.p,d=Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2]); if(d<bd){ bd=d; best={pick:P}; } }
+  return best; }
+function grabOrDrop(h){
+  if(h.item){ /* let go: it falls, or flies if the hand was moving */
+    if(h.itemNode){ const Mi=itemM(h); addPickup(h.item,Mi,h.vel,Math.hypot(...h.vel)>3?[rnd(-2,2),rnd(-12,12),rnd(-2,2)]:null); }
+    equip(h,null); sfx('swish',.4); return; }
+  const g=nearestGrabbable(mulP(h.M,FIST),.26); if(!g) return;
+  if(g.rack){ if(g.rack.key==='fists') return; equip(h,newItem(g.rack.key)); g.rack.taken=.8; g.rack.node.vis=false; }
+  else { equip(h,g.pick.item); removePickup(g.pick); }
+  sfx('click',.6); buzz(h.hand,.5,40); }
+function tickRack(dt){ for(const R of RACK) if(R.taken>0){ R.taken-=dt; if(R.taken<=0) R.node.vis=true; } }
+
+/* doors: kick one in (loud), or a heavy weapon breaks through */
+function kickDoor(D){ D.loud=true; setDoor(D,'open'); sfx('doorkick'); alertAll([D.x,0,D.side]); }

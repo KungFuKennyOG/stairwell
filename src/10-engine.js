@@ -359,7 +359,14 @@ function printI(I,x0,y0,w,h,seed){ const r=rng(seed); for(let i=0;i<w*h/90;i++){
 const tGunTorso=torsoP('gunman',341,(x,y)=>y<T3.belt-3?[PR,'cotton']:['#19191c','wool',.6],{decor:I=>{ neckShadow(I); printI(I,0,T3.neck,128,T3.belt-T3.neck-3,342);
   softEll(I,64,T3.neck+8,11,20,HEADS.gunman.skin,1,.25); softLine(I,55,T3.neck+18,64,T3.neck+24,'#c9a23a',.9,1.2); softLine(I,73,T3.neck+18,64,T3.neck+24,'#c9a23a',.9,1.2);
   for(const s of [-1,1]) softLine(I,64+s*10,T3.neck,64+s*20,T3.neck+12,'#1d3a37',.9,2.4); seam(I,64,T3.neck+28,64,T3.belt-4); for(let y=T3.neck+34;y<T3.belt;y+=22) softEll(I,66,y,1.3,1.3,'#e6dcc4',.9);
-  for(let x=0;x<128;x+=6) softLine(I,x,T3.belt-14,x+2,T3.belt-4,'#000000',.15,1.2); beltI(I,'#0e0e10','#c9a23a'); seam(I,64,T3.belt+5,64,T3.belt+40); }});
+  for(let x=0;x<128;x+=6) softLine(I,x,T3.belt-14,x+2,T3.belt-4,'#000000',.15,1.2); beltI(I,'#0e0e10','#c9a23a'); seam(I,64,T3.belt+5,64,T3.belt+40);
+  /* shoulder holster painted into the shirt: straps over both shoulders front and back, a holster under his left arm, mag pouches under the right */
+  const SR='#2a190f',SH='#5c3a24';
+  for(const s of [-1,1]){ for(const [x0,x1] of [[64+s*18,64+s*25],[s<0?14:114,s<0?25:103]]){ softLine(I,x0,T3.neck-2,x1,T3.chest+16,SR,.95,3.6); softLine(I,x0+.9,T3.neck,x1+.9,T3.chest+15,SH,.5,1); }
+    const sx=s>0?96:32; softLine(I,64+s*25,T3.chest+16,sx-s*3,T3.chest+8,SR,.9,3.2); softLine(I,s<0?25:103,T3.chest+16,sx+s*3,T3.chest+8,SR,.9,3.2); }
+  softLine(I,0,T3.sh+26,25,T3.sh+24,SR,.9,3); softLine(I,103,T3.sh+24,128,T3.sh+26,SR,.9,3);
+  softRect(I,89,T3.sh+12,15,42,'#22140c',.97,2); softRect(I,91,T3.sh+13,11,9,'#121214',.92,1); softLine(I,90,T3.sh+24,103,T3.sh+24,'#4a2e1c',.55,1);
+  for(const y of [T3.sh+20,T3.sh+34]){ softRect(I,26,y,12,12,'#22140c',.95,1.5); softLine(I,27,y+2,37,y+2,'#4a2e1c',.5,1); } }});
 const tGunArm=armP(344,(x,y)=>y<44?[PR,'cotton']:[HEADS.gunman.skin,'skin',0],{decor:I=>{ printI(I,0,0,64,42,345); softRect(I,0,40,64,4,'#1d3a37',.9,1); blob(I,32,47,30,3,-.18);
   const r=rng(346); for(let i=0;i<80;i++){ const x=r()*64,y=50+r()*70; softLine(I,x,y,x+.6,y+1.4,'#7a5038',.35,.7); } blob(I,32,76,10,4,-.1); }});
 const tGunLeg=legP(347,()=>['#19191c','wool'],{decor:I=>{ softLine(I,32,0,32,128,'#3a3a40',.5,1); softLine(I,0,0,0,128,'#3a3a40',.4,1); seam(I,48,0,48,128); seam(I,16,0,16,128); }});
@@ -418,14 +425,14 @@ uniform mat4 modelMatrix, viewMatrix, projectionMatrix;
 uniform float uSnap, uAffine, uUnlit;
 uniform vec2 uRes;
 uniform vec3 uAmb, uDirDir, uDirCol;
-uniform vec3 uPLPos[4]; uniform vec3 uPLCol[4]; uniform float uPLDist[4];
+uniform vec3 uPLPos[8]; uniform vec3 uPLCol[8]; uniform float uPLDist[8];
 uniform float uFogNear, uFogFar;
 out vec3 vAff; out vec3 vLight; out float vFog;
 void main(){
   vec4 wp = modelMatrix * vec4(position,1.0);
   vec3 n = normalize(mat3(modelMatrix) * normal);
   vec3 L = uAmb + uDirCol * max(dot(n, normalize(uDirDir)), 0.0);
-  for(int i=0;i<4;i++){
+  for(int i=0;i<8;i++){
     vec3 d = uPLPos[i] - wp.xyz; float dist = length(d);
     float a = clamp(1.0 - dist / uPLDist[i], 0.0, 1.0); a *= a;
     L += uPLCol[i] * a * max(dot(n, d / max(dist, 1e-4)), 0.0);
@@ -483,7 +490,7 @@ function upload(g){ g.vao=gl.createVertexArray(); gl.bindVertexArray(g.vao); g.b
   [[g.P,3],[g.Nm,3],[g.T,2]].forEach(([arr,size],i)=>{ const b=gl.createBuffer(); g.bufs.push(b); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(arr),gl.STATIC_DRAW); gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i,size,gl.FLOAT,false,0,0); });
   const ib=gl.createBuffer(); g.bufs.push(ib); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(g.I),gl.STATIC_DRAW); gl.bindVertexArray(null); }
 function disposeTree(n){ if(n.mesh){ const g=n.mesh.geo; if(g.temp&&g.vao){ gl.deleteVertexArray(g.vao); for(const b of g.bufs) gl.deleteBuffer(b); g.vao=null; } } for(const k of n.kids) disposeTree(k); }
-const L={amb:[.1,.1,.1],dirDir:[0,1,0],dirCol:[0,0,0],plPos:new Float32Array(12),plCol:new Float32Array(12),plDist:new Float32Array([1,1,1,1]),fog:[0,0,0],fogNear:8,fogFar:30};
+const L={amb:[.1,.1,.1],dirDir:[0,1,0],dirCol:[0,0,0],plPos:new Float32Array(24),plCol:new Float32Array(24),plDist:new Float32Array([1,1,1,1,1,1,1,1]),fog:[0,0,0],fogNear:8,fogFar:30};
 function setLights(o){ L.amb=o.amb; L.dirDir=o.dir; L.dirCol=o.dirCol; L.fog=o.fog; L.fogNear=o.fogNear; L.fogFar=o.fogFar; L.plPos.fill(0); L.plCol.fill(0); L.plDist.fill(1);
   o.pl.forEach((pl,i)=>{ L.plPos.set(pl[0],i*3); L.plCol.set(pl[1],i*3); L.plDist[i]=pl[2]; }); }
 let fb=null,fbTex=null,fbDepth=null,fbW=0,fbH=0;
@@ -829,8 +836,6 @@ function makeGunman(parent,grp){
     torsoM:M(tGunTorso),armM:M(tGunArm),legM:M(tGunLeg),footM:M(tShoeBlack)});
   const J=rig(o,parent);
   const sy=1.09*o.hf,st=M(tStrapBrown),f=frontAt(o,1.33,.004),t=torsoAt(o,1.33*o.hf),bk=-t[2]+t[3]-.004;
-  for(const s of [1,-1]){ mk(box(.028,.34,.01),st,J.spine,s*.1,1.3*o.hf-sy,f); mk(box(.028,.34,.01),st,J.spine,s*.1,1.3*o.hf-sy,bk); }
-  mk(box(.05,.13,.085),st,J.spine,.17,1.28*o.hf-sy,0);
   mk(box(.06,.022,.06),M(null,{color:0xc9a23a}),J.handL,0,.01,0);
   for(const s of [1,-1]) mk(box(.05,.01,.055,{td:.4}),M(tGunArm),J.neck,s*.045,.0,.045,.5,0,s*.3);
   const fight={armR:[-1.22,-.2,.1],elbowR:[-.55,0,0],armL:[-1.1,0,-.3],elbowL:[-.5,0,0],spine:[.05,0,0],head:[.1,0,0],thighL:[-.22,0,.04],kneeL:[.22,0,0],thighR:[.12,0,-.08],kneeR:[.08,0,0],ankleL:[.0,-.3,0]};

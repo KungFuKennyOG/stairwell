@@ -73,13 +73,23 @@ body.touch.playing #touch{display:block}
 #bShoot{grid-column:2;grid-row:1/3;height:132px;border-radius:36px;background:rgba(142,12,12,.5)}
 body.touch #br{bottom:calc(240px + env(safe-area-inset-bottom,0px))}
 body.touch #tl small{display:none}
+/* test floor panel (flat screen) */
+#testPanel{position:fixed;left:max(16px,env(safe-area-inset-left,0px));top:calc(78px + env(safe-area-inset-top,0px));width:220px;display:grid;gap:8px;padding:12px;background:var(--panel);border:1px solid var(--line);font-size:11px;letter-spacing:.06em;pointer-events:auto}
+#testPanel h2{margin:0;font:900 18px/1 var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--sodium)}
+#testPanel .tp-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#testPanel .btn{padding:8px 6px;font-size:10px;letter-spacing:.08em}
+#testPanel .tp-row{display:flex;gap:12px;color:var(--ink2)}
+#testPanel .tp-keys,#testPanel #tpWpn{margin:0;color:var(--muted);line-height:1.45}
+body:not(.playing) #testPanel{display:none}
+body.touch #testPanel{top:auto;bottom:calc(16px + env(safe-area-inset-bottom,0px));width:190px}
+body.touch #testPanel .tp-keys{display:none}
 #err{position:fixed;inset:auto 16px 16px;padding:14px 16px;background:var(--panel);border:1px solid var(--blood);font-size:13px;line-height:1.5}
 @media (prefers-reduced-motion: reduce){ #sblood i,#flash.on,#xhair.hit{animation-duration:.01s} }
 </style>
 
 <canvas id="view" tabindex="0" aria-label="First-person view of the Stairwell physics prototype"></canvas>
 <div class="hud">
-  <div class="corner" id="tl"><b>STAIR<span>WELL</span></b><span>Floor 01 · prototype</span><small>Hold-to-look if the mouse isn't captured</small></div>
+  <div class="corner" id="tl"><b>STAIR<span>WELL</span></b><span id="floorTag">Test floor</span><small>Hold-to-look if the mouse isn't captured</small></div>
   <div class="topbtns"><button class="btn vr" id="vrBtnT" type="button" hidden>Enter VR</button><button class="btn" id="bSlowT" type="button" aria-pressed="false">Slow-mo</button><button class="btn" id="bResetT" type="button">Reset</button></div>
   <div class="corner" id="br"><span id="slowTag" hidden>Bullet time</span><span id="ammo">12 / 12</span><div class="hpbar" aria-label="Health"><div id="hp"></div></div></div>
   <div id="xhair"></div>
@@ -102,11 +112,11 @@ body.touch #tl small{display:none}
   <div class="card">
     <p class="kick">Physics prototype 01 · Floor 01</p>
     <h1>Stair<span>well</span></h1>
-    <p>Three people in one apartment. Every one of them is a physical body: shoot a leg and he goes down and drags himself away, cut an artery and it pumps with his heartbeat until he bleeds out, catch one from behind with the knife and nobody else hears. They aren't aware of you yet.</p>
-    <dl class="keys deskonly"><dt>WASD</dt><dd>Move</dd><dt>Mouse</dt><dd>Look (click to capture)</dd><dt>Left click</dt><dd>Shoot</dd><dt>Right click / F</dt><dd>Stab</dd><dt>E</dt><dd>Kick</dd><dt>R · T</dt><dd>Reload · bullet time</dd></dl>
+    <p>The test floor: one generated storey of the tower. Grab anything off the armory rack on the landing, spawn any of the six kinds from the board, and try them all. Shoot a leg and he goes down and drags himself away; cut an artery and it pumps with his heartbeat; put him out cold with your fists. Walk up the stairs at the far end to climb a floor.</p>
+    <dl class="keys deskonly"><dt>WASD · mouse</dt><dd>Move · look (click to capture)</dd><dt>1-9</dt><dd>Fists, bottle, knife, machete, axe, .38, 9mm, shotgun, SMG</dd><dt>Click</dt><dd>Fire or swing (hold for the SMG)</dd><dt>F · E · Q</dt><dd>Knife in the left hand · kick (opens doors too) · throw what you hold</dd><dt>R · T</dt><dd>Reload · bullet time</dd></dl>
     <dl class="keys touchonly"><dt>Left thumb</dt><dd>Move</dd><dt>Right side drag</dt><dd>Look</dd><dt>Buttons</dt><dd>Shoot, stab, kick, reload, slow-mo</dd></dl>
     <div class="startrow"><button id="start" type="button">Start</button><button id="vrBtn" type="button" hidden>Play in VR</button></div>
-    <p class="vrnote">In VR: left stick moves, right stick turns, trigger fires, thrust the knife into them to stab, B/Y kicks, A reloads, X is bullet time. Hold both grips to reset the floor; click the right stick to change sharpness.</p>
+    <p class="vrnote">In VR you start with your fists. Grip grabs from the rack, the floor or a body, grip again drops or throws. Trigger fires, A/X reloads that hand, B/Y kicks. Punch and cut by actually swinging. Poke the board buttons to spawn people. Left stick moves, click it for bullet time; right stick turns, click it for sharpness. Your frame rate is on your left wrist.</p>
   </div>
 </section>
 <section id="msg" hidden aria-live="polite"><div class="card"><h2 id="msgH"></h2><p id="msgP"></p><button class="btn" id="msgReset" type="button">Reset the floor</button></div></section>
