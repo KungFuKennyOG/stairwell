@@ -6,6 +6,8 @@ A gritty WebXR game for Meta Quest 3: a 30-floor tower, one floor per level, fis
 
 **Art test (cast, arsenal, floor generator):** https://kungfukennyog.github.io/stairwell/art-test.html
 
+**Maiden Run art direction set (bullet-train concept on the same engine):** https://kungfukennyog.github.io/stairwell/train.html. Source in `src/train/`, built by `./build.sh` together with `src/10-engine.js`.
+
 Current build: physics prototype 01, a single apartment floor with three enemies.
 
 ## Building
