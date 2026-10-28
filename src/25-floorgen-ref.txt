@@ -1,0 +1,178 @@
+function buildFloor(){
+  const G=groups.floor;
+  disposeTree(G); G.kids.length=0; chars=chars.filter(c=>c.grp!=='floor');
+  GEO_TEMP=true;
+  const n=FL.n, tier=tierOf(n), deco=tier<2?0:tier<4?1:2;
+  const r=rng((FL.seed*2654435761 ^ n*40503)>>>0);
+  const pick=a=>a[r()*a.length|0];
+  const blocked=new Uint8Array(NX*NZ), space=new Int16Array(NX*NZ).fill(-9), extra=new Float32Array(NX*NZ), barr=new Uint8Array(NX*NZ);
+  const idx=(x,z)=>{ const i=Math.round((x+13)*2),k=Math.round((z+6)*2); return (i<0||k<0||i>=NX||k>=NZ)?-1:k*NX+i; };
+  function blockRect(x0,z0,x1,z1,arr=blocked){ for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k); if(x>x0&&x<x1&&z>z0&&z<z1) arr[k*NX+i]=1; } }
+
+  /* units */
+  const units=[];
+  for(const side of [1,-1]){ let x=-10;
+    while(x<9.99){ let w=3.4+r()*2.4; if(10-x-w<3.2) w=10-x; units.push({side,x0:x,x1:x+w,w}); x+=w; } }
+  units.sort((a,b)=>b.side-a.side||a.x0-b.x0);
+  units.forEach((u,i)=>{ u.id=i; u.apt=String(n).padStart(2,'0')+String(i+1).padStart(2,'0');
+    u.door=u.x0+.9+r()*(u.w-1.8); const d=r(); u.doorState=d<.55?'open':d<.82?'closed':'kicked';
+    u.type=pick(UNIT_TYPES[tier]); u.lit=false; });
+  /* party walls, holes, barricade */
+  const party=[];
+  for(const side of [1,-1]){ const row=units.filter(u=>u.side===side); for(let i=1;i<row.length;i++) party.push({side,x:row[i].x0,hole:r()<.28?{zc:1.8+r()*3.2}:null,a:row[i-1],b:row[i]}); }
+  const cand=party.filter(p=>p.x>-6&&p.x<6); const bp=pick(cand.length?cand:party);
+  if(!bp.hole) bp.hole={zc:1.8+r()*3.2}; const bx=bp.x;
+  /* space ids */
+  for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i;
+    if(Math.abs(x)>10){ if(Math.abs(x)<=13&&Math.abs(z)<=2) space[id]=-2; else blocked[id]=1; }
+    else if(Math.abs(z)<1) space[id]=-1;
+    else { const u=units.find(u=>u.side===Math.sign(z)&&x>=u.x0&&x<u.x1); if(u) space[id]=u.id; }
+    if(Math.abs(z)>=6||Math.abs(x)>=13) blocked[id]=1; }
+
+  /* walls: collect boxes per material, split into ~1.5 m chunks so affine warp stays subtle */
+  const H_=2.8,T=.14, unitWall=[], hallWall=[], stairWall=[];
+  function wallRun(list,axis,c,s0,s1,gaps){ // axis 'x': runs along x at z=c ; 'z': runs along z at x=c
+    gaps=gaps.slice().sort((a,b)=>a.s-b.s); let s=s0;
+    const seg=(a,b,y0,y1)=>{ const len=b-a; if(len<=.01) return; const nC=Math.max(1,Math.ceil(len/1.5)); for(let q=0;q<nC;q++){ const a2=a+len*q/nC,b2=a+len*(q+1)/nC,m=(a2+b2)/2,l=b2-a2;
+        if(axis==='x') list.push([m,(y0+y1)/2,c,l,y1-y0,T,l/1.5,(y1-y0)/2.8]); else list.push([c,(y0+y1)/2,m,T,y1-y0,l,l/1.5,(y1-y0)/2.8]); } };
+    for(const gp of gaps){ const a=gp.s-gp.w/2,b=gp.s+gp.w/2; seg(s,a,0,H_); if(gp.y0>0) seg(a,b,0,gp.y0); seg(a,b,gp.y1,H_); s=b; }
+    seg(s,s1,0,H_);
+    // nav: rasterize the solid parts
+    for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k); const along=axis==='x'?x:z, across=axis==='x'?z:x;
+      if(Math.abs(across-c)>.2||along<s0-.2||along>s1+.2) continue;
+      if(gaps.some(gp=>gp.y0===0&&Math.abs(along-gp.s)<gp.w/2-.2)) continue; blocked[k*NX+i]=1; } }
+  for(const side of [1,-1]){
+    const row=units.filter(u=>u.side===side);
+    wallRun(hallWall,'x',side*1,-10,10,row.map(u=>({s:u.door,w:1.0,y0:0,y1:2.1})));
+    wallRun(unitWall,'x',side*6,-10,10,row.filter(u=>u.w>=3.6).map(u=>({s:(u.x0+u.x1)/2,w:1.4,y0:.9,y1:2.0})));
+    wallRun(unitWall,'z',-10,side>0?1:-6,side>0?6:-1,[]); wallRun(unitWall,'z',10,side>0?1:-6,side>0?6:-1,[]);
+  }
+  for(const p of party){ const z0=p.side>0?1:-6,z1=p.side>0?6:-1; wallRun(unitWall,'z',p.x,z0,z1,p.hole?[{s:p.side*p.hole.zc,w:1.0,y0:0,y1:2.0}]:[]); }
+  for(const sx of [-1,1]){ wallRun(stairWall,'z',sx*13,-2,2,[]); wallRun(stairWall,'x',2,sx>0?10:-13,sx>0?13:-10,[]); wallRun(stairWall,'x',-2,sx>0?10:-13,sx>0?13:-10,[]); }
+  const wallTex=[tPeel,tPaper,tDarkPaint][deco];
+  mk(mergeBoxes(unitWall),M(wallTex),G); mk(mergeBoxes(hallWall),M(tHallWall),G); mk(mergeBoxes(stairWall),M(tStairWall),G);
+
+  /* floors */
+  mk(plane(20,12,20,12),M([tLinoStain,tCarpet,tParquet][deco],{repeat:[10,6]}),G,0,0,0,-Math.PI/2);
+  mk(plane(20,2,20,2),M(deco===2?tCarpet:tLinoHall,{repeat:[10,1],color:deco===2?0x8a6060:0xffffff}),G,0,.004,0,-Math.PI/2);
+  for(const sx of [-1,1]) mk(plane(3,4,3,4),M(tConcrete,{repeat:[1.5,2]}),G,sx*11.5,.004,0,-Math.PI/2);
+
+  /* stairwells: up-flight on the north half, the way down on the south half */
+  for(const sx of [-1,1]){ const cm=M(tConcrete);
+    for(let s=0;s<7;s++){ const h=(s+1)*.17; mk(box(.34,h,1.7,{at:[0,h/2,0]}),cm,G,sx*(10.45+s*.34),0,1.05); }
+    mk(box(3,.04,1.8),M(null,{color:0x050506,unlit:true}),G,sx*11.5,.006,-1.05);
+    mk(box(2.6,.04,.04),mSteel,G,sx*11.6,.95,-.12);
+    const nm=N(G,sx*12.92,1.7,-1.0,0,sx>0?-Math.PI/2:Math.PI/2,0); mk(plane(1.0,.5),M(floorNum(sx<0?n:Math.min(30,n+1)),{cut:true}),nm);
+    if(sx>0&&n>=8){ const c=N(G,11.2,1.15,-1.92); mk(box(.9,.5,.12),F(M(tAxeRed),M(tAxeCase)),c); }
+  }
+  blockRect(10.2,.15,13.1,1.95); blockRect(-13.1,.15,-10.2,1.95); // flights
+  blockRect(-13.1,-1.95,-10.3,-.2); blockRect(10.3,-1.95,13.1,-.2); // stair holes
+
+  /* doors */
+  for(const u of units){ const z=u.side*1, dm=F(M(tDoorWood),M(tDoorWood));
+    if(u.doorState==='closed') mk(box(1.0,2.05,.05,{at:[0,1.025,0]}),dm,G,u.door,0,z);
+    else if(u.doorState==='open'){ const hinge=N(G,u.door-.5,0,z,0,-u.side*1.55,0); mk(box(1.0,2.05,.05,{at:[.5,1.025,0]}),dm,hinge); }
+    else mk(box(1.0,.05,2.05),F(M(tDoorWood),M(tDoorWood),M(tDoorWood),M(tDoorWood)),G,u.door+.1,.03,u.side*2.1,0,.25,0); }
+  /* windows */
+  for(const u of units) if(u.w>=3.6) mk(plane(1.4,1.1),M(tNightWin,{unlit:true,color:0x9a9a9a}),G,(u.x0+u.x1)/2,1.45,u.side*5.94,0,u.side>0?Math.PI:0,0);
+
+  /* furniture */
+  const furn=[]; const seats=[], beds=[], tops=[];
+  function place(u,kind,where){
+    const w0=u.w, sizes={back:[w0*.5,4.3],side:[.55,2.8],corner:[.5,4.5],mid:[w0*.5,2.8],front:[w0*.5,1.3]};
+    let lu,lv,rot=0; const holeL=party.find(p=>p.side===u.side&&Math.abs(p.x-u.x0)<.01&&p.hole), holeR=party.find(p=>p.side===u.side&&Math.abs(p.x-u.x1)<.01&&p.hole);
+    const doorU=u.door-u.x0;
+    if(where==='back'){ lu=w0*(.3+r()*.4); lv=4.45; rot=0; }
+    else if(where==='front'){ lu=doorU<w0/2?w0*.72:w0*.28; lv=1.0; rot=Math.PI; }
+    else if(where==='mid'){ lu=w0/2+(r()-.5)*.6; lv=2.7; rot=r()<.5?0:Math.PI/2; }
+    else if(where==='side'){ const leftOK=!holeL||Math.abs(holeL.hole.zc-1-2.8)>1.6; lu=leftOK?.45:w0-.45; lv=2.8; rot=leftOK?-Math.PI/2:Math.PI/2; }
+    else { const right=r()<.5; lu=right?w0-.5:.5; lv=4.4; rot=0; }
+    if(where!=='back'&&where!=='corner'&&lv<1.6&&Math.abs(lu-doorU)<1.0) lu=doorU<w0/2?w0-.5:.5;
+    const x=u.x0+lu, z=u.side*(1+lv), ry=(u.side>0?Math.PI:0)+rot;
+    const node=N(G,x,0,z,0,ry,0); const info=FURN[kind](node);
+    let [w,d]=info.size; if(Math.abs(Math.sin(rot))>.5) [w,d]=[d,w];
+    blockRect(x-w/2+.05,z-d/2+.05,x+w/2-.05,z+d/2-.05);
+    const rec={kind,node,x,z,u,info}; furn.push(rec);
+    if(info.seat) seats.push(rec); if(info.bed) beds.push(rec); if(info.top) tops.push(rec);
+    return rec; }
+  for(const u of units){ const kit=KITS[u.type]; for(const [kind,where] of kit) if(r()<.85) place(u,kind,where); }
+
+  /* barricade across the corridor */
+  { const b=N(G,bx,0,0), mm=M(tMattress), fm=F(M(tFridge),M(tFridge));
+    mk(box(.7,.7,1.7),fm,b,-.15,.35,-.1,0,.15,0); mk(box(.2,.95,1.9),mm,b,.3,.47,.05,0,0,.2);
+    mk(box(.9,.05,.7),M(tWoodLight),b,-.1,.9,.3,.4,.3,.1); for(const z of [-.7,.6]) mk(box(.5,.45,.5,{at:[0,.225,0]}),M(tCrate),b,.45,0,z,0,r(),0);
+    mk(box(.4,.3,.4,{at:[0,.15,0]}),M(tTrash),b,-.55,0,.6); }
+  blockRect(bx-.75,-1.05,bx+.75,1.05,barr);
+
+  /* graffiti on the corridor walls */
+  for(let t=0;t<3;t++){ const side=r()<.5?1:-1, x=-8.5+r()*17; if(units.some(u=>u.side===side&&Math.abs(u.door-x)<1.3)||Math.abs(x-bx)<1) continue;
+    mk(plane(1.6,.4),M(TAGS[r()*TAGS.length|0],{cut:true}),G,x,1.35+r()*.4,side*.925,0,side>0?Math.PI:0,0); }
+
+  /* corridor fixtures, lights */
+  const flick=-7+r()*14; FL.flickX=flick;
+  for(let x=-8;x<=8;x+=4){ const live=Math.abs(x-flick)<2; const m=live?M(tFluo,{unlit:true}):M(tFluoDead); mk(box(1.2,.05,.2),m,G,live?flick:x,2.75,0); if(live) FL.flickMat=m; }
+  const lights=[[[flick,2.5,0],[1.15,1.25,1.35],6.5]];
+  const litPool=units.slice().sort(()=>r()-.5);
+  for(const u of litPool){ if(lights.length>=4) break; const tv=furn.find(f=>f.u===u&&f.info.tv);
+    const cx=(u.x0+u.x1)/2, cz=u.side*3.5; u.lit=true;
+    if(tv) lights.push([[tv.x,.9,tv.z-u.side*.9],[.45,.6,1.15],4]);
+    else { const warm=r()<.7; lights.push([[cx,2.3,cz],warm?[1.5,.85,.38]:[1.1,1.2,1.3],5.2]); mk(cyl(.004,.004,.45,3),mBlack,G,cx,2.58,cz); mk(box(.08,.1,.08),M(warm?tBulb:tFluo,{unlit:true}),G,cx,2.32,cz); } }
+  for(const u of units) if(!u.lit){ const cx=(u.x0+u.x1)/2,cz=u.side*3.5; mk(cyl(.004,.004,.45,3),mBlack,G,cx,2.58,cz); mk(box(.08,.1,.08),M(tBulbDead),G,cx,2.32,cz); }
+  FL.lights=lights;
+
+  /* people */
+  const counts=[2+(r()<.5?1:0),3+(r()*2|0),5+(r()<.5?1:0),6+(r()<.5?1:0),7+(r()*2|0),6];
+  const nE=counts[tier]; const people=[]; const used=new Set(); const namePool=NAMES.slice().sort(()=>r()-.5); const detPool=DETAILS.slice().sort(()=>r()-.5);
+  function freeCellIn(pred){ for(let tries=0;tries<200;tries++){ const i=r()*NX|0,k=r()*NZ|0,id=k*NX+i; if(blocked[id]||barr[id]||used.has(id)) continue; const x=cellX(i),z=cellZ(k); if(!pred(x,z,id)) continue; return {x,z,id}; } return null; }
+  for(let e=0;e<nE;e++){
+    let kind=tier; if(tier===5) kind=e===0?5:4; else if(tier>0&&r()<.3) kind=tier-1;
+    const maker=MAKERS[kind]; let holder=null, act='idle', pos=null;
+    const roll=r(); const sleepP=[.3,.22,.15,.1,.05,0][tier], sitP=[.3,.25,.25,.2,.15,.1][tier];
+    if(kind!==5&&roll<sleepP&&beds.length){ const b=beds.splice(r()*beds.length|0,1)[0]; holder=N(b.node,b.info.bed.x,b.info.bed.y,0,0,Math.PI/2,0); act='sleep'; pos={x:b.x,z:b.z}; }
+    else if(roll<sleepP+sitP&&seats.length){ const s=seats.splice(r()*seats.length|0,1)[0]; holder=N(s.node,0,0,s.info.seat.z,0,0,0); act='sit'; pos={x:s.x,z:s.z}; }
+    else { const inHall=e<2&&tier>0&&r()<.6;
+      const c=freeCellIn((x,z,id)=>inHall?(space[id]===-1&&Math.abs(x)<9&&Math.abs(x-bx)>1.5):(space[id]>=0&&Math.abs(Math.abs(z)-1)>.9));
+      if(!c) continue; used.add(c.id); pos={x:c.x,z:c.z};
+      holder=N(G,c.x,0,c.z,0,r()*Math.PI*2,0); act=kind===5?'fight':(r()<.45+tier*.1?'fight':'idle'); }
+    const C=maker(holder,'floor'); C.grp='floor'; C.showDrop=act!=='sleep'&&act!=='sit'; applyPose(C,act);
+    const sp=space[idx(pos.x,pos.z)]; const u=sp>=0?units[sp]:null;
+    mk(plane(.9,.9),M(tRing,{cut:true,unlit:true,color:act==='fight'?0xe0402e:0x5fb3c9}),G,pos.x,(act==='sleep'?.2:act==='sit'?.45:0)+.02,pos.z,-Math.PI/2);
+    people.push({C,x:pos.x,z:pos.z,act,kind,space:sp,lit:u?u.lit:true,name:kind===5?'The Landlord':namePool[e%namePool.length],detail:kind===5?'is waiting by the intercom':detPool[e%detPool.length],where:u?u.apt:'the corridor'});
+  }
+
+  /* pickups */
+  const pk=[]; const pool=PICKUPS[tier]; const nP=2+(r()<.4?1:0);
+  for(let p=0;p<nP;p++){ const key=pick(pool); let x,z,y,where;
+    const tp=tops.length?tops.splice(r()*tops.length|0,1)[0]:null;
+    if(tp){ x=tp.x; z=tp.z; y=tp.info.top; where=tp.u.apt; }
+    else { const c=freeCellIn((x,z,id)=>space[id]>=0); if(!c) continue; x=c.x; z=c.z; y=.03; where=units[space[c.id]].apt; }
+    const node=N(G,x,y+.03,z,0,r()*6,Math.PI/2); WEAPONS[key](N(node,0,0,0)); node.s=[1.3,1.3,1.3];
+    mk(box(.03,.03,.03),M(tGlint,{unlit:true}),G,x,y+.32,z); pk.push({key,x,z,where}); }
+
+  /* routes on a 0.5 m grid */
+  const S=idx(-10.5,0), Tg=idx(10.5,0);
+  const NB=[[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[1,-1,1.414],[-1,1,1.414],[-1,-1,1.414]];
+  function dijkstra(cost){ const nn=NX*NZ,dist=new Float32Array(nn).fill(Infinity),prev=new Int32Array(nn).fill(-1),done=new Uint8Array(nn); dist[S]=0;
+    for(;;){ let u=-1,best=Infinity; for(let i=0;i<nn;i++) if(!done[i]&&dist[i]<best){best=dist[i];u=i;} if(u<0||u===Tg) break; done[u]=1; const ux=u%NX,uz=(u/NX)|0;
+      for(const [dx,dz,l] of NB){ const vx=ux+dx,vz=uz+dz; if(vx<0||vz<0||vx>=NX||vz>=NZ) continue; const v=vz*NX+vx; if(cost[v]===Infinity) continue;
+        if(dx&&dz&&(cost[uz*NX+vx]===Infinity||cost[vz*NX+ux]===Infinity)) continue; const nd=dist[u]+l*cost[v]; if(nd<dist[v]){dist[v]=nd;prev[v]=u;} } }
+    const path=[]; for(let v=Tg;v>=0;v=prev[v]){ path.push(v); if(v===S) break; } return path.reverse(); }
+  const loudC=new Float32Array(NX*NZ), quietC=new Float32Array(NX*NZ);
+  for(let id=0;id<NX*NZ;id++){
+    if(blocked[id]){ loudC[id]=quietC[id]=Infinity; continue; }
+    loudC[id]=1+(barr[id]?3:0);
+    if(barr[id]){ quietC[id]=Infinity; continue; }
+    let c=1; const sp=space[id]; if(sp===-1) c+=1.2; else if(sp>=0&&units[sp].lit) c+=1.5;
+    const x=cellX(id%NX),z=cellZ((id/NX)|0);
+    for(const p of people){ if(p.space!==sp&&!(p.space===-1&&sp===-1)) continue; const rad=({sleep:.9,sit:2.0,idle:2.6,fight:3.4})[p.act]*(p.lit?1.35:1); if(Math.hypot(x-p.x,z-p.z)<rad) c+=40; }
+    quietC[id]=c; }
+  const quiet=dijkstra(quietC), loud=dijkstra(loudC);
+  const dash=(path,col,dy)=>{ const list=[]; path.forEach((id,i)=>{ if(i%2) return; list.push([cellX(id%NX),.03+dy,cellZ((id/NX)|0),.28,.03,.28]); }); return mk(mergeBoxes(list),M(null,{color:col,unlit:true}),G); };
+  FL.quietMesh=dash(quiet,0x5fb3c9,0); FL.loudMesh=dash(loud,0xe0402e,.005);
+  const spacesOf=path=>{ const out=[]; for(const id of path){ const sp=space[id]; if(sp>=0){ const a=units[sp].apt; if(out[out.length-1]!==a) out.push(a); } } return out; };
+  const qRooms=spacesOf(quiet); let qRisk=0; for(const id of quiet) if(quietC[id]>30) qRisk++;
+  GEO_TEMP=false;
+  FL.data={n,tier,people,pk,bx,barrierApt:[bp.a.apt,bp.b.apt],qRooms,qRisk,loudLen:loud.length,quietLen:quiet.length,litCount:units.filter(u=>u.lit).length,units:units.length};
+  applyRouteVis();
+  setLights(floorLights());
+}
