@@ -2,7 +2,7 @@
 /* =====================================================================================================
    VIEWS, CAMERA, LIGHT, LOOP
    ===================================================================================================== */
-const FP=Object.fromEntries(Object.entries({cab:[9.7,1.95,-.9,0],casino:[-7,1.6,1.4,-.08],pool:[-6.2,1.05,1.9,-.02],pub:[-10.9,1.2,2.25,-.12],trattoria:[-8.1,1.15,-1.7,.1],banya:[3.6,1.25,1.6,-.05],dimsum:[-12.1,1.15,-1.2,.05],capsule:[-10.5,1.8,-2.2,-Math.PI/2],aquarium:[-2.5,1.25,-1.4,Math.PI/2],baggage:[-8.5,1.1,1.6,0]}).map(([k,v])=>[k,[v[0],v[1],widenZ(v[2]),v[3]]]));
+const FP=Object.fromEntries(Object.entries({cab:[9.7,1.95,-.9,0],casino:[-7,1.6,1.4,-.08],pool:[-6.2,1.05,1.9,-.02],pub:[-10.9,1.2,2.25,-.12],trattoria:[-8.1,1.15,-1.7,.1],banya:[3.6,1.25,1.6,-.05],dimsum:[-12.1,1.15,-1.2,.05],capsule:[-10.5,1.8,-2.2,-Math.PI/2],aquarium:[-2.5,1.25,-1.4,Math.PI/2]}).map(([k,v])=>[k,[v[0],v[1],widenZ(v[2]),v[3]]]));
 const state={view:'route',ps1:true,res:480,snap:true,affine:true,dither:true,scene:'tokyonight',wagon:'casino',fp:false,speed:30,castPose:'fight',station:'tokyo',focusCar:-1};
 try{ if(matchMedia('(prefers-reduced-motion: reduce)').matches) state.speed=0; }catch(e){}
 const cam={t:[0,1,0],th:.7,ph:1.2,r:16},goal={t:[0,1,0],th:.7,ph:1.2,r:16},fpv={yaw:0,pitch:-.04,gy:0,gp:-.04};
@@ -67,21 +67,21 @@ function listOf(items,cur,onPick){ const ul=el('ul','list');
     const txt=el('span'); txt.style.minWidth='0'; txt.append(el('b',null,it.name)); if(it.sub) txt.append(el('span','who',it.sub)); if(it.note) txt.append(el('small',null,it.note));
     b.append(lead,txt,el('span','num',it.right||'')); b.addEventListener('click',()=>{ ul.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false')); b.setAttribute('aria-pressed','true'); onPick(it); });
     li.append(b); ul.append(li); }); return ul; }
-const sceneItems=()=>SCENE_ORDER.map(k=>{ const S=SCENES[k]; const boss=S.boss?ROSTER[S.boss]:null; return {id:k,name:S.name,sub:S.country,note:S.note+(boss?` Boarding here: ${boss.name} and ${S.crew}.`:''),sw:S.swatch,right:S.time.split(' · ')[0].toUpperCase()}; });
+const sceneItems=()=>SCENE_ORDER.map(k=>{ const S=SCENES[k]; const boss=S.boss?ROSTER[S.boss]:null; return {id:k,name:S.name,sub:S.country,note:S.note+(boss?` Boarding here: ${boss.name} and ${S.crew}.`:''),sw:S.swatch,right:String(SCENE_ORDER.indexOf(k)+1).padStart(2,'0')}; });
 function renderCard(){ card.innerHTML='';
   if(state.view==='route'){
-    card.append(el('p','sub','World loop · westward from Tokyo · 46,000 km · 12 days'),el('h2',null,'The Meridian'));
-    const b=el('p','body'); b.append('The biggest bullet train ever built, on its first lap of the world: ten cars, each 30 metres long and twice the width of a normal train. You are a hitman on holiday with a price on your head. ',el('b',null,'At every stop a new crew gets on to collect it'),', and each one takes over a car.'); card.append(b);
+    card.append(el('p','sub','The Meridian 24 · see the world in 24 hours · westward from Tokyo'),el('h2',null,'The Meridian'));
+    const b=el('p','body'); b.append('The biggest bullet train ever built, on a special run: the whole world in twenty-four hours. Nine cars, each 30 metres long and twice the width of a normal train. You are a hitman on holiday with a price on your head. ',el('b',null,'At every stop a new crew gets on to collect it'),', and each one takes over a car.'); card.append(b);
     card.append(el('p','seg-label','The route'),listOf(sceneItems(),state.scene,it=>{ setSceneUI(it.id); renderCard(); }));
     const cars=WAGONS.map((W,i)=>({id:W.key,num:W.num,name:W.name,sub:W.crew?ROSTER[W.crew].name:W.sub.split(' · ')[0],color:W.color,right:'View'}));
-    card.append(el('p','seg-label','The ten cars, front to back'),listOf(cars,null,it=>{ const i=WAGONS.findIndex(w=>w.key===it.id); setGoal({t:[(4.5-i)*CAR_PITCH,1.8,0],th:.62,ph:1.22,r:20}); }));
+    card.append(el('p','seg-label','The nine cars, front to back'),listOf(cars,null,it=>{ const i=WAGONS.findIndex(w=>w.key===it.id); setGoal({t:[((WAGONS.length-1)/2-i)*CAR_PITCH,1.8,0],th:.62,ph:1.22,r:20}); }));
   } else if(state.view==='wagons'){
     const W=WAGONS.find(w=>w.key===state.wagon), idx=WAGONS.indexOf(W);
-    card.append(el('p','sub',`Car ${W.num} of 10 · ${W.sub}`),el('h2',null,W.name),el('p','body',W.note),chips(W.sw));
+    card.append(el('p','sub',`Car ${W.num} of ${WAGONS.length} · ${W.sub}`),el('h2',null,W.name),el('p','body',W.note),chips(W.sw));
     if(W.play){ const pl=el('p','body'); pl.append(el('b',null,'How it plays: '),W.play); card.append(pl); }
-    const row=el('div','row'); const prev=el('button','btn ghost','‹ Car '+(idx>0?WAGONS[idx-1].num:'')), next=el('button','btn ghost','Car '+(idx<9?WAGONS[idx+1].num:'')+' ›'), sit=el('button','btn',state.fp?'Stand up':'Sit inside');
+    const row=el('div','row'); const prev=el('button','btn ghost','‹ Car '+(idx>0?WAGONS[idx-1].num:'')), next=el('button','btn ghost','Car '+(idx<WAGONS.length-1?WAGONS[idx+1].num:'')+' ›'), sit=el('button','btn',state.fp?'Stand up':'Sit inside');
     for(const b of [prev,next,sit]) b.type='button'; sit.setAttribute('aria-pressed',String(state.fp)); prev.disabled=idx===0; next.disabled=idx===9; if(prev.disabled) prev.style.opacity=.35; if(next.disabled) next.style.opacity=.35;
-    prev.addEventListener('click',()=>{ if(idx>0){ setWagon(WAGONS[idx-1].key); renderCard(); } }); next.addEventListener('click',()=>{ if(idx<9){ setWagon(WAGONS[idx+1].key); renderCard(); } });
+    prev.addEventListener('click',()=>{ if(idx>0){ setWagon(WAGONS[idx-1].key); renderCard(); } }); next.addEventListener('click',()=>{ if(idx<WAGONS.length-1){ setWagon(WAGONS[idx+1].key); renderCard(); } });
     sit.addEventListener('click',()=>{ state.fp=!state.fp; const s=FP[state.wagon]; fpv.gy=fpv.yaw=s[3]; fpv.gp=fpv.pitch=-.04; renderCard(); });
     row.append(sit,prev,next); card.append(row);
     card.append(el('p','seg-label','Outside the windows'),segOf(SCENE_ORDER.map(k=>[k,{tokyonight:'Tokyo',japan:'Japan',hongkong:'HK',siberia:'Siberia',naples:'Naples',london:'London',atlantic:'Ocean',vegas:'Vegas',rio:'Rio'}[k]]),state.scene,v=>setSceneUI(v)));
@@ -90,20 +90,20 @@ function renderCard(){ card.innerHTML='';
     const st=ST[state.station], A=ARSENAL[st.weapon];
     card.append(el('p','sub',`Underground · ${st.city} · the crew boards here`),el('h2',null,st.name),el('p','body',st.note),chips(st.sw));
     const d=el('p','body'); d.append(el('b',null,'Left for you: '+A.weapon+'. '),A.how); card.append(d);
-    if(st.drop2){ const d2=el('p','body'); d2.append(el('b',null,'On the last night: '+ARSENAL[7].weapon+'. '),ARSENAL[7].how); card.append(d2); }
+    if(st.drop2){ const d2=el('p','body'); d2.append(el('b',null,'At the end of the line: '+ARSENAL[7].weapon+'. '),ARSENAL[7].how); card.append(d2); }
     const row=el('div','row'); for(const k of STATION_ORDER){ const b=el('button','btn'+(k===state.station?'':' ghost'),ST[k].city); b.type='button'; b.addEventListener('click',()=>{ setStation(k); renderCard(); }); row.append(b); } card.append(row);
     if(st.map){ const mb=el('button','btn ghost','Look at the map'); mb.type='button'; mb.addEventListener('click',()=>setGoal({t:[st.map.x,st.map.y,st.map.z],th:Math.PI,ph:1.5,r:st.map.w*.95})); const r2=el('div','row'); r2.append(mb); card.append(r2); }
     card.append(el('p','seg-label','Your arsenal, stop by stop'),listOf(ARSENAL.map((a,i)=>({id:i,num:String(i+1).padStart(2,'0'),name:a.weapon,sub:a.stop,note:a.how})),st.weapon,()=>{}));
     card.append(el('p','body','Every stop is underground. While you are on the platform the old city is unloaded and the next one loads, so you never see the switch: the train climbs out of the tunnel into the new place.'));
   } else {
-    card.append(el('p','sub','Platform 0 · Tokyo Meridian Terminal · Day 1, 06:10'),el('h2',null,'The bounty hunters'));
+    card.append(el('p','sub','Platform 0 · Tokyo Meridian Terminal · departure'),el('h2',null,'The bounty hunters'));
     card.append(el('p','body','The Tourist, the seven bosses in front and a member of each crew behind. Every one of them runs on the Stairwell rig: the same skinned body, painted faces and expressions and two-handed gun holds. Only the faces, clothes, hats and props are new.'));
     const w=el('div'); w.append(el('p','seg-label','Show them'),segOf([['fight','Fighting'],['hurt','Hurt'],['beg','Begging']],state.castPose,p=>{ state.castPose=p; for(const c of castChars) if(!c.seated) applyPose(c,p); })); card.append(w);
     const ids=[]; for(const id of LINE){ ids.push(id); if(ROSTER[id].crew) ids.push(ROSTER[id].crew); }
     card.append(listOf(ids.map(id=>({id,name:ROSTER[id].name,sub:ROSTER[id].role,note:ROSTER[id].note+' '+ROSTER[id].stop+'.',color:ROSTER[id].color})),null,it=>{ const p=castSlots[it.id]; setGoal({t:[p[0],1.15,p[1]],th:0,ph:1.42,r:3}); }));
   } }
 function setStation(key,instant){ for(const k in ST) ST[k].g.vis=false; state.station=key; ST[key].g.vis=state.view==='stations'; if(state.view==='stations'){ setGoal(ST[key].cam,instant); applyLight(); updateClock(); } }
-function updateClock(){ if(state.view==='stations'){ const st=ST[state.station]; clockEl.innerHTML=''; clockEl.append(el('b',null,'B5'),`Underground · ${st.city}`); return; } const S=SCENES[state.view==='cast'?'tokyo':state.scene]; clockEl.innerHTML=''; const t=state.view==='cast'?'Day 1 · 06:10':S.time; const b=el('b',null,t.split(' · ')[1]); clockEl.append(b,state.view==='cast'?'Tokyo · Platform 0':`${t.split(' · ')[0]} · ${S.name} · km ${S.km.toLocaleString('en-US')}`); }
+function updateClock(){ if(state.view==='stations'){ const st=ST[state.station]; clockEl.innerHTML=''; clockEl.append(el('b',null,'B5'),`Underground · ${st.city}`); return; } const S=SCENES[state.view==='cast'?'tokyo':state.scene]; clockEl.innerHTML=''; const b=el('b',null,state.view==='cast'?'00':String(SCENE_ORDER.indexOf(state.scene)+1).padStart(2,'0')); clockEl.append(b,state.view==='cast'?'Tokyo · platform 0':`${S.name} · ${S.country}`); }
 
 window.addEventListener('hashchange',()=>setView(location.hash.slice(1)));
 document.querySelectorAll('.tabs a').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); const v=a.dataset.view; try{ history.replaceState(null,'','#'+v); }catch(_){} setView(v); }));

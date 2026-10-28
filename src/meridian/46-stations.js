@@ -14,7 +14,7 @@ const ARSENAL=[
   {stop:'Naples',weapon:'Assault rifle',how:'In a cello case leaning on the espresso bar.'},
   {stop:'Rio',weapon:'Grenade launcher',how:'In a beach cooler full of ice.'},
   {stop:'Las Vegas',weapon:'Gold-plated machine gun',how:'On a roulette table on the concourse, with a bow on it.'},
-  {stop:'Tokyo',weapon:'A katana',how:'For the last night. Wrapped in silk in the ticket office.'}
+  {stop:'Tokyo',weapon:'A katana',how:'For the end of the line. Wrapped in silk in the ticket office.'}
 ];
 function stationShell(key,o){
   const g=N(world); g.vis=false; const side={'-1':N(g),'1':N(g)};
@@ -27,7 +27,7 @@ function stationShell(key,o){
   mk(wplane(SL,o.H+1.4,o.wallTile||1,o.wallTile||1),o.far||o.back,g,0,o.H/2-.7,SZ0,0,0,0);
   for(const e of [-1,1]) mk(wplane(SZ1-SZ0,o.H+1.4,o.wallTile||1,o.wallTile||1),o.end||o.back,g,e*SL/2,o.H/2-.7,(SZ1+SZ0)/2,0,e<0?Math.PI/2:-Math.PI/2,0);
   if(o.ceil) mk(wplane(SL,SZ1-SZ0,o.ceilTile||1.5,o.ceilTile||1.5),o.ceil,g,0,o.H,(SZ1+SZ0)/2,Math.PI/2);
-  [WAGONS[7],WAGONS[8]].forEach((W,i)=>{ const c=buildCarExt(g,W,(i-.5)*CAR_PITCH); c.p[2]=TZS; c.glow.vis=true; });
+  [WAGONS[7],WAGONS[8]].forEach((W,i)=>{ const c=buildCarExt(g,W,(.5-i)*CAR_PITCH); c.p[2]=TZS; c.glow.vis=true; if(c.tail) c.tail.vis=false; });
   ST[key]=Object.assign({g,side,anim:[],back:N(g),top:N(g),H:o.H,H0:o.H},o.meta); return g; }
 /* a weapon left for you: an open case, the gun inside, a soft light and a glint ring on the floor */
 function weaponDrop(g,x,z,kind,caseCol){
@@ -48,7 +48,7 @@ function pRifleM(g){ const wood=M(woodT('#5a3a24','#3a2416',303)); mk(box(.045,.
   const terr=M(P2(32,32,(g,w,h)=>{ R(g,'#9a9c9e',0,0,w,h); const r=rng(3); for(let i=0;i<160;i++) R(g,['#b8babc','#7a7c80','#c8c4b8'][i%3],r()*w|0,r()*h|0,1,1); },4,3));
   const g=stationShell('tokyo',{floor:terr,floorTile:2,back,far:tile,end:back,ceil:M(P2(32,32,(g,w,h)=>{ R(g,'#e4e6e4',0,0,w,h); R(g,'#c8ccc8',0,0,w,1); R(g,'#c8ccc8',0,0,1,h); R(g,'#ffffff',12,0,8,h); },4,4)),ceilTile:3,H:4.6,
     meta:{name:'Tokyo · B5',city:'Tokyo',num:'01',sw:['#eef0ee','#2a9a5a','#9a9c9e','#d63a2c','#f2c230'],crew:['ren','renc'],weapon:0,
-      note:'Five floors under the city: white tile, a green line colour, platform screen doors, ticket gates and a row of vending machines. You board here on day one with nothing but a golf bag, and come back on the last night when the Kagami-gumi are waiting.',
+      note:'Five floors under the city: white tile, a green line colour, platform screen doors, ticket gates and a row of vending machines. You walk in here with nothing but a golf bag and board at the back of the train; when the loop comes back round to Tokyo, the Kagami-gumi are waiting.',
       lamps:[lamp(-20,4.2,2,[1.0,1.05,1.1],10),lamp(-6,4.2,2,[1.0,1.05,1.1],10),lamp(8,4.2,2,[1.0,1.05,1.1],10),lamp(22,4.2,2,[1.0,1.05,1.1],10),lamp(0,3,-5,[.6,.62,.66],12),lamp(14,1.2,1.5,[1.2,1.0,.7],3.5)],amb:[.36,.37,.4],cam:{t:[-7,1.6,2.5],th:.35,ph:1.25,r:17}}});
   /* platform screen doors: frames and a glass band, gaps at the car doors */
   for(let x=-30;x<30;x+=2){ const door=Math.abs(((x+31)%31)-1)<1.5||Math.abs(x-(-.5))<1.6; if(door) continue; B(g,C('#c8ccd2'),x+1,0,-1.45,.08,1.5,.08); B(g,C('#a8c8d8',{emissive:0x0c1418}),x+1,.3,-1.45,1.92,1.1,.02); B(g,C('#2a9a5a'),x+1,1.5,-1.45,2,.1,.1); }
@@ -64,7 +64,7 @@ function pRifleM(g){ const wood=M(woodT('#5a3a24','#3a2416',303)); mk(box(.045,.
   for(const x of [-18,-10,20]){ B(g,C('#c8ccd2'),x,.42,6.2,1.8,.06,.45); for(const dx of [-.8,.8]) B(g,C('#888c90'),x+dx,0,6.2,.06,.42,.4); }
   for(let k=0;k<2;k++){ const ez=7.6-k*1.2; const n=N(g,-27,0,ez,0,0,.42); B(n,C('#c8ccd2'),3.5,0,0,8,.5,1.0); B(n,C('#2a2c30'),3.5,.5,0,8,.04,.8); B(n,C('#2a2c30'),3.5,.5,.42,8,.9,.06); }
   const drop=weaponDrop(g,-10,5.8,'locker'); drop.r[1]=Math.PI; ST.tokyo.drop=drop;
-  ST.tokyo.spots={ren:{x:3,z:.6,ry:Math.PI*.8},renc:{x:1.2,z:-.6,ry:Math.PI*.7},renc2:{x:5,z:-.4,ry:Math.PI*.9}};
+  ST.tokyo.spots={nico:{x:-8.2,z:4.6,ry:Math.PI*.85},ren:{x:3,z:.6,ry:Math.PI*.8},renc:{x:1.2,z:-.6,ry:Math.PI*.7},renc2:{x:5,z:-.4,ry:Math.PI*.9}};
 })();
 
 /* ---------- Naples: the sea cave, blue mosaic, a light well spiralling up ---------- */

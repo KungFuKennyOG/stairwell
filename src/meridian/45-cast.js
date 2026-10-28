@@ -136,12 +136,12 @@ const PISTOL={prop:pPistol,support:true,gripHand:true,wFight:{p:[.036,-.139,.035
 const BLADE=(p)=>({prop:p,gripHand:true,wFight:{p:[0,-.075,0],r:[1.57,0,0]},fight:ONE_HAND});
 const TWO=(p,gun)=>({prop:p,twoHand:true,gripHand:true,gun,wFight:{p:[0,0,0],r:[0,0,0]},fight:TWO_HAND_ARMS,two:true});
 const ROSTER={
-  nico:Object.assign({name:'Nico Varga',role:'You · "the Tourist"',stop:'Wakes up in the baggage car',color:'#3fae9a',note:'A hitman on his first holiday in eleven years. Somebody put a price on his head the day he boarded, and every crew on the route wants it. He brought a pistol in his golf bag, just in case.',
+  nico:Object.assign({name:'Nico Varga',role:'You · "the Tourist"',stop:'Walks onto platform 0 in Tokyo',color:'#3fae9a',note:'A hitman on his first holiday in eleven years. Somebody put a price on his head the day he boarded, and every crew on the route wants it. He brought a pistol in his golf bag, just in case.',
     o:{hf:1.0,w:1.02,depth:1.0,lg:1.02,ag:1.04,jacket:.004,pants:.008},torso:tNicoTorso,arm:tNicoArm,leg:tNicoLeg,foot:tLoafer,
     extra:J=>shades(J,M(null,{color:0x1a2a3a,emissive:0x0a1a2a}),M(null,{color:0xd4ad5a}))},PISTOL,{fight:null}),
-  ren:Object.assign({name:'Ren Kagami',role:'Boss · Kagami-gumi',stop:'Boards in Tokyo, for the last night',color:'#ff4fae',crew:'renc',note:'The yakuza boss\'s spoiled son, in a white suit he will not let you bleed on. Short sword in one hand. When he is losing he starts offering money.',
+  ren:Object.assign({name:'Ren Kagami',role:'Boss · Kagami-gumi',stop:'Boards in Tokyo, at the end of the line',color:'#ff4fae',crew:'renc',note:'The yakuza boss\'s spoiled son, in a white suit he will not let you bleed on. Short sword in one hand. When he is losing he starts offering money.',
     o:{hf:.99,w:.96,depth:.96,lg:.96,ag:.96,jacket:.01,pants:.008},torso:tRenTorso,arm:tRenArm,leg:tRenLeg,foot:tWhiteShoe},BLADE(pWaki)),
-  renc:Object.assign({name:'Kagami-gumi',role:'Crew · Tokyo',stop:'Boards in Tokyo, for the last night',color:'#2a2a34',note:'Black suits, white shirts, black ties, dark glasses. They fight in disciplined pairs and never run.',
+  renc:Object.assign({name:'Kagami-gumi',role:'Crew · Tokyo',stop:'Boards in Tokyo, at the end of the line',color:'#2a2a34',note:'Black suits, white shirts, black ties, dark glasses. They fight in disciplined pairs and never run.',
     o:{hf:1.0,w:1.02,depth:1.0,lg:1.0,ag:1.02,jacket:.008,pants:.008},torso:tRencTorso,arm:tRencArm,leg:tRencLeg,foot:tShoeBlack,extra:J=>shades(J,M(null,{color:0x0a0a0c}),M(null,{color:0x0a0a0c}))},PISTOL),
   lau:Object.assign({name:'Madam Lau',role:'Boss · Golden Crane triad',stop:'Boards in Hong Kong',color:'#1f6a5a',crew:'lauc',note:'Runs the dim sum car like she runs the harbour. Jade silk, gold cranes, hair pinned with gold, and a cleaver she throws better than you shoot.',
     o:Object.assign({jacket:.014,pants:.012},FEM,{hf:.93}),torso:tLauTorso,arm:tLauArm,leg:tLauLeg,foot:tShoeBlack,extra:(J,o)=>{ collar(J,o,M(flat(64,16,636,'#14524a','cotton'),{double:true}),.06,.012); bun(J,'#0e0c10',true); }},BLADE(pCleaver)),
@@ -189,5 +189,5 @@ LINE.forEach((id,i)=>{ const slot=N(STATION,CAST_X[i],0,1.1); castChars.push(mak
   const cr=ROSTER[id].crew; if(cr){ const s2=N(STATION,CAST_X[i]+.45,0,-.2,0,-.25,0); castChars.push(makeChar(cr,s2,'cast')); castSlots[cr]=[CAST_X[i]+.45,-.2]; } });
 /* and in their cars */
 const wagonChars=[];
-for(const key in WG){ const sp=WG[key].spots; for(const name in sp){ const s=sp[name], id=name.replace(/_c2?$/,'c');
+for(const key in WG){ const sp=WG[key].spots; for(const name in sp){ const s=sp[name], id=name.replace(/_c\d*$/,'c');
   if(!ROSTER[id]) continue; const slot=N(WG[key].g,s.x,s.y||0,s.z,0,s.ry,0); const Cc=makeChar(id,slot,'w:'+key); if(s.pose&&!Cc.seated) applyPose(Cc,s.pose); wagonChars.push(Cc); } }

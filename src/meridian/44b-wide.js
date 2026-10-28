@@ -6,15 +6,14 @@
    ===================================================================================================== */
 const PLAY={
   cab:'The last room. The flight deck is a horseshoe you fight round; behind the bulkhead a waist-high spine of traction cabinets splits the crew mess into two lanes, with lockers and bunks to hide in.',
-  casino:'A maze of machines. Slots line both walls and a back-to-back island splits the floor, so there is always a lane to flank down; the craps and roulette tables are waist-high cover and the King\'s stage looks down the whole car.',
+  casino:'Laid out like a real floor. You come in by the bar, cross a raised pit of tables round the pit boss\'s podium (waist-high cover, one step up), then a slot floor of two islands: a centre aisle and a lane down each wall, cross aisles between. The King watches it all from the stage.',
   pool:'Open ground. The pool is a 14 m moat down the middle: wade it slowly or go round. The lifeguard chair is a perch, the hot tub and the bar are the only hard cover.',
   pub:'A brawler\'s room. A long bar to vault and fight behind, booths to pin people in, high tables and stools to throw, and an etched-glass snug screen at the front to break line of sight.',
   trattoria:'Lunch service. Nonna\'s long Sunday table runs down the middle as cover, family tables line both walls, and the kitchen end is a dead end with an oven in it.',
   banya:'Two climates. The sauna end is close quarters round tiered benches and a cold plunge tub, half hidden in steam; through the one door, the ice bar end is bright and open.',
   dimsum:'One way through. Tables fill both sides, the trolleys run the middle lane, and a lacquered moon gate is the only doorway into the half of the car where Lau waits.',
   capsule:'The stealth car. Two storeys of pods line both walls and a pod island runs down the middle, leaving two dim corridors: every pod is a place to hide, or a place for someone to be waiting.',
-  aquarium:'Glass everywhere. Column tanks and a long reef tank break the room up; velvet booths along both walls face the middle.',
-  baggage:'Where you wake up, and the tutorial. Crates, a luggage cage and a pile of mail sacks make a small maze to learn sneaking and grabbing in before the first fight.'};
+  aquarium:'Glass everywhere. Column tanks and a long reef tank break the room up; velvet booths along both walls face the middle.',};
 for(const W of WAGONS) W.play=PLAY[W.key];
 
 /* 01 · cab: a spine of traction cabinets down the crew mess, cable trays overhead */
@@ -24,15 +23,27 @@ for(const W of WAGONS) W.play=PLAY[W.key];
   for(const s of [-1,1]) B(g,dark,-5,WH-.25,s*1.4,18,.08,.4);
 })();
 
-/* 02 · casino: a craps table and a back-to-back island of slots */
-(function(){ const g=WG.casino.g, wood=M(woodT('#3a1e14','#24120c',314,true)), felt=M(fabT('#1f6a3a',315)), gold=C('#d4ad5a');
-  B(g,wood,-8.5,0,1.7,3.0,.9,1.5); B(g,felt,-8.5,.9,1.7,2.7,.03,1.2); for(const s of [-1,1]) B(g,gold,-8.5,.93,1.7+s*.64,3,.05,.06);
-  for(const [dx,dz] of [[-.4,.1],[-.25,-.05]]) B(g,C('#f2ece0'),-8.5+dx,.93,1.7+dz,.08,.08,.08,.4);
+/* 02 · casino: laid out like a real floor. Back to front: the bar, a raised pit of table games round a
+   pit boss's podium, a slot floor of two back-to-back islands (centre aisle plus a lane down each wall),
+   then the stage apron and the King's stage. */
+(function(){ const g=WG.casino.g, wood=M(woodT('#3a1e14','#24120c',314,true)), felt=M(fabT('#1f6a3a',315)), gold=C('#d4ad5a'), stool=C('#8a1424');
+  const pitC=M(P2(16,16,(g,w,h)=>{ R(g,'#1a3a2a',0,0,w,h); for(let y=0;y<h;y+=8) for(let x=0;x<w;x+=8){ ell(g,x+4,y+4,1.6,1.6,'#d4ad5a'); } },6,316));
+  /* the bar: stools along it */ for(let k=0;k<5;k++){ const z=-2.4+k*1.2; mk(cyl(.2,.2,.07,10),stool,g,-11.5,.75,z); mk(cyl(.035,.035,.75,6),gold,g,-11.5,.37,z); }
+  /* the pit: a raised green dais with a gold edge */
+  const PX=-6, PY=.14; B(g,pitC,PX,0,0,8.6,PY,5.8); for(const s of [-1,1]){ B(g,gold,PX,PY-.02,s*2.9,8.64,.04,.06); B(g,gold,PX+s*4.3,PY-.02,0,.06,.04,5.84); }
+  /* the pit boss's podium */ B(g,wood,PX,PY,0,.9,1.05,.6); B(g,gold,PX,PY+1.05,0,.96,.04,.66); B(g,U('#8ad8ff'),PX+.2,PY+1.1,0,.04,.28,.4); mk(cyl(.02,.02,.4,6),gold,g,PX-.3,PY+1.25,.2); B(g,U('#fff0c0'),PX-.3,PY+1.42,.2,.1,.06,.1);
+  /* roulette */ { const x=PX-2.3, z=-1.5; B(g,wood,x,PY,z,2.8,.8,1.3); B(g,felt,x,PY+.8,z,2.6,.04,1.1); const wh=mk(cyl(.42,.42,.08,20),[wood,WG.casino.wheel,WG.casino.wheel],g,x-1.0,PY+.88,z); WG.casino.anim.push(t=>{ wh.r[1]=t*1.4; });
+    for(let k=0;k<4;k++){ const sx=x-.6+k*.5; mk(cyl(.2,.2,.07,10),stool,g,sx,PY+.55,z-.95); mk(cyl(.035,.035,.55,6),gold,g,sx,PY+.27,z-.95); } }
+  /* craps */ { const x=PX+2.3, z=-1.5; B(g,wood,x,PY,z,2.8,.9,1.4); B(g,felt,x,PY+.9,z,2.5,.03,1.1); for(const s of [-1,1]) B(g,gold,x,PY+.93,z+s*.62,2.8,.05,.06); for(const [dx,dz] of [[-.4,.1],[-.25,-.05]]) B(g,C('#f2ece0'),x+dx,PY+.93,z+dz,.08,.08,.08,.4); }
+  /* two blackjack tables, players on the wall side, dealers facing the podium */
+  for(const x of [PX-2.3,PX+2.3]){ const z=1.3; mk(cyl(1.0,1.0,.08,16),[wood,felt,wood],g,x,PY+.8,z); B(g,wood,x,PY,z,.4,.8,.4); for(let k=0;k<5;k++){ const a=-.9+k*.45, cx=x+Math.sin(a)*1.35, cz=z+Math.cos(a)*1.35; mk(cyl(.2,.2,.07,10),stool,g,cx,PY+.5,cz); mk(cyl(.035,.035,.5,6),gold,g,cx,PY+.25,cz); } }
+  /* the slot floor: two islands, each two runs of back-to-back machines with a cross aisle */
   const scr=(seed)=>M(P2(16,24,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#2a1a4a'],[1,'#120a22']]); const r=rng(seed); for(let k=0;k<3;k++){ R(g,'#f2ece0',1+k*5,6,4,8); text(g,r()<.5?'7':'0',2+k*5,7,['#f5c542','#d63a2c','#29e0e6'][k],1); } R(g,'#ff3fa4',0,0,w,3); R(g,'#f5c542',2,18,12,2); }),{unlit:true});
-  for(let i=0;i<4;i++) for(const s of [-1,1]){ const n=N(g,.6+i*1.9,0,1.9+s*.32,0,s>0?0:Math.PI,0);
-    B(n,C(['#2a2a5a','#5a1a3a','#1a4a5a'][(i+s+2)%3]),0,0,0,.8,1.2,.62); mk(wplane(.6,.7),scr(400+i*3+s),n,0,1.55,.32); B(n,C('#2a2a30'),0,1.2,0,.8,.72,.58); B(n,G('#f5c542'),0,1.92,.05,.82,.12,.66); }
-  B(g,gold,3.45,1.95,1.9,7.7,.06,.06);
-  WG.casino.spots.king_c={x:-1.2,z:1.9,ry:-Math.PI/2};
+  const sign=M(textTex(48,12,'#121014',[['JACKPOT','c',3,'#f5c542']]),{unlit:true});
+  for(const zi of [-1.8,1.8]) for(const x0 of [-.6,4.6]){ for(let i=0;i<4;i++) for(const s of [-1,1]){ const n=N(g,x0+i*.95,0,zi+s*.32,0,s>0?0:Math.PI,0);
+      B(n,C(['#2a2a5a','#5a1a3a','#1a4a5a'][(i+s+2)%3]),0,0,0,.8,1.2,.62); mk(wplane(.6,.7),scr(400+i*3+s+(x0>0?20:0)+(zi>0?40:0)),n,0,1.55,.32); B(n,C('#2a2a30'),0,1.2,0,.8,.72,.58); B(n,G('#f5c542'),0,1.92,.05,.82,.12,.66); }
+    const xc=x0+1.425; B(g,C('#121014'),xc,2.04,zi,3.0,.4,.08); for(const s of [-1,1]) mk(wplane(2.8,.36),sign,g,xc,2.24,zi+s*.05,0,s>0?0:Math.PI,0); }
+  /* stage apron: a gold-edged runway carpet up to the stage */ B(g,M(P2(16,16,(g,w,h)=>{ R(g,'#3a0a14',0,0,w,h); R(g,'#d4ad5a',0,0,w,1); },4,317)),9.4,0,0,2.4,.02,3.2);
 })();
 
 /* 03 · pool: a hot tub, a lifeguard chair to perch on, a flamingo in the pool */
@@ -95,13 +106,17 @@ for(const W of WAGONS) W.play=PLAY[W.key];
   for(let k=0;k<6;k++){ const s=k%2?1:-1, n=mk(plane(.5,.25),fish,g,0,0,0), ph=k*1.3; WG.aquarium.anim.push(t=>{ const u=((t*.15+k/6)%1)*2-1; n.p=[u*3.0*s,.75+(k%3)*.2+Math.sin(t+ph)*.04,s*.5]; n.r=[0,s>0?0:Math.PI,0]; }); }
 })();
 
-/* 10 · baggage: a luggage cage and a pile of mail sacks */
-(function(){ const g=WG.baggage.g, steel=C('#8a8e94');
-  const mesh=M(P2(16,16,(g,w,h)=>{ for(let k=0;k<w;k+=4){ R(g,'#9aa0a6',k,0,1,h); R(g,'#9aa0a6',0,k,w,1); } }),{cut:true,double:true});
-  const cx=-9.5, cw=3, cd=2, ch=2.4;
-  for(const [dx,dz] of [[-1,-1],[1,-1],[-1,1],[1,1]]) B(g,steel,cx+dx*cw/2,0,dz*cd/2,.06,ch,.06);
-  for(const s of [-1,1]){ mk(wplane(cw,ch,.5,.5),mesh,g,cx,ch/2,s*cd/2); mk(wplane(cd,ch,.5,.5),mesh,g,cx+s*cw/2,ch/2,0,0,Math.PI/2,0); }
-  mk(wplane(cw,cd,.5,.5),mesh,g,cx,ch,0,-Math.PI/2);
-  const r=rng(401); for(let k=0;k<7;k++){ const w=.5+r()*.4; B(g,C(['#2a4a8a','#8a2a1a','#c8a060','#3a3a3e','#6a3a8a'][k%5]),cx-1+(k%3)*.9,Math.floor(k/3)*.5,-.3+(k%2)*.6,w,.45,.6,r()*.4); }
-  const sack=C('#c8b890'); for(let k=0;k<9;k++){ const x=8+(k%3)*.55-(k>5?-.2:0), z=-.4+((k*7)%3-1)*.5; mk(lathe([[0,.05,.05],[.12,.32,.26],[.45,.3,.24],[.6,.1,.08]],8),sack,g,x,(k>5?.45:0),z,0,k,Math.PI/2*((k%2)*.9)); }
+
+/* the crews: more of them in every car, placed where they would be (at the bar, at a table, on watch).
+   Final coordinates; ry -PI/2 faces the rear, where you come in. */
+(function(){ const B_=-Math.PI/2, F_=Math.PI/2, P=Math.PI, add=(k,o)=>Object.assign(WG[k].spots,o);
+  add('casino',{king_c:{x:2.0,z:0,ry:B_},king_c2:{x:-6,z:-.75,ry:B_,y:.14},king_c3:{x:-11,z:1.4,ry:B_},king_c4:{x:6,z:3.15,ry:0},king_c5:{x:3,z:-3.15,ry:B_},king_c6:{x:9.3,z:1.4,ry:B_},king_c7:{x:9.3,z:-1.4,ry:B_},king_c8:{x:-3.2,z:2.75,ry:P,y:.14}});
+  add('pool',{tremor_c3:{x:-9.6,z:1.9,ry:B_},tremor_c4:{x:1.5,z:2.62,ry:P,y:1.38,pose:'sit'},tremor_c5:{x:8.6,z:-2.5,ry:B_},tremor_c6:{x:-7.6,z:-2.4,ry:B_},tremor_c7:{x:-11.2,z:-2.2,ry:B_}});
+  add('pub',{gaffer_c3:{x:-6.75,z:-2.0,ry:P},gaffer_c4:{x:-9,z:.95,ry:B_},gaffer_c5:{x:-5.5,z:-.55,ry:B_},gaffer_c6:{x:-10.95,z:3.75,ry:F_,pose:'sit'},gaffer_c7:{x:10.6,z:1.4,ry:B_},gaffer_c8:{x:.5,z:2.4,ry:B_}});
+  add('trattoria',{nonna_c3:{x:-9.5,z:1.05,ry:P,pose:'sit',y:-.04},nonna_c4:{x:-6,z:-1.05,ry:0,pose:'sit',y:-.04},nonna_c5:{x:9,z:-2.5,ry:B_},nonna_c6:{x:5.6,z:2.2,ry:B_},nonna_c7:{x:-12.6,z:1.6,ry:F_}});
+  add('banya',{volkov_c2:{x:-9,z:3.15,ry:P,pose:'sit'},volkov_c3:{x:-4,z:-3.15,ry:0,pose:'sit'},volkov_c4:{x:-7.5,z:1.45,ry:B_},volkov_c5:{x:5.4,z:-1.9,ry:P},volkov_c6:{x:11.4,z:.6,ry:B_},volkov_c7:{x:2.2,z:2.6,ry:B_}});
+  add('dimsum',{lau_c3:{x:-9.4,z:0,ry:B_},lau_c4:{x:-12.09,z:3.22,ry:1.9,pose:'sit'},lau_c5:{x:2.1,z:-2.51,ry:-1.87,pose:'sit'},lau_c6:{x:10.5,z:1.2,ry:B_},lau_c7:{x:-3,z:-1.1,ry:B_}});
+  add('capsule',{ren_c3:{x:-10,z:-2.2,ry:B_},ren_c4:{x:10,z:2.2,ry:B_},ren_c5:{x:-1.6,z:1.5,ry:P,pose:'sit',y:-.08},ren_c6:{x:2.6,z:-2.7,ry:B_}});
+  add('aquarium',{lau_c:{x:-8.6,z:1.3,ry:B_},volkov_c:{x:8.6,z:-1.2,ry:B_},gaffer_c:{x:.4,z:2.2,ry:B_}});
+  add('cab',{ren_c:{x:3.6,z:-1.6,ry:B_},ren_c2:{x:-8.5,z:2.4,ry:B_},ren_c3:{x:9.9,z:2.4,ry:B_}});
 })();

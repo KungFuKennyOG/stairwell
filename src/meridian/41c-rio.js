@@ -64,11 +64,9 @@ SCENES.rio.props.push(SPR(48,24,(g,w,h)=>{ R(g,'#f2c230',4,h-14,40,9); R(g,'#2a6
 /* =====================================================================================================
    A ROUTE THAT ADDS UP. Westward from Tokyo at dawn: Japan, Hong Kong, north to Lake Baikal, across Russia
    to London, down through Europe to Naples, under the South Atlantic to Brazil, up through the Americas to
-   Las Vegas, under the Pacific and home to Tokyo by night. About 46,000 km in 12 days: 400 km/h running
-   ten hours a day, plus the stops.
+   Las Vegas, under the Pacific and home to Tokyo by night. It is the Meridian 24, "see the world in 24
+   hours": the whole loop in one frantic day. No clock on screen, just where you are.
    ===================================================================================================== */
-const TIMELINE={japan:['Day 1 · 09:20',520],hongkong:['Day 2 · 12:15',3600],siberia:['Day 3 · 10:30',7300],london:['Day 5 · 16:45',15400],naples:['Day 6 · 13:00',17500],atlantic:['Day 7 · 02:00',21000],rio:['Day 8 · 17:40',25800],vegas:['Day 10 · 20:30',36800],tokyonight:['Day 12 · 23:10',46200]};
-for(const k in TIMELINE){ SCENES[k].time=TIMELINE[k][0]; SCENES[k].km=TIMELINE[k][1]; }
 Object.assign(SCENES.atlantic,{name:'South Atlantic tunnel',country:'Under the ocean',sub:'A glass tube from Gibraltar to Brazil',note:'Five and a half thousand kilometres of glass tunnel on the sea floor between Gibraltar and Brazil, run overnight. Whales and shoals drift past in the blue and the cars run on their own lamps. The same kind of tube takes the train under the Pacific on the way home.'});
 SCENES.tokyo.time='Day 1 · 06:10';
 SCENE_ORDER.splice(0,SCENE_ORDER.length,'japan','hongkong','siberia','london','naples','atlantic','rio','vegas','tokyonight');

@@ -1,6 +1,6 @@
 
 /* =====================================================================================================
-   THE MERIDIAN: the biggest bullet train ever built, on its first lap of the world. Ten cars, each 30 m
+   THE MERIDIAN: the biggest bullet train ever built, on its first lap of the world. Nine cars, each 30 m
    long and 6.2 m wide on 3 m super-gauge track. Livery: midnight navy, a gold double pinstripe, the route
    drawn along the skirt with a dot for every stop, silver roof.
    ===================================================================================================== */
@@ -23,8 +23,6 @@ const WAGONS=[
     sub:'Boards in Tokyo, last stop · the Kagami-gumi',note:'Two storeys of glowing white sleep pods down both walls, a strip of lockers, vending machines and a neon-lit lounge in the middle. Clean, bright and very narrow to fight in.',sw:['#eeeee8','#29e0e6','#2a2a34','#ff4fae','#f5c542']},
   {key:'aquarium',num:'09',name:'Aquarium Lounge',label:'AQUARIUM',crew:null,wins:[[.06,.94]],glow:0x7ae8f0,color:'#1a6a86',
     sub:'Observation car · no crew of its own',note:'Floor-to-ceiling glass, a column tank of fish and blue velvet booths. Under the Atlantic the windows fill with whales; in the desert they fill with stars.',sw:['#0e3a52','#1a6a86','#bfefff','#2a2a5a','#d4ad5a']},
-  {key:'baggage',num:'10',name:'Baggage',label:'BAGGAGE',crew:null,wins:[[.1,.15],[.85,.9]],glow:0xffb050,color:'#8a6a46',
-    sub:'Where you wake up',note:'Crates, wardrobe trunks, a golf bag that is not full of golf clubs, a dinner jacket on a hanger and your sun lounger, which the porters said would fit. You start here with whatever is in your luggage.',sw:['#6b6f73','#9c7a4a','#e08a1e','#2a2c2f','#f27ab0']}
 ];
 const CAR_L=30, CAR_GAP=1.0, CAR_PITCH=CAR_L+CAR_GAP, CAR_HW=3.1+DW, WIDE=CAR_HW/3.1;
 const PROF=[[0,-.7],[2.9,-.7],[3.05,-.4],[3.1,.4],[3.1,3.5],[3.02,3.95],[2.75,4.28],[2.1,4.48],[1.0,4.56],[0,4.58]];
@@ -71,10 +69,10 @@ function buildCarExt(parent,W,x){ const n=N(parent,x,0,0);
   if(W.key==='cab'){ const ns=[]; for(let i=0;i<=10;i++){ const t=i/10; ns.push({x:CAR_L/2+t*12,sz:Math.max(.03,1-.86*Math.pow(t,1.5)),sy:Math.max(.05,1-.7*Math.pow(t,1.1)),dy:-1.05*Math.pow(t,1.3),u:t}); }
     mk(loft(ns),M(noseTex()),n); const pm=M(null,{color:0x3a3c40});
     mk(box(2,.1,.9),pm,n,-8,4.65,0); mk(box(.08,1.3,.08),pm,n,-8.3,5.2,0,0,0,.6); mk(box(.08,1.3,.08),pm,n,-7.7,5.2,0,0,0,-.6); mk(box(.1,.08,2.4),pm,n,-8,5.75,0); }
-  if(W.key==='baggage'){ const ns=[]; for(let i=0;i<=6;i++){ const t=i/6; ns.push({x:-CAR_L/2-t*6,sz:Math.max(.05,1-.6*Math.pow(t,2)),sy:Math.max(.08,1-.55*Math.pow(t,2.2)),dy:-.5*Math.pow(t,2),u:t}); } mk(loft(ns),M(tailTex()),n); }
+  if(W===WAGONS[WAGONS.length-1]){ const ns=[]; for(let i=0;i<=6;i++){ const t=i/6; ns.push({x:-CAR_L/2-t*6,sz:Math.max(.05,1-.6*Math.pow(t,2)),sy:Math.max(.08,1-.55*Math.pow(t,2.2)),dy:-.5*Math.pow(t,2),u:t}); } n.tail=mk(loft(ns),M(tailTex()),n); }
   return n; }
 const TRAIN=N(world), TRAIN_CARS=[];
-WAGONS.forEach((W,i)=>{ const n=buildCarExt(TRAIN,W,(4.5-i)*CAR_PITCH); n.W=W; TRAIN_CARS.push(n); });
+WAGONS.forEach((W,i)=>{ const n=buildCarExt(TRAIN,W,((WAGONS.length-1)/2-i)*CAR_PITCH); n.W=W; TRAIN_CARS.push(n); });
 const STATION=N(world), STATION_CARS=[];
 function setGlow(on){ for(const c of TRAIN_CARS) c.glow.vis=on; for(const c of STATION_CARS) c.glow.vis=on; }
 
@@ -95,9 +93,9 @@ function setGlow(on){ for(const c of TRAIN_CARS) c.glow.vis=on; for(const c of S
   mk(plane(40,12),roof,S,0,8.5,2.5,Math.PI/2); mk(box(40,.6,.2),dark,S,0,8.2,8.4); mk(box(40,.08,.22),gold,S,0,7.9,8.4);
   const sign=P2(160,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#14203a'],[1,'#0e1628']]); R(g,GOLD,2,2,w-4,1); R(g,GOLD,2,h-3,w-4,1); text(g,'TOKYO MERIDIAN TERMINAL',(w-textW('TOKYO MERIDIAN TERMINAL'))/2|0,8,'#f2ece0',1); text(g,'PLATFORM 0  WORLD LOOP',(w-textW('PLATFORM 0  WORLD LOOP'))/2|0,18,'#29e0e6',1); },0);
   mk(box(4.4,.9,.06),F(dark,M(sign),M(sign)),S,-8,5.4,-.7); for(const dx of [-1.9,1.9]) mk(box(.03,2.2,.03),gold,S,-8+dx,6.9,-.7);
-  const board=P2(128,64,(g,w,h)=>{ R(g,'#0e0d0c',0,0,w,h); text(g,'THE MERIDIAN  WORLD LOOP',3,3,'#ffb020',1);
-    const stops=[['DAY 2','HONG KONG'],['DAY 3','LAKE BAIKAL'],['DAY 5','LONDON'],['DAY 6','NAPLES'],['DAY 8','RIO'],['DAY 10','LAS VEGAS'],['DAY 12','TOKYO']];
-    stops.forEach(([d,n],i)=>{ text(g,d,3,12+i*7,'#c88a20',1); text(g,n,34,12+i*7,'#c88a20',1); }); });
+  const board=P2(128,64,(g,w,h)=>{ R(g,'#0e0d0c',0,0,w,h); text(g,'THE MERIDIAN 24  SEE THE WORLD',3,3,'#ffb020',1);
+    const stops=[['01','HONG KONG'],['02','LAKE BAIKAL'],['03','LONDON'],['04','NAPLES'],['05','RIO'],['06','LAS VEGAS'],['07','TOKYO']];
+    stops.forEach(([d,n],i)=>{ text(g,d,3,12+i*7,'#c88a20',1); text(g,n,16,12+i*7,'#c88a20',1); }); });
   mk(box(3.4,1.7,.12),F(dark,M(board,{unlit:true}),mBlack),S,8,5.0,-.7); mk(box(3.6,.1,.16),gold,S,8,5.9,-.7); for(const dx of [-1.4,1.4]) mk(box(.03,2.5,.03),gold,S,8+dx,7.1,-.7);
   const clockT=P2(32,32,(g,w,h)=>{ ell(g,16,16,15,15,'#d4ad5a'); ell(g,16,16,13,13,'#f6efe0'); for(let k=0;k<12;k++){ const a=k/12*Math.PI*2; R(g,'#14203a',16+Math.sin(a)*11|0,16-Math.cos(a)*11|0,1,1); } g.strokeStyle='#14203a'; g.lineWidth=1.5; g.beginPath(); g.moveTo(16,16); g.lineTo(16+Math.sin(.15)*10,16-Math.cos(.15)*10); g.moveTo(16,16); g.lineTo(16+Math.sin(6.2)*6,16-Math.cos(6.2)*6); g.stroke(); });
   mk(cyl(.55,.55,.14,16),[gold,M(clockT,{unlit:true}),M(clockT,{unlit:true})],S,0,5.6,-.7,Math.PI/2); mk(box(.04,2.6,.04),gold,S,0,7.1,-.7);

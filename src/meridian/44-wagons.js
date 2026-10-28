@@ -50,7 +50,7 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   /* the flight deck: a horseshoe of consoles and two captain's chairs */
   const scr=(fn)=>M(P2(48,32,(g,w,h)=>{ R(g,'#06121e',0,0,w,h); fn(g,w,h); }),{unlit:true});
   const route=scr((g,w,h)=>{ ell(g,24,16,20,11,'#0e2a3e'); for(let k=0;k<8;k++){ const a=k/8*Math.PI*2; ell(g,24+Math.cos(a)*16,16+Math.sin(a)*8,1.3,1.3,'#f5c542'); } g.strokeStyle='#29e0e6'; g.beginPath(); g.ellipse(24,16,16,8,0,0,Math.PI*2); g.stroke(); text(g,'LOOP',2,2,'#29e0e6',1); });
-  const speed=scr((g,w,h)=>{ text(g,'412',8,6,'#5ab8e8',3); text(g,'KM/H',14,24,'#3a7ab0',1); });
+  const speed=scr((g,w,h)=>{ text(g,'1920',8,8,'#5ab8e8',2); text(g,'KM/H',14,24,'#3a7ab0',1); });
   const track=scr((g,w,h)=>{ for(let k=0;k<6;k++) R(g,'#7cf06a',4+k*7,24-k*3,5,2); R(g,'#f5c542',4,26,40,1); text(g,'ATC OK',4,3,'#7cf06a',1); });
   B(g,navy,12.4,0,0,1.6,1.0,WZ*2-1.6); mk(box(1.4,.1,WZ*2-1.8),navy,g,12.0,1.05,0,0,0,.3);
   for(const s of [-1,1]){ B(g,navy,10.8,0,s*2.0,2.6,1.0,1.2,s*.35); }
@@ -83,10 +83,7 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
     B(n,C(['#2a2a5a','#5a1a3a','#1a4a5a'][i%3]),0,0,0,.8,1.2,.62); mk(wplane(.6,.7),slotScr(i*7+s),n,0,1.55,.32); B(n,C('#2a2a30'),0,1.2,0,.8,.72,.58); B(n,G('#f5c542'),0,1.92,.05,.82,.12,.66); B(n,gold,.42,1.05,.1,.04,.4,.04,0,0,-.3); }
   /* the roulette table */
   const wheel=M(P2(32,32,(g,w,h)=>{ for(let k=0;k<37;k++){ const a=k/37*Math.PI*2,a2=(k+1)/37*Math.PI*2; poly(g,[[16,16],[16+Math.cos(a)*15,16+Math.sin(a)*15],[16+Math.cos(a2)*15,16+Math.sin(a2)*15]],k===0?'#2a9a5a':k%2?'#c8202a':'#121014'); } ell(g,16,16,8,8,'#6a3a1e'); ell(g,16,16,3,3,'#d4ad5a'); }),{unlit:false});
-  B(g,wood,-4,0,0,3.2,.8,1.5); B(g,felt,-4,.8,0,3.0,.04,1.3); const wh=mk(cyl(.42,.42,.08,20),[wood,wheel,wheel],g,-5.1,.88,0); WG.casino.anim.push(t=>{ wh.r[1]=t*1.4; });
-  const chip=['#d63a2c','#2a6ad8','#121014','#f2ece0'].map(c=>C(c)); for(let k=0;k<10;k++) mk(cyl(.035,.035,.03+(k%3)*.02,8),chip[k%4],g,-4+k*.1,.84+.01,-.3+(k%3)*.2);
-  /* blackjack tables */
-  for(const x of [2,6.5]){ mk(cyl(1.0,1.0,.08,16),[wood,felt,wood],g,x,.8,-.9); B(g,wood,x,0,-.9,.4,.8,.4); for(let k=0;k<4;k++){ const a=-.5+k*.35; const cx=x+Math.sin(a)*1.4,cz=-.9+Math.cos(a)*1.4; B(g,C('#8a1424'),cx,.5,cz,.42,.1,.42); mk(cyl(.04,.04,.5,6),gold,g,cx,.25,cz); } }
+  WG.casino.wheel=wheel;
   /* stage with a gold curtain */
   B(g,C('#24120c'),12.3,0,0,3.2,.45,WZ*2); B(g,G('#f5c542'),10.7,.42,0,.05,.05,WZ*2);
   const curtain=M(P2(16,32,(g,w,h)=>{ for(let x=0;x<w;x++){ const v=.75+.25*Math.sin(x*1.2); R(g,mix('#a87a20','#ffd860',v*.6),x,0,1,h); } },4,16),{double:true});
@@ -114,7 +111,7 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   for(const s of [-1,1]) for(let i=0;i<5;i++){ const x=-6+i*3,z=s*2.3,n=N(g,x,0,z,0,s<0?.0:Math.PI,0); B(n,white,0,0,0,1.6,.28,.6); B(n,lounge,0,.28,0,1.5,.06,.56); B(n,lounge,-.7,.3,0,.5,.06,.56,0,0,.7); }
   /* umbrellas */
   const umb=M(P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=4){ R(g,'#e0473a',x,0,2,h); R(g,'#f2ece0',x+2,0,2,h); } }),{double:true});
-  for(const x of [-4.5,1.5,7.5]) for(const s of [-1,1]){ mk(cyl(.025,.025,2.3,6),white,g,x,1.15,s*2.4); mk(lathe([[0,1.0,1.0],[.4,.05,.05]],10,{capB:false}),umb,g,x,2.1,s*2.4); }
+  for(const x of [-4.5,1.5,7.5]) for(const s of [-1,1]){ if(x===1.5&&s>0) continue; mk(cyl(.025,.025,2.3,6),white,g,x,1.15,s*2.4); mk(lathe([[0,1.0,1.0],[.4,.05,.05]],10,{capB:false}),umb,g,x,2.1,s*2.4); }
   /* palms in pots */
   for(const x of [-8.5,8.5]) for(const s of [-1,1]){ mk(cyl(.3,.24,.6,10),C('#c8643a'),g,x,.3,s*2.4); B(g,C('#7a5a3e'),x,.6,s*2.4,.12,1.8,.12,0,0,.1); for(let k=0;k<7;k++) mk(box(.14,.05,1.1),C('#3f8a3e'),g,x,2.45,s*2.4,.0,k/7*Math.PI*2,.45); }
   /* tiki bar under thatch at the back */
@@ -204,8 +201,8 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   /* partition with a door in the middle */
   const pt=M(logs.tex,{double:true}); for(const s of [-1,1]) K(mk(wplane(WZ-.9,WH),pt,g,0,WH/2,s*(WZ+.9)/2,0,Math.PI/2,0)); mk(wplane(1.8,1.0),pt,g,0,2.9,0,0,Math.PI/2,0);
   /* sauna: tiered benches, the stove, buckets, birch switches */
-  for(let t=0;t<3;t++) for(const s of [-1,1]) B(g,boards,-6.5,.4+t*.45,s*(2.6-t*.5),12,.1,.5);
-  for(const s of [-1,1]) for(let t=0;t<3;t++) B(g,boards,-6.5,0,s*(2.6-t*.5),12,.4+t*.45,.06);
+  for(let t=0;t<3;t++) for(const s of [-1,1]) B(g,boards,-6.5,.4+t*.45,s*(1.6+t*.5),12,.1,.5);
+  for(const s of [-1,1]) for(let t=0;t<3;t++) Wz(B(g,boards,-6.5,0,s*(1.38+t*.5),12,.4+t*.45,.06));
   B(g,C('#2a2a2e'),-1.4,0,0,.9,.9,.9); for(let k=0;k<9;k++) mk(lathe([[0,.06,.06],[.06,.09,.08],[.12,.04,.04]],6),C(k%3?'#6a6a6a':'#c8502a',{emissive:k%3?0:0x5a1a00}),g,-1.6+(k%3)*.2,.9,-.2+(k/3|0)*.2);
   for(let k=0;k<3;k++){ K(mk(cyl(.16,.13,.28,10),C('#9a6a3a'),g,-3+k*.7,.0+.14,1.6)); K(mk(cyl(.17,.17,.03,10),C('#4a3a2a'),g,-3+k*.7,.26,1.6)); }
   for(let k=0;k<4;k++){ const x=-11+k*1.3; B(WG.banya.side[-1],C('#c8a040'),x,1.8,-2.82,.5,.6,.06); B(WG.banya.side[-1],C('#4a7a32'),x,1.5,-2.8,.4,.32,.08); }
@@ -290,28 +287,6 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   B(g,C('#14203a'),13,0,0,.8,1.05,6); B(g,gold,12.65,1.05,0,.1,.04,6); for(let k=0;k<5;k++) K(mk(cyl(.04,.05,.24,6),G(['#29e0e6','#f5c542','#ff3fa4'][k%3]),g,13.2,1.2,-2+k*1));
 })();
 
-/* ---------- 10 · baggage: where you wake up ---------- */
-(function baggage(){
-  const rib=M(P2(16,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#7a7f86'],[1,'#5f646a']]); R(g,'#4a4e54',0,0,2,h); R(g,'#9aa0a6',2,0,1,h); for(let y=4;y<h;y+=8) R(g,'#3a3e44',8,y,1,1); },6,91));
-  const plate=M(P2(16,16,(g,w,h)=>{ R(g,'#6b6f73',0,0,w,h); for(let y=0;y<h;y+=4) for(let x=(y>>2)%2?0:2;x<w;x+=4) R(g,'#8a8e94',x,y,2,1); },6,92));
-  const crate=(lab)=>M(P2(32,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#ae8a56'],[1,'#94703e']]); for(let y=0;y<h;y+=8) R(g,'#6a4e2a',0,y,w,1); R(g,'#6a4e2a',0,0,2,h); R(g,'#6a4e2a',w-2,0,2,h); text(g,lab,(w-textW(lab))/2|0,13,'#2a1a10',1); },8,lab.length));
-  const crates=[crate('TOKYO'),crate('RIO'),crate('LONDON'),crate('NAPLES')];
-  const sticker=(seed)=>M(P2(32,24,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#6a3a22'],[1,'#4a2614']]); const r=rng(seed); const cols=['#f2c230','#e0473a','#2a9a5a','#2a6ad8','#f27ab0','#f2ece0']; for(let i=0;i<7;i++){ const x=r()*(w-8),y=r()*(h-6); R(g,cols[i%6],x,y,6+(r()*4|0),4+(r()*3|0)); } R(g,'#d4ad5a',0,h/2,w,1); },4,seed));
-  const g=shell('baggage',{floor:plate,floorTile:.6,ceil:C('#3a3e44'),dado:rib,upper:rib,pier:rib,trim:C('#2a2c2f'),end:rib,door:C('#4a4e54'),
-    wins:[[-11.6,-10.6],[10.6,11.6]],lamps:[lamp(0,2.9,0,[1.7,.85,.28],7),lamp(-9,2.8,0,[.35,.4,.5],6),lamp(9,2.8,0,[.35,.4,.5],6),lamp(-5,1.2,1.5,[.9,.5,.2],3)],ambK:.55,sunK:.35,minLamp:.85});
-  B(WG.baggage.side[1],M(P2(16,16,(g,w,h)=>{ for(let y=0;y<h;y+=2) vfill(g,0,y,w,2,[[0,'#a8a294'],[1,'#8a8476']]); },4,93)),3,.05,WZ0-.04,4.2,2.7,.04);
-  const r=rng(94); for(const [x,z] of [[-12,-2],[-11,-2.1],[-12.2,2],[-8.5,-2.2],[10,-2],[11.2,-2.1],[11.6,1.8],[7.6,2.1]]){ let y=0; const n=1+(r()*3|0); for(let k=0;k<n;k++){ const s=.7+r()*.3; B(g,crates[(r()*4)|0],x,y,z,s,s,s,r()*.3); y+=s; } }
-  /* the hitman's luggage: wardrobe trunk, suitcases, the golf bag, a sun lounger, the dinner jacket */
-  const trunk=sticker(95); B(g,F(C('#4a2614'),trunk),-3.2,0,-2.3,1.0,1.6,.6); B(g,C('#d4ad5a'),-3.2,.8,-1.99,1.0,.04,.02);
-  for(let k=0;k<3;k++) B(g,F(C(['#2a4a8a','#8a2a1a','#c8a060'][k]),sticker(96+k)),-1.6+k*.05,k*.36,-2.3,.9,.34,.6,k*.1);
-  mk(cyl(.17,.15,1.0,10),C('#e8e0d0'),g,-.4,.5,-2.4,0,0,.12); for(let k=0;k<4;k++) mk(cyl(.025,.025,.35,6),C(k===3?'#121214':'#c8ccd2'),g,-.48+k*.06,1.15,-2.4+(k%2)*.06,0,0,.12); mk(cyl(.035,.035,.22,6),C('#121214'),g,-.3,1.25,-2.36,0,0,1.3);
-  const lounger=M(stripes('#f27ab0','#f2ece0',3)); B(g,C('#c8ccd2'),1.6,0,-2.1,1.8,.3,.65); B(g,lounger,1.6,.3,-2.1,1.7,.06,.6); B(g,lounger,.85,.32,-2.1,.55,.06,.6,0,0,.7);
-  B(g,C('#c8ccd2'),-5.6,0,-2.5,.04,2.0,.04); B(g,C('#c8ccd2'),-4.6,0,-2.5,.04,2.0,.04); B(g,C('#c8ccd2'),-5.1,2.0,-2.5,1.04,.04,.04); B(g,C('#f2ece0'),-5.1,1.1,-2.5,.5,.85,.14); B(g,C('#121214'),-5.1,1.6,-2.43,.08,.12,.02);
-  B(g,C('#3a4a3a'),-8,0,1.6,2,.4,.9); B(g,C('#5a6a52'),-8,.4,1.6,1.9,.12,.85); B(g,C('#f2ece0'),-8.75,.52,1.6,.4,.1,.6);
-  B(g,C('#2a2c2f'),0,2.95,0,.04,.45,.04); mk(lathe([[0,.3,.3],[.18,.08,.08]],10),C('#2a2c2f',{double:true}),g,0,2.62,0); B(g,U('#ffb050'),0,2.61,0,.22,.04,.22);
-  for(const [x,z] of [[-2,1.4],[2.5,1.6],[6,.4]]) for(let k=0;k<7;k++) B(g,C('#5a5e64'),x,WH-.12-k*.1,z,.04,.08,.07,0,k%2*.5);
-  WG.baggage.spots={nico:{x:-.8,z:.4,ry:-Math.PI/2}};
-})();
 
 /* The Meridian is 9.2 m across, half again a real bullet train, so there is room to fight. The car builders
    above lay out against a 5.8 m car; here everything they set near a wall slides out to the real wall and
