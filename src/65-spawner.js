@@ -43,7 +43,6 @@ const BTN=[
   {label:'RESET',col:1,row:3,act:()=>{ resetGame(); if(XR.on) vrRecenter(); }},
   {label:'SLOW-MO',col:2,row:3,act:()=>toggleSlow()},
   {label:()=>'LASERS: '+(XR.laser?'ON':'OFF'),col:0,row:4,act:()=>{ XR.laser=!XR.laser; }},
-  {label:()=>'PS1 WOBBLE: '+['OFF','LIGHT','FULL'][XR.wobble],col:1,row:4,act:()=>{ XR.wobble=(XR.wobble+1)%3; }},
   {label:()=>'FLOOR '+String(FLOOR.n).padStart(2,'0')+' +1',col:2,row:4,act:()=>setTimeout(climb,0)},
   {label:()=>'BLADE TILT: '+MELEE_TILT_LBL[MEL.tilt],col:0,row:5,act:()=>{ MEL.tilt=(MEL.tilt+1)%MELEE_TILT.length; reequipMelee(); }},
   {label:()=>'HANDS: '+HAND_YAW_LBL[MEL.yaw],col:1,row:5,act:()=>{ MEL.yaw=(MEL.yaw+1)%HAND_YAW.length; }},
