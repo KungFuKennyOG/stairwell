@@ -25,7 +25,7 @@ function clearEnemies(){ for(const E of enemies){ disposeTree(E.holder); const i
 function newFloor(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genFloor(FLOOR.n,(Math.random()*1e9)|0,true); buildRack(); buildBoard(); resetGame(); if(XR.on) vrRecenter(); }
 
 /* ---------- the board (VR) ---------- */
-const BOARD=[]; let boardN=null; const boardTex={c:(()=>{ const c=document.createElement('canvas'); c.width=512; c.height=256; return c; })(),glt:null,f:-1,text:''};
+const BOARD=[]; let boardN=null; const boardTex={c:(()=>{ const c=document.createElement('canvas'); c.width=512; c.height=320; return c; })(),glt:null,f:-1,text:''};
 const BTN=[
   ...KINDS.map((K,i)=>({label:K.label.toUpperCase(),col:i%3,row:i<3?0:1,act:()=>spawnKind(i)})),
   {label:()=>'NEAR ME: '+(SPAWNOPT.near?'ON':'OFF'),col:0,row:2,act:()=>{ SPAWNOPT.near=!SPAWNOPT.near; }},
@@ -33,19 +33,23 @@ const BTN=[
   {label:'CLEAR',col:2,row:2,act:clearEnemies},
   {label:'NEW FLOOR',col:0,row:3,act:()=>setTimeout(newFloor,0)},
   {label:'RESET',col:1,row:3,act:()=>{ resetGame(); if(XR.on) vrRecenter(); }},
-  {label:'SLOW-MO',col:2,row:3,act:()=>toggleSlow()}];
+  {label:'SLOW-MO',col:2,row:3,act:()=>toggleSlow()},
+  {label:()=>'LASERS: '+(XR.laser?'ON':'OFF'),col:0,row:4,act:()=>{ XR.laser=!XR.laser; }},
+  {label:()=>'PS1 WOBBLE: '+(XR.wobble?'ON':'OFF'),col:1,row:4,act:()=>{ XR.wobble=!XR.wobble; }},
+  {label:()=>'FLOOR '+String(FLOOR.n).padStart(2,'0')+' +1',col:2,row:4,act:()=>setTimeout(climb,0)}];
 const BW=.72,BH=.2,BX0=-12.62,BY0=1.62,BZ=-1.93; /* buttons on the south wall of the landing, facing north */
 function drawBoard(){ const g=boardTex.c.getContext('2d'),key=BTN.map(b=>typeof b.label==='function'?b.label():b.label).join('|')+BTN.map(b=>b.lit>0?1:0).join(''); if(boardTex.text===key) return; boardTex.text=key;
-  g.fillStyle='#141414'; g.fillRect(0,0,512,256); g.fillStyle='#e2a33d'; g.fillRect(0,0,512,3);
+  g.fillStyle='#141414'; g.fillRect(0,0,512,320); g.fillStyle='#e2a33d'; g.fillRect(0,0,512,3);
   g.textAlign='center'; g.textBaseline='middle';
   for(const b of BTN){ const x=8+b.col*168,y=10+b.row*61; g.fillStyle=b.lit>0?'#e2a33d':b.row<2?'#3a1414':'#23262a'; g.fillRect(x,y,160,53); g.fillStyle=b.lit>0?'#0a0a0a':'#f2ede2'; g.font='800 22px "Big Shoulders Display","Arial Narrow",sans-serif';
     g.fillText(typeof b.label==='function'?b.label():b.label,x+80,y+27,150); }
   if(boardTex.glt){ gl.bindTexture(gl.TEXTURE_2D,boardTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,boardTex.c); } }
 function buildBoard(){ if(boardN){ disposeTree(boardN); const i=world.kids.indexOf(boardN); if(i>=0) world.kids.splice(i,1); } boardN=null; if(!FLOOR.test) return;
   boardN=N(world); boardTex.text=''; drawBoard();
-  mk(box(2.3,1.02,.03),M(null,{color:0x0c0c0c}),boardN,-11.5,BY0-1.5*BH-.05,BZ-.01);
-  mk(plane(2.2,1.1),M(boardTex,{unlit:true}),boardN,-11.5,BY0-1.5*BH-.04,BZ+.012);
-  for(const b of BTN){ b.x=-11.5-1.1+(b.col+.5)*(2.2/3); b.y=BY0+.24-(b.row+.5)*(1.1/4)-.03; b.lit=0; } }
+  const H5=1.375,cy=BY0-1.5*BH-.04-.1375;
+  mk(box(2.3,H5+.08,.03),M(null,{color:0x0c0c0c}),boardN,-11.5,cy-.01,BZ-.01);
+  mk(plane(2.2,H5),M(boardTex,{unlit:true}),boardN,-11.5,cy,BZ+.012);
+  for(const b of BTN){ b.x=-11.5-1.1+(b.col+.5)*(2.2/3); b.y=cy+H5/2-(10+b.row*61+27)/320*H5; b.lit=0; } }
 function pokeBoard(p,h,dt){ if(!boardN) return;
   for(const b of BTN){ b.lit=Math.max(0,b.lit-dt); const inside=Math.abs(p[0]-b.x)<BW/2-.03&&Math.abs(p[1]-b.y)<BH/2+.02&&p[2]<BZ+.09&&p[2]>BZ-.05;
     const k=h.side+b.label; if(inside&&!pokeBoard.held[k]){ pokeBoard.held[k]=true; b.lit=.3; b.act(); sfx('click',.8); buzz(h.hand,.6,30); } else if(!inside) pokeBoard.held[k]=false; }

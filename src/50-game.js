@@ -5,7 +5,7 @@
    body. Dead = no muscles. Damage is per body part: legs drop them, arms go limp, arteries spurt with the heartbeat.
    ===================================================================== */
 const state={ps1:true,res:480,snap:true,affine:true,dither:true};
-const XR={on:false,session:null,space:null,origin:[0,0,3.2],yaw:0,head:null,hands:{},flash:0,snapHeld:false,btn:{},clearT:0,knifeTip:null,stabCd:0,res:1080,toast:'',toastT:0,resetHold:0,panelP:null};
+const XR={laser:false,wobble:false,on:false,session:null,space:null,origin:[0,0,3.2],yaw:0,head:null,hands:{},flash:0,snapHeld:false,btn:{},clearT:0,knifeTip:null,stabCd:0,res:1080,toast:'',toastT:0,resetHold:0,panelP:null};
 
 const $=id=>document.getElementById(id);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -695,6 +695,9 @@ function sfx(type,vol=1){ const ac=audio(); if(!ac) return; const t=ac.currentTi
   else if(type==='swish'){ noise(3000,900,.14,.25,2,'bandpass'); }
   else if(type==='click'){ tone(2200,1800,.03,.3); }
   else if(type==='reload'){ tone(1500,1200,.04,.25); setTimeout(()=>sfx('click'),900); }
+  else if(type==='slowin'){ tone(220,55,.7,.5); noise(900,90,.7,.35); }
+  else if(type==='slowout'){ tone(60,240,.35,.35); noise(150,1200,.3,.25); }
+  else if(type==='heart'){ tone(58,40,.14,.55); setTimeout(()=>{ if(GAME.slow) tone2(); },180); function tone2(){ const a=audio(); if(!a) return; const o=a.createOscillator(),gg=a.createGain(),t2=a.currentTime; o.frequency.setValueAtTime(52,t2); o.frequency.exponentialRampToValueAtTime(36,t2+.12); gg.gain.setValueAtTime(.4,t2); gg.gain.exponentialRampToValueAtTime(.001,t2+.12); o.connect(gg); gg.connect(a.destination); o.start(t2); o.stop(t2+.14); } }
   else if(type==='revolver'){ noise(4200,220,.4,1); tone(95,32,.24,1); }
   else if(type==='shotgun'){ noise(3000,120,.55,1.2); tone(70,28,.32,1.2); }
   else if(type==='smg'){ noise(6000,500,.12,.6); tone(150,60,.08,.5); }
@@ -733,7 +736,7 @@ addEventListener('keydown',e=>{ KEYS[e.code]=true; if(!GAME.started) return;
   else if(e.code==='KeyQ'&&HANDS.R.item){ HANDS.R.vel=v3.sc(camBasis().f,4); grabOrDrop(HANDS.R); } });
 addEventListener('mousedown',e=>{ if(e.button===0) KEYS.Mouse0=true; }); addEventListener('mouseup',e=>{ if(e.button===0) KEYS.Mouse0=false; });
 addEventListener('keyup',e=>{ KEYS[e.code]=false; });
-function toggleSlow(){ GAME.slow=!GAME.slow; $('bSlow').setAttribute('aria-pressed',String(GAME.slow)); $('bSlowT').setAttribute('aria-pressed',String(GAME.slow)); }
+function toggleSlow(){ GAME.slow=!GAME.slow; sfx(GAME.slow?'slowin':'slowout'); $('bSlow').setAttribute('aria-pressed',String(GAME.slow)); $('bSlowT').setAttribute('aria-pressed',String(GAME.slow)); }
 let drag=null;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('pointerdown',e=>{ if(!GAME.started) return; audio();
@@ -763,7 +766,7 @@ const clip=(p)=>{ const v=mulP(view,p),c=[proj[0]*v[0]+proj[4]*v[1]+proj[8]*v[2]
 function update(dt,now){
   GAME.ts=lerp(GAME.ts,GAME.slow?.22:1,Math.min(1,dt*6)); const gdt=dt*GAME.ts; GAME.t+=gdt; GAME.barkGlobal-=gdt;
   if(GAME.started&&!PL.dead&&!XR.on){ let mx=(KEYS.KeyD||KEYS.ArrowRight?1:0)-(KEYS.KeyA||KEYS.ArrowLeft?1:0)+stick.dx,mz=(KEYS.KeyW||KEYS.ArrowUp?1:0)-(KEYS.KeyS||KEYS.ArrowDown?1:0)-stick.dy;
-    const l=Math.hypot(mx,mz); if(l>1){ mx/=l; mz/=l; } const sp=2.6*dt,fx=-Math.sin(PL.yaw),fz=-Math.cos(PL.yaw),rx=Math.cos(PL.yaw),rz=-Math.sin(PL.yaw);
+    const l=Math.hypot(mx,mz); if(l>1){ mx/=l; mz/=l; } const sp=2.6*dt*Math.max(GAME.ts,.3),fx=-Math.sin(PL.yaw),fz=-Math.cos(PL.yaw),rx=Math.cos(PL.yaw),rz=-Math.sin(PL.yaw);
     PL.x+=(fx*mz+rx*mx)*sp; PL.z+=(fz*mz+rz*mx)*sp; collidePlayer(); }
   if(GAME.started&&!PL.dead){ PL.hurtT+=dt; if(PL.hurtT>3.5) PL.hp=Math.min(100,PL.hp+9*dt); }
   PL.kickCd-=dt; XR.flash=Math.max(0,XR.flash-dt);
@@ -778,6 +781,7 @@ function update(dt,now){
   if(FLOOR.flick){ const on=(Math.sin(GAME.t*23)+Math.sin(GAME.t*7.3)>-.7)||Math.sin(GAME.t*1.3)>.1,fk=on?1:.15,c=FLOOR.lights[0][1]; L.plCol.set([c[0]*fk,c[1]*fk,c[2]*fk],0); FLOOR.flick.mat.color=on?[1,1,1]:[.3,.3,.32]; }
   flash.t-=dt; if(flash.t>0){ L.plPos.set(flash.pos,21); L.plCol.set([2.6,1.8,.9],21); L.plDist[7]=6; } else { L.plCol.set([0,0,0],21); }
   updateDoors(gdt); navUpdate(gdt,PL.x,PL.z);
+  if(GAME.slow){ GAME.beatT=(GAME.beatT||0)-dt; if(GAME.beatT<=0){ GAME.beatT=1.05; sfx('heart'); } } else GAME.beatT=0;
   /* the flight up: walk onto it and you climb to the next floor (saved on the stairs) */
   if(GAME.started&&!PL.dead&&!GAME.climbing){ const S=FLOOR.stairUp; if(S&&PL.x>S.x0+.6&&PL.z>S.z0&&PL.z<S.z1) climb(); }
 }
@@ -787,20 +791,25 @@ function renderWith(w,h){
   updateWorld(world,null); gl.viewport(0,0,w,h); gl.clearColor(L.fog[0],L.fog[1],L.fog[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST); gl.useProgram(MAIN.p); curCull=null; const u=MAIN.loc;
   gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
-  gl.uniform1f(u.uSnap,1); gl.uniform1f(u.uAffine,1); gl.uniform2f(u.uRes,w,h);
+  const wob=!XR.on||XR.wobble; gl.uniform1f(u.uSnap,wob?1:0); gl.uniform1f(u.uAffine,wob?1:0); gl.uniform2f(u.uRes,w,h); /* in a headset the PS1 vertex snap swims between the eyes: off unless asked for */
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
   gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0);
   drawTree(world); gl.bindVertexArray(null); }
 const POST2=program(PVS,`#version 300 es
 precision highp float;
-uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash; uniform float uSmooth;
+uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash; uniform float uSmooth; uniform float uSlow;
 in vec2 vUv; out vec4 outColor;
 float bayer2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
 float bayer4(vec2 a){ return bayer2(0.5 * a) * 0.25 + bayer2(a); }
 void main(){
   vec2 px = floor(vUv * uRes);
   vec3 c = texture(tScene, uSmooth > 0.5 ? vUv : (px + 0.5) / uRes).rgb;
+  /* bullet time: colour drains toward a cold grey and contrast hardens (no vignette, no text) */
+  float lum = dot(c, vec3(0.3, 0.59, 0.11));
+  float red = clamp((c.r - max(c.g, c.b)) * 4.0, 0.0, 1.0); /* blood keeps its colour */
+  c = mix(c, vec3(lum) * vec3(0.9, 0.98, 1.1), uSlow * 0.62 * (1.0 - red));
+  c = (c - 0.5) * (1.0 + 0.16 * uSlow) + 0.5 - 0.015 * uSlow;
   c = mix(c, vec3(0.5, 0.0, 0.0), uFlash);
   float L = 31.0; c += (bayer4(px) - 0.5) / L; c = floor(c * L + 0.5) / L;
   outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
@@ -808,7 +817,7 @@ void main(){
 function post(targetFB,vx,vy,vw,vh,w,h){
   gl.bindFramebuffer(gl.FRAMEBUFFER,targetFB); gl.viewport(vx,vy,vw,vh); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null;
   gl.useProgram(POST2.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
-  gl.uniform1i(POST2.loc.tScene,0); gl.uniform2f(POST2.loc.uRes,w,h); gl.uniform1f(POST2.loc.uFlash,XR.on?XR.flash*1.2:0); gl.uniform1f(POST2.loc.uSmooth,XR.on?1:0);
+  gl.uniform1i(POST2.loc.tScene,0); gl.uniform2f(POST2.loc.uRes,w,h); gl.uniform1f(POST2.loc.uFlash,XR.on?XR.flash*1.2:0); gl.uniform1f(POST2.loc.uSmooth,XR.on?1:0); gl.uniform1f(POST2.loc.uSlow,clamp((1-GAME.ts)/.78,0,1));
   for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,XR.on?gl.LINEAR:gl.NEAREST); gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); }
 
 /* ---------- flat screen ---------- */
@@ -827,7 +836,7 @@ function frame(now){
   const h=state.res,w=Math.max(1,Math.round(h*cv.width/cv.height)); ensureFB(w,h); gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderWith(w,h); post(null,0,0,cv.width,cv.height,w,h);
   for(const E of enemies){ const el=E.barkEl; if(E.barkT>0&&!E.dead){ const hp=X_(E.B,PI_.head),c=clip(v3.add(hp,[0,.32,0])); if(c[2]>.1){ el.hidden=false; el.style.transform=`translate(${(c[0]/c[2]*.5+.5)*innerWidth}px,${(.5-c[1]/c[2]*.5)*innerHeight}px) translate(-50%,-100%)`; el.style.opacity=Math.min(1,E.barkT*2); } else el.hidden=true; } else el.hidden=true; }
   { const it=HANDS.R.item,w=it&&WPN[it.key]; $('ammo').textContent=!w?'FISTS':!w.gun?w.label.toUpperCase():it.reload>0?'RELOADING':`${it.ammo} / ${w.mag}`; } $('hp').style.width=`${PL.hp}%`;
-  $('slowTag').hidden=!GAME.slow;
+  $('slowTag').hidden=true;
   requestAnimationFrame(frame);
 }
 
@@ -891,13 +900,14 @@ function xrFrame(t,xf){
     if(grip) grabOrDrop(h);
     if(h.item&&WPN[h.item.key].gun){ if(trig||(WPN[h.item.key].auto&&pressed(0))) fireHand(h); }
     if(ab) reloadHand(h); if(by) kick();
-    if(hand==='left'){ const sx=ax[2]||0,sz=ax[3]||0; if(GAME.started&&Math.hypot(sx,sz)>.15){ const fl=norm3([f[0],0,f[2]]),rl=[-fl[2],0,fl[0]],sp=2.2*dt;
+    if(hand==='left'){ const sx=ax[2]||0,sz=ax[3]||0; if(GAME.started&&Math.hypot(sx,sz)>.15){ const fl=norm3([f[0],0,f[2]]),rl=[-fl[2],0,fl[0]],sp=2.2*dt*Math.max(GAME.ts,.3); /* bullet time slows you too */
         const before=[PL.x,PL.z]; PL.x+=(rl[0]*sx-fl[0]*sz)*sp; PL.z+=(rl[2]*sx-fl[2]*sz)*sp; collidePlayer(); XR.origin[0]+=PL.x-before[0]; XR.origin[2]+=PL.z-before[1]; }
-      if(stickC){ toggleSlow(); vrToast(GAME.slow?'Bullet time':'Normal time',1); } }
+      if(stickC) toggleSlow(); }
     else { const sx=ax[2]||0; if(Math.abs(sx)>.7&&!XR.snapHeld){ XR.snapHeld=true; const a=-Math.sign(sx)*Math.PI/6,c=Math.cos(a),s=Math.sin(a),dx=XR.origin[0]-eye[0],dz=XR.origin[2]-eye[2];
         XR.origin[0]=eye[0]+dx*c+dz*s; XR.origin[2]=eye[2]-dx*s+dz*c; XR.yaw+=a; } else if(Math.abs(sx)<.3) XR.snapHeld=false;
       if(stickC){ const L=[720,1080,1440],i=(L.indexOf(XR.res)+1)%L.length; XR.res=L[i]; vrToast(['Sharpness: low (more PS1)','Sharpness: medium','Sharpness: high'][i],1.6); } }
-    vrMelee(h,dt); pokeBoard(fp,h,dt); updateAmmoLabel(h); }
+    if(!h.supportOf) vrMelee(h,dt); else h.prevPts=null; pokeBoard(fp,h,dt); updateAmmoLabel(h); }
+  applySupport(HANDS.R); applySupport(HANDS.L); updateSights(eye);
   /* keep the head out of walls and furniture by sliding the play space */
   { const bx=PL.x,bz=PL.z; collidePlayer(); XR.origin[0]+=PL.x-bx; XR.origin[2]+=PL.z-bz; }
   /* climbing out: walk onto the flight up */

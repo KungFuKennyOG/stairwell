@@ -11,11 +11,11 @@ const WPN={
   bottle:  {label:'Broken bottle',build:pBottle,grip:[0,0,0],melee:'knife',bleed:.8,sever:.4,uses:6,reach:1.15,pts:[[0,0,.19],[0,0,.12]],speed:1.4},
   knife:   {label:'Kitchen knife',build:pKnife,grip:[0,0,0],melee:'knife',reach:1.2,pts:[[0,0,.23],[0,0,.15]],speed:1.3},
   machete: {label:'Machete',build:pMachete,grip:[0,0,0],melee:'knife',bleed:1.35,sever:1.7,stun:1.2,push:1.3,chop:true,reach:1.45,pts:[[0,-.012,.42],[0,-.012,.3],[0,-.012,.17]],speed:1.8},
-  axe:     {label:'Fire axe',build:pAxe,grip:[0,0,.04],melee:'knife',bleed:1.6,sever:3,stun:1.6,push:2,chop:true,heavy:true,reach:1.6,pts:[[0,-.13,.6],[0,-.07,.6],[0,.0,.6]],speed:2},
+  axe:     {label:'Fire axe',build:pAxe,grip:[0,0,.04],fore:[0,0,.34],melee:'knife',bleed:1.6,sever:3,stun:1.6,push:2,chop:true,heavy:true,reach:1.6,pts:[[0,-.13,.6],[0,-.07,.6],[0,.0,.6]],speed:2},
   revolver:{label:'.38 revolver',build:pRevolver,grip:[0,-.035,-.015],gun:true,mag:6,rof:.3,muzzle:[0,.036,.15],axisY:.036,push:1.3,loadOne:true,snd:'revolver'},
   pistol:  {label:'9mm pistol',build:pPistol,grip:[0,-.035,-.005],gun:true,mag:12,rof:.11,muzzle:[0,.045,.17],axisY:.045},
-  shotgun: {label:'Pump shotgun',build:pShotgun,grip:[0,-.04,-.08],gun:true,mag:5,rof:.8,muzzle:[0,.02,.6],axisY:.02,pellets:9,spread:.05,bleed:.5,sever:.55,push:.5,loadOne:true,snd:'shotgun'},
-  smg:     {label:'Compact SMG',build:pSMG,grip:[0,-.07,-.07],gun:true,mag:30,rof:.07,auto:true,muzzle:[0,.012,.23],axisY:.012,spread:.014,snd:'smg'}
+  shotgun: {label:'Pump shotgun',build:pShotgun,grip:[0,-.04,-.08],fore:[0,-.02,.24],gun:true,mag:5,rof:.8,muzzle:[0,.02,.6],axisY:.02,pellets:9,spread:.05,bleed:.5,sever:.55,push:.5,loadOne:true,snd:'shotgun'},
+  smg:     {label:'Compact SMG',build:pSMG,grip:[0,-.07,-.07],fore:[0,-.03,.12],gun:true,mag:30,rof:.07,auto:true,muzzle:[0,.012,.23],axisY:.012,spread:.014,snd:'smg'}
 };
 const WPN_KEYS=['fists','bottle','knife','machete','axe','revolver','pistol','shotgun','smg'];
 const KIND_WPN={corner:'bottle',cutter:'machete',gunman:'pistol',doorman:'shotgun',enforcer:'smg',landlord:'revolver'};
@@ -33,17 +33,46 @@ const fpsTex=tex(24,8,'#0a0b0d'); const fpsN=mk(plane(.045,.015),M(fpsTex,{unlit
 function drawFps(v){ fpsN.vis=XR.on; const g=fpsTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,24,8); const s=String(v); text(g,s,(24-textW(s))>>1,1,v>=68?'#7ec27a':v>=55?'#e2a33d':'#ff3b30');
   if(fpsTex.glt){ gl.bindTexture(gl.TEXTURE_2D,fpsTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,fpsTex.c); } }
 function equip(h,item){
+  if(h.support) releaseSupport(h.support); if(h.supportOf) releaseSupport(h);
   if(h.itemNode){ disposeTree(h.itemNode); const i=h.node.kids.indexOf(h.itemNode); if(i>=0) h.node.kids.splice(i,1); }
   h.item=item; h.itemNode=null; h.ammoN=null; h.prevPts=null; h.ammoShown=-9;
   const w=item&&WPN[item.key]; if(!w||!w.build) return;
   const g=N(h.node,FIST[0]-w.grip[0],FIST[1]-w.grip[1],FIST[2]-w.grip[2]); GEO_TEMP=true; w.build(g); GEO_TEMP=false; h.itemNode=g;
   if(w.gun) h.ammoN=mk(plane(.032,.016),M(h.ammoTex,{unlit:true}),g,0,w.axisY+.03,.02,-Math.PI/2,0,0); }
 const transl=p=>{ const m=m4.make(); m[12]=p[0]; m[13]=p[1]; m[14]=p[2]; return m; };
-function itemM(h){ const o=m4.make(); m4.mul(o,h.M,transl(h.itemNode?h.itemNode.p:[0,0,0])); return o; }
+function itemM(h){ if(h.itemW) return h.itemW; const o=m4.make(); m4.mul(o,h.M,transl(h.itemNode?h.itemNode.p:[0,0,0])); return o; }
 function handPts(h){ const w=WPN[h.item?h.item.key:'fists']; if(!h.item||!h.itemNode) return [mulP(h.M,FIST)]; const Mi=itemM(h); return w.pts.map(p=>mulP(Mi,p)); }
 function updateAmmoLabel(h){ const it=h.item; if(!it||!WPN[it.key].gun) return; const v=it.reload>0?-2:it.ammo; if(v===h.ammoShown) return; h.ammoShown=v;
   const t=h.ammoTex,g=t.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,16,8); const s=v<0?'--':String(v).padStart(2,'0'); text(g,s,(16-textW(s))>>1,1,v===0?'#ff3b30':'#e2a33d');
   if(t.glt){ gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,t.c); } }
+
+/* ---------- two hands on one weapon (shotgun, SMG, axe) ----------
+   Grip with the free hand near the fore-end and it takes hold: the weapon then points from the back hand to the front hand. */
+const otherHand=h=>h===HANDS.R?HANDS.L:HANDS.R;
+function forePt(h){ return mulP(itemM(h),WPN[h.item.key].fore); }
+function trySupport(h){ const o=otherHand(h); if(h.item||!o.item||!WPN[o.item.key].fore||o.support||!o.itemNode) return false;
+  if(Math.hypot(...v3.sub(mulP(h.M,FIST),forePt(o)))>.2) return false; o.support=h; h.supportOf=o; sfx('click',.5); buzz(h.hand,.4,30); return true; }
+function releaseSupport(s){ const o=s.supportOf; if(!o) return; o.support=null; s.supportOf=null; o.itemW=null;
+  if(o.itemNode&&o.item){ const w=WPN[o.item.key]; o.itemNode.p=[FIST[0]-w.grip[0],FIST[1]-w.grip[1],FIST[2]-w.grip[2]]; o.itemNode.r=[0,0,0]; } }
+function applySupport(h){ const s=h.support; if(!s||!h.item||!h.itemNode){ h.itemW=null; return; }
+  const w=WPN[h.item.key],G=mulP(h.M,FIST),S=mulP(s.M,FIST); if(Math.hypot(...v3.sub(S,G))>.9){ releaseSupport(s); return; } /* hands pulled apart: let go */
+  const v=v3.sub(w.fore,w.grip),zm=norm3(v),um=norm3(v3.sub([0,1,0],v3.sc(zm,zm[1]))),xm=v3.cross(um,zm);
+  const zw=norm3(v3.sub(S,G)),uh=colOf(h.M,1),uw=norm3(v3.sub(uh,v3.sc(zw,v3.dot(uh,zw)))),xw=v3.cross(uw,zw);
+  const R=mm([xw,uw,zw],[[xm[0],um[0],zm[0]],[xm[1],um[1],zm[1]],[xm[2],um[2],zm[2]]]),O=v3.sub(G,mv(R,w.grip));
+  h.itemW=fromCols(R[0],R[1],R[2],O); setLocal(h.itemNode,h.M,h.itemW);
+  /* the front hand sits on the fore-end instead of floating next to it */
+  const fp=mulP(h.itemW,w.fore),sm=new Float32Array(s.M),cur=mulP(s.M,FIST); sm[12]+=fp[0]-cur[0]; sm[13]+=fp[1]-cur[1]; sm[14]+=fp[2]-cur[2]; setLocal(s.node,m4.make(),sm); }
+
+/* ---------- sights: a dot where the barrel points, and an optional laser ---------- */
+const tReticle=tex(16,16,null,g=>{ for(let y=0;y<16;y++) for(let x=0;x<16;x++){ const d=Math.hypot(x-7.5,y-7.5); if(d>5.2&&d<7.2||d<1.6) R(g,d<1.6?'#ff3b30':'#ff6a3d',x,y,1,1); } });
+const mLaser=M(null,{color:0xff2a1a,unlit:true});
+for(const h of Object.values(HANDS)){ h.retN=mk(plane(.02,.02),M(tReticle,{unlit:true,cut:true,double:true}),world); h.retN.vis=false; h.laserN=mk(box(1,1,1),mLaser,world); h.laserN.vis=false; }
+function updateSights(eye){
+  for(const h of Object.values(HANDS)){ const on=XR.on&&!PL.dead&&h.item&&WPN[h.item.key].gun&&h.itemNode; h.retN.vis=!!on; h.laserN.vis=!!on&&XR.laser; if(!on) continue;
+    const w=WPN[h.item.key],Mi=itemM(h),mz=mulP(Mi,w.muzzle),d=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))),wall=rayRoom(mz,d),en=rayEnemies(mz,d,wall.t),t=Math.min(en?en.t:wall.t,40),p=v3.add(mz,v3.sc(d,t));
+    const Z=norm3(v3.sub(eye,p)),X=norm3(Math.abs(Z[1])>.95?[1,0,0]:v3.cross([0,1,0],Z)),Y=v3.cross(Z,X),k=clamp(Math.hypot(...v3.sub(eye,p))*.65,.25,8);
+    h.retN.p=v3.add(p,v3.sc(Z,.02)); h.retN.r=eul([X,Y,Z]); h.retN.s=[k,k,1];
+    if(XR.laser){ const lx=norm3(Math.abs(d[1])>.95?[1,0,0]:v3.cross([0,1,0],d)),ly=v3.cross(d,lx); h.laserN.p=v3.add(mz,v3.sc(d,t/2)); h.laserN.r=eul([lx,ly,d]); h.laserN.s=[.0022,.0022,t]; } } }
 
 /* ---------- guns ---------- */
 function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye down the crosshair) */
@@ -124,6 +153,8 @@ function nearestGrabbable(p,maxD){ let best=null,bd=maxD;
   for(const P of LOOSE){ const q=P.node.p,d=Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2]); if(d<bd){ bd=d; best={pick:P}; } }
   return best; }
 function grabOrDrop(h){
+  if(h.supportOf){ releaseSupport(h); sfx('click',.4); return; }
+  if(!h.item&&trySupport(h)) return;
   if(h.item){ /* let go: it falls, or flies if the hand was moving */
     if(h.itemNode){ const Mi=itemM(h); addPickup(h.item,Mi,h.vel,Math.hypot(...h.vel)>3?[rnd(-2,2),rnd(-12,12),rnd(-2,2)]:null); }
     equip(h,null); sfx('swish',.4); return; }
