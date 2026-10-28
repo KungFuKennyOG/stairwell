@@ -35,7 +35,7 @@ const BTN=[
   {label:'RESET',col:1,row:3,act:()=>{ resetGame(); if(XR.on) vrRecenter(); }},
   {label:'SLOW-MO',col:2,row:3,act:()=>toggleSlow()},
   {label:()=>'LASERS: '+(XR.laser?'ON':'OFF'),col:0,row:4,act:()=>{ XR.laser=!XR.laser; }},
-  {label:()=>'PS1 WOBBLE: '+(XR.wobble?'ON':'OFF'),col:1,row:4,act:()=>{ XR.wobble=!XR.wobble; }},
+  {label:()=>'PS1 WOBBLE: '+['OFF','LIGHT','FULL'][XR.wobble],col:1,row:4,act:()=>{ XR.wobble=(XR.wobble+1)%3; }},
   {label:()=>'FLOOR '+String(FLOOR.n).padStart(2,'0')+' +1',col:2,row:4,act:()=>setTimeout(climb,0)}];
 const BW=.72,BH=.2,BX0=-12.62,BY0=1.62,BZ=-1.93; /* buttons on the south wall of the landing, facing north */
 function drawBoard(){ const g=boardTex.c.getContext('2d'),key=BTN.map(b=>typeof b.label==='function'?b.label():b.label).join('|')+BTN.map(b=>b.lit>0?1:0).join(''); if(boardTex.text===key) return; boardTex.text=key;

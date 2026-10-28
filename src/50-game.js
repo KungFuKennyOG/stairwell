@@ -5,7 +5,7 @@
    body. Dead = no muscles. Damage is per body part: legs drop them, arms go limp, arteries spurt with the heartbeat.
    ===================================================================== */
 const state={ps1:true,res:480,snap:true,affine:true,dither:true};
-const XR={laser:false,wobble:false,on:false,session:null,space:null,origin:[0,0,3.2],yaw:0,head:null,hands:{},flash:0,snapHeld:false,btn:{},clearT:0,knifeTip:null,stabCd:0,res:1080,toast:'',toastT:0,resetHold:0,panelP:null};
+const XR={laser:false,wobble:1,on:false,session:null,space:null,origin:[0,0,3.2],yaw:0,head:null,hands:{},flash:0,snapHeld:false,btn:{},clearT:0,knifeTip:null,stabCd:0,res:1080,toast:'',toastT:0,resetHold:0,panelP:null};
 
 const $=id=>document.getElementById(id);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -791,7 +791,7 @@ function renderWith(w,h){
   updateWorld(world,null); gl.viewport(0,0,w,h); gl.clearColor(L.fog[0],L.fog[1],L.fog[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST); gl.useProgram(MAIN.p); curCull=null; const u=MAIN.loc;
   gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
-  const wob=!XR.on||XR.wobble; gl.uniform1f(u.uSnap,wob?1:0); gl.uniform1f(u.uAffine,wob?1:0); gl.uniform2f(u.uRes,w,h); /* in a headset the PS1 vertex snap swims between the eyes: off unless asked for */
+  const wob=XR.on?XR.wobble:2; gl.uniform1f(u.uSnap,wob===2?1:wob===1?2.5:0); gl.uniform1f(u.uAffine,wob===2?1:wob===1?.15:0); gl.uniform2f(u.uRes,w,h); /* in a headset the PS1 vertex snap swims between the eyes: off unless asked for */
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
   gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0);

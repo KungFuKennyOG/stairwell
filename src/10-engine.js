@@ -440,9 +440,9 @@ void main(){
   vLight = mix(L, vec3(1.0), uUnlit);
   vec4 vp = viewMatrix * wp;
   vec4 cp = projectionMatrix * vp;
-  if(uSnap > 0.5){ vec2 g = uRes * 0.5; cp.xy = floor(cp.xy / cp.w * g + 0.5) / g * cp.w; }
+  if(uSnap > 0.01){ vec2 g = uRes * 0.5 * uSnap; cp.xy = floor(cp.xy / cp.w * g + 0.5) / g * cp.w; } /* uSnap scales the grid: 1 = PS1, higher = finer, lighter */
   vFog = clamp((-vp.z - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
-  vAff = uAffine > 0.5 ? vec3(uv * cp.w, cp.w) : vec3(uv, 1.0);
+  float aw = mix(1.0, cp.w, clamp(uAffine, 0.0, 1.0)); vAff = vec3(uv * aw, aw); /* uAffine 0..1: how much of the PS1 texture warp */
   gl_Position = cp;
 }`;
 const FS=`#version 300 es
