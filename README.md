@@ -4,6 +4,8 @@ A gritty WebXR game for Meta Quest 3: a 30-floor tower, one floor per level, fis
 
 **Play:** https://kungfukennyog.github.io/stairwell/ (open it in the Quest browser and press *Play in VR*; it also runs on desktop and phone).
 
+**Art test (cast, arsenal, floor generator):** https://kungfukennyog.github.io/stairwell/art-test.html
+
 Current build: physics prototype 01, a single apartment floor with three enemies.
 
 ## Building
