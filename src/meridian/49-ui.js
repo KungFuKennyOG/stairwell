@@ -91,6 +91,7 @@ function renderCard(){ card.innerHTML='';
     const d=el('p','body'); d.append(el('b',null,'Left for you: '+A.weapon+'. '),A.how); card.append(d);
     if(st.drop2){ const d2=el('p','body'); d2.append(el('b',null,'On the last night: '+ARSENAL[7].weapon+'. '),ARSENAL[7].how); card.append(d2); }
     const row=el('div','row'); for(const k of STATION_ORDER){ const b=el('button','btn'+(k===state.station?'':' ghost'),ST[k].city); b.type='button'; b.addEventListener('click',()=>{ setStation(k); renderCard(); }); row.append(b); } card.append(row);
+    if(st.screen){ const mb=el('button','btn ghost','Look at the map'); mb.type='button'; mb.addEventListener('click',()=>setGoal({t:[st.screen.x,st.screen.cy,st.screen.z],th:st.screen.ry,ph:1.52,r:7.2})); const r2=el('div','row'); r2.append(mb); card.append(r2); }
     card.append(el('p','seg-label','Your arsenal, stop by stop'),listOf(ARSENAL.map((a,i)=>({id:i,num:String(i+1).padStart(2,'0'),name:a.weapon,sub:a.stop,note:a.how})),st.weapon,()=>{}));
     card.append(el('p','body','Every stop is underground. While you are on the platform the old city is unloaded and the next one loads, so you never see the switch: the train climbs out of the tunnel into the new place.'));
   } else {
