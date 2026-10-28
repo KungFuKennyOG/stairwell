@@ -89,6 +89,7 @@ function renderCard(){ card.innerHTML='';
     const st=ST[state.station], A=ARSENAL[st.weapon];
     card.append(el('p','sub',`Underground · ${st.city} · the crew boards here`),el('h2',null,st.name),el('p','body',st.note),chips(st.sw));
     const d=el('p','body'); d.append(el('b',null,'Left for you: '+A.weapon+'. '),A.how); card.append(d);
+    if(st.drop2){ const d2=el('p','body'); d2.append(el('b',null,'On the last night: '+ARSENAL[7].weapon+'. '),ARSENAL[7].how); card.append(d2); }
     const row=el('div','row'); for(const k of STATION_ORDER){ const b=el('button','btn'+(k===state.station?'':' ghost'),ST[k].city); b.type='button'; b.addEventListener('click',()=>{ setStation(k); renderCard(); }); row.append(b); } card.append(row);
     card.append(el('p','seg-label','Your arsenal, stop by stop'),listOf(ARSENAL.map((a,i)=>({id:i,num:String(i+1).padStart(2,'0'),name:a.weapon,sub:a.stop,note:a.how})),st.weapon,()=>{}));
     card.append(el('p','body','Every stop is underground. While you are on the platform the old city is unloaded and the next one loads, so you never see the switch: the train climbs out of the tunnel into the new place.'));
@@ -121,7 +122,7 @@ function frame(now){
   fpv.yaw+=(fpv.gy-fpv.yaw)*k; fpv.pitch+=(fpv.gp-fpv.pitch)*k;
   const target=state.view==='cast'?0:state.speed; curSpeed+=(target-curSpeed)*(1-Math.exp(-dt*1.5));
   for(const C of castChars) if(state.view==='cast'){ animateChar(C,clock); skinUpdate(C); }
-  if(state.view==='stations'){ for(const C of stationChars) if(C.grp==='s:'+state.station){ animateChar(C,clock); skinUpdate(C); } const dr=ST[state.station].drop; if(dr){ const s=1+Math.sin(clock*3)*.12; dr.ring.s=[s,s,1]; } }
+  if(state.view==='stations'){ for(const C of stationChars) if(C.grp==='s:'+state.station){ animateChar(C,clock); skinUpdate(C); } const s_=1+Math.sin(clock*3)*.12; for(const dr of [ST[state.station].drop,ST[state.station].drop2]) if(dr&&dr.ring) dr.ring.s=[s_,s_,1]; for(const f of ST[state.station].anim) f(clock); }
   if(state.view==='wagons'){ for(const C of wagonChars) if(C.grp==='w:'+state.wagon){ animateChar(C,clock); skinUpdate(C); } for(const f of WG[state.wagon].anim) f(clock); }
   if(curScene.S.undersea&&state.view!=='cast'){ const f=.5+.5*Math.sin(clock*1.3)*Math.sin(clock*.7+1); const a=curScene.S.light.amb; const w=state.view==='wagons'?WG[state.wagon].ambK:1; L.amb=[(a[0]+f*.04)*w,(a[1]+f*.12)*w,(a[2]+f*.14)*w]; }
   resize();

@@ -49,7 +49,7 @@ function pRifleM(g){ const wood=M(woodT('#5a3a24','#3a2416',303)); mk(box(.045,.
   const g=stationShell('tokyo',{floor:terr,floorTile:2,back,far:tile,end:back,ceil:M(P2(32,32,(g,w,h)=>{ R(g,'#e4e6e4',0,0,w,h); R(g,'#c8ccc8',0,0,w,1); R(g,'#c8ccc8',0,0,1,h); R(g,'#ffffff',12,0,8,h); },4,4)),ceilTile:3,H:4.6,
     meta:{name:'Tokyo · B5',city:'Tokyo',num:'01',sw:['#eef0ee','#2a9a5a','#9a9c9e','#d63a2c','#f2c230'],crew:['ren','renc'],weapon:0,
       note:'Five floors under the city: white tile, a green line colour, platform screen doors, ticket gates and a row of vending machines. You board here on day one with nothing but a golf bag, and come back on the last night when the Kagami-gumi are waiting.',
-      lamps:[lamp(-20,4.2,2,[1.0,1.05,1.1],10),lamp(-6,4.2,2,[1.0,1.05,1.1],10),lamp(8,4.2,2,[1.0,1.05,1.1],10),lamp(22,4.2,2,[1.0,1.05,1.1],10),lamp(0,3,-5,[.6,.62,.66],12),lamp(14,1.2,1.5,[1.2,1.0,.7],3.5)],amb:[.36,.37,.4],cam:{t:[-4,1.6,2.5],th:.35,ph:1.25,r:17}}});
+      lamps:[lamp(-20,4.2,2,[1.0,1.05,1.1],10),lamp(-6,4.2,2,[1.0,1.05,1.1],10),lamp(8,4.2,2,[1.0,1.05,1.1],10),lamp(22,4.2,2,[1.0,1.05,1.1],10),lamp(0,3,-5,[.6,.62,.66],12),lamp(14,1.2,1.5,[1.2,1.0,.7],3.5)],amb:[.36,.37,.4],cam:{t:[-7,1.6,2.5],th:.35,ph:1.25,r:17}}});
   /* platform screen doors: frames and a glass band, gaps at the car doors */
   for(let x=-30;x<30;x+=2){ const door=Math.abs(((x+31)%31)-1)<1.5||Math.abs(x-(-.5))<1.6; if(door) continue; B(g,C('#c8ccd2'),x+1,0,-1.45,.08,1.5,.08); B(g,C('#a8c8d8',{emissive:0x0c1418}),x+1,.3,-1.45,1.92,1.1,.02); B(g,C('#2a9a5a'),x+1,1.5,-1.45,2,.1,.1); }
   /* square columns with station number plates */
@@ -75,7 +75,7 @@ function pRifleM(g){ const wood=M(woodT('#5a3a24','#3a2416',303)); mk(box(.045,.
   const g=stationShell('naples',{floor:stone,floorTile:2.5,back:deep,far:deep,end:deep,ceil:mosaic('#0a2a5a','#1a4a9a',14),ceilTile:3,H:6.5,
     meta:{name:'Napoli Meridiana',city:'Naples',num:'05',sw:['#0e3a7a','#2a6ac8','#bfefff','#c89a3a','#1e1e24'],crew:['nonna','nonnac'],weapon:4,
       note:'Built to look like the inside of a sea cave: walls and vault in deep blue mosaic with wave lines of light, a gold band at hand height, black stone underfoot and a light well spiralling up through the ceiling. There is an espresso bar on the platform.',
-      lamps:[lamp(-18,4.5,2,[.45,.75,1.3],12),lamp(0,5.5,2,[.6,.9,1.4],12),lamp(18,4.5,2,[.45,.75,1.3],12),lamp(-6,1.8,6.5,[1.3,.95,.55],5),lamp(10,1.4,5.5,[1.2,.9,.5],4),lamp(0,3,-5,[.3,.45,.7],12)],amb:[.18,.24,.36],cam:{t:[0,2.2,1.5],th:.5,ph:1.2,r:18}}});
+      lamps:[lamp(-18,4.5,2,[.45,.75,1.3],12),lamp(0,5.5,2,[.6,.9,1.4],12),lamp(18,4.5,2,[.45,.75,1.3],12),lamp(-6,1.8,6.5,[1.3,.95,.55],5),lamp(10,1.4,5.5,[1.2,.9,.5],4),lamp(0,3,-5,[.3,.45,.7],12)],amb:[.18,.24,.36],cam:{t:[-7,2.2,1.5],th:.5,ph:1.2,r:18}}});
   for(const z of [SZ1-.02]) B(ST.naples.back,gold,0,.9,z-.02,SL,.6,.04);
   /* the light well: a spiralling cone going up through the vault */
   const cone=M(P2(16,64,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#e8f8ff'],[.3,'#6ab8f0'],[1,'#0e3a7a']]); for(let y=0;y<h;y+=6) R(g,'#bfefff',0,y,w,1); }),{unlit:true,double:true});
@@ -101,12 +101,12 @@ function pRifleM(g){ const wood=M(woodT('#5a3a24','#3a2416',303)); mk(box(.045,.
   const g=stationShell('london',{floor,floorTile:2,back:band,far:cream,end:cream,H:2.4,
     meta:{name:'Kings Meridian',city:'London',num:'04',sw:['#ece2c8','#2a4a3a','#8a2a2a','#3a3634','#f2c230'],crew:['gaffer','gafferc'],weapon:3,
       note:'A Victorian tube hall dug out to fit the Meridian: one long barrel vault of cream tile over both tracks, a green-and-maroon band, poster frames, a big platform clock and puddles that never dry. The firm come down the stairs singing.',
-      lamps:[lamp(-22,5,2,[1.15,.95,.7],10),lamp(-8,5.4,1,[1.15,.95,.7],10),lamp(8,5.4,1,[1.15,.95,.7],10),lamp(22,5,2,[1.15,.95,.7],10),lamp(0,4,-5,[.8,.7,.55],12),lamp(16,1.6,6,[1.0,.8,.5],4)],amb:[.3,.27,.24],cam:{t:[0,2,1],th:.5,ph:1.18,r:18}}});
+      lamps:[lamp(-22,5,2,[1.15,.95,.7],10),lamp(-8,5.4,1,[1.15,.95,.7],10),lamp(8,5.4,1,[1.15,.95,.7],10),lamp(22,5,2,[1.15,.95,.7],10),lamp(0,4,-5,[.8,.7,.55],12),lamp(16,1.6,6,[1.0,.8,.5],4)],amb:[.3,.27,.24],cam:{t:[-7,2,1],th:.5,ph:1.18,r:18}}});
   /* the barrel vault: planes round an arc over both tracks and the platform, facing in */
   const R0=9.6, zc=-1.0, yc=2.4, segs=14;
   for(let i=0;i<segs;i++){ const a0=-Math.PI/2+i/segs*Math.PI, a1=-Math.PI/2+(i+1)/segs*Math.PI, am=(a0+a1)/2, len=2*R0*Math.sin((a1-a0)/2);
     const y=yc+Math.cos(am)*R0, z=zc+Math.sin(am)*R0; mk(wplane(SL,len,1.6,1.6),cream,g,0,y,z,am+Math.PI/2,0,0); }
-  for(let x=-30;x<=30;x+=6){ for(let i=0;i<segs;i++){ const a=-Math.PI/2+i/segs*Math.PI; B(g,C('#2a4a3a'),x,yc+Math.cos(a)*(R0-.05)-.1,zc+Math.sin(a)*(R0-.05),.25,.2,R0*Math.PI/segs*1.02,0,a,0); } }
+  for(let x=-30;x<=30;x+=6){ for(let i=0;i<segs;i++){ const a=-Math.PI/2+i/segs*Math.PI; if(Math.sin(a)>.1) continue; B(g,C('#2a4a3a'),x,yc+Math.cos(a)*(R0-.05)-.1,zc+Math.sin(a)*(R0-.05),.25,.2,R0*Math.PI/segs*1.02,0,a,0); } }
   /* poster frames on the back wall, a clock, benches, the name board */
   const posters=['#f2c230','#2a6ad8','#c8302a','#2a9a5a','#f27ab0','#e88a3a'];
   for(let k=0;k<8;k++){ const x=-26+k*7.4; const p=M(P2(16,24,(g,w,h)=>{ R(g,posters[k%6],0,0,w,h); ell(g,8,9,5,5,mix(posters[k%6],'#ffffff',.5)); R(g,'#14141c',2,17,12,2); R(g,'#14141c',2,20,8,1); }),{emissive:0x101010});
