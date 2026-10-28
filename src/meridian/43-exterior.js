@@ -96,7 +96,7 @@ function setGlow(on){ for(const c of TRAIN_CARS) c.glow.vis=on; for(const c of S
   const sign=P2(160,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#14203a'],[1,'#0e1628']]); R(g,GOLD,2,2,w-4,1); R(g,GOLD,2,h-3,w-4,1); text(g,'TOKYO MERIDIAN TERMINAL',(w-textW('TOKYO MERIDIAN TERMINAL'))/2|0,8,'#f2ece0',1); text(g,'PLATFORM 0  WORLD LOOP',(w-textW('PLATFORM 0  WORLD LOOP'))/2|0,18,'#29e0e6',1); },0);
   mk(box(4.4,.9,.06),F(dark,M(sign),M(sign)),S,-8,5.4,-.7); for(const dx of [-1.9,1.9]) mk(box(.03,2.2,.03),gold,S,-8+dx,6.9,-.7);
   const board=P2(128,64,(g,w,h)=>{ R(g,'#0e0d0c',0,0,w,h); text(g,'THE MERIDIAN  WORLD LOOP',3,3,'#ffb020',1);
-    const stops=[['DAY 3','HONG KONG'],['DAY 5','SIBERIA'],['DAY 8','NAPLES'],['DAY 9','LONDON'],['DAY 12','LAS VEGAS'],['DAY 15','RIO'],['DAY 18','TOKYO']];
+    const stops=[['DAY 2','HONG KONG'],['DAY 3','LAKE BAIKAL'],['DAY 5','LONDON'],['DAY 6','NAPLES'],['DAY 8','RIO'],['DAY 10','LAS VEGAS'],['DAY 12','TOKYO']];
     stops.forEach(([d,n],i)=>{ text(g,d,3,12+i*7,'#c88a20',1); text(g,n,34,12+i*7,'#c88a20',1); }); });
   mk(box(3.4,1.7,.12),F(dark,M(board,{unlit:true}),mBlack),S,8,5.0,-.7); mk(box(3.6,.1,.16),gold,S,8,5.9,-.7); for(const dx of [-1.4,1.4]) mk(box(.03,2.5,.03),gold,S,8+dx,7.1,-.7);
   const clockT=P2(32,32,(g,w,h)=>{ ell(g,16,16,15,15,'#d4ad5a'); ell(g,16,16,13,13,'#f6efe0'); for(let k=0;k<12;k++){ const a=k/12*Math.PI*2; R(g,'#14203a',16+Math.sin(a)*11|0,16-Math.cos(a)*11|0,1,1); } g.strokeStyle='#14203a'; g.lineWidth=1.5; g.beginPath(); g.moveTo(16,16); g.lineTo(16+Math.sin(.15)*10,16-Math.cos(.15)*10); g.moveTo(16,16); g.lineTo(16+Math.sin(6.2)*6,16-Math.cos(6.2)*6); g.stroke(); });

@@ -68,7 +68,7 @@ function listOf(items,cur,onPick){ const ul=el('ul','list');
 const sceneItems=()=>SCENE_ORDER.map(k=>{ const S=SCENES[k]; const boss=S.boss?ROSTER[S.boss]:null; return {id:k,name:S.name,sub:S.country,note:S.note+(boss?` Boarding here: ${boss.name} and ${S.crew}.`:''),sw:S.swatch,right:S.time.split(' · ')[0].toUpperCase()}; });
 function renderCard(){ card.innerHTML='';
   if(state.view==='route'){
-    card.append(el('p','sub','World loop · Tokyo to Tokyo · 40,075 km · 18 days'),el('h2',null,'The Meridian'));
+    card.append(el('p','sub','World loop · westward from Tokyo · 46,000 km · 12 days'),el('h2',null,'The Meridian'));
     const b=el('p','body'); b.append('The biggest bullet train ever built, on its first lap of the world: ten cars, each 30 metres long and twice the width of a normal train. You are a hitman on holiday with a price on your head. ',el('b',null,'At every stop a new crew gets on to collect it'),', and each one takes over a car.'); card.append(b);
     card.append(el('p','seg-label','The route'),listOf(sceneItems(),state.scene,it=>{ setSceneUI(it.id); renderCard(); }));
     const cars=WAGONS.map((W,i)=>({id:W.key,num:W.num,name:W.name,sub:W.crew?ROSTER[W.crew].name:W.sub.split(' · ')[0],color:W.color,right:'View'}));
@@ -84,13 +84,13 @@ function renderCard(){ card.innerHTML='';
     card.append(el('p','seg-label','Outside the windows'),segOf(SCENE_ORDER.map(k=>[k,{tokyonight:'Tokyo',japan:'Japan',hongkong:'HK',siberia:'Siberia',naples:'Naples',london:'London',atlantic:'Ocean',vegas:'Vegas',rio:'Rio'}[k]]),state.scene,v=>setSceneUI(v)));
     card.append(listOf(WAGONS.map(w=>({id:w.key,num:w.num,name:w.name,sub:w.sub.split(' · ')[0],sw:w.sw})),state.wagon,it=>{ setWagon(it.id); renderCard(); }));
   } else {
-    card.append(el('p','sub','Platform 0 · Tokyo Meridian Terminal · Day 1, 17:52'),el('h2',null,'The bounty hunters'));
+    card.append(el('p','sub','Platform 0 · Tokyo Meridian Terminal · Day 1, 06:10'),el('h2',null,'The bounty hunters'));
     card.append(el('p','body','The Tourist, the seven bosses in front and a member of each crew behind. Every one of them runs on the Stairwell rig: the same skinned body, painted faces and expressions and two-handed gun holds. Only the faces, clothes, hats and props are new.'));
     const w=el('div'); w.append(el('p','seg-label','Show them'),segOf([['fight','Fighting'],['hurt','Hurt'],['beg','Begging']],state.castPose,p=>{ state.castPose=p; for(const c of castChars) if(!c.seated) applyPose(c,p); })); card.append(w);
     const ids=[]; for(const id of LINE){ ids.push(id); if(ROSTER[id].crew) ids.push(ROSTER[id].crew); }
     card.append(listOf(ids.map(id=>({id,name:ROSTER[id].name,sub:ROSTER[id].role,note:ROSTER[id].note+' '+ROSTER[id].stop+'.',color:ROSTER[id].color})),null,it=>{ const p=castSlots[it.id]; setGoal({t:[p[0],1.15,p[1]],th:0,ph:1.42,r:3}); }));
   } }
-function updateClock(){ const S=SCENES[state.view==='cast'?'tokyo':state.scene]; clockEl.innerHTML=''; const t=state.view==='cast'?'Day 1 · 17:52':S.time; const b=el('b',null,t.split(' · ')[1]); clockEl.append(b,state.view==='cast'?'Tokyo · Platform 0':`${t.split(' · ')[0]} · ${S.name} · km ${S.km.toLocaleString('en-US')}`); }
+function updateClock(){ const S=SCENES[state.view==='cast'?'tokyo':state.scene]; clockEl.innerHTML=''; const t=state.view==='cast'?'Day 1 · 06:10':S.time; const b=el('b',null,t.split(' · ')[1]); clockEl.append(b,state.view==='cast'?'Tokyo · Platform 0':`${t.split(' · ')[0]} · ${S.name} · km ${S.km.toLocaleString('en-US')}`); }
 
 window.addEventListener('hashchange',()=>setView(location.hash.slice(1)));
 document.querySelectorAll('.tabs a').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); const v=a.dataset.view; try{ history.replaceState(null,'','#'+v); }catch(_){} setView(v); }));

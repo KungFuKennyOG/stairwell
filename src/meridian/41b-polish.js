@@ -90,7 +90,7 @@ const SUNS={tokyo:['#ffd0a0',-.9,.12],japan:['#fff6d8',.6,.55],hongkong:['#fff6d
 for(const k in SUNS) SCENES[k].sun=SUNS[k];
 
 /* =====================================================================================================
-   TOKYO BY NIGHT: the last stop. The loop leaves Tokyo at dusk and comes home to it on day 18 at night,
+   TOKYO BY NIGHT: the last stop. The loop leaves Tokyo at dawn and comes home to it on day 12 at night,
    and the Kagami-gumi are the last crew to board.
    ===================================================================================================== */
 function tokyoNightFar(g,w,h,r,v){ const hz=h*.86; let x=1,i=0;
@@ -115,7 +115,7 @@ function tokyoNightNear(g,w,h,r,v){ const gb=h-2; const poles=[20,108,196];
   for(const [x,c] of v?[[44,'#d63a2c'],[55,'#2a6ad8'],[170,'#f2f2ee']]:[[70,'#2a6ad8'],[150,'#d63a2c'],[161,'#f2c230']]){ radial(g,x+5,gb-24,16,[[0,rgba('#e8f4ff',.35)],[1,rgba('#e8f4ff',0)]]); R(g,c,x,gb-34,10,20); R(g,'#f4fbff',x+1,gb-32,8,9); for(let k=0;k<3;k++) R(g,cols3[k],x+2+k*2,gb-30,1,5); }
   for(const lx of [64,140,230]){ radial(g,lx,gb-50,10,[[0,rgba('#ff5a3a',.7)],[1,rgba('#ff5a3a',0)]]); ell(g,lx,gb-50,4,5,'#ff5a3a'); R(g,'#2a1a14',lx-1,gb-56,2,2); } }
 const cols3=['#ff3fa4','#f5c542','#7cf06a'];
-SCENES.tokyonight={name:'Tokyo by night',country:'Japan',time:'Day 18 · 23:10',km:40075,boss:'ren',crew:'the Kagami-gumi',sub:'The last stop · home in the neon',note:'Back where the loop began, at night: towers lit to the horizon, vertical signs in every colour, red lanterns, the lattice tower glowing orange, vending machines humming under the power lines. The Kagami-gumi have been waiting all eighteen days.',
+SCENES.tokyonight={name:'Tokyo by night',country:'Japan',time:'Day 18 · 23:10',km:40075,boss:'ren',crew:'the Kagami-gumi',sub:'The last stop · home in the neon',note:'Back where the loop began, at night: towers lit to the horizon, vertical signs in every colour, red lanterns, the lattice tower glowing orange, vending machines humming under the power lines. The Kagami-gumi have been waiting all twelve days.',
   sky:()=>[[[0,'#06071a'],[.55,'#1e1640'],[.85,'#4a2260'],[1,'#7a3270']],{stars:true,night:true}],light:{amb:[.14,.12,.2],dir:[0,.6,1],dirCol:[.32,.18,.4]},lamp:1.0,horizon:'#7a3270',top:'#06071a',night:true,
   ground:{pos:'#16141e',neg:'#16141e'},verge:{pos:'night',neg:'night'},layers:{pos:[tokyoNightFar,tokyoNightMid,tokyoNightNear],neg:[tokyoNightFar,tokyoNightMid,tokyoNightNear]},
   back:backCity('#1a1a30','#ffd890'),props:[SPR(32,40,(g,w,h)=>{ radial(g,16,20,20,[[0,rgba('#e8f4ff',.4)],[1,rgba('#e8f4ff',0)]]); R(g,'#d63a2c',4,4,24,36); R(g,'#f4fbff',6,6,20,14); for(let k=0;k<4;k++) R(g,['#2a6ad8','#f2c230','#2a9a5a','#f28a3a'][k],7+k*5,8,3,9); }),SPR(16,32,(g,w,h)=>{ R(g,'#1a1614',7,0,2,8); ell(g,8,16,6,8,'#ff4a2a'); R(g,'#2a1a14',2,10,12,1); R(g,'#2a1a14',2,22,12,1); })],
