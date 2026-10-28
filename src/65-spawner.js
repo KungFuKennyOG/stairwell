@@ -20,7 +20,7 @@ function spawnKind(ki){
   E.detail=det; enemies.push(E); attachLabels();
   if(SPAWNOPT.aware){ E.aware=true; E.st='alert'; }
   GAME.clear=false; return E; }
-function clearEnemies(){ for(const E of enemies){ disposeTree(E.holder); const i=world.kids.indexOf(E.holder); if(i>=0) world.kids.splice(i,1); E.barkEl.remove(); if(E.label){ const k=world.kids.indexOf(E.label); if(k>=0) world.kids.splice(k,1); } }
+function clearEnemies(){ for(const G of GRABS.slice()) endGrab(G); for(const E of enemies){ disposeTree(E.holder); const i=world.kids.indexOf(E.holder); if(i>=0) world.kids.splice(i,1); E.barkEl.remove(); if(E.label){ const k=world.kids.indexOf(E.label); if(k>=0) world.kids.splice(k,1); } }
   enemies=[]; chars.length=0; GAME.clear=false; }
 function newFloor(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genFloor(FLOOR.n,(Math.random()*1e9)|0,true); buildRack(); buildBoard(); resetGame(); if(XR.on) vrRecenter(); }
 
@@ -61,7 +61,7 @@ pokeBoard.held={};
   P.innerHTML=`<h2>Test floor</h2><div class="tp-grid">${KINDS.map((K,i)=>`<button class="btn" data-spawn="${i}">${K.label}</button>`).join('')}</div>
   <div class="tp-row"><label><input type="checkbox" id="tpNear" checked> Near me</label><label><input type="checkbox" id="tpAware"> Hunting</label></div>
   <div class="tp-grid"><button class="btn" id="tpClear">Clear</button><button class="btn" id="tpFloor">New floor</button></div>
-  <p class="tp-keys">1-9 weapon · click use · F knife · E kick · Q throw</p>`;
+  <p class="tp-keys">1-9 weapon · click use · F knife · E kick · G grab · Q throw</p>`;
   document.body.append(P);
   P.addEventListener('pointerdown',e=>e.stopPropagation());
   P.querySelectorAll('[data-spawn]').forEach(b=>b.addEventListener('click',()=>{ spawnKind(+b.dataset.spawn); }));

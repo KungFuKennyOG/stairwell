@@ -214,7 +214,7 @@ function targetsFor(E,t,dt=1){
   const c=E.cons,legs=Math.min(E.hp.legL,E.hp.legR);
   let sup=0; if(!E.dead&&(st==='idle'||st==='alert')) sup=1; else if(!E.dead&&st==='kneel') sup=.95; else if(!E.dead&&st==='down'&&E.fallT>0) sup=.85*E.fallT/.8;
   if(rel) sup=0;
-  sup*=clamp(c*1.7,0,1)*(1-(st==='down'?Math.min(E.stun,.5):E.stun))*E.rise; E.sup=sup;
+  sup*=clamp(c*1.7,0,1)*(1-(st==='down'?Math.min(E.stun,.5):E.stun))*E.rise*(E.grabbed?.35:1); E.sup=sup; /* held: off balance */
   const twitch=E.dead?.014*Math.max(0,1-E.deadT/1.6):0;
   for(let i=0;i<NP;i++){ const limb=PD[i][4]; let s=E.dead?twitch:c;
     if(!E.dead){ if(limb==='legL') s*=.2+.8*E.hp.legL; else if(limb==='legR') s*=.2+.8*E.hp.legR; else if(limb==='armL') s*=.12+.88*clamp(E.hp.armL,0,1); else if(limb==='armR') s*=.12+.88*clamp(E.hp.armR,0,1); }
@@ -277,7 +277,8 @@ function limitBody(E){ /* knees and elbows only bend one way, the head stays on 
 }
 function collideBody(E){
   const B=E.B,x=B.x,p=B.p;
-  for(let i=0;i<NP;i++){ const o=i*3,r=B.r[i]; let gr=false;
+  if(!B.imp){ B.imp=new Float32Array(NP); B.impDir=PD.map(()=>[0,-1,0]); }
+  for(let i=0;i<NP;i++){ const o=i*3,r=B.r[i]; let gr=false; const v0x=x[o]-p[o],v0y=x[o+1]-p[o+1],v0z=x[o+2]-p[o+2];
     /* collisions are inelastic: the velocity into the surface is removed, otherwise muscles pushing into the floor would bounce the body up */
     if(x[o+1]<r){ x[o+1]=r; if(p[o+1]<r) p[o+1]=r; gr=true; } if(x[o+1]>RH-r){ x[o+1]=RH-r; p[o+1]=Math.min(p[o+1],RH-r); }
     if(x[o]<-RX+r){ x[o]=-RX+r; p[o]=Math.max(p[o],x[o]); } else if(x[o]>RX-r){ x[o]=RX-r; p[o]=Math.min(p[o],x[o]); }
@@ -288,6 +289,7 @@ function collideBody(E){
         else if(m===4){ x[o+1]=b.h+r; p[o+1]=Math.max(p[o+1],x[o+1]); gr=true; } else { x[o+1]=b.y0-r; p[o+1]=Math.min(p[o+1],x[o+1]); } } }
     if(gr){ p[o]=x[o]-(x[o]-p[o])*.82; p[o+2]=x[o+2]-(x[o+2]-p[o+2])*.82; }
     B.ground[i]=gr?1:0;
+    { const dvx=x[o]-p[o]-v0x,dvy=x[o+1]-p[o+1]-v0y,dvz=x[o+2]-p[o+2]-v0z,im=Math.hypot(dvx,dvy,dvz)/H; if(im>B.imp[i]){ B.imp[i]=im; const vl=Math.hypot(v0x,v0y,v0z)||1; B.impDir[i]=[v0x/vl,v0y/vl,v0z/vl]; } } /* how hard it just hit something */
     /* the player is a solid cylinder: walking into a body shoves it */
     if(x[o+1]<1.85){ const dx=x[o]-PL.x,dz=x[o+2]-PL.z,d=Math.hypot(dx,dz),m=.3+r; if(d<m&&d>1e-4){ x[o]=PL.x+dx/d*m; x[o+2]=PL.z+dz/d*m; } } }
 }
@@ -300,7 +302,8 @@ function collidePair(A,Bd){
 }
 function physics(h){
   for(const E of enemies) stepBody(E,h);
-  for(let it=0;it<5;it++) for(const E of enemies){ solveBody(E); if(it===4) limitBody(E); }
+  applyGrabs(h);
+  for(let it=0;it<5;it++){ for(const E of enemies){ solveBody(E); if(it===4) limitBody(E); } if(it===2) applyGrabs(h); }
   for(const E of enemies) collideBody(E);
   for(let i=0;i<enemies.length;i++) for(let j=i+1;j<enemies.length;j++) collidePair(enemies[i],enemies[j]);
 }
@@ -467,7 +470,7 @@ function hitBlunt(E,seg,point,dir,key,o){ const pw=o.power||1,B=BLUNT[key];
   if(key==='head') kickV(E.B,PI_.head,v3.add(v3.sc(dir,1.2*pw),[0,.4*pw,0]),H);
   E.stun=Math.min(1,E.stun+B.stun*pw); E.hitT=0; spray(point,v3.sc(dir,-1),3,1,.6,'dark',.008);
   if(key==='head'&&pw>.75&&!E.nose&&!E.dead){ E.nose=true; addWound(E,seg,point,dir,{rate:.35,art:false,part:'face',noDecal:true}); }
-  E.daze=(E.daze||0)+(B.daze||0)*pw;
+  E.daze=Math.min(1.5,(E.daze||0)+(B.daze||0)*pw);
   if(E.daze>=1&&!E.dead&&E.st!=='down'){ E.daze=0; toDown(E,true); E.knocked=true; E.koT=rnd(5,9); }
   else if(E.barkCd<1.2&&!E.dead) bark(E,pick(['Hnf—','*grunts*','Agh— fuck—','Ow— OW—']),1.6);
   setAware(E,'hit'); for(const O of enemies) if(O!==E&&!O.dead&&Math.hypot(O.pos[0]-E.pos[0],O.pos[1]-E.pos[1])<7) setAware(O,'friend'); }
@@ -572,7 +575,7 @@ function think(E,dt,t){
   if(E.blood<=11||E.headshot||E.dieT!=null&&E.dieT<=0){ die(E); return; }
   /* awareness by sight */
   E.sightT=(E.sightT||0)-dt; if(E.sightT<=0){ E.sightT=.2; E.canSee=sightClear(X_(B,PI_.head),[PL.x,1.55,PL.z]); }
-  if(!E.aware&&GAME.started){ const fwd=[Math.sin(E.hd),Math.cos(E.hd)],facing=(toP[0]*fwd[0]+toP[1]*fwd[1])/(dist||1); if(E.canSee&&(dist<1.1||(dist<6&&facing>.45))) setAware(E,'see'); }
+  if(!E.aware&&GAME.started){ const fwd=[Math.sin(E.hd),Math.cos(E.hd)],facing=(toP[0]*fwd[0]+toP[1]*fwd[1])/(dist||1); if(E.canSee&&(dist<1.1&&facing>-.2||dist<.45||(dist<6&&facing>.45))) setAware(E,'see'); } /* you can get right behind someone */
   const legs=Math.min(E.hp.legL,E.hp.legR);
   /* state changes */
   if(E.st==='idle'||E.st==='alert'){
@@ -588,7 +591,7 @@ function think(E,dt,t){
   /* moving */
   E.crawlF=null; E.walkAmt=lerp(E.walkAmt,0,Math.min(1,dt*6));
   if(E.st==='alert'||E.st==='idle'||E.st==='kneel'){
-    const k=Math.min(1,dt*(E.st==='alert'?1:2.5)); E.pos[0]=lerp(E.pos[0],pel[0],k); E.pos[1]=lerp(E.pos[1],pel[2],k);
+    const k=Math.min(1,dt*(E.grabbed?6:E.st==='alert'?1:2.5)); E.pos[0]=lerp(E.pos[0],pel[0],k); E.pos[1]=lerp(E.pos[1],pel[2],k);
     if(E.st==='kneel'){ const want=Math.atan2(toP[0],toP[1]); let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; E.hd+=clamp(dh,-dt,dt); } }
   if(E.st==='alert'){
     if(armed(E)&&!E.oneHand&&E.M){ /* line the gun up on you: blade the body and lean until the barrel, not the chest, points at you */
@@ -596,7 +599,7 @@ function think(E,dt,t){
       const k=Math.min(1,dt*2.5); E.aimYaw=clamp((E.aimYaw||0)+ye*k,-.7,.7); E.aimPit=clamp((E.aimPit||0)+(Math.asin(tp[1])-Math.asin(g.d[1]))*k,-.35,.35); }
     const want=(!E.canSee&&E.moveDir&&dist>2?Math.atan2(E.moveDir[0],E.moveDir[2]):Math.atan2(toP[0],toP[1]))+(E.wpnHeld&&!E.oneHand&&E.canSee?E.aimYaw||0:0); let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; const tr=E.stun>.3?0:2*(1-E.stun); E.hd+=clamp(dh,-tr*dt,tr*dt);
     const KS=KSTAT[E.kind]||{},keep=armed(E)?KS.keep:1.25;
-    if((dist>keep+.15||!E.canSee)&&E.atkT<0&&E.stun<.4){ const melee=!armed(E),sp=(melee?lerp(1.2,KS.run||2.6,clamp((dist-1.7)/2.2,0,1)):!E.canSee&&dist>6?1.6:.85)*(.55+.45*legs)*E.rise; /* blades charge at you; they ease off in the last couple of metres so they arrive swinging, not sliding */
+    if((dist>keep+.15||!E.canSee)&&E.atkT<0&&E.stun<.4&&!E.grabbed){ const melee=!armed(E),sp=(melee?lerp(1.2,KS.run||2.6,clamp((dist-1.7)/2.2,0,1)):!E.canSee&&dist>6?1.6:.85)*(.55+.45*legs)*E.rise; /* blades charge at you; they ease off in the last couple of metres so they arrive swinging, not sliding */
       E.runAmt=lerp(E.runAmt||0,clamp((sp-1.3)/1.6,0,1),Math.min(1,dt*5)); const dir=navDir(E.pos[0],E.pos[1],PL.x,PL.z); E.moveDir=dir;
       { const D=doorNear(E.pos[0],E.pos[1],.9); if(D&&D.state==='closed'){ setDoor(D,'open'); sfx('door',.5); } } /* people who live here just open doors */
       E.pos[0]+=dir[0]*sp*dt; E.pos[1]+=dir[2]*sp*dt; E.walkAmt=lerp(E.walkAmt,1,Math.min(1,dt*8)); E.walkPh+=dt*(sp<1.3?sp*6.2:7.2+sp*.9); }
@@ -606,7 +609,7 @@ function think(E,dt,t){
     /* attacks */
     E.atkCd-=dt;
     if(armed(E)){ if(E.burstN>0){ E.burstT-=dt; if(E.burstT<=0){ E.burstN--; E.burstT=.085; enemyShoot(E,true); } }
-      else if(E.canSee&&E.atkCd<=0&&E.stun<.3&&dist<KS.range){ E.atkCd=rnd(KS.cd[0],KS.cd[1]); if(enemyShoot(E)===false) E.atkCd=.25; else if(KS.burst){ E.burstN=KS.burst-1; E.burstT=.085; } } }
+      else if(E.canSee&&!E.grabbed&&E.atkCd<=0&&E.stun<.3&&dist<KS.range){ E.atkCd=rnd(KS.cd[0],KS.cd[1]); if(enemyShoot(E)===false) E.atkCd=.25; else if(KS.burst){ E.burstN=KS.burst-1; E.burstT=.085; } } }
     else if(E.atkT<0&&E.atkCd<=0&&dist<keep+.35&&E.stun<.3){ E.atkT=0; }
     if(E.atkT>=0){ const before=E.atkT; E.atkT+=dt; if(before<.44&&E.atkT>=.44){ const f=[Math.sin(E.hd),Math.cos(E.hd)]; if(dist<1.75&&(toP[0]*f[0]+toP[1]*f[1])/(dist||1)>.5) hurtPlayer(E.wpnHeld?(KSTAT[E.kind].melee||9):7); }
       if(E.atkT>.7){ E.atkT=-1; E.atkCd=rnd(1.4,2.4); } } }
@@ -652,6 +655,7 @@ function gunRay(E){ const Wm=wpnMat(E),W=WPN[KIND_WPN[E.kind]]; const mz=mulP(Wm
 function enemyShoot(E,inBurst){
   const g=gunRay(E),mz=g.mz,KS=KSTAT[E.kind],W=WPN[KIND_WPN[E.kind]];
   if(!inBurst&&v3.dot(g.d,norm3(v3.sub([PL.x,1.45,PL.z],mz)))<Math.cos(.6)) return false; /* not on target yet: hold fire instead of shooting the ceiling */
+  if(!inBurst){ const blk=bodyInLine(mz,[PL.x,1.4,PL.z],E); if(blk&&!blk.E.dead&&Math.random()<.75){ if(E.barkCd<=0) bark(E,blk.E.grabbed?pick([`Let ${blk.E.name} go!`,'Let him go, man!','I can\'t get a shot—']):'Move!',1.6); return false; } } /* friends in the way: mostly hold fire */
   GAME.eShots=(GAME.eShots||0)+1; muzzle(mz); sfx(W.snd||'gun',.5);
   const toPl=Math.hypot(...v3.sub([PL.x,1.45,PL.z],mz)),n=KS.shotgun?6:1,hurtArm=Math.min(E.hp.armL,E.hp.armR)>=.45?1:.55;
   /* how likely a shot finds you: better close, worse far, worse with a hurt arm, worse while you're in bullet time? no: bullet time is yours */
@@ -659,6 +663,7 @@ function enemyShoot(E,inBurst){
   let dmg=0;
   for(let k=0;k<n;k++){ const tgt=[PL.x+rnd(-.35,.35),1.45+rnd(-.3,.25),PL.z+rnd(-.35,.35)],d=norm3(v3.add(norm3(v3.sub(tgt,mz)),KS.shotgun?[rnd(-.06,.06),rnd(-.05,.05),rnd(-.06,.06)]:[0,0,0]));
     const bl=rayBoxes(mz,d,toPl); if(bl){ addDecal(DEC.hole,v3.add(v3.add(mz,v3.sc(d,bl.t)),v3.sc(bl.n,.004)),bl.n,.025,140); continue; }
+    const bb=bodyInLine(mz,v3.add(mz,v3.sc(d,toPl)),E); if(bb){ hitEnemy(bb.E,bb.seg,bb.p,bb.dir,'gun',{bleed:KS.shotgun?.5:1,sever:KS.shotgun?.7:1,pellet:!!KS.shotgun}); continue; } /* the body in front takes it */
     if(Math.random()<pHit) dmg+=KS.shotgun?KS.dmg/n*clamp(1.4-toPl/7,.25,1.4):KS.dmg;
     else { const r=rayRoom(mz,d); addDecal(DEC.hole,v3.add(v3.add(mz,v3.sc(d,r.t)),v3.sc(r.n,.004)),r.n,.025,140); } }
   if(dmg>0) hurtPlayer(Math.round(dmg));
@@ -708,6 +713,7 @@ function sfx(type,vol=1){ const ac=audio(); if(!ac) return; const t=ac.currentTi
   else if(type==='glass'){ noise(7000,2500,.3,.6,1.5,'highpass'); tone(2400,1900,.08,.2); }
   else if(type==='shell'){ tone(1700,1300,.05,.3); }
   else if(type==='pump'){ noise(1500,500,.1,.5,2,'bandpass'); setTimeout(()=>{ const a=audio(); if(a) sfx('click',.8); },120); }
+  else if(type==='grab'){ noise(700,200,.12,.5,1.2); tone(140,90,.08,.3); }
   else if(type==='door'){ noise(400,120,.35,.35,1.5); tone(90,60,.3,.25); }
   else if(type==='doorkick'){ tone(70,35,.25,1); noise(900,90,.4,.9); }
   else if(type==='hurt'){ tone(160,60,.25,.5); noise(800,100,.2,.4); } }
@@ -735,6 +741,8 @@ document.body.classList.toggle('touch',isTouch);
 addEventListener('keydown',e=>{ KEYS[e.code]=true; if(!GAME.started) return;
   if(e.code==='KeyF') stab(); else if(e.code==='KeyE') kick(); else if(e.code==='KeyR') reload(); else if(e.code==='KeyT') toggleSlow();
   else if(/^Digit[1-9]$/.test(e.code)){ const k=WPN_KEYS[+e.code.slice(5)-1]; equip(HANDS.R,k==='fists'?null:newItem(k)); }
+  else if(e.code==='KeyG') flatGrab();
+  else if(e.code==='KeyQ'&&HANDS.L.grab){ endGrab(HANDS.L.grab,v3.add(v3.sc(camBasis().f,6),[0,1,0])); }
   else if(e.code==='KeyQ'&&HANDS.R.item){ HANDS.R.vel=v3.sc(camBasis().f,4); grabOrDrop(HANDS.R); } });
 addEventListener('mousedown',e=>{ if(e.button===0) KEYS.Mouse0=true; }); addEventListener('mouseup',e=>{ if(e.button===0) KEYS.Mouse0=false; });
 addEventListener('keyup',e=>{ KEYS[e.code]=false; });
@@ -774,6 +782,7 @@ function update(dt,now){
   PL.kickCd-=dt; XR.flash=Math.max(0,XR.flash-dt);
   for(const h of [HANDS.L,HANDS.R]){ tickItem(h,dt); if(h.swingT>=0){ const hv=h.item&&WPN[h.item.key].heavy; h.swingT+=dt/(hv?.55:.34); if(!h.swingDone&&h.swingT>.42){ h.swingDone=true; flatSwingHit(h); } if(h.swingT>=1) h.swingT=-1; } }
   if(!XR.on&&KEYS.Mouse0&&document.pointerLockElement&&HANDS.R.item&&WPN[HANDS.R.item.key].auto) useRight();
+  updateGrabs(gdt);
   for(const E of enemies) think(E,gdt,GAME.t);
   for(const E of enemies) targetsFor(E,GAME.t,gdt);
   GAME.acc+=gdt; let n=0; while(GAME.acc>=H&&n<14){ physics(H); GAME.acc-=H; n++; } if(n>=14) GAME.acc=0;
@@ -832,7 +841,7 @@ function frame(now){
   const bob=GAME.started?Math.sin(now*.008)*.004*Math.min(1,Math.hypot(stick.dx,stick.dy)+(KEYS.KeyW||KEYS.KeyS||KEYS.KeyA||KEYS.KeyD?1:0)):0;
   for(const h of [HANDS.R,HANDS.L]){ const sR=h.side==='R'?1:-1,sw=h.swingT>=0?Math.sin(Math.PI*clamp(h.swingT,0,1)):0,it=h.item,w=it&&WPN[it.key],gun=w&&w.gun,rl=it&&it.reload>0?-.12:0,hv=w&&w.heavy;
     const side=sR*(gun?.19:.2)-sR*sw*(hv?.2:.08),up=(gun?-.2:-.22)+bob+rl+sw*(hv?.16:.07),fw=(gun?.42:.36)-h.rec*.06+sw*(hv?.25:.34),pitch=h.rec*.3+(rl?-.6:0)+(gun?0:-.1+sw*(hv?-.9:.1));
-    if(window.__ads&&h.side==='R') { const S=SIGHTS[it&&it.key]||{y:.06,h:0},gy=FIST[1]-(w&&w.grip?w.grip[1]:0); placeVM(h.node,v3.add(eye,v3.add(v3.sc(u,-(gy+S.y+S.h-.003)),v3.sc(f,.24))),f,u,r,0); } else /* debug: look down the sights */
+    if(h.grab) placeVM(h.node,v3.add(eye,v3.add(v3.sc(r,-.12),v3.add(v3.sc(u,-.18),v3.sc(f,.5)))),f,u,r,0); else if(window.__ads&&h.side==='R') { const S=SIGHTS[it&&it.key]||{y:.06,h:0},gy=FIST[1]-(w&&w.grip?w.grip[1]:0); placeVM(h.node,v3.add(eye,v3.add(v3.sc(u,-(gy+S.y+S.h-.003)),v3.sc(f,.24))),f,u,r,0); } else /* debug: look down the sights */
     placeVM(h.node,v3.add(eye,v3.add(v3.sc(r,side),v3.add(v3.sc(u,up),v3.sc(f,fw)))),f,u,r,pitch); m4.compose(h.M,h.node.p,h.node.r,[1,1,1]); h.node.vis=!PL.dead; updateAmmoLabel(h); }
   for(const E of enemies) E.label.vis=false; panelN.vis=false;
   m4.persp(proj,50*Math.PI/180,cv.width/cv.height,0.05,120); m4.lookAt(view,eye,v3.add(eye,f),[0,1,0]);

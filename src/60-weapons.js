@@ -162,8 +162,10 @@ function nearestGrabbable(p,maxD){ let best=null,bd=maxD;
   for(const P of LOOSE){ const q=P.node.p,d=Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2]); if(d<bd){ bd=d; best={pick:P}; } }
   return best; }
 function grabOrDrop(h){
+  if(h.grab){ endGrab(h.grab,Math.hypot(...h.vel)>1.5?v3.sc(h.vel,1.1):null); return; } /* let go of him, or throw him */
   if(h.supportOf){ releaseSupport(h); sfx('click',.4); return; }
   if(!h.item&&trySupport(h)) return;
+  if(!h.item&&tryGrabBody(h)) return;
   if(h.item){ /* let go: it falls, or flies if the hand was moving */
     if(h.itemNode){ const Mi=itemM(h); addPickup(h.item,Mi,h.vel,Math.hypot(...h.vel)>3?[rnd(-2,2),rnd(-12,12),rnd(-2,2)]:null); }
     equip(h,null); sfx('swish',.4); return; }
