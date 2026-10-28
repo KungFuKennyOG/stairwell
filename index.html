@@ -106,7 +106,7 @@ body.touch #tl small{display:none}
     <dl class="keys deskonly"><dt>WASD</dt><dd>Move</dd><dt>Mouse</dt><dd>Look (click to capture)</dd><dt>Left click</dt><dd>Shoot</dd><dt>Right click / F</dt><dd>Stab</dd><dt>E</dt><dd>Kick</dd><dt>R · T</dt><dd>Reload · bullet time</dd></dl>
     <dl class="keys touchonly"><dt>Left thumb</dt><dd>Move</dd><dt>Right side drag</dt><dd>Look</dd><dt>Buttons</dt><dd>Shoot, stab, kick, reload, slow-mo</dd></dl>
     <div class="startrow"><button id="start" type="button">Start</button><button id="vrBtn" type="button" hidden>Play in VR</button></div>
-    <p class="vrnote">In VR: left stick moves, right stick turns, trigger fires, thrust the knife into them to stab, B/Y kicks, A reloads, X is bullet time.</p>
+    <p class="vrnote">In VR: left stick moves, right stick turns, trigger fires, thrust the knife into them to stab, B/Y kicks, A reloads, X is bullet time. Hold both grips to reset the floor; click the right stick to change sharpness.</p>
   </div>
 </section>
 <section id="msg" hidden aria-live="polite"><div class="card"><h2 id="msgH"></h2><p id="msgP"></p><button class="btn" id="msgReset" type="button">Reset the floor</button></div></section>
@@ -1054,7 +1054,7 @@ const KITS={
    body. Dead = no muscles. Damage is per body part: legs drop them, arms go limp, arteries spurt with the heartbeat.
    ===================================================================== */
 const state={ps1:true,res:480,snap:true,affine:true,dither:true};
-const XR={on:false,session:null,space:null,origin:[0,0,3.2],yaw:0,head:null,hands:{},flash:0,snapHeld:false,btn:{},clearT:0,knifeTip:null,stabCd:0};
+const XR={on:false,session:null,space:null,origin:[0,0,3.2],yaw:0,head:null,hands:{},flash:0,snapHeld:false,btn:{},clearT:0,knifeTip:null,stabCd:0,res:1080,toast:'',toastT:0,resetHold:0,panelP:null};
 
 const $=id=>document.getElementById(id);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -1487,6 +1487,33 @@ function rayRoom(o,d){ let best={t:1e9,n:[0,1,0]};
   const tryP=(k,v,n)=>{ if(Math.abs(d[k])<1e-9) return; const t=(v-o[k])/d[k]; if(t>0&&t<best.t) best={t,n}; };
   tryP(0,-RX,[1,0,0]); tryP(0,RX,[-1,0,0]); tryP(2,-RZ,[0,0,1]); tryP(2,RZ,[0,0,-1]); tryP(1,0,[0,1,0]); tryP(1,RH,[0,-1,0]);
   const bx=rayBoxes(o,d,best.t); return bx&&bx.t<best.t?bx:best; }
+/* exact hits: bullets and blades land on the drawn skin, not on the fat physics capsules around it */
+function meshTris(n,P,cb){ const W=n.world,I=n.mesh.geo.I,V=new Float32Array(P.length);
+  for(let i=0;i<P.length;i+=3){ const x=P[i],y=P[i+1],z=P[i+2]; V[i]=W[0]*x+W[4]*y+W[8]*z+W[12]; V[i+1]=W[1]*x+W[5]*y+W[9]*z+W[13]; V[i+2]=W[2]*x+W[6]*y+W[10]*z+W[14]; }
+  cb(V,I); }
+function bodyMeshes(E){ const J=E.J,out=[[J.body,J.skin.P,J.skin]]; if(J.headMesh&&J.headMesh.vis!==false) out.push([J.headMesh,J.headMesh.mesh.geo.P,null]); return out; }
+/* which body part a skin point belongs to: the bone that drives that bit of skin */
+const BONE_SEG={hips:['belly'],spine:['chest','belly'],neck:['neck'],head:['head'],armL:['uarmL'],elbowL:['farmL'],handL:['farmL'],armR:['uarmR'],elbowR:['farmR'],handR:['farmR'],thighL:['thighL'],kneeL:['shinL'],ankleL:['footL'],thighR:['thighR'],kneeR:['shinR'],ankleR:['footR']};
+function vBone(S,vs){ const w={}; for(const v of vs) for(let k=0;k<2;k++){ const b=S.bi[v*2+k],x=S.bw[v*2+k]; if(x>0) w[b]=(w[b]||0)+x; } let bb=-1,bw=-1; for(const b in w) if(w[b]>bw){ bw=w[b]; bb=+b; } return BONES[bb]; }
+function segFor(E,bone,p){ const names=BONE_SEG[bone]; if(!names) return segAt(E,p); const c=SEGS.filter((sg,si)=>names.includes(sg[3])&&!E.segOff.has(si)); if(!c.length) return segAt(E,p); if(c.length===1) return c[0];
+  let best=null,bd=1e9; for(const sg of c){ const a=X_(E.B,sg[0]),b=X_(E.B,sg[1]),u=v3.sub(b,a),uu=v3.dot(u,u),s=uu>1e-8?clamp(v3.dot(v3.sub(p,a),u)/uu,0,1):0,q=Math.hypot(...v3.sub(p,v3.add(a,v3.sc(u,s)))); if(q<bd){ bd=q; best=sg; } } return best; }
+function rayMesh(E,o,d,t0,t1){ let best=null,hb=null;
+  for(const [n,P,S] of bodyMeshes(E)) meshTris(n,P,(V,I)=>{ for(let k=0;k<I.length;k+=3){ const a=I[k]*3,b=I[k+1]*3,c=I[k+2]*3;
+    const e1x=V[b]-V[a],e1y=V[b+1]-V[a+1],e1z=V[b+2]-V[a+2],e2x=V[c]-V[a],e2y=V[c+1]-V[a+1],e2z=V[c+2]-V[a+2];
+    const px=d[1]*e2z-d[2]*e2y,py=d[2]*e2x-d[0]*e2z,pz=d[0]*e2y-d[1]*e2x,det=e1x*px+e1y*py+e1z*pz; if(Math.abs(det)<1e-9) continue; const id=1/det;
+    const tx=o[0]-V[a],ty=o[1]-V[a+1],tz=o[2]-V[a+2],u=(tx*px+ty*py+tz*pz)*id; if(u<0||u>1) continue;
+    const qx=ty*e1z-tz*e1y,qy=tz*e1x-tx*e1z,qz=tx*e1y-ty*e1x,v=(d[0]*qx+d[1]*qy+d[2]*qz)*id; if(v<0||u+v>1) continue;
+    const t=(e2x*qx+e2y*qy+e2z*qz)*id; if(t>=t0&&t<=t1&&(best===null||t<best)){ best=t; hb=S?vBone(S,[I[k],I[k+1],I[k+2]]):'head'; } } });
+  return best===null?null:{t:best,bone:hb}; }
+function nearestSkin(E,p,maxD){ let best=null,bd=maxD*maxD;
+  for(const [n,P,S] of bodyMeshes(E)) meshTris(n,P,V=>{ for(let i=0;i<V.length;i+=3){ const dx=V[i]-p[0],dy=V[i+1]-p[1],dz=V[i+2]-p[2],q=dx*dx+dy*dy+dz*dz; if(q<bd){ bd=q; best={p:[V[i],V[i+1],V[i+2]],bone:S?vBone(S,[i/3]):'head'}; } } });
+  return best; }
+function segAt(E,p){ let best=null,bd=1e9; SEGS.forEach((sg,si)=>{ if(E.segOff.has(si)) return; const a=X_(E.B,sg[0]),b=X_(E.B,sg[1]),u=v3.sub(b,a),uu=v3.dot(u,u),s=uu>1e-8?clamp(v3.dot(v3.sub(p,a),u)/uu,0,1):0,q=Math.hypot(...v3.sub(p,v3.add(a,v3.sc(u,s))))-sg[2]; if(q<bd){ bd=q; best=sg; } }); return best; }
+/* first exact skin hit along a ray: capsules find who might be hit, the mesh decides where */
+function rayEnemiesExact(o,d,maxT){ let best=null;
+  for(const E of enemies){ let tc=null; for(let si=0;si<SEGS.length;si++){ if(E.segOff.has(si)) continue; const sg=SEGS[si],h=raySeg(o,d,X_(E.B,sg[0]),X_(E.B,sg[1]),sg[2]+.02); if(h&&h.t<maxT&&(tc===null||h.t<tc)) tc=h.t; }
+    if(tc===null) continue; const h=rayMesh(E,o,d,Math.max(0,tc-.05),Math.min(maxT,tc+.7)); if(h&&(!best||h.t<best.t)) best={t:h.t,bone:h.bone,E}; }
+  if(best){ best.p=v3.add(o,v3.sc(d,best.t)); best.seg=segFor(best.E,best.bone,best.p); } return best; }
 function rayEnemies(o,d,maxT,pad=0){ let best=null;
   for(const E of enemies) for(let si=0;si<SEGS.length;si++){ if(E.segOff.has(si)) continue; const sg=SEGS[si],h=raySeg(o,d,X_(E.B,sg[0]),X_(E.B,sg[1]),sg[2]+pad); if(h&&h.t<maxT&&(!best||h.t<best.t)) best={t:h.t,E,seg:sg}; }
   return best; }
@@ -1509,12 +1536,25 @@ function hitEnemy(E,seg,point,dir,weapon){
   else for(const i of [seg[0],seg[1]]) kickV(E.B,i,v3.sc(dir,sp*.45),H);
   const trunk=[PI_.pelvis,PI_.hipL,PI_.hipR,PI_.chest,PI_.neck,PI_.shL,PI_.shR];
   const share=key==='chest'||key==='belly'||key==='neck'?.45:legHit?0:.15; for(const i of trunk) kickV(E.B,i,v3.sc(dir,sp*share),H);
+  /* the heart sits behind the sternum, a little to his left: a bullet or blade that passes within a few cm of it is fatal */
+  let heart=false;
+  if(key==='chest'||key==='belly'){ const B=E.B,ch=X_(B,PI_.chest),nk=X_(B,PI_.neck),Rs=frameFrom(X_(B,PI_.shL),X_(B,PI_.shR),ch,nk);
+    const hp=v3.add(v3.add(ch,v3.sc(v3.sub(nk,ch),.3)),v3.add(v3.sc(Rs[0],.035),v3.sc(Rs[2],.02)));
+    const reach=weapon==='gun'?.45:.14,tt=clamp(v3.dot(v3.sub(hp,point),dir),0,reach),cl=v3.add(point,v3.sc(dir,tt));
+    heart=Math.hypot(...v3.sub(hp,cl))<(weapon==='gun'?.06:.075); }
+  const fatal=heart?'heart':weapon==='knife'&&key==='head'?'brain':weapon==='knife'&&key==='neck'?'throat':null;
   /* the wound */
-  if(D.kill){ E.headshot=true; spray(point,dir,70,4.2,.55,'bright',.014); spray(point,v3.sc(dir,-1),18,1.6,.6,'dark',.012); addWound(E,seg,point,dir,{rate:5,art:true,part:key}); E.spurtT=.4; }
+  if(fatal==='brain'){ E.headshot=true; spray(point,v3.sc(dir,-1),40,2.4,.6,'bright',.013); addWound(E,seg,point,dir,{rate:5,art:true,part:key,knife:true}); E.spurtT=.4; }
+  else if(fatal){ /* heart or opened throat: he drops where he stands and is gone in a second or two */
+    addWound(E,seg,point,dir,{rate:fatal==='heart'?12:10,art:true,part:key,knife:weapon==='knife'}); E.spurtT=.5;
+    spray(point,weapon==='gun'?dir:v3.sc(dir,-1),50,3.2,.5,'bright',.014);
+    if(!E.dead&&E.st!=='down') toDown(E,fatal==='heart'); E.dieT=fatal==='heart'?rnd(.6,1.1):rnd(1.8,2.6); }
+  else if(D.kill){ E.headshot=true; spray(point,dir,70,4.2,.55,'bright',.014); spray(point,v3.sc(dir,-1),18,1.6,.6,'dark',.012); addWound(E,seg,point,dir,{rate:5,art:true,part:key}); E.spurtT=.4; }
   else { const art=Math.random()<(D.art||0)*(behind?1.6:1); addWound(E,seg,point,dir,{rate:D.bleed*(art?2.3:1)*(behind?1.5:1),art,part:key,knife:weapon==='knife'});
     if(weapon==='gun'){ spray(point,dir,26,3.6,.4,'dark',.012); spray(point,v3.sc(dir,-1),8,1.4,.5,'bright',.01); }
     else { spray(point,v3.sc(dir,-1),22,2.2,.6,'bright',.012); }
     if(art) E.spurtT=.35; }
+  if(key==='neck'&&weapon==='gun'&&!fatal&&!E.dead&&(E.st==='alert'||E.st==='idle')){ E.st='kneel'; E.aware=true; dropWeapon(E); } /* both hands go to his throat */
   if(D.leg) E.hp['leg'+side]=Math.max(0,E.hp['leg'+side]-D.leg);
   if(D.arm) E.hp['arm'+side]=Math.max(0,E.hp['arm'+side]-D.arm);
   E.stun=Math.min(1,E.stun+(D.stun||.3)*(behind?1.6:1)); E.hitT=0;
@@ -1522,7 +1562,7 @@ function hitEnemy(E,seg,point,dir,weapon){
   const limb=key==='head'||key==='neck'?'head':key==='uarm'||key==='farm'?'arm'+side:key==='thigh'||key==='shin'||key==='foot'?'leg'+side:null;
   if(limb&&!E.cut[limb]&&weapon!=='kick'){ E.sev[limb]+=weapon==='gun'?(limb==='head'?.55:key==='foot'?.25:.4):(limb==='head'?(key==='neck'?.36:.12):.3); if(E.sev[limb]>=1) sever(E,limb,dir); }
   /* what he says */
-  if(!E.headshot&&E.barkCd<1.2){ const L_=key==='neck'?LINES.neck:weapon==='knife'?LINES.stab:key==='thigh'||key==='shin'||key==='foot'?LINES.leg:key==='uarm'||key==='farm'?LINES.arm:LINES.torso; bark(E,pick(L_),2.2); }
+  if(!E.headshot&&(!fatal||fatal==='throat')&&E.barkCd<1.2){ const L_=key==='neck'?LINES.neck:weapon==='knife'?LINES.stab:key==='thigh'||key==='shin'||key==='foot'?LINES.leg:key==='uarm'||key==='farm'?LINES.arm:LINES.torso; bark(E,pick(L_),2.2); }
   if(behind){ E.silent=true; if(!E.aware){ E.aware=true; E.st='kneel'; dropWeapon(E); } }
   else setAware(E,'hit');
   for(const O of enemies) if(O!==E&&!O.dead&&Math.hypot(O.pos[0]-E.pos[0],O.pos[1]-E.pos[1])<9&&!behind) setAware(O,'friend');
@@ -1579,7 +1619,8 @@ function think(E,dt,t){
   E.blood=Math.max(0,E.blood-bleed*dt); E.cons=clamp((E.blood-12)/46,0,1);
   const hr=1.15+(1-E.blood/100)*1.9+(E.aware?.4:0); E.heartPh+=dt*hr; if(E.heartPh>=1){ E.heartPh-=1; if(E.wounds.some(w=>w.art)) E.spurtT=.13; }
   E.spurtT-=dt;
-  if(E.blood<=11||E.headshot){ die(E); return; }
+  if(E.dieT!=null) E.dieT-=dt;
+  if(E.blood<=11||E.headshot||E.dieT!=null&&E.dieT<=0){ die(E); return; }
   /* awareness by sight */
   if(!E.aware&&GAME.started){ const fwd=[Math.sin(E.hd),Math.cos(E.hd)],facing=(toP[0]*fwd[0]+toP[1]*fwd[1])/(dist||1); if(dist<1.1||(dist<4.5&&facing>.45)) setAware(E,'see'); }
   const legs=Math.min(E.hp.legL,E.hp.legR);
@@ -1674,8 +1715,8 @@ function shoot(o0,d0,mz0){
   let {f,r,u,eye}=camBasis(); if(o0){ eye=o0; f=d0; muzzle(mz0); } else muzzle(v3.add(eye,v3.add(v3.sc(r,.16),v3.add(v3.sc(u,-.11),v3.sc(f,.5)))));
   alertAll([PL.x,0,PL.z]);
   const d=norm3(v3.add(f,[rnd(-.006,.006),rnd(-.006,.006),rnd(-.006,.006)]));
-  const wall=rayRoom(eye,d),hit=rayEnemies(eye,d,wall.t);
-  if(hit){ const p=v3.add(eye,v3.sc(d,hit.t)); hitEnemy(hit.E,hit.seg,p,d,'gun');
+  const wall=rayRoom(eye,d),hit=rayEnemiesExact(eye,d,wall.t);
+  if(hit){ const p=hit.p; hitEnemy(hit.E,hit.seg,p,d,'gun');
     const back=rayRoom(v3.add(p,v3.sc(d,.25)),d); if(back.t<2.6){ const wp=v3.add(v3.add(p,v3.sc(d,.25+back.t)),v3.sc(back.n,.004)); addDecal(DEC.splat,wp,back.n,rnd(.16,.3),260,back.n[1]===0?rnd(.25,.45):undefined); }
     if(hit.t<1.3) screenBlood(3); hitMarker(); if(XR.on) buzz('right',.4,40); }
   else { const p=v3.add(v3.add(eye,v3.sc(d,wall.t)),v3.sc(wall.n,.004)); addDecal(DEC.hole,p,wall.n,.028,90); for(let i=0;i<8;i++) emit(p,v3.add(v3.sc(wall.n,rnd(.6,1.6)),[rnd(-.5,.5),rnd(0,.8),rnd(-.5,.5)]),rnd(.006,.012),'dust',.8); }
@@ -1684,7 +1725,7 @@ function shoot(o0,d0,mz0){
 function reload(){ if(PL.reload>0||PL.ammo===12) return; PL.reload=1.35; sfx('reload'); }
 function stab(){ if(!GAME.started||PL.dead||PL.stabCd>0) return; PL.stabT=0; PL.stabDone=false; PL.stabCd=.5; }
 function doStab(){ const {f,eye}=camBasis(); const hit=rayEnemies(eye,f,1.3,.07);
-  if(hit){ const p=v3.add(eye,v3.sc(f,hit.t)); hitEnemy(hit.E,hit.seg,p,f,'knife'); sfx('stab'); screenBlood(4); hitMarker(); } else sfx('swish'); }
+  if(hit){ const c=v3.add(eye,v3.sc(f,hit.t)),ex=rayMesh(hit.E,eye,f,Math.max(0,hit.t-.05),hit.t+.4)||nearestSkin(hit.E,c,.2),p=ex?(ex.p||v3.add(eye,v3.sc(f,ex.t))):c; hitEnemy(hit.E,ex?segFor(hit.E,ex.bone,p):hit.seg,p,f,'knife'); sfx('stab'); screenBlood(4); hitMarker(); } else sfx('swish'); }
 function kick(){ if(!GAME.started||PL.dead||PL.kickCd>0) return; PL.kickCd=.8; const {f,eye}=camBasis(); const fl=norm3([f[0],0,f[2]]);
   let best=null; for(const E of enemies){ const pel=X_(E.B,PI_.pelvis),d=Math.hypot(pel[0]-PL.x,pel[2]-PL.z),dir=norm3([pel[0]-PL.x,0,pel[2]-PL.z]); if(d<1.45&&v3.dot(dir,fl)>.55&&(!best||d<best.d)) best={E,d}; }
   if(!best){ sfx('swish'); return; } const E=best.E; sfx('kick');
@@ -1800,13 +1841,13 @@ function renderWith(w,h){
   drawTree(world); gl.bindVertexArray(null); }
 const POST2=program(PVS,`#version 300 es
 precision highp float;
-uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash;
+uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash; uniform float uSmooth;
 in vec2 vUv; out vec4 outColor;
 float bayer2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
 float bayer4(vec2 a){ return bayer2(0.5 * a) * 0.25 + bayer2(a); }
 void main(){
   vec2 px = floor(vUv * uRes);
-  vec3 c = texture(tScene, (px + 0.5) / uRes).rgb;
+  vec3 c = texture(tScene, uSmooth > 0.5 ? vUv : (px + 0.5) / uRes).rgb;
   c = mix(c, vec3(0.5, 0.0, 0.0), uFlash);
   float L = 31.0; c += (bayer4(px) - 0.5) / L; c = floor(c * L + 0.5) / L;
   outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
@@ -1814,7 +1855,8 @@ void main(){
 function post(targetFB,vx,vy,vw,vh,w,h){
   gl.bindFramebuffer(gl.FRAMEBUFFER,targetFB); gl.viewport(vx,vy,vw,vh); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null;
   gl.useProgram(POST2.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
-  gl.uniform1i(POST2.loc.tScene,0); gl.uniform2f(POST2.loc.uRes,w,h); gl.uniform1f(POST2.loc.uFlash,XR.on?XR.flash*1.2:0); gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); }
+  gl.uniform1i(POST2.loc.tScene,0); gl.uniform2f(POST2.loc.uRes,w,h); gl.uniform1f(POST2.loc.uFlash,XR.on?XR.flash*1.2:0); gl.uniform1f(POST2.loc.uSmooth,XR.on?1:0);
+  for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,XR.on?gl.LINEAR:gl.NEAREST); gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); }
 
 /* ---------- flat screen ---------- */
 let last=performance.now();
@@ -1826,7 +1868,7 @@ function frame(now){
   const st=PL.stabT>=0?Math.sin(Math.PI*clamp(PL.stabT,0,1)):0,bob=GAME.started?Math.sin(now*.008)*.004*Math.min(1,Math.hypot(stick.dx,stick.dy)+(KEYS.KeyW||KEYS.KeyS||KEYS.KeyA||KEYS.KeyD?1:0)):0;
   placeVM(vmR,v3.add(eye,v3.add(v3.sc(r,.19),v3.add(v3.sc(u,-.2+bob+(PL.reload>0?-.12:0)),v3.sc(f,.42-PL.rec*.06)))),f,u,r,PL.rec*.3+(PL.reload>0?-.6:0));
   placeVM(vmL,v3.add(eye,v3.add(v3.sc(r,-.2+st*.12),v3.add(v3.sc(u,-.22+bob+st*.07),v3.sc(f,.36+st*.34)))),f,u,r,-.1+st*.1);
-  vmR.vis=vmL.vis=!PL.dead; for(const E of enemies) E.label.vis=false; ammoN.vis=false;
+  vmR.vis=vmL.vis=!PL.dead; for(const E of enemies) E.label.vis=false; ammoN.vis=false; panelN.vis=false;
   m4.persp(proj,50*Math.PI/180,cv.width/cv.height,0.05,120); m4.lookAt(view,eye,v3.add(eye,f),[0,1,0]);
   const h=state.res,w=Math.max(1,Math.round(h*cv.width/cv.height)); ensureFB(w,h); gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderWith(w,h); post(null,0,0,cv.width,cv.height,w,h);
   for(const E of enemies){ const el=E.barkEl; if(E.barkT>0&&!E.dead){ const hp=X_(E.B,PI_.head),c=clip(v3.add(hp,[0,.32,0])); if(c[2]>.1){ el.hidden=false; el.style.transform=`translate(${(c[0]/c[2]*.5+.5)*innerWidth}px,${(.5-c[1]/c[2]*.5)*innerHeight}px) translate(-50%,-100%)`; el.style.opacity=Math.min(1,E.barkT*2); } else el.hidden=true; } else el.hidden=true; }
@@ -1849,6 +1891,19 @@ const ammoTex=tex(16,8,'#0a0b0d'); let ammoShown=-1;
 const ammoN=mk(plane(.032,.016),M(ammoTex,{unlit:true}),vmR,-.017,.05,.03,0,-Math.PI/2,0); ammoN.vis=false;
 function updateAmmoTex(){ const v=PL.reload>0?-2:PL.ammo; if(v===ammoShown) return; ammoShown=v; const g=ammoTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,16,8); const s=v<0?'--':String(v).padStart(2,'0'); text(g,s,(16-textW(s))>>1,1,v===0?'#ff3b30':'#e2a33d');
   if(ammoTex.glt){ gl.bindTexture(gl.TEXTURE_2D,ammoTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,ammoTex.c); } }
+/* a floating panel in VR for 'you died', 'floor clear', the reset countdown and setting changes */
+const panelTex={c:(()=>{ const c=document.createElement('canvas'); c.width=512; c.height=160; return c; })(),glt:null,f:-1,text:''};
+const panelN=mk(plane(.72,.225),M(panelTex,{unlit:true,cut:true,double:true}),world); panelN.vis=false;
+function vrToast(t,sec){ XR.toast=t; XR.toastT=sec; }
+function drawPanel(h,p,bar){ const key=h+'|'+p+'|'+(bar<0?-1:Math.round(bar*40)); if(panelTex.text===key) return; panelTex.text=key; const g=panelTex.c.getContext('2d');
+  g.clearRect(0,0,512,160); g.fillStyle='rgba(8,8,10,.86)'; g.fillRect(0,0,512,160); g.fillStyle='#e2a33d'; g.fillRect(0,0,4,160);
+  g.textAlign='center'; g.textBaseline='middle'; g.fillStyle='#f2ede2'; g.font='900 46px "Big Shoulders Display","Arial Narrow",sans-serif'; g.fillText(h.toUpperCase(),256,p||bar>=0?58:80,480);
+  if(p){ g.fillStyle='#c4bfb3'; g.font='600 20px "IBM Plex Mono",monospace'; g.fillText(p,256,112,480); }
+  if(bar>=0){ g.fillStyle='#2d2b27'; g.fillRect(56,132,400,8); g.fillStyle='#e2a33d'; g.fillRect(56,132,400*clamp(bar,0,1),8); }
+  if(panelTex.glt){ gl.bindTexture(gl.TEXTURE_2D,panelTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,panelTex.c); } }
+function vrRecenter(){ /* put your head back at the floor's start, facing into the room */
+  if(!XR.on||!XR.head) return; const e=XR.head.eye,f=XR.head.f,a=-Math.atan2(-f[0],-f[2]),c=Math.cos(a),s=Math.sin(a),dx=XR.origin[0]-e[0],dz=XR.origin[2]-e[2];
+  XR.origin[0]=e[0]+dx*c+dz*s; XR.origin[2]=e[2]-dx*s+dz*c; XR.yaw+=a; XR.origin[0]+=0-e[0]; XR.origin[2]+=3.2-e[2]; PL.x=0; PL.z=3.2; PL.yaw=0; }
 function attachLabels(){ for(const E of enemies) if(!E.label){ E.labelTex=labelTex(); E.label=mk(plane(.62,.116),M(E.labelTex,{unlit:true,cut:true,double:true}),world); E.label.vis=false; } }
 async function enterVR(){
   if(!navigator.xr){ return; }
@@ -1886,7 +1941,12 @@ function xrFrame(t,xf){
       if(edge(4)) toggleSlow(); if(edge(5)) kick(); }
     else { const sx=ax[2]||0; if(Math.abs(sx)>.7&&!XR.snapHeld){ XR.snapHeld=true; const a=-Math.sign(sx)*Math.PI/6,c=Math.cos(a),s=Math.sin(a),dx=XR.origin[0]-eye[0],dz=XR.origin[2]-eye[2];
         XR.origin[0]=eye[0]+dx*c+dz*s; XR.origin[2]=eye[2]-dx*s+dz*c; XR.yaw+=a; } else if(Math.abs(sx)<.3) XR.snapHeld=false;
-      if(edge(4)) reload(); if(edge(5)) kick(); } }
+      if(edge(4)) reload(); if(edge(5)) kick();
+      if(edge(3)){ const L=[720,1080,1440],i=(L.indexOf(XR.res)+1)%L.length; XR.res=L[i]; vrToast(['Sharpness: low (more PS1)','Sharpness: medium','Sharpness: high'][i],1.6); } } }
+  /* hold both grips to reset the floor */
+  { const g=h=>{ const x=XR.hands[h]; return !!(x&&x.src&&x.src.gamepad&&x.src.gamepad.buttons[1]&&x.src.gamepad.buttons[1].pressed); };
+    if(g('left')&&g('right')){ XR.resetHold+=dt; if(XR.resetHold>=1.2){ XR.resetHold=-99; resetGame(); vrRecenter(); vrToast('Floor reset',1.4); buzz('left',.6,80); buzz('right',.6,80); } }
+    else XR.resetHold=0; }
   /* keep the head out of walls and furniture by sliding the play space */
   { const bx=PL.x,bz=PL.z; collidePlayer(); XR.origin[0]+=PL.x-bx; XR.origin[2]+=PL.z-bz; }
   update(dt,t);
@@ -1899,12 +1959,21 @@ function xrFrame(t,xf){
     const tip=mulP(L_.gun,[0,0,.25]); XR.stabCd-=dt;
     if(XR.knifeTip&&XR.stabCd<=0&&GAME.started&&!PL.dead){ const d=v3.sub(tip,XR.knifeTip),len=Math.hypot(...d);
       if(len/dt>1.3){ const dir=v3.sc(d,1/len),hit=rayEnemies(v3.sub(XR.knifeTip,v3.sc(dir,.05)),dir,len+.08,.03);
-        if(hit){ const p=v3.add(XR.knifeTip,v3.sc(dir,hit.t-.05)); hitEnemy(hit.E,hit.seg,p,dir,'knife'); sfx('stab'); buzz('left',1,90); XR.stabCd=.3; } } }
+        const o=v3.sub(XR.knifeTip,v3.sc(dir,.05)),ex=hit&&rayMesh(hit.E,o,dir,0,len+.09);
+        if(hit&&ex){ const p=v3.add(o,v3.sc(dir,ex.t)); hitEnemy(hit.E,segFor(hit.E,ex.bone,p),p,dir,'knife'); sfx('stab'); buzz('left',1,90); XR.stabCd=.3; } } }
     XR.knifeTip=tip; }
   /* subtitles float over heads, facing you */
   for(const E of enemies){ const on=E.barkT>0&&!E.dead; E.label.vis=on; if(on){ setLabel(E,E.barkEl.textContent); const hp=X_(E.B,PI_.head),p=v3.add(hp,[0,.36,0]); E.label.p=p; E.label.r=[0,Math.atan2(eye[0]-p[0],eye[2]-p[2]),0]; } }
+  /* the panel: follows your gaze lazily, never glued to your face */
+  { let ph='',pp='',bar=-1;
+    if(XR.resetHold>0){ ph='Resetting the floor'; pp='keep holding both grips'; bar=XR.resetHold/1.2; }
+    else if(!$('msg').hidden){ ph=$('msgH').textContent; pp='Hold both grips to reset the floor'; }
+    else if(XR.toastT>0) ph=XR.toast;
+    XR.toastT-=dt; const was=panelN.vis; panelN.vis=!!ph;
+    if(ph){ drawPanel(ph,pp,bar); const fl=norm3([f[0],0,f[2]]),tg=v3.add(eye,v3.add(v3.sc(fl,.85),[0,-.1,0]));
+      XR.panelP=!was||!XR.panelP?tg:v3.add(XR.panelP,v3.sc(v3.sub(tg,XR.panelP),Math.min(1,dt*2.5))); const p=XR.panelP; panelN.p=p.slice(); panelN.r=[0,Math.atan2(eye[0]-p[0],eye[2]-p[2]),0]; } }
   /* render both eyes */
-  const layer=session.renderState.baseLayer,hres=state.res;
+  const layer=session.renderState.baseLayer,hres=XR.res;
   for(const v of vp.views){ const vpt=layer.getViewport(v);
     proj.set(v.projectionMatrix); const em=new Float32Array(16); em.set(v.transform.matrix); const wm=m4.make(); m4.mul(wm,worldFromLocal(),em); view.set(rigidInv(wm));
     const w=Math.max(1,Math.round(hres*vpt.width/vpt.height)); ensureFB(w,hres); gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderWith(w,hres);
@@ -1913,7 +1982,7 @@ function xrFrame(t,xf){
 (async()=>{ if(navigator.xr&&navigator.xr.isSessionSupported){ try{ if(await navigator.xr.isSessionSupported('immersive-vr')){ for(const id of ['vrBtn','vrBtnT']) $(id).hidden=false; } }catch(_){} } })();
 $('vrBtn').addEventListener('click',enterVR); $('vrBtnT').addEventListener('click',enterVR);
 attachLabels();
-window.__game={gunAim:(E)=>{ if(!E.wpnHeld) return null; const loc=m4.make(),Wm=m4.make(),w=E.C.wpn; m4.compose(loc,w.p,w.r,w.s); m4.mul(Wm,E.M['hand'+E.wpnHand],loc); const mz=mulP(Wm,[0,.045,.17]),bk=mulP(Wm,[0,.045,0]),d=norm3(v3.sub(mz,bk)),tp=norm3(v3.sub([PL.x,1.45,PL.z],mz)); return {mz,d,deg:Math.acos(clamp(v3.dot(d,tp),-1,1))*57.3}; },aimAt:(p)=>{ const e=[PL.x,1.62,PL.z],d=v3.sub(p,e),l=Math.hypot(...d); PL.yaw=Math.atan2(-d[0],-d[2]); PL.pitch=Math.asin(d[1]/l); },X_:X_,GAME,PL,XR,enemies:()=>enemies,shoot,stab,kick,hitEnemy,SEGS,PI_,rayEnemies,camBasis,resetGame};
+window.__game={heartPt:E=>{ const B=E.B,ch=X_(B,PI_.chest),nk=X_(B,PI_.neck),Rs=frameFrom(X_(B,PI_.shL),X_(B,PI_.shR),ch,nk); return v3.add(v3.add(ch,v3.sc(v3.sub(nk,ch),.3)),v3.add(v3.sc(Rs[0],.035),v3.sc(Rs[2],.02))); },rayEnemiesExact,rayMesh,camBasis2:()=>camBasis(),gunAim:(E)=>{ if(!E.wpnHeld) return null; const loc=m4.make(),Wm=m4.make(),w=E.C.wpn; m4.compose(loc,w.p,w.r,w.s); m4.mul(Wm,E.M['hand'+E.wpnHand],loc); const mz=mulP(Wm,[0,.045,.17]),bk=mulP(Wm,[0,.045,0]),d=norm3(v3.sub(mz,bk)),tp=norm3(v3.sub([PL.x,1.45,PL.z],mz)); return {mz,d,deg:Math.acos(clamp(v3.dot(d,tp),-1,1))*57.3}; },aimAt:(p)=>{ const e=[PL.x,1.62,PL.z],d=v3.sub(p,e),l=Math.hypot(...d); PL.yaw=Math.atan2(-d[0],-d[2]); PL.pitch=Math.asin(d[1]/l); },X_:X_,GAME,PL,XR,enemies:()=>enemies,shoot,stab,kick,hitEnemy,SEGS,PI_,rayEnemies,camBasis,resetGame};
 requestAnimationFrame(frame);
 })();
 
