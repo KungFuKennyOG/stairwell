@@ -81,7 +81,10 @@ function applySupport(h){ const s=h.support; if(!s||!h.item||!h.itemNode){ h.ite
   /* the pump: pull the fore-end back toward you and push it home */
   let slide=0; if(w.pump){ const L0=Math.hypot(...v3.sub(w.fore,w.grip)); slide=clamp(L0-Math.hypot(...v3.sub(S,G)),0,.085); pumpTick(h,slide); if(h.itemNode.pump) h.itemNode.pump.p[2]=.21-slide; }
   /* the front hand sits on the fore-end (or wherever it took the axe handle) instead of floating next to it */
-  const fp=mulP(h.itemW,[w.fore[0],w.fore[1],(s.supZ??w.fore[2])-slide]),sm=new Float32Array(s.M),cur=mulP(s.M,FIST); sm[12]+=fp[0]-cur[0]; sm[13]+=fp[1]-cur[1]; sm[14]+=fp[2]-cur[2]; setLocal(s.node,m4.make(),sm); }
+  /* the support hand cups the fore-end, its forearm running back and down toward your elbow (not cocked up at the controller's angle) */
+  const fp=mulP(h.itemW,[w.fore[0],w.fore[1],(s.supZ??w.fore[2])-slide]),side=s.side==='L'?-1:1,arm=norm3(v3.add(v3.add(v3.sc(zw,-.5),[0,-.8,0]),v3.sc(xw,.25*side)));
+  const Zh=v3.sc(arm,-1),Yh=norm3(v3.sub(uw,v3.sc(Zh,v3.dot(uw,Zh)))),Xh=v3.cross(Yh,Zh),org=v3.sub(fp,v3.add(v3.sc(Xh,FIST[0]),v3.add(v3.sc(Yh,FIST[1]),v3.sc(Zh,FIST[2]))));
+  setLocal(s.node,m4.make(),fromCols(Xh,Yh,Zh,org)); }
 
 /* ---------- sights: a dot where the barrel points, and an optional laser ---------- */
 const tReticle=tex(16,16,null,g=>{ for(let y=0;y<16;y++) for(let x=0;x<16;x++){ const d=Math.hypot(x-7.5,y-7.5); if(d<3.2) R(g,d<1.8?'#ffd0c8':'#ff3b30',x,y,1,1); } }); /* the laser's spot */
@@ -129,7 +132,9 @@ function meleeHit(h,E,seg,p,dir,speed,bone){
   else { const segI=SEGS.indexOf(seg); hitEnemy(E,seg,p,dir,'knife',{bleed:(w.bleed||1)*pk,sever:(w.sever||1)*pk,stun:w.stun||1,push:(w.push||1)*pk,chop:!!w.chop,heavy:!!w.heavy,power:clamp(speed/3,.6,1.6)*pk}); sfx(w.chop?'chop':'stab');
     /* point-first and hard: it goes in and stays in */
     if(XR.on&&bone&&STICKS[key]&&h.itemNode&&!h.stuck&&!E.segOff.has(segI)&&enemies.includes(E)){ const Zb=norm3(colOf(itemM(h),2)),al=v3.dot(dir,Zb),part=seg[3];
-      if(key==='axe'?(speed>3.3&&!oneAxe&&/chest|belly|head|thigh/.test(part)&&Math.random()<.5):(al>.7&&speed>w.speed*1.15)) startStuck(h,E,bone,seg); }
+      const stab=key!=='axe'&&al>.45&&speed*al>(key==='knife'?1:1.4); /* any real point-first push sticks, not just a perfect thrust */
+      const lodge=(key==='axe'||key==='machete')&&al<.5&&speed>(key==='axe'?2.6:3)&&/chest|belly|head|thigh|neck|uarm/.test(part)&&Math.random()<(key==='axe'?.7:.45); /* chops bite into bone and stay */
+      if(stab||lodge) startStuck(h,E,bone,seg,!stab); }
     if(w.uses){ h.item.uses--; if(h.item.uses<=0){ sfx('glass'); spray(p,v3.sc(dir,-1),10,1.6,.8,'dust',.008); equip(h,null); } } }
   if(XR.on) buzz(h.hand,1,w.heavy?140:90); h.cd=w.heavy?.45:.28; }
 /* VR: every frame, each striking point of each hand is swept from where it was to where it is */

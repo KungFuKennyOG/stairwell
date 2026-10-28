@@ -1585,25 +1585,27 @@ function stepBody(E,h){
      The relative part is internal force only: its net push is removed, so a body on the floor can curl up and kick but can't lift itself off it. */
   const s=E.sup; let Ha=null,pel=null;
   if(s<.999){ Ha=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),X_(B,PI_.pelvis),X_(B,PI_.chest)); pel=X_(B,PI_.pelvis); }
+  /* particles of a blown-off limb are pinned inside the stump: they must not count, or the body's own muscles stop cancelling out and it floats away */
+  const PN=E.pinM,na=NP-(E.pinN||0);
   const CR=E.CR||(E.CR=new Float32Array(NP*3)); let sx=0,sy=0,sz=0,vx=0,vy=0,vz=0;
-  for(let i=0;i<NP;i++){ const k=E.K[i],o=i*3; CR[o]=CR[o+1]=CR[o+2]=0; vx+=x[o]-p[o]; vy+=x[o+1]-p[o+1]; vz+=x[o+2]-p[o+2]; if(k<=0) continue;
+  for(let i=0;i<NP;i++){ const k=E.K[i],o=i*3; CR[o]=CR[o+1]=CR[o+2]=0; if(PN&&PN[i]) continue; vx+=x[o]-p[o]; vy+=x[o+1]-p[o+1]; vz+=x[o+2]-p[o+2]; if(k<=0) continue;
     if(s>0) for(let c=0;c<3;c++) x[o+c]+=(E.Wt[o+c]-x[o+c])*k*s;
     if(Ha){ const r=v3.add(pel,mv(Ha,[E.Lc[o],E.Lc[o+1],E.Lc[o+2]])); r[1]=Math.max(r[1],B.r[i]+.004); /* never ask a limb to go through the floor: that would push the body up forever */
       for(let c=0;c<3;c++){ CR[o+c]=clamp((r[c]-x[o+c])*k*(1-s),-.0015,.0015); }
       if(B.ground[i]&&CR[o+1]<0) CR[o+1]=0; /* the floor would cancel a push into it; counting it would launch the rest of the body */
       sx+=CR[o]; sy+=CR[o+1]; sz+=CR[o+2]; } }
-  sx/=NP; sy/=NP; sz/=NP; vx/=NP; vy/=NP; vz/=NP;
+  sx/=na; sy/=na; sz/=na; vx/=na; vy/=na; vz/=na;
   /* remove the twist too: muscles may bend a body but not spin it. Then damp any spin a downed body has picked up. */
-  { let cx=0,cy=0,cz=0; for(let i=0;i<NP;i++){ cx+=x[i*3]; cy+=x[i*3+1]; cz+=x[i*3+2]; } cx/=NP; cy/=NP; cz/=NP;
+  { let cx=0,cy=0,cz=0; for(let i=0;i<NP;i++){ if(PN&&PN[i]) continue; cx+=x[i*3]; cy+=x[i*3+1]; cz+=x[i*3+2]; } cx/=na; cy/=na; cz/=na;
     let Lx=0,Ly=0,Lz=0,Wx=0,Wy=0,Wz=0,I=0;
-    for(let i=0;i<NP;i++){ const o=i*3,rx=x[o]-cx,ry=x[o+1]-cy,rz=x[o+2]-cz,c0=CR[o]-sx,c1=CR[o+1]-sy,c2=CR[o+2]-sz,v0=x[o]-p[o]-vx,v1=x[o+1]-p[o+1]-vy,v2=x[o+2]-p[o+2]-vz;
+    for(let i=0;i<NP;i++){ if(PN&&PN[i]) continue; const o=i*3,rx=x[o]-cx,ry=x[o+1]-cy,rz=x[o+2]-cz,c0=CR[o]-sx,c1=CR[o+1]-sy,c2=CR[o+2]-sz,v0=x[o]-p[o]-vx,v1=x[o+1]-p[o+1]-vy,v2=x[o+2]-p[o+2]-vz;
       Lx+=ry*c2-rz*c1; Ly+=rz*c0-rx*c2; Lz+=rx*c1-ry*c0; Wx+=ry*v2-rz*v1; Wy+=rz*v0-rx*v2; Wz+=rx*v1-ry*v0; I+=rx*rx+ry*ry+rz*rz; }
     /* bodies on the floor: muscles twisting against floor friction would spin them like a top, so yaw spin is bled off hard */
     if(I>1e-6){ Lx/=I; Ly/=I; Lz/=I; const st=E.settle>0,dmp=st?.06:s<.5?.03:.004,dy=st?.5:(s<.5&&!E.dead)?.4:s<.5?.16:.004; Wx*=dmp/I; Wy*=dy/I; Wz*=dmp/I;
-      for(let i=0;i<NP;i++){ const o=i*3,rx=x[o]-cx,ry=x[o+1]-cy,rz=x[o+2]-cz;
+      for(let i=0;i<NP;i++){ if(PN&&PN[i]) continue; const o=i*3,rx=x[o]-cx,ry=x[o+1]-cy,rz=x[o+2]-cz;
         if(Ha){ CR[o]-=Ly*rz-Lz*ry; CR[o+1]-=Lz*rx-Lx*rz; CR[o+2]-=Lx*ry-Ly*rx; }
         p[o]+=Wy*rz-Wz*ry; p[o+1]+=Wz*rx-Wx*rz; p[o+2]+=Wx*ry-Wy*rx; } } }
-  for(let i=0;i<NP;i++){ const o=i*3,kd=E.KD[i];
+  for(let i=0;i<NP;i++){ if(PN&&PN[i]) continue; const o=i*3,kd=E.KD[i];
     if(Ha){ x[o]+=CR[o]-sx; x[o+1]+=CR[o+1]-sy; x[o+2]+=CR[o+2]-sz; }
     /* damping only against the body's own average motion, so falling still falls at full speed */
     p[o]+=((x[o]-p[o])-vx)*kd; p[o+1]+=((x[o+1]-p[o+1])-vy)*kd; p[o+2]+=((x[o+2]-p[o+2])-vz)*kd;
@@ -1925,7 +1927,7 @@ function sever(E,limb,dir,blast){
   if(blast){
     const boneN=new Set(BONES.map(b=>J[b])); for(const b of C_.bones) for(const k of J[b].kids) if(!boneN.has(k)) k.vis=false;
     E.wounds=E.wounds.filter(w=>!C_.bones.includes(w.bone));
-    const a=PI_[PIN_AT[limb]]; E.pins=E.pins||[]; C_.piece.forEach((n,k)=>E.pins.push({i:PI_[n],a,off:limb==='head'?[0,.01*(k+1),0]:[0,-.012*(k+1),0]}));
+    const a=PI_[PIN_AT[limb]]; E.pins=E.pins||[]; C_.piece.forEach((n,k)=>E.pins.push({i:PI_[n],a,off:limb==='head'?[0,.01*(k+1),0]:[0,-.012*(k+1),0]})); E.pinM=E.pinM||new Uint8Array(NP); for(const n of C_.piece){ if(!E.pinM[PI_[n]]){ E.pinM[PI_[n]]=1; E.pinN=(E.pinN||0)+1; } }
     E.wounds.push({bone:C_.stump,lp,ln:nrm,rate:limb==='head'?9:limb.startsWith('leg')?5:4.2,art:true,part:'stump',acc:0}); E.spurtT=.6; E.blood-=limb==='head'?40:12;
     goreBlast(at,dir,limb==='head'?1.6:limb.startsWith('leg')?1.2:1);
   } else {
@@ -2549,7 +2551,10 @@ function applySupport(h){ const s=h.support; if(!s||!h.item||!h.itemNode){ h.ite
   /* the pump: pull the fore-end back toward you and push it home */
   let slide=0; if(w.pump){ const L0=Math.hypot(...v3.sub(w.fore,w.grip)); slide=clamp(L0-Math.hypot(...v3.sub(S,G)),0,.085); pumpTick(h,slide); if(h.itemNode.pump) h.itemNode.pump.p[2]=.21-slide; }
   /* the front hand sits on the fore-end (or wherever it took the axe handle) instead of floating next to it */
-  const fp=mulP(h.itemW,[w.fore[0],w.fore[1],(s.supZ??w.fore[2])-slide]),sm=new Float32Array(s.M),cur=mulP(s.M,FIST); sm[12]+=fp[0]-cur[0]; sm[13]+=fp[1]-cur[1]; sm[14]+=fp[2]-cur[2]; setLocal(s.node,m4.make(),sm); }
+  /* the support hand cups the fore-end, its forearm running back and down toward your elbow (not cocked up at the controller's angle) */
+  const fp=mulP(h.itemW,[w.fore[0],w.fore[1],(s.supZ??w.fore[2])-slide]),side=s.side==='L'?-1:1,arm=norm3(v3.add(v3.add(v3.sc(zw,-.5),[0,-.8,0]),v3.sc(xw,.25*side)));
+  const Zh=v3.sc(arm,-1),Yh=norm3(v3.sub(uw,v3.sc(Zh,v3.dot(uw,Zh)))),Xh=v3.cross(Yh,Zh),org=v3.sub(fp,v3.add(v3.sc(Xh,FIST[0]),v3.add(v3.sc(Yh,FIST[1]),v3.sc(Zh,FIST[2]))));
+  setLocal(s.node,m4.make(),fromCols(Xh,Yh,Zh,org)); }
 
 /* ---------- sights: a dot where the barrel points, and an optional laser ---------- */
 const tReticle=tex(16,16,null,g=>{ for(let y=0;y<16;y++) for(let x=0;x<16;x++){ const d=Math.hypot(x-7.5,y-7.5); if(d<3.2) R(g,d<1.8?'#ffd0c8':'#ff3b30',x,y,1,1); } }); /* the laser's spot */
@@ -2597,7 +2602,9 @@ function meleeHit(h,E,seg,p,dir,speed,bone){
   else { const segI=SEGS.indexOf(seg); hitEnemy(E,seg,p,dir,'knife',{bleed:(w.bleed||1)*pk,sever:(w.sever||1)*pk,stun:w.stun||1,push:(w.push||1)*pk,chop:!!w.chop,heavy:!!w.heavy,power:clamp(speed/3,.6,1.6)*pk}); sfx(w.chop?'chop':'stab');
     /* point-first and hard: it goes in and stays in */
     if(XR.on&&bone&&STICKS[key]&&h.itemNode&&!h.stuck&&!E.segOff.has(segI)&&enemies.includes(E)){ const Zb=norm3(colOf(itemM(h),2)),al=v3.dot(dir,Zb),part=seg[3];
-      if(key==='axe'?(speed>3.3&&!oneAxe&&/chest|belly|head|thigh/.test(part)&&Math.random()<.5):(al>.7&&speed>w.speed*1.15)) startStuck(h,E,bone,seg); }
+      const stab=key!=='axe'&&al>.45&&speed*al>(key==='knife'?1:1.4); /* any real point-first push sticks, not just a perfect thrust */
+      const lodge=(key==='axe'||key==='machete')&&al<.5&&speed>(key==='axe'?2.6:3)&&/chest|belly|head|thigh|neck|uarm/.test(part)&&Math.random()<(key==='axe'?.7:.45); /* chops bite into bone and stay */
+      if(stab||lodge) startStuck(h,E,bone,seg,!stab); }
     if(w.uses){ h.item.uses--; if(h.item.uses<=0){ sfx('glass'); spray(p,v3.sc(dir,-1),10,1.6,.8,'dust',.008); equip(h,null); } } }
   if(XR.on) buzz(h.hand,1,w.heavy?140:90); h.cd=w.heavy?.45:.28; }
 /* VR: every frame, each striking point of each hand is swept from where it was to where it is */
@@ -2686,7 +2693,7 @@ function kickDoor(D){ D.loud=true; setDoor(D,'open'); sfx('doorkick'); alertAll(
      Let go and it stays in him until you take it back.
    - Guns are solid too: swing one and you pistol-whip or butt-stroke him.
    ===================================================================== */
-const MEL={tilt:1,yaw:0};
+const MEL={tilt:0,yaw:2}; /* Kenny's picks on the Quest: blade straight out of the fist, hands turned out 5° */
 const MELEE_TILT=[0,.44,.79],MELEE_TILT_LBL=['0°','25°','45°'];        /* blade lean forward from the grip axis */
 const HAND_YAW=[5,0,-5],HAND_YAW_LBL=['IN 5°','0°','OUT 5°'],HAND_DROP=.015; /* small correction to where the hands sit */
 const WEIGHT={machete:16,axe:5.5};    /* how fast the weapon catches up with your hand (1/s); missing = rigid */
@@ -2730,9 +2737,9 @@ function meleeTick(h,dt){
 function restoreItemNode(h){ if(h.itemNode&&h.itemPR){ h.itemNode.p=h.itemPR.p.slice(); h.itemNode.r=h.itemPR.r.slice(); } }
 
 /* ---------- stuck in him ---------- */
-function startStuck(h,E,bone,seg){
+function startStuck(h,E,bone,seg,chop){
   const Mb=E.M&&E.M[bone]; if(!Mb||!h.itemNode) return false; const key=h.item.key;
-  const Mi=new Float32Array(itemM(h)),Zb=norm3(colOf(Mi,2)),b=BURY[key]||.05; Mi[12]+=Zb[0]*b; Mi[13]+=Zb[1]*b; Mi[14]+=Zb[2]*b;
+  const Mi=new Float32Array(itemM(h)),Zb=chop?v3.sc(norm3(colOf(Mi,1)),-1):norm3(colOf(Mi,2)),b=(BURY[key]||.05)*(chop?.6:1); Mi[12]+=Zb[0]*b; Mi[13]+=Zb[1]*b; Mi[14]+=Zb[2]*b; /* a stab goes in point-first, a chop edge-first */
   const L=m4.make(); m4.mul(L,rigidInv(Mb),Mi);
   h.stuck={E,bone,seg,L,work:0,prevC:mulP(h.M,FIST),t:0,wound:E.wounds[E.wounds.length-1]};
   E.impaled=(E.impaled||0)+1; E.stun=Math.max(E.stun,.9); h.prevPts=null; h.melQ=null;
@@ -2748,12 +2755,13 @@ function stuckTick(h,dt){
   /* ...and he is dragged around by it */
   const pull=v3.sc(d,Math.min(1,dl/.12)*3.2); for(const i of [S.seg[0],S.seg[1]]) kickV(E.B,i,v3.sc(pull,dt*60),H); kickV(E.B,PI_.chest,v3.sc(pull,dt*20),H);
   if(!E.dead) E.stun=Math.max(E.stun,.85);
+  S.hz=(S.hz||0)-dt; if(S.hz<=0){ S.hz=.12; buzz(h.hand,.12+Math.min(.5,dl*2),18); } /* you feel it in there */
   /* working the blade: every bit of hand travel opens it more */
   S.work+=Math.hypot(...v3.sub(ctrl,S.prevC)); S.prevC=ctrl;
   if(S.work>.09){ S.work=0; if(S.wound) S.wound.rate=Math.min(S.wound.rate+.45,9); const n=norm3(v3.sub(handle,colOf(Mi,3)));
     spray(handle,v3.sc(colOf(Mi,2),-1),8,1.4,.7,'bright',.011); buzz(h.hand,.6,40); if(!E.dead){ E.blood-=1.2; if(!E.voxBusy||Math.random()<.4) vox(E,'agony'); faceHold(E,'agony',1); } }
   /* a hard pull rips it out */
-  if(dl>.2){ const Zb=norm3(colOf(Mi,2)); spray(v3.sub(handle,v3.sc(Zb,-.15)),v3.sc(Zb,-1),36,2.6,.5,'bright',.013); spray(handle,v3.sc(Zb,-1),14,1.2,.8,'dark',.014);
+  if(dl>.24){ const Zb=norm3(colOf(Mi,2)); spray(v3.sub(handle,v3.sc(Zb,-.15)),v3.sc(Zb,-1),36,2.6,.5,'bright',.013); spray(handle,v3.sc(Zb,-1),14,1.2,.8,'dark',.014);
     if(S.wound){ S.wound.rate=Math.min(S.wound.rate*1.5+.6,10); S.wound.art=S.wound.art||Math.random()<.35; } E.spurtT=.5;
     sfx('rip'); buzz(h.hand,1,90); if(!E.dead){ vox(E,'scream'); faceHold(E,'agony',1.5); } unstick(h); h.cd=.35; } }
 function unstick(h){ const S=h.stuck; if(!S) return; h.stuck=null; S.E.impaled=Math.max(0,(S.E.impaled||0)-1); h.itemW=null; h.melQ=null; restoreItemNode(h); h.prevPts=null; }

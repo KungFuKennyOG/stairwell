@@ -11,7 +11,7 @@
      Let go and it stays in him until you take it back.
    - Guns are solid too: swing one and you pistol-whip or butt-stroke him.
    ===================================================================== */
-const MEL={tilt:1,yaw:0};
+const MEL={tilt:0,yaw:2}; /* Kenny's picks on the Quest: blade straight out of the fist, hands turned out 5° */
 const MELEE_TILT=[0,.44,.79],MELEE_TILT_LBL=['0°','25°','45°'];        /* blade lean forward from the grip axis */
 const HAND_YAW=[5,0,-5],HAND_YAW_LBL=['IN 5°','0°','OUT 5°'],HAND_DROP=.015; /* small correction to where the hands sit */
 const WEIGHT={machete:16,axe:5.5};    /* how fast the weapon catches up with your hand (1/s); missing = rigid */
@@ -55,9 +55,9 @@ function meleeTick(h,dt){
 function restoreItemNode(h){ if(h.itemNode&&h.itemPR){ h.itemNode.p=h.itemPR.p.slice(); h.itemNode.r=h.itemPR.r.slice(); } }
 
 /* ---------- stuck in him ---------- */
-function startStuck(h,E,bone,seg){
+function startStuck(h,E,bone,seg,chop){
   const Mb=E.M&&E.M[bone]; if(!Mb||!h.itemNode) return false; const key=h.item.key;
-  const Mi=new Float32Array(itemM(h)),Zb=norm3(colOf(Mi,2)),b=BURY[key]||.05; Mi[12]+=Zb[0]*b; Mi[13]+=Zb[1]*b; Mi[14]+=Zb[2]*b;
+  const Mi=new Float32Array(itemM(h)),Zb=chop?v3.sc(norm3(colOf(Mi,1)),-1):norm3(colOf(Mi,2)),b=(BURY[key]||.05)*(chop?.6:1); Mi[12]+=Zb[0]*b; Mi[13]+=Zb[1]*b; Mi[14]+=Zb[2]*b; /* a stab goes in point-first, a chop edge-first */
   const L=m4.make(); m4.mul(L,rigidInv(Mb),Mi);
   h.stuck={E,bone,seg,L,work:0,prevC:mulP(h.M,FIST),t:0,wound:E.wounds[E.wounds.length-1]};
   E.impaled=(E.impaled||0)+1; E.stun=Math.max(E.stun,.9); h.prevPts=null; h.melQ=null;
@@ -73,12 +73,13 @@ function stuckTick(h,dt){
   /* ...and he is dragged around by it */
   const pull=v3.sc(d,Math.min(1,dl/.12)*3.2); for(const i of [S.seg[0],S.seg[1]]) kickV(E.B,i,v3.sc(pull,dt*60),H); kickV(E.B,PI_.chest,v3.sc(pull,dt*20),H);
   if(!E.dead) E.stun=Math.max(E.stun,.85);
+  S.hz=(S.hz||0)-dt; if(S.hz<=0){ S.hz=.12; buzz(h.hand,.12+Math.min(.5,dl*2),18); } /* you feel it in there */
   /* working the blade: every bit of hand travel opens it more */
   S.work+=Math.hypot(...v3.sub(ctrl,S.prevC)); S.prevC=ctrl;
   if(S.work>.09){ S.work=0; if(S.wound) S.wound.rate=Math.min(S.wound.rate+.45,9); const n=norm3(v3.sub(handle,colOf(Mi,3)));
     spray(handle,v3.sc(colOf(Mi,2),-1),8,1.4,.7,'bright',.011); buzz(h.hand,.6,40); if(!E.dead){ E.blood-=1.2; if(!E.voxBusy||Math.random()<.4) vox(E,'agony'); faceHold(E,'agony',1); } }
   /* a hard pull rips it out */
-  if(dl>.2){ const Zb=norm3(colOf(Mi,2)); spray(v3.sub(handle,v3.sc(Zb,-.15)),v3.sc(Zb,-1),36,2.6,.5,'bright',.013); spray(handle,v3.sc(Zb,-1),14,1.2,.8,'dark',.014);
+  if(dl>.24){ const Zb=norm3(colOf(Mi,2)); spray(v3.sub(handle,v3.sc(Zb,-.15)),v3.sc(Zb,-1),36,2.6,.5,'bright',.013); spray(handle,v3.sc(Zb,-1),14,1.2,.8,'dark',.014);
     if(S.wound){ S.wound.rate=Math.min(S.wound.rate*1.5+.6,10); S.wound.art=S.wound.art||Math.random()<.35; } E.spurtT=.5;
     sfx('rip'); buzz(h.hand,1,90); if(!E.dead){ vox(E,'scream'); faceHold(E,'agony',1.5); } unstick(h); h.cd=.35; } }
 function unstick(h){ const S=h.stuck; if(!S) return; h.stuck=null; S.E.impaled=Math.max(0,(S.E.impaled||0)-1); h.itemW=null; h.melQ=null; restoreItemNode(h); h.prevPts=null; }

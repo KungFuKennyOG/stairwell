@@ -235,25 +235,27 @@ function stepBody(E,h){
      The relative part is internal force only: its net push is removed, so a body on the floor can curl up and kick but can't lift itself off it. */
   const s=E.sup; let Ha=null,pel=null;
   if(s<.999){ Ha=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),X_(B,PI_.pelvis),X_(B,PI_.chest)); pel=X_(B,PI_.pelvis); }
+  /* particles of a blown-off limb are pinned inside the stump: they must not count, or the body's own muscles stop cancelling out and it floats away */
+  const PN=E.pinM,na=NP-(E.pinN||0);
   const CR=E.CR||(E.CR=new Float32Array(NP*3)); let sx=0,sy=0,sz=0,vx=0,vy=0,vz=0;
-  for(let i=0;i<NP;i++){ const k=E.K[i],o=i*3; CR[o]=CR[o+1]=CR[o+2]=0; vx+=x[o]-p[o]; vy+=x[o+1]-p[o+1]; vz+=x[o+2]-p[o+2]; if(k<=0) continue;
+  for(let i=0;i<NP;i++){ const k=E.K[i],o=i*3; CR[o]=CR[o+1]=CR[o+2]=0; if(PN&&PN[i]) continue; vx+=x[o]-p[o]; vy+=x[o+1]-p[o+1]; vz+=x[o+2]-p[o+2]; if(k<=0) continue;
     if(s>0) for(let c=0;c<3;c++) x[o+c]+=(E.Wt[o+c]-x[o+c])*k*s;
     if(Ha){ const r=v3.add(pel,mv(Ha,[E.Lc[o],E.Lc[o+1],E.Lc[o+2]])); r[1]=Math.max(r[1],B.r[i]+.004); /* never ask a limb to go through the floor: that would push the body up forever */
       for(let c=0;c<3;c++){ CR[o+c]=clamp((r[c]-x[o+c])*k*(1-s),-.0015,.0015); }
       if(B.ground[i]&&CR[o+1]<0) CR[o+1]=0; /* the floor would cancel a push into it; counting it would launch the rest of the body */
       sx+=CR[o]; sy+=CR[o+1]; sz+=CR[o+2]; } }
-  sx/=NP; sy/=NP; sz/=NP; vx/=NP; vy/=NP; vz/=NP;
+  sx/=na; sy/=na; sz/=na; vx/=na; vy/=na; vz/=na;
   /* remove the twist too: muscles may bend a body but not spin it. Then damp any spin a downed body has picked up. */
-  { let cx=0,cy=0,cz=0; for(let i=0;i<NP;i++){ cx+=x[i*3]; cy+=x[i*3+1]; cz+=x[i*3+2]; } cx/=NP; cy/=NP; cz/=NP;
+  { let cx=0,cy=0,cz=0; for(let i=0;i<NP;i++){ if(PN&&PN[i]) continue; cx+=x[i*3]; cy+=x[i*3+1]; cz+=x[i*3+2]; } cx/=na; cy/=na; cz/=na;
     let Lx=0,Ly=0,Lz=0,Wx=0,Wy=0,Wz=0,I=0;
-    for(let i=0;i<NP;i++){ const o=i*3,rx=x[o]-cx,ry=x[o+1]-cy,rz=x[o+2]-cz,c0=CR[o]-sx,c1=CR[o+1]-sy,c2=CR[o+2]-sz,v0=x[o]-p[o]-vx,v1=x[o+1]-p[o+1]-vy,v2=x[o+2]-p[o+2]-vz;
+    for(let i=0;i<NP;i++){ if(PN&&PN[i]) continue; const o=i*3,rx=x[o]-cx,ry=x[o+1]-cy,rz=x[o+2]-cz,c0=CR[o]-sx,c1=CR[o+1]-sy,c2=CR[o+2]-sz,v0=x[o]-p[o]-vx,v1=x[o+1]-p[o+1]-vy,v2=x[o+2]-p[o+2]-vz;
       Lx+=ry*c2-rz*c1; Ly+=rz*c0-rx*c2; Lz+=rx*c1-ry*c0; Wx+=ry*v2-rz*v1; Wy+=rz*v0-rx*v2; Wz+=rx*v1-ry*v0; I+=rx*rx+ry*ry+rz*rz; }
     /* bodies on the floor: muscles twisting against floor friction would spin them like a top, so yaw spin is bled off hard */
     if(I>1e-6){ Lx/=I; Ly/=I; Lz/=I; const st=E.settle>0,dmp=st?.06:s<.5?.03:.004,dy=st?.5:(s<.5&&!E.dead)?.4:s<.5?.16:.004; Wx*=dmp/I; Wy*=dy/I; Wz*=dmp/I;
-      for(let i=0;i<NP;i++){ const o=i*3,rx=x[o]-cx,ry=x[o+1]-cy,rz=x[o+2]-cz;
+      for(let i=0;i<NP;i++){ if(PN&&PN[i]) continue; const o=i*3,rx=x[o]-cx,ry=x[o+1]-cy,rz=x[o+2]-cz;
         if(Ha){ CR[o]-=Ly*rz-Lz*ry; CR[o+1]-=Lz*rx-Lx*rz; CR[o+2]-=Lx*ry-Ly*rx; }
         p[o]+=Wy*rz-Wz*ry; p[o+1]+=Wz*rx-Wx*rz; p[o+2]+=Wx*ry-Wy*rx; } } }
-  for(let i=0;i<NP;i++){ const o=i*3,kd=E.KD[i];
+  for(let i=0;i<NP;i++){ if(PN&&PN[i]) continue; const o=i*3,kd=E.KD[i];
     if(Ha){ x[o]+=CR[o]-sx; x[o+1]+=CR[o+1]-sy; x[o+2]+=CR[o+2]-sz; }
     /* damping only against the body's own average motion, so falling still falls at full speed */
     p[o]+=((x[o]-p[o])-vx)*kd; p[o+1]+=((x[o+1]-p[o+1])-vy)*kd; p[o+2]+=((x[o+2]-p[o+2])-vz)*kd;
@@ -575,7 +577,7 @@ function sever(E,limb,dir,blast){
   if(blast){
     const boneN=new Set(BONES.map(b=>J[b])); for(const b of C_.bones) for(const k of J[b].kids) if(!boneN.has(k)) k.vis=false;
     E.wounds=E.wounds.filter(w=>!C_.bones.includes(w.bone));
-    const a=PI_[PIN_AT[limb]]; E.pins=E.pins||[]; C_.piece.forEach((n,k)=>E.pins.push({i:PI_[n],a,off:limb==='head'?[0,.01*(k+1),0]:[0,-.012*(k+1),0]}));
+    const a=PI_[PIN_AT[limb]]; E.pins=E.pins||[]; C_.piece.forEach((n,k)=>E.pins.push({i:PI_[n],a,off:limb==='head'?[0,.01*(k+1),0]:[0,-.012*(k+1),0]})); E.pinM=E.pinM||new Uint8Array(NP); for(const n of C_.piece){ if(!E.pinM[PI_[n]]){ E.pinM[PI_[n]]=1; E.pinN=(E.pinN||0)+1; } }
     E.wounds.push({bone:C_.stump,lp,ln:nrm,rate:limb==='head'?9:limb.startsWith('leg')?5:4.2,art:true,part:'stump',acc:0}); E.spurtT=.6; E.blood-=limb==='head'?40:12;
     goreBlast(at,dir,limb==='head'?1.6:limb.startsWith('leg')?1.2:1);
   } else {
