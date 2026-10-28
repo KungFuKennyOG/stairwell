@@ -2122,8 +2122,9 @@ function ushanka(J){ const fur=M(P2(16,16,(g,w,h)=>{ R(g,'#5a4430',0,0,w,h); con
 function flatCap(J,col){ const m=M(null,{color:hexInt(col)}); crown(J,[[.18,.088,.108],[.22,.095,.115],[.25,.07,.09],[.26,0,0]],m,.0); mk(box(.15,.012,.08),m,J.head,0,.2,.1,.2); }
 function backCap(J,col,brim){ const m=M(null,{color:hexInt(col)}); crown(J,[[.17,.086,.106],[.24,.088,.106],[.27,.06,.08],[.28,0,0]],m); mk(box(.14,.012,.08),M(null,{color:hexInt(brim)}),J.head,0,.18,-.12,-.25); }
 function headphones(J){ mk(torus(.085,.012,4,14),M(null,{color:0x1a1a1e}),J.neck,0,.04,.0,Math.PI/2); for(const s of [-1,1]) mk(cyl(.035,.035,.03,10),M(null,{color:0x29e0e6}),J.neck,s*.085,.04,.03,0,0,Math.PI/2); }
-function bandana(J,col){ mk(box(.16,.07,.04,{tw:.9}),M(null,{color:hexInt(col)}),J.head,0,.07,.075); }
-function wheelchair(parent){ const n=N(parent,0,0,0), steel=M(null,{color:0x9aa0a6}), black=M(null,{color:0x18181a}), seat=M(null,{color:0x2a1a3a});
+function bandana(J,col){ const m=M(P2(16,16,(g,w,h)=>{ R(g,col,0,0,w,h); for(let y=2;y<h;y+=5) for(let x=(y%2)*2;x<w;x+=5){ ell(g,x+1,y,1.4,1,'#f2ece0'); R(g,'#2a1a10',x+1,y,1,1); } },6,7));
+  mk(lathe([[.012,.06,.074,.026],[.05,.07,.088,.016],[.098,.077,.098,.006]],12,{capB:false,capT:false}),m,J.head); mk(box(.11,.06,.012,{at:[0,-.03,0]}),m,J.head,0,.02,.1,.25); }
+function wheelchair(parent){ const n=N(parent,0,0,0,0,-Math.PI/2,0), steel=M(null,{color:0x9aa0a6}), black=M(null,{color:0x18181a}), seat=M(null,{color:0x2a1a3a});
   for(const s of [-1,1]){ mk(torus(.3,.02,4,18),black,n,-.05,.3,s*.3,0,0,0); mk(cyl(.07,.07,.03,8),black,n,.35,.07,s*.24,Math.PI/2); mk(box(.5,.03,.03),steel,n,.1,.42,s*.24); mk(box(.03,.6,.03),steel,n,-.2,.72,s*.24,0,0,-.1); }
   mk(box(.46,.05,.46),seat,n,.05,.46,0); mk(box(.05,.42,.44),seat,n,-.2,.72,0,0,0,-.1); return n; }
 
