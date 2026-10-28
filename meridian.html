@@ -1691,12 +1691,14 @@ function setGlow(on){ for(const c of TRAIN_CARS) c.glow.vis=on; for(const c of S
 
 
 /* =====================================================================================================
-   THE CARS. 28 m of floor, 5.8 m wide, 3.4 m to the ceiling, floor at y=0, front of the train at +x.
+   THE CARS. 28 m of floor, 8.8 m wide, 3.4 m to the ceiling, floor at y=0, front of the train at +x.
    Each car is one crew's territory and has its own palette, materials, light and dressing.
    Walls face inward and are one-sided (orbit view sees in); dressing on each wall lives in that wall's
    side node so it hides with the wall.
    ===================================================================================================== */
 const WL=28, WZ0=2.9, WZ=WZ0+DW, WH=3.4;
+/* K: stays where it is when the car widens; Wz: moves out with the wall even though it sits near the middle */
+const K=n=>(n.keep=1,n), Wz=n=>(n.wz=1,n);
 const WG={};
 function wplane(w,h,tu=1,tv=1){ const g=plane(w,h,Math.max(1,Math.round(w/2)),Math.max(1,Math.round(h/1.5))); for(let i=0;i<g.T.length;i+=2){ g.T[i]*=w/tu; g.T[i+1]*=h/tv; } return g; }
 function B(g,m,x,y,z,w,h,d,ry=0,rx=0,rz=0){ return mk(box(w,h,d,{at:[0,h/2,0]}),m,g,x,y,z,rx,ry,rz); }
@@ -1725,7 +1727,7 @@ function shell(key,d){
     B(g,d.door||C('#3a3c40'),x-e*.05,0,0,.07,2.3,1.2); if(d.trim) B(g,d.trim,x-e*.05,2.28,0,.09,.07,1.32); }
   B(g,C('#14161a'),0,-.7,0,WL,.65,WZ*2); bogie(g,-CAR_L*.36); bogie(g,CAR_L*.36);
   const W=WAGONS.find(w=>w.key===key);
-  WG[key]={n0:g.kids.length,s0:{'-1':side['-1'].kids.length,'1':side['1'].kids.length},g,side,W,lamps:d.lamps||[],ambK:d.ambK??1,sunK:d.sunK??1,cam:d.cam||{t:[0,1.2,0],th:.55,ph:.95,r:17},minLamp:d.minLamp??0,spots:{},anim:[]};
+  WG[key]={n0:g.kids.length,s0:{'-1':side['-1'].kids.length,'1':side['1'].kids.length},g,side,W,lamps:d.lamps||[],ambK:d.ambK??1,sunK:d.sunK??1,cam:d.cam||{t:[0,1.2,0],th:.55,ph:.95,r:20},minLamp:d.minLamp??0,spots:{},anim:[]};
   return g; }
 const winsEvery=(n,w,x0=-12.4,x1=12.4)=>{ const out=[],step=(x1-x0)/(n-1); for(let i=0;i<n;i++){ const c=x0+i*step; out.push([c-w/2,c+w/2]); } return out; };
 const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,0,wd,h); R(g,b,x+wd,0,wd,h); } },6,wd);
@@ -1741,19 +1743,19 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   const route=scr((g,w,h)=>{ ell(g,24,16,20,11,'#0e2a3e'); for(let k=0;k<8;k++){ const a=k/8*Math.PI*2; ell(g,24+Math.cos(a)*16,16+Math.sin(a)*8,1.3,1.3,'#f5c542'); } g.strokeStyle='#29e0e6'; g.beginPath(); g.ellipse(24,16,16,8,0,0,Math.PI*2); g.stroke(); text(g,'LOOP',2,2,'#29e0e6',1); });
   const speed=scr((g,w,h)=>{ text(g,'412',8,6,'#5ab8e8',3); text(g,'KM/H',14,24,'#3a7ab0',1); });
   const track=scr((g,w,h)=>{ for(let k=0;k<6;k++) R(g,'#7cf06a',4+k*7,24-k*3,5,2); R(g,'#f5c542',4,26,40,1); text(g,'ATC OK',4,3,'#7cf06a',1); });
-  B(g,navy,12.4,0,0,1.6,1.0,4.6); mk(box(1.4,.1,4.4),navy,g,12.0,1.05,0,0,0,.3);
+  B(g,navy,12.4,0,0,1.6,1.0,WZ*2-1.6); mk(box(1.4,.1,WZ*2-1.8),navy,g,12.0,1.05,0,0,0,.3);
   for(const s of [-1,1]){ B(g,navy,10.8,0,s*2.0,2.6,1.0,1.2,s*.35); }
   [[11.6,-1.4,route],[11.8,0,speed],[11.6,1.4,track]].forEach(([x,z,m])=>{ mk(wplane(1.1,.7),m,g,x,1.62,z,0,-Math.PI/2+(z>0?-.35:z<0?.35:0),0); B(g,navy,x+.08,1.18,z,.1,.86,1.2,z>0?-.35:z<0?.35:0); });
   for(let i=0;i<14;i++) B(g,i%4?G('#f5c542'):G('#c8302a'),11.5+(i%2)*.1,1.07,-1.2+i*.18,.06,.03,.06);
   for(const z of [-.9,.9]){ B(g,C('#2a2c30'),10.2,0,z,.14,.45,.14); B(g,leather,10.2,.45,z,.7,.14,.7); B(g,leather,9.85,.55,z,.14,1.0,.7,0,0,-.12); B(g,leather,9.78,1.55,z,.12,.24,.42,0,0,-.12); for(const s of [-1,1]) B(g,leather,10.2,.6,z+s*.37,.6,.2,.08); }
   /* a wall of route screens on the bulkhead behind the deck */
-  for(let k=0;k<4;k++) mk(wplane(1.1,.7),[route,speed,track,route][k],g,8.4,1.6+Math.floor(k/2)*.0,-1.8+k*1.2,0,Math.PI/2,0);
-  B(g,panel,8.3,0,0,.1,1.1,5.6);
+  for(let k=0;k<4;k++) K(mk(wplane(1.1,.7),[route,speed,track,route][k],g,8.4,1.6,-2.7+k*1.8,0,Math.PI/2,0));
+  K(B(g,panel,8.3,0,0,.1,1.1,WZ*2-1.8));
   /* crew mess: galley, table, bunks, lockers */
   const locker=M(P2(16,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#c8ccd2'],[1,'#a8aeb6']]); R(g,'#7e848c',0,0,1,h); for(let y=4;y<10;y+=2) R(g,'#7e848c',4,y,8,1); R(g,'#3a3c40',12,16,2,4); },4,6));
   for(let x=-13.4;x<-4;x+=.7) B(g,F(C('#a8aeb6'),locker),x,0,-2.55,.68,2.2,.62);
   B(g,C('#d8dcde'),2,0,-2.5,3.6,.95,.7); B(g,C('#2a2e36'),2,.95,-2.5,3.6,.05,.72); B(g,C('#2a2c30'),.8,.95,-2.6,.4,.5,.4); B(g,G('#5ab8e8'),.8,1.2,-2.38,.2,.1,.02);
-  B(g,C('#f4f2ec'),2,.0,1.2,.08,.75,.08); B(g,C('#f4f2ec'),2,.75,1.2,2.4,.06,1.1); for(const s of [-1,1]) B(g,leather,2,0,1.2+s*.85,2.4,.45,.45);
+  B(g,C('#f4f2ec'),2,.0,1.2,.08,.75,.08); B(g,C('#f4f2ec'),2,.75,1.2,2.4,.06,1.1); for(const s of [-1,1]) K(B(g,leather,2,0,1.2+s*.85,2.4,.45,.45));
   for(const x of [-2.5,-8]){ B(g,C('#a8aeb6'),x,.4,2.3,2.2,.12,1.0); B(g,M(fabT('#1e2e52',8)),x,.52,2.3,2.0,.14,.9); B(g,C('#a8aeb6'),x,1.6,2.3,2.2,.12,1.0); B(g,M(fabT('#1e2e52',9)),x,1.72,2.3,2.0,.14,.9); }
   for(const x of [-10,-4,2]) B(g,U('#f4f8ff'),x,WH-.04,0,3,.03,.2);
 })();
@@ -1779,10 +1781,10 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   /* stage with a gold curtain */
   B(g,C('#24120c'),12.3,0,0,3.2,.45,WZ*2); B(g,G('#f5c542'),10.7,.42,0,.05,.05,WZ*2);
   const curtain=M(P2(16,32,(g,w,h)=>{ for(let x=0;x<w;x++){ const v=.75+.25*Math.sin(x*1.2); R(g,mix('#a87a20','#ffd860',v*.6),x,0,1,h); } },4,16),{double:true});
-  for(const s of [-1,1]) B(g,curtain,13.6,.45,s*1.8,.1,2.9,2.0); B(g,curtain,13.6,2.9,0,.12,.5,5.8); mk(wplane(1.8,2.4),C('#120a0a'),g,13.94,1.65,0,0,-Math.PI/2,0);
+  for(const s of [-1,1]) B(g,curtain,13.6,.45,s*1.8,.1,2.9,2.0); B(g,curtain,13.6,2.9,0,.12,.5,WZ*2-.2); mk(wplane(1.8,2.4),C('#120a0a'),g,13.94,1.65,0,0,-Math.PI/2,0);
   mk(cyl(.015,.015,1.5,6),C('#c8ccd2'),g,11.9,1.2,0); B(g,black,11.9,1.95,0,.05,.12,.05);
   /* bar at the back */
-  B(g,wood,-12.5,0,0,.7,1.1,4.2); B(g,gold,-12.15,1.1,0,.14,.04,4.2); for(let k=0;k<12;k++) mk(cyl(.04,.05,.28,6),G(['#c8742a','#2a8a3a','#e8e0c8','#8a2a8a'][k%4]),g,-13.8,1.35+(k%2)*.45,-1.7+(k>>1)*.6);
+  B(g,wood,-12.5,0,0,.7,1.1,7); B(g,gold,-12.15,1.1,0,.14,.04,7); for(let k=0;k<12;k++) K(mk(cyl(.04,.05,.28,6),G(['#c8742a','#2a8a3a','#e8e0c8','#8a2a8a'][k%4]),g,-13.8,1.35+(k%2)*.45,-3+(k>>1)*1.2));
   /* chandeliers */
   const crystal=U('#fff4d8'); for(const x of [-9,-2,5]){ mk(torus(.45,.03,4,16),gold,g,x,2.95,0,Math.PI/2); for(let k=0;k<14;k++){ const a=k/14*Math.PI*2; B(g,crystal,x+Math.cos(a)*.45,2.8,Math.sin(a)*.45,.05,.16,.05); } B(g,crystal,x,2.6,0,.12,.3,.12); }
   WG.casino.spots={king:{x:12.0,z:-.4,ry:-Math.PI/2,y:.45},king_c:{x:4.2,z:1.3,ry:-Math.PI/2},king_c2:{x:-6.8,z:-1.6,ry:Math.PI/2}};
@@ -1808,8 +1810,8 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   for(const x of [-8.5,8.5]) for(const s of [-1,1]){ mk(cyl(.3,.24,.6,10),C('#c8643a'),g,x,.3,s*2.4); B(g,C('#7a5a3e'),x,.6,s*2.4,.12,1.8,.12,0,0,.1); for(let k=0;k<7;k++) mk(box(.14,.05,1.1),C('#3f8a3e'),g,x,2.45,s*2.4,.0,k/7*Math.PI*2,.45); }
   /* tiki bar under thatch at the back */
   const thatch=M(P2(16,16,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#c8a060'],[1,'#a88048']]); for(let x=0;x<w;x+=2) R(g,'#8a6a38',x,0,1,h); },8,25),{double:true});
-  B(g,wood,-12.4,0,0,.8,1.1,4); B(g,C('#2a9a5a'),-12.05,1.1,0,.14,.05,4); mk(box(2.2,.15,5.4),thatch,g,-12.8,2.6,0,0,0,-.25); for(const z of [-2,2]) B(g,wood,-12.4,0,z,.12,2.6,.12);
-  for(let k=0;k<6;k++) mk(cyl(.05,.05,.18,6),G(['#f2c230','#e0473a','#2a9a5a'][k%3]),g,-12.4,1.2,-1.5+k*.6);
+  B(g,wood,-12.4,0,0,.8,1.1,6.4); B(g,C('#2a9a5a'),-12.05,1.1,0,.14,.05,6.4); mk(box(2.2,.15,8),thatch,g,-12.8,2.6,0,0,0,-.25); for(const z of [-1.9,1.9]) B(g,wood,-12.4,0,z,.12,2.6,.12);
+  for(let k=0;k<6;k++) K(mk(cyl(.05,.05,.18,6),G(['#f2c230','#e0473a','#2a9a5a'][k%3]),g,-12.4,1.2,-2.5+k*1.0));
   /* the DJ booth and speaker stacks */
   B(g,C('#121214'),12,0,0,1.0,1.1,2.4); B(g,M(textTex(32,16,'#121214',[['TREMOR','c',5,'#ff3fa4']]),{unlit:true}),11.48,.5,0,.02,.4,1.6);
   for(const z of [-.6,.6]) mk(cyl(.26,.26,.04,14),C('#2a2a2e'),g,12,1.12,z);
@@ -1828,11 +1830,11 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   const g=shell('pub',{floor:boards,floorTile:.8,ceil,ceilTile:1.2,dado:tiles,upper:paper,pier:paper,trim:oak,end:oak,door:oak,rail:oak,
     wins:winsEvery(4,1.8),lamps:[lamp(-9,2.6,-1,[1.2,.8,.45],6),lamp(-2,2.6,-1,[1.2,.8,.45],6),lamp(5,2.6,1,[1.2,.8,.45],6),lamp(11,2.6,0,[1.1,.75,.4],6),lamp(-5,1.8,2.2,[.9,.6,.35],4)],ambK:.8});
   /* the bar along the -z wall */
-  B(g,oak,-5,0,-1.6,9,1.1,.7); B(g,C('#2a1408'),-5,1.1,-1.6,9.2,.06,.8); B(g,brass,-5,.2,-1.22,9,.04,.04);
+  B(g,oak,-5,0,-1.6,9,1.1,.7); B(g,C('#2a1408'),-5,1.1,-1.6,9.2,.06,.8); Wz(B(g,brass,-5,.2,-1.22,9,.04,.04));
   for(let k=0;k<6;k++){ mk(cyl(.025,.025,.35,6),brass,g,-8.5+k*1.4,1.33,-1.75); B(g,C(['#c8202a','#2a4a8a','#f2c230'][k%3]),-8.5+k*1.4,1.48,-1.72,.08,.12,.02); }
   for(let k=0;k<7;k++) for(let j=0;j<2;j++) mk(cyl(.04,.05,.26,6),G(['#6a3a1a','#2a7a3a','#d8c8a0','#8a2a1a'][(k+j)%4]),g,-9+k*1.3,1.5+j*.5,-2.75);
   B(g,C('#3a2014'),-5,1.35,-2.8,9,.04,.24); B(g,C('#3a2014'),-5,1.85,-2.8,9,.04,.24);
-  for(let k=0;k<6;k++){ const x=-9+k*1.5; mk(cyl(.2,.2,.07,10),leather,g,x,.75,-.95); mk(cyl(.035,.035,.75,6),brass,g,x,.37,-.95); }
+  for(let k=0;k<6;k++){ const x=-9+k*1.5; Wz(mk(cyl(.2,.2,.07,10),leather,g,x,.75,-.95)); Wz(mk(cyl(.035,.035,.75,6),brass,g,x,.37,-.95)); }
   /* scarves over the bar, striped club colours */
   const scarf=M(stripes('#c8202a','#f2ece0',2),{double:true}); for(let k=0;k<5;k++) B(WG.pub.side[-1],scarf,-9+k*2,2.25,-2.83,1.4,.22,.02);
   /* red leather booths along +z */
@@ -1867,13 +1869,13 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   for(let k=0;k<10;k++){ const x=-11+k*2.2, z=(k%2?1:-1)*.4; B(g,C('#2a1a10'),x,2.8,z,.01,.6,.01); mk(lathe([[0,.03,.03],[.1,.11,.09],[.35,.13,.11],[.5,.05,.05]],8),C('#a8603a'),g,x,2.3,z,Math.PI,0,0); }
   for(let k=0;k<14;k++){ const x=-12+k*1.6; for(let j=0;j<4;j++) mk(lathe([[0,.02,.02],[.04,.05,.05],[.08,.02,.02]],6),C(k%2?'#f2ece0':'#c8202a'),g,x,3.25-j*.12,1.3); }
   /* deli counter, cheese wheels, the oven */
-  B(g,C('#f2ece0'),9,0,-2.1,4,1.0,1.0); B(g,M(P2(32,16,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#d8f0f2'],[1,'#a8c8cc']]); for(let k=0;k<6;k++) ell(g,4+k*5,11,2.2,1.6,['#c8302a','#f2d27a','#e8a070'][k%3]); }),{emissive:0x1a1a1a}),9,.55,-1.58,4,.4,.04);
+  B(g,C('#f2ece0'),9,0,-2.1,4,1.0,1.0); B(g,M(P2(32,16,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#d8f0f2'],[1,'#a8c8cc']]); for(let k=0;k<6;k++) ell(g,4+k*5,11,2.2,1.6,['#c8302a','#f2d27a','#e8a070'][k%3]); }),{emissive:0x1a1a1a}),9,.55,-1.58,4,.4,.04).wz=1;
   for(let k=0;k<5;k++) mk(cyl(.24,.24,.12,12),C('#e8c460'),g,7.6+k*.7,1.06,-2.2);
   const brick=M(P2(16,16,(g,w,h)=>{ for(let y=0;y<h;y+=4) for(let x=((y>>2)%2)*4;x<w;x+=8) vfill(g,x,y,8,4,[[0,'#b85a3a'],[1,'#8a4024']]); },6,47));
-  mk(lathe([[0,1.2,1.2],[.6,1.2,1.2],[1.2,.95,.95],[1.6,.5,.5],[1.75,.1,.1]],12),brick,g,12.6,0,1.4); B(g,C('#0a0604'),11.45,.55,1.4,.06,.6,.8); B(g,U('#ff7a20'),11.5,.6,1.4,.05,.3,.6);
+  Wz(mk(lathe([[0,1.2,1.2],[.6,1.2,1.2],[1.2,.95,.95],[1.6,.5,.5],[1.75,.1,.1]],12),brick,g,12.6,0,1.4)); Wz(B(g,C('#0a0604'),11.45,.55,1.4,.06,.6,.8)); Wz(B(g,U('#ff7a20'),11.5,.6,1.4,.05,.3,.6));
   /* family photographs on the walls */
   const photo=(s)=>M(P2(12,16,(g,w,h)=>{ R(g,'#3a2a1a',0,0,w,h); vfill(g,1,1,w-2,h-2,[[0,'#d8c8a0'],[1,'#a8946c']]); const r=rng(s); ell(g,6,6,2,2.5,'#6a5a40'); R(g,'#6a5a40',3,9,6,6); if(r()<.5){ ell(g,3,7,1.5,2,'#6a5a40'); } }));
-  for(const s of [-1,1]) for(let k=0;k<8;k++){ const x=-12.8+k*3; B(WG.trattoria.side[s],photo(k*3+s),x,2.75,s*(WZ-.03),.36,.48,.03); }
+  for(const s of [-1,1]) for(let k=0;k<8;k++){ const x=-12.8+k*3; B(WG.trattoria.side[s],photo(k*3+s),x,2.75,s*(WZ0-.03),.36,.48,.03); }
   /* a red scooter parked by the door */
   const sc=N(g,-12.2,0,1.9,0,.3,0), red=C('#c8202a'); for(const dx of [-.55,.55]) mk(cyl(.2,.2,.1,10),C('#121214'),sc,dx,.2,0,Math.PI/2); B(sc,red,-.2,.25,0,.8,.35,.4); B(sc,C('#3a2a1a'),-.3,.6,0,.5,.1,.32); B(sc,red,.45,.25,0,.15,.7,.36,0,0,-.2); B(sc,C('#c8ccd2'),.55,.98,0,.05,.05,.6);
   WG.trattoria.spots={nonna:{x:-.2,z:.6,ry:-Math.PI/2,chair:true},nonna_c:{x:-1.6,z:-.3,ry:Math.PI/2},nonna_c2:{x:1.6,z:.0,ry:-Math.PI/2}};
@@ -1888,15 +1890,15 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
     winsBySide:{pos:[[-12,-10.8],[-7.6,-6.4],[2.4,3.6],[9.6,10.8]],neg:[[-12,-10.8],[-7.6,-6.4],[2.4,3.6],[9.6,10.8]]},
     lamps:[lamp(-10,2.2,0,[1.4,.75,.35],6),lamp(-4,2.2,0,[1.3,.7,.35],6),lamp(-7,.6,0,[1.4,.4,.1],3),lamp(4,2.6,0,[.5,.85,1.3],6),lamp(10,2.6,0,[.5,.85,1.3],6),lamp(7,1.0,-2,[.4,.8,1.2],4)],ambK:.75});
   /* the -x half is ice: cover the logs with ice panels on that half */
-  for(const s of [-1,1]){ const sg=WG.banya.side[s]; for(let x=.5;x<WL/2;x+=3.4) B(sg,ice,x+1.7,0,s*(WZ-.05),3.3,WH,.06); }
+  for(const s of [-1,1]){ const sg=WG.banya.side[s]; for(let x=.5;x<WL/2;x+=3.4) B(sg,ice,x+1.7,0,s*(WZ0-.05),3.3,WH,.06); }
   mk(wplane(WL/2-.5,WZ*2,1.5,1.5),ice,g,(WL/2+.5)/2,WH-.01,0,Math.PI/2);
   /* partition with a door in the middle */
-  const pt=M(logs.tex,{double:true}); for(const s of [-1,1]) mk(wplane(1.9,WH),pt,g,0,WH/2,s*1.95,0,Math.PI/2,0); mk(wplane(1.8,1.0),pt,g,0,2.9,0,0,Math.PI/2,0);
+  const pt=M(logs.tex,{double:true}); for(const s of [-1,1]) K(mk(wplane(WZ-.9,WH),pt,g,0,WH/2,s*(WZ+.9)/2,0,Math.PI/2,0)); mk(wplane(1.8,1.0),pt,g,0,2.9,0,0,Math.PI/2,0);
   /* sauna: tiered benches, the stove, buckets, birch switches */
   for(let t=0;t<3;t++) for(const s of [-1,1]) B(g,boards,-6.5,.4+t*.45,s*(2.6-t*.5),12,.1,.5);
   for(const s of [-1,1]) for(let t=0;t<3;t++) B(g,boards,-6.5,0,s*(2.6-t*.5),12,.4+t*.45,.06);
   B(g,C('#2a2a2e'),-1.4,0,0,.9,.9,.9); for(let k=0;k<9;k++) mk(lathe([[0,.06,.06],[.06,.09,.08],[.12,.04,.04]],6),C(k%3?'#6a6a6a':'#c8502a',{emissive:k%3?0:0x5a1a00}),g,-1.6+(k%3)*.2,.9,-.2+(k/3|0)*.2);
-  for(let k=0;k<3;k++){ mk(cyl(.16,.13,.28,10),C('#9a6a3a'),g,-3+k*.7,.0+.14,1.6); mk(cyl(.17,.17,.03,10),C('#4a3a2a'),g,-3+k*.7,.26,1.6); }
+  for(let k=0;k<3;k++){ K(mk(cyl(.16,.13,.28,10),C('#9a6a3a'),g,-3+k*.7,.0+.14,1.6)); K(mk(cyl(.17,.17,.03,10),C('#4a3a2a'),g,-3+k*.7,.26,1.6)); }
   for(let k=0;k<4;k++){ const x=-11+k*1.3; B(WG.banya.side[-1],C('#c8a040'),x,1.8,-2.82,.5,.6,.06); B(WG.banya.side[-1],C('#4a7a32'),x,1.5,-2.8,.4,.32,.08); }
   /* steam puffs rising in the sauna */
   const puff=M(P2(16,16,(g,w,h)=>{ ell(g,8,8,7,6,rgba('#ffffff',.9)); }),{cut:true,double:true,unlit:true,color:[.95,.95,.95]});
@@ -1904,8 +1906,8 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   /* the ice bar */
   const iceBar=U('#bfefff'); B(g,iceBar,7,0,-1.9,6,1.1,.8); B(g,M(ice.tex,{unlit:true,color:[.9,1,1.05]}),7,1.1,-1.9,6.2,.08,.9);
   for(let k=0;k<10;k++) mk(cyl(.045,.05,.3,6),C(['#e8f4ff','#c8e0f0','#f2e0c0'][k%3],{emissive:0x203040}),g,4.4+k*.55,1.33,-2.65);
-  for(let k=0;k<5;k++){ const x=4.6+k*1.2; mk(cyl(.2,.2,.08,10),fur,g,x,.72,-.9); mk(cyl(.12,.14,.72,8),iceBar,g,x,.36,-.9); }
-  for(const x of [5,10]){ B(g,fur,x,0,1.6,2.2,.42,1.0); B(g,fur,x,.42,2.1,2.2,.6,.2); mk(cyl(.4,.4,.05,12),iceBar,g,x,.5,.6); }
+  for(let k=0;k<5;k++){ const x=4.6+k*1.2; Wz(mk(cyl(.2,.2,.08,10),fur,g,x,.72,-.9)); Wz(mk(cyl(.12,.14,.72,8),iceBar,g,x,.36,-.9)); }
+  for(const x of [5,10]){ B(g,fur,x,0,1.6,2.2,.42,1.0); B(g,fur,x,.42,2.1,2.2,.6,.2); Wz(mk(cyl(.4,.4,.05,12),iceBar,g,x,.5,.6)); }
   for(let k=0;k<12;k++){ const a=k/12*Math.PI*2; B(g,U('#e8f8ff'),7.5+Math.cos(a)*.6,2.9,Math.sin(a)*.6,.04,.4+(k%3)*.15,.04); }
   B(g,fur,10,.005,-.2,3,.01,2);
   WG.banya.spots={volkov:{x:9.2,z:-.6,ry:-Math.PI/2},volkov_c:{x:5.5,z:.6,ry:-Math.PI/2},volkov_c2:{x:-4.5,z:.0,ry:Math.PI/2,pose:'sit'}};
@@ -1920,18 +1922,18 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   const g=shell('dimsum',{floor:carpet,floorTile:1.2,ceil,ceilTile:1.2,dado:M(woodT('#2a1414','#1a0c0c',64,true)),upper:lacquer,pier:lacquer,trim:gold,end:lacquer,door:dark,rail:gold,
     wins:winsEvery(4,1.8,-12,6),lamps:[lamp(-10,2.4,0,[1.4,.55,.35],6),lamp(-4,2.4,0,[1.4,.55,.35],6),lamp(2,2.4,0,[1.4,.55,.35],6),lamp(10,2.6,0,[.9,.95,1.0],6),lamp(11,1.0,-2,[1.5,.5,.1],3.5)],ambK:.8});
   /* round tables with lazy susans and steamer stacks */
-  for(const x of [-11,-7,-3,1,5]) for(const s of [-1,1]){ const z=s*1.4; mk(cyl(.85,.85,.06,16),cloth,g,x,.74,z); mk(cyl(.86,.8,.3,16,{open:true}),M(null,{color:0xf2ece0,double:true}),g,x,.58,z); mk(cyl(.36,.36,.04,14),gold,g,x,.8,z);
-    for(let k=0;k<3;k++) mk(cyl(.12,.12,.08,10),bamboo,g,x+Math.cos(k*2.1)*.22,.86+(k%2)*.08,z+Math.sin(k*2.1)*.22);
-    for(let k=0;k<5;k++){ const a=k/5*Math.PI*2+.3, cx=x+Math.cos(a)*1.15, cz=z+Math.sin(a)*1.15; B(g,dark,cx,0,cz,.4,.45,.4); B(g,M(fabT('#b82020',65)),cx,.45,cz,.42,.06,.42); } }
+  for(const x of [-11,-7,-3,1,5]) for(const s of [-1,1]){ const t=K(N(g,x,0,s*2.85)); mk(cyl(.85,.85,.06,16),cloth,t,0,.74,0); mk(cyl(.86,.8,.3,16,{open:true}),M(null,{color:0xf2ece0,double:true}),t,0,.58,0); mk(cyl(.36,.36,.04,14),gold,t,0,.8,0);
+    for(let k=0;k<3;k++) mk(cyl(.12,.12,.08,10),bamboo,t,Math.cos(k*2.1)*.22,.86+(k%2)*.08,Math.sin(k*2.1)*.22);
+    for(let k=0;k<5;k++){ const a=k/5*Math.PI*2+.3, cx=Math.cos(a)*1.15, cz=Math.sin(a)*1.15; B(t,dark,cx,0,cz,.4,.45,.4); B(t,M(fabT('#b82020',65)),cx,.45,cz,.42,.06,.42); } }
   /* trolleys */
   for(const x of [-9,3]){ B(g,C('#c8ccd2'),x,0,0,.9,.85,.6); for(let k=0;k<6;k++) mk(cyl(.15,.15,.09,10),bamboo,g,x-.25+(k%3)*.25,.9+(k>>1&1)*.1+(k>2?.0:0),-.12+(k>2?.24:0)); }
   /* red lanterns */
-  const lan=U('#ff4030'); for(let k=0;k<9;k++){ const x=-12+k*2.4; for(const z of [-1.2,1.2]){ mk(lathe([[0,.08,.08],[.08,.24,.24],[.34,.24,.24],[.42,.08,.08]],10),lan,g,x,2.5,z); B(g,gold,x,2.5,z,.2,.03,.2); B(g,gold,x,2.92,z,.03,.48,.03); B(g,U('#f2c230'),x,2.38,z,.03,.14,.03); } }
+  const lan=U('#ff4030'); for(let k=0;k<9;k++){ const x=-12+k*2.4; for(const z of [-2.85,2.85]){ K(mk(lathe([[0,.08,.08],[.08,.24,.24],[.34,.24,.24],[.42,.08,.08]],10),lan,g,x,2.5,z)); K(B(g,gold,x,2.5,z,.2,.03,.2)); K(B(g,gold,x,2.92,z,.03,.48,.03)); K(B(g,U('#f2c230'),x,2.38,z,.03,.14,.03)); } }
   /* the gold crane mural on the rear wall */
   const crane=M(P2(64,48,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#a81c1c'],[1,'#7a1010']]); g.fillStyle='#e8c050'; g.beginPath(); g.moveTo(10,36); g.quadraticCurveTo(26,20,40,22); g.lineTo(56,6); g.lineTo(44,26); g.quadraticCurveTo(48,34,30,38); g.closePath(); g.fill(); g.strokeStyle='#e8c050'; g.lineWidth=2; g.beginPath(); g.moveTo(26,36); g.lineTo(22,46); g.moveTo(32,36); g.lineTo(34,46); g.stroke(); ell(g,52,10,3,2,'#e8c050'); R(g,'#c8202a',54,8,2,2); ell(g,14,12,6,6,'#e8c050'); }));
   mk(wplane(3.6,2.4),crane,g,-WL/2+.04,1.85,-1.4,0,Math.PI/2,0);
   /* kitchen: steel, woks over flames, roast ducks */
-  const steel=M(tSteel); B(g,C('#d8d4cc'),7.5,0,0,.12,1.0,5.8); B(g,steel,7.5,1.0,0,.4,.05,5.8);
+  const steel=M(tSteel); B(g,C('#d8d4cc'),7.5,0,0,.12,1.0,WZ*2-2.4); B(g,steel,7.5,1.0,0,.4,.05,WZ*2-2.4);
   for(const s of [-1,1]){ B(g,steel,10.5,0,s*2.2,5,.95,1.0); B(g,C('#2a2c30'),10.5,.95,s*2.2,5,.04,1.02); }
   for(let k=0;k<4;k++){ const x=9+k*1.1; mk(lathe([[0,.05,.05],[.08,.3,.3],[.12,.34,.34]],12,{capT:false}),M(null,{color:0x2a2a2e,double:true}),g,x,1.0,-2.2); B(g,U('#ff7a20'),x,.98,-2.2,.3,.02,.3); }
   for(let k=0;k<5;k++){ const x=8.6+k*.9; B(g,C('#3a3c40'),x,2.6,2.2,.01,.6,.01); mk(lathe([[0,.04,.04],[.1,.12,.1],[.3,.1,.08],[.4,.03,.03]],8),C('#a8501e',{emissive:0x200800}),g,x,2.1,2.2,Math.PI,0,0); }
@@ -1954,12 +1956,12 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   const neon=M(textTex(64,16,'#14141c',[['CAPSULES','c',4,'#29e0e6',1]]),{unlit:true}); mk(wplane(2.8,.7),neon,g,0,2.9,-2.86);
   const vm=(x,c,z)=>B(g,F(C(c),M(P2(32,64,(g,w,h)=>{ R(g,c,0,0,w,h); R(g,'#e8f4ff',3,4,w-6,30); const r=rng(x*13); for(let y=0;y<3;y++) for(let k=0;k<5;k++) R(g,['#d63a2c','#2a6ad8','#f2c230','#2a9a5a','#f28a3a'][(k+y)%5],5+k*5,7+y*9,3,7); R(g,'#2a2a30',4,40,w-8,8); }),{emissive:0x1a1a1a})),x,0,z,.9,1.9,.7);
   vm(2.4,'#d63a2c',-2.4); vm(3.3,'#2a6ad8',-2.4);
-  const sofa=M(fabT('#2a2a34',73)); for(const s of [-1,1]){ B(g,sofa,-1.2+s*0,0,s*1.6,2.2,.42,.8); B(g,sofa,-1.2,.42,s*1.95,2.2,.5,.16); }
+  const sofa=M(fabT('#2a2a34',73)); for(const s of [-1,1]){ K(B(g,sofa,-1.2+s*0,0,s*1.6,2.2,.42,.8)); K(B(g,sofa,-1.2,.42,s*1.95,2.2,.5,.16)); }
   mk(cyl(.4,.4,.04,12),C('#f4f4ee'),g,-1.2,.45,0); mk(cyl(.05,.05,.45,6),C('#c8ccd2'),g,-1.2,.22,0);
   const spines=M(P2(32,32,(g,w,h)=>{ R(g,'#2a2a34',0,0,w,h); const r=rng(74); for(let y=1;y<h;y+=8) for(let x=1;x<w;x+=2) R(g,['#d63a2c','#2a6ad8','#f2c230','#2a9a5a','#ff4fae','#f2ece0'][r()*6|0],x,y,1,6); }));
   B(g,F(C('#2a2a34'),spines),2.85,0,2.3,1.6,2.2,.4);
   for(let x=-13;x<13.5;x+=2) B(g,U('#29e0e6'),x,.005,0,1.2,.01,.04);
-  for(let k=0;k<6;k++) B(g,F(C('#c8ccd2'),M(P2(16,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#d8dce0'],[1,'#b8bcc0']]); R(g,'#8a8e94',0,0,1,h); R(g,'#2a2a34',11,14,2,4); text(g,String(k+1),3,3,'#2a2a34',1); }))),-13.4,0,-1.5+k*.62,.6,1.9,.6,Math.PI/2);
+  for(let k=0;k<6;k++) B(g,F(C('#c8ccd2'),M(P2(16,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#d8dce0'],[1,'#b8bcc0']]); R(g,'#8a8e94',0,0,1,h); R(g,'#2a2a34',11,14,2,4); text(g,String(k+1),3,3,'#2a2a34',1); }))),-13.4,0,-1.5+k*.62,.6,1.9,.6,Math.PI/2).keep=1;
   WG.capsule.spots={ren:{x:-.4,z:-.5,ry:-Math.PI/2},ren_c:{x:-6,z:.2,ry:-Math.PI/2},ren_c2:{x:7,z:-.2,ry:Math.PI/2}};
 })();
 
@@ -1975,8 +1977,8 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   for(const x of [-6,6]){ mk(cyl(.9,.9,3.2,16,{open:true}),tank,g,x,1.75,0); mk(cyl(1.0,1.0,.15,16),gold,g,x,.08,0); mk(cyl(1.0,1.0,.15,16),gold,g,x,3.33,0);
     for(let k=0;k<4;k++){ const n=mk(plane(.8,.4),fish,g,x,1+k*.6,0); const ph=k*1.7; WG.aquarium.anim.push(t=>{ const a=t*.5+ph; n.p=[x+Math.cos(a)*.45,1+k*.6+Math.sin(t+ph)*.1,Math.sin(a)*.45]; n.r=[0,-a,0]; }); } }
   /* blue velvet booths */
-  for(const x of [-11,-2.5,2.5,11]) for(const s of [-1,1]){ B(g,velvet,x,0,s*2.2,2.4,.45,1.0); B(g,velvet,x,.45,s*2.65,2.4,.7,.2); mk(cyl(.4,.4,.04,12),C('#f2ece0'),g,x,.68,s*1.4); mk(cyl(.04,.04,.68,6),gold,g,x,.34,s*1.4); }
-  B(g,C('#14203a'),13,0,0,.8,1.05,3); B(g,gold,12.65,1.05,0,.1,.04,3); for(let k=0;k<5;k++) mk(cyl(.04,.05,.24,6),G(['#29e0e6','#f5c542','#ff3fa4'][k%3]),g,13.2,1.2,-1+k*.5);
+  for(const x of [-11,-2.5,2.5,11]) for(const s of [-1,1]){ B(g,velvet,x,0,s*2.2,2.4,.45,1.0); B(g,velvet,x,.45,s*2.65,2.4,.7,.2); Wz(mk(cyl(.4,.4,.04,12),C('#f2ece0'),g,x,.68,s*1.3)); Wz(mk(cyl(.04,.04,.68,6),gold,g,x,.34,s*1.3)); }
+  B(g,C('#14203a'),13,0,0,.8,1.05,6); B(g,gold,12.65,1.05,0,.1,.04,6); for(let k=0;k<5;k++) K(mk(cyl(.04,.05,.24,6),G(['#29e0e6','#f5c542','#ff3fa4'][k%3]),g,13.2,1.2,-2+k*1));
 })();
 
 /* ---------- 10 · baggage: where you wake up ---------- */
@@ -1988,7 +1990,7 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   const sticker=(seed)=>M(P2(32,24,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#6a3a22'],[1,'#4a2614']]); const r=rng(seed); const cols=['#f2c230','#e0473a','#2a9a5a','#2a6ad8','#f27ab0','#f2ece0']; for(let i=0;i<7;i++){ const x=r()*(w-8),y=r()*(h-6); R(g,cols[i%6],x,y,6+(r()*4|0),4+(r()*3|0)); } R(g,'#d4ad5a',0,h/2,w,1); },4,seed));
   const g=shell('baggage',{floor:plate,floorTile:.6,ceil:C('#3a3e44'),dado:rib,upper:rib,pier:rib,trim:C('#2a2c2f'),end:rib,door:C('#4a4e54'),
     wins:[[-11.6,-10.6],[10.6,11.6]],lamps:[lamp(0,2.9,0,[1.7,.85,.28],7),lamp(-9,2.8,0,[.35,.4,.5],6),lamp(9,2.8,0,[.35,.4,.5],6),lamp(-5,1.2,1.5,[.9,.5,.2],3)],ambK:.55,sunK:.35,minLamp:.85});
-  B(WG.baggage.side[1],M(P2(16,16,(g,w,h)=>{ for(let y=0;y<h;y+=2) vfill(g,0,y,w,2,[[0,'#a8a294'],[1,'#8a8476']]); },4,93)),3,.05,WZ-.04,4.2,2.7,.04);
+  B(WG.baggage.side[1],M(P2(16,16,(g,w,h)=>{ for(let y=0;y<h;y+=2) vfill(g,0,y,w,2,[[0,'#a8a294'],[1,'#8a8476']]); },4,93)),3,.05,WZ0-.04,4.2,2.7,.04);
   const r=rng(94); for(const [x,z] of [[-12,-2],[-11,-2.1],[-12.2,2],[-8.5,-2.2],[10,-2],[11.2,-2.1],[11.6,1.8],[7.6,2.1]]){ let y=0; const n=1+(r()*3|0); for(let k=0;k<n;k++){ const s=.7+r()*.3; B(g,crates[(r()*4)|0],x,y,z,s,s,s,r()*.3); y+=s; } }
   /* the hitman's luggage: wardrobe trunk, suitcases, the golf bag, a sun lounger, the dinner jacket */
   const trunk=sticker(95); B(g,F(C('#4a2614'),trunk),-3.2,0,-2.3,1.0,1.6,.6); B(g,C('#d4ad5a'),-3.2,.8,-1.99,1.0,.04,.02);
@@ -2007,10 +2009,118 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
    the middle stays where it is, so the extra width becomes open floor between the two sides. */
 const WIDEN_AT=1.6, widenZ=z=>Math.abs(z)>=WIDEN_AT?z+Math.sign(z)*DW:z;
 for(const k in WG){ const w=WG[k];
-  for(const n of w.g.kids.slice(w.n0)) n.p[2]=widenZ(n.p[2]);
+  for(const n of w.g.kids.slice(w.n0)){ if(n.keep) continue; n.p[2]=n.wz?n.p[2]+Math.sign(n.p[2])*DW:widenZ(n.p[2]); }
   for(const s of ['-1','1']) for(const n of w.side[s].kids.slice(w.s0[s])) n.p[2]+=(+s)*DW;
   for(const id in w.spots) w.spots[id].z=widenZ(w.spots[id].z);
   for(const l of w.lamps) l[0][2]=widenZ(l[0][2]); }
+
+
+/* =====================================================================================================
+   WHAT THE WIDTH IS FOR. At 8.8 m inside, every car gets a set piece down the middle that turns it into
+   a room you fight in: lanes to flank down, cover at waist height, a chokepoint, a perch, places to hide.
+   Built in final (widened) coordinates, so nothing here moves.
+   ===================================================================================================== */
+const PLAY={
+  cab:'The last room. The flight deck is a horseshoe you fight round; behind the bulkhead a waist-high spine of traction cabinets splits the crew mess into two lanes, with lockers and bunks to hide in.',
+  casino:'A maze of machines. Slots line both walls and a back-to-back island splits the floor, so there is always a lane to flank down; the craps and roulette tables are waist-high cover and the King\'s stage looks down the whole car.',
+  pool:'Open ground. The pool is a 14 m moat down the middle: wade it slowly or go round. The lifeguard chair is a perch, the hot tub and the bar are the only hard cover.',
+  pub:'A brawler\'s room. A long bar to vault and fight behind, booths to pin people in, high tables and stools to throw, and an etched-glass snug screen at the front to break line of sight.',
+  trattoria:'Lunch service. Nonna\'s long Sunday table runs down the middle as cover, family tables line both walls, and the kitchen end is a dead end with an oven in it.',
+  banya:'Two climates. The sauna end is close quarters round tiered benches and a cold plunge tub, half hidden in steam; through the one door, the ice bar end is bright and open.',
+  dimsum:'One way through. Tables fill both sides, the trolleys run the middle lane, and a lacquered moon gate is the only doorway into the half of the car where Lau waits.',
+  capsule:'The stealth car. Two storeys of pods line both walls and a pod island runs down the middle, leaving two dim corridors: every pod is a place to hide, or a place for someone to be waiting.',
+  aquarium:'Glass everywhere. Column tanks and a long reef tank break the room up; velvet booths along both walls face the middle.',
+  baggage:'Where you wake up, and the tutorial. Crates, a luggage cage and a pile of mail sacks make a small maze to learn sneaking and grabbing in before the first fight.'};
+for(const W of WAGONS) W.play=PLAY[W.key];
+
+/* 01 · cab: a spine of traction cabinets down the crew mess, cable trays overhead */
+(function(){ const g=WG.cab.g, cab=C('#c8ccd2'), dark=C('#2a2e36');
+  const rack=M(P2(16,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#d8dcde'],[1,'#b8bcc0']]); R(g,'#8a8e94',0,0,1,h); for(let y=4;y<h-4;y+=4){ R(g,'#2a2e36',3,y,10,2); R(g,(y/4)%3?'#7cf06a':'#f5c542',4,y,1,1); } },4,301));
+  for(const [x0,x1] of [[-12.6,-9.4],[-7.6,-4.6]]){ B(g,F(cab,rack,rack),(x0+x1)/2,0,0,x1-x0,1.25,1.0); B(g,dark,(x0+x1)/2,1.25,0,x1-x0+.06,.05,1.06); }
+  for(const s of [-1,1]) B(g,dark,-5,WH-.25,s*1.4,18,.08,.4);
+})();
+
+/* 02 · casino: a craps table and a back-to-back island of slots */
+(function(){ const g=WG.casino.g, wood=M(woodT('#3a1e14','#24120c',314,true)), felt=M(fabT('#1f6a3a',315)), gold=C('#d4ad5a');
+  B(g,wood,-8.5,0,1.7,3.0,.9,1.5); B(g,felt,-8.5,.9,1.7,2.7,.03,1.2); for(const s of [-1,1]) B(g,gold,-8.5,.93,1.7+s*.64,3,.05,.06);
+  for(const [dx,dz] of [[-.4,.1],[-.25,-.05]]) B(g,C('#f2ece0'),-8.5+dx,.93,1.7+dz,.08,.08,.08,.4);
+  const scr=(seed)=>M(P2(16,24,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#2a1a4a'],[1,'#120a22']]); const r=rng(seed); for(let k=0;k<3;k++){ R(g,'#f2ece0',1+k*5,6,4,8); text(g,r()<.5?'7':'0',2+k*5,7,['#f5c542','#d63a2c','#29e0e6'][k],1); } R(g,'#ff3fa4',0,0,w,3); R(g,'#f5c542',2,18,12,2); }),{unlit:true});
+  for(let i=0;i<4;i++) for(const s of [-1,1]){ const n=N(g,.6+i*1.9,0,1.9+s*.32,0,s>0?0:Math.PI,0);
+    B(n,C(['#2a2a5a','#5a1a3a','#1a4a5a'][(i+s+2)%3]),0,0,0,.8,1.2,.62); mk(wplane(.6,.7),scr(400+i*3+s),n,0,1.55,.32); B(n,C('#2a2a30'),0,1.2,0,.8,.72,.58); B(n,G('#f5c542'),0,1.92,.05,.82,.12,.66); }
+  B(g,gold,3.45,1.95,1.9,7.7,.06,.06);
+  WG.casino.spots.king_c={x:-1.2,z:1.9,ry:-Math.PI/2};
+})();
+
+/* 03 · pool: a hot tub, a lifeguard chair to perch on, a flamingo in the pool */
+(function(){ const g=WG.pool.g, white=C('#f4f2ec'), wood=M(woodT('#c8a070','#a88050',321));
+  mk(cyl(1.3,1.3,.75,16),wood,g,-9.5,.375,0); mk(cyl(1.15,1.15,.02,16),U('#5ae0f0'),g,-9.5,.66,0);
+  for(let k=0;k<8;k++){ const b=mk(cyl(.05,.05,.02,6),U('#e8ffff'),g,-9.5,.68,0), a=k*.8, r0=.2+(k%4)*.22; WG.pool.anim.push(t=>{ b.p=[-9.5+Math.cos(a+t*.6)*r0,.68,Math.sin(a+t*.6)*r0]; }); }
+  const lc=N(g,1.5,0,2.7,0,Math.PI,0); for(const [dx,dz] of [[-.4,-.35],[.4,-.35],[-.4,.35],[.4,.35]]) B(lc,white,dx,0,dz,.08,1.8,.08,0,dz*.25,-dx*.15);
+  B(lc,C('#e0473a'),0,1.8,0,.9,.1,.7); B(lc,C('#e0473a'),0,1.9,-.33,.9,.7,.08); for(let k=0;k<4;k++) B(lc,white,0,.3+k*.4,.38,.8,.05,.06);
+  mk(cyl(.025,.025,1.4,6),white,lc,.35,2.6,-.3); mk(lathe([[0,.9,.9],[.35,.05,.05]],10,{capB:false}),M(stripes('#e0473a','#f2ece0',2),{double:true}),lc,.35,3.25,-.3);
+  const fl=N(g,3,.47,.4), pink=C('#ff7ab0'); mk(torus(.42,.16,8,14),pink,fl,0,0,0,Math.PI/2); mk(cyl(.07,.07,.7,8),pink,fl,.4,.35,0,0,0,-.2); B(fl,pink,.48,.66,0,.24,.14,.14); B(fl,C('#2a2a2e'),.62,.66,0,.08,.06,.06);
+  WG.pool.anim.push(t=>{ fl.p[1]=.47+Math.sin(t*1.3)*.03; fl.r[1]=Math.sin(t*.2)*.6; });
+})();
+
+/* 04 · pub: high tables down the middle and an etched-glass snug screen at the front */
+(function(){ const g=WG.pub.g, oak=M(woodT('#5a3420','#3a2014',341,true)), brass=C('#d4ad5a');
+  for(const x of [-9,-5.5,-2]){ mk(cyl(.06,.06,1.0,6),brass,g,x,.5,.2); mk(cyl(.3,.3,.04,10),C('#2a1408'),g,x,.02,.2); mk(cyl(.45,.45,.05,12),oak,g,x,1.03,.2);
+    for(const dz of [-.15,.18]) mk(cyl(.05,.045,.16,8),G('#d8a040'),g,x+dz,1.14,.2+dz*.6); }
+  const glass=M(P2(16,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#e8d8a8'],[1,'#c8b078']]); g.strokeStyle='#f8f0d8'; for(let y=4;y<h;y+=8){ g.beginPath(); g.arc(8,y,4,0,Math.PI*2); g.stroke(); } R(g,'#5a3420',0,0,w,1); }),{emissive:0x2a2010});
+  for(const [z0,z1] of [[-3.6,-.9],[.9,3.6]]){ const zc=(z0+z1)/2, wd=z1-z0; B(g,oak,8.6,0,zc,.12,1.0,wd); B(g,glass,8.6,1.0,zc,.05,.9,wd-.1); B(g,oak,8.6,1.9,zc,.14,.08,wd+.04); for(const z of [z0,z1]) B(g,oak,8.6,0,z,.14,1.98,.14); }
+})();
+
+/* 05 · trattoria: Nonna's long Sunday table down the middle */
+(function(){ const g=WG.trattoria.g, check=M(P2(16,16,(g,w,h)=>{ for(let y=0;y<h;y+=4) for(let x=0;x<w;x+=4) R(g,((x+y)>>2)%2?'#f4efe6':'#c8302a',x,y,4,4); },4,351)), wood=M(woodT('#8a5a34','#6a4426',352));
+  B(g,wood,-7,0,0,9,.72,1.1); B(g,check,-7,.72,0,9.2,.04,1.25); for(const s of [-1,1]) B(g,check,-7,.42,s*.63,9.2,.32,.02);
+  for(const s of [-1,1]){ B(g,wood,-7,0,s*.98,8.6,.45,.38); }
+  for(let k=0;k<8;k++) for(const s of [-1,1]){ const x=-10.6+k*1.05; mk(cyl(.17,.17,.02,12),C('#f8f6f0'),g,x,.765,s*.36); mk(cyl(.1,.1,.03,10),C(['#c8502a','#e8c460','#6a8a3a'][(k+s+2)%3]),g,x,.78,s*.36); }
+  for(let k=0;k<4;k++){ const x=-10+k*2.1; mk(cyl(.05,.06,.3,8),C('#2a5a2a'),g,x,.9,0); B(g,C('#d8a868'),x+.9,.76,0,.5,.12,.2,.3); }
+  for(let k=0;k<3;k++){ const x=-9+k*2.6; mk(cyl(.04,.04,.25,6),C('#f2ece0'),g,x,.88,0); B(g,U('#ffd890'),x,1.0,0,.025,.05,.025); }
+})();
+
+/* 06 · banya: a cold plunge tub in the sauna, an ice bear on the ice side */
+(function(){ const g=WG.banya.g, wood=M(woodT('#a87a46','#8a5a30',361)), ice=U('#bfefff'), hoop=C('#3a2a1a');
+  B(g,wood,-7.5,0,0,3.2,.95,1.8); mk(wplane(3.0,1.6),U('#7ad0f0'),g,-7.5,.88,0,-Math.PI/2); for(const dx of [-1.2,0,1.2]) B(g,hoop,-7.5+dx,.2,0,.06,.06,1.84); B(g,hoop,-7.5,.7,0,3.24,.06,1.84);
+  for(let k=0;k<3;k++) B(g,wood,-5.75,.0+k*.3,0,.3,.06,.6);
+  const bear=N(g,12.2,0,2.8,0,-.6,0); B(bear,ice,0,0,0,1.4,.5,1.0); B(bear,ice,0,.5,0,1.0,.8,.8); B(bear,ice,.55,.6,0,.5,.45,.6); B(bear,ice,.85,.75,0,.3,.22,.32); for(const s of [-1,1]) B(bear,ice,.5,1.0,s*.2,.1,.12,.1);
+  for(const [dx,dz] of [[-.3,-.25],[-.3,.25],[.3,-.25],[.3,.25]]) B(bear,ice,dx,.5,dz,.22,.0001+.01,.22);
+})();
+
+/* 07 · dim sum: the moon gate, the only way through to the kitchen half */
+(function(){ const g=WG.dimsum.g, lac=C('#a81c1c'), gold=C('#d4ad5a'), r=1.45, cy=1.45, X=-5;
+  for(let y=0;y<WH-.001;y+=.1){ const dy=y+.05-cy, hw=Math.abs(dy)<r?Math.sqrt(r*r-dy*dy):0; for(const s of [-1,1]) if(WZ-hw>.01) B(g,lac,X,y,s*(hw+WZ)/2,.3,.1,WZ-hw); }
+  for(let k=0;k<32;k++){ const a=k/32*Math.PI*2, y=cy+Math.sin(a)*r; if(y<.05) continue; B(g,gold,X,y-.05,Math.cos(a)*r,.34,.1,.3,0,-a); }
+  for(const y of [.1,WH-.3]) B(g,gold,X,y,0,.34,.06,WZ*2);
+  const plaque=M(textTex(32,12,'#121014',[['GOLDEN CRANE','c',3,'#d4ad5a']]),{unlit:true}); for(const s of [-1,1]) mk(wplane(1.6,.5),plaque,g,X+s*.16,cy+r+.4,0,0,s*Math.PI/2,0);
+})();
+
+/* 08 · capsule: a two-storey island of pods down the middle, two dim corridors either side */
+(function(){ const g=WG.capsule.g, pod=C('#f4f4ee'), podIn=[U('#ffe8c0'),U('#c8e8ff'),U('#1a1a22')];
+  for(const x0 of [-12.2,5.3]) for(let i=0;i<7;i++) for(let lv=0;lv<2;lv++) for(const s of [-1,1]){ const n=N(g,x0+i*1.15,lv*1.25,s*.64);
+    B(n,pod,0,0,0,1.1,1.2,1.25); mk(wplane(.9,.85),podIn[(i+lv+(s>0?0:1))%3],n,0,.6,s*.63,0,s>0?0:Math.PI,0); B(n,C('#2a2a34'),0,.05,s*.63,.95,.06,.02); }
+  for(const x0 of [-12.2,5.3]){ B(g,C('#c8ccd2'),x0+3.45,2.5,0,8.1,.06,1.3); for(const s of [-1,1]) for(let x=x0;x<x0+8;x+=2) B(g,U('#29e0e6'),x+.5,.005,s*2.2,1.2,.01,.04); }
+  WG.capsule.spots.ren_c={x:-6,z:2.2,ry:-Math.PI/2}; WG.capsule.spots.ren_c2={x:7,z:-2.2,ry:Math.PI/2};
+})();
+
+/* 09 · aquarium: a long reef tank down the middle between the column tanks */
+(function(){ const g=WG.aquarium.g, gold=C('#d4ad5a');
+  const reef=M(P2(64,16,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#3ad0e8'],[1,'#1a6a9a']]); const r=rng(391); for(let i=0;i<14;i++){ const x=r()*w|0, hh=3+(r()*7|0); R(g,['#ff6a8a','#ffb040','#c86aff','#5af0a0'][i%4],x,h-hh,2+(r()*3|0),hh); } for(let i=0;i<12;i++) R(g,rgba('#e8ffff',.6),r()*w|0,r()*h*.6|0,1,1); }),{unlit:true});
+  B(g,C('#14203a'),0,0,0,6.8,.5,1.1); B(g,F(M(reef.tex,{unlit:true}),reef,reef),0,.5,0,6.6,.9,.95); B(g,gold,0,1.4,0,6.8,.05,1.1); B(g,gold,0,.48,0,6.86,.04,1.14);
+  const fish=M(fishTex('gold'),{unlit:true,cut:true,double:true});
+  for(let k=0;k<6;k++){ const s=k%2?1:-1, n=mk(plane(.5,.25),fish,g,0,0,0), ph=k*1.3; WG.aquarium.anim.push(t=>{ const u=((t*.15+k/6)%1)*2-1; n.p=[u*3.0*s,.75+(k%3)*.2+Math.sin(t+ph)*.04,s*.5]; n.r=[0,s>0?0:Math.PI,0]; }); }
+})();
+
+/* 10 · baggage: a luggage cage and a pile of mail sacks */
+(function(){ const g=WG.baggage.g, steel=C('#8a8e94');
+  const mesh=M(P2(16,16,(g,w,h)=>{ for(let k=0;k<w;k+=4){ R(g,'#9aa0a6',k,0,1,h); R(g,'#9aa0a6',0,k,w,1); } }),{cut:true,double:true});
+  const cx=-9.5, cw=3, cd=2, ch=2.4;
+  for(const [dx,dz] of [[-1,-1],[1,-1],[-1,1],[1,1]]) B(g,steel,cx+dx*cw/2,0,dz*cd/2,.06,ch,.06);
+  for(const s of [-1,1]){ mk(wplane(cw,ch,.5,.5),mesh,g,cx,ch/2,s*cd/2); mk(wplane(cd,ch,.5,.5),mesh,g,cx+s*cw/2,ch/2,0,0,Math.PI/2,0); }
+  mk(wplane(cw,cd,.5,.5),mesh,g,cx,ch,0,-Math.PI/2);
+  const r=rng(401); for(let k=0;k<7;k++){ const w=.5+r()*.4; B(g,C(['#2a4a8a','#8a2a1a','#c8a060','#3a3a3e','#6a3a8a'][k%5]),cx-1+(k%3)*.9,Math.floor(k/3)*.5,-.3+(k%2)*.6,w,.45,.6,r()*.4); }
+  const sack=C('#c8b890'); for(let k=0;k<9;k++){ const x=8+(k%3)*.55-(k>5?-.2:0), z=-.4+((k*7)%3-1)*.5; mk(lathe([[0,.05,.05],[.12,.32,.26],[.45,.3,.24],[.6,.1,.08]],8),sack,g,x,(k>5?.45:0),z,0,k,Math.PI/2*((k%2)*.9)); }
+})();
 
 
 /* =====================================================================================================
@@ -2411,7 +2521,7 @@ function pKatana(g){ mk(box(.03,.035,.28),M(P2(8,16,(g,w,h)=>{ R(g,'#1a1214',0,0
       note:'Blasted out of raw granite like Cardeal Arcoverde, with the rock left bare and lit warm from below. A staircase covered in hundreds of bright mismatched tiles comes down from the beach, the platform floor has the wave mosaic of the promenade, and there are palms in the gaps.',
       lamps:[lamp(-22,2.2,6,[1.4,1.0,.6],10),lamp(-8,2.2,6,[1.4,1.0,.6],10),lamp(8,2.2,6,[1.4,1.0,.6],10),lamp(22,2.2,6,[1.4,1.0,.6],10),lamp(0,5,-3,[.8,.6,.5],14),lamp(-20,1.2,4.5,[1.2,.7,.4],5)],amb:[.3,.26,.24],cam:{t:[-7,2,2.5],th:.4,ph:1.2,r:18}}});
   ST.rio.H=12.8; const top=ST.rio.top; vaultArc(top,10.2+DW*.55,-.9-DW*.55,2.6,12,rock,null,0);
-  /* boulders bulging out of the back wall */ const r=rng(53); for(let k=0;k<14;k++){ const x=-30+k*4.4+r()*2; mk(lathe([[0,.6,.4],[.6,1.1,.7],[1.4,.9,.6],[1.9,.2,.2]],7),rock,ST.rio.back,x,r()*1.2,SZ1-.4,0,r()*3,0); }
+  /* boulders bulging out of the back wall */ const r=rng(53); for(let k=0;k<14;k++){ const x=-30+k*4.4+r()*2; if(Math.abs(x-15)<3.4) continue; /* the wall map */ mk(lathe([[0,.6,.4],[.6,1.1,.7],[1.4,.9,.6],[1.9,.2,.2]],7),rock,ST.rio.back,x,r()*1.2,SZ1-.4,0,r()*3,0); }
   /* the tiled staircase down from the beach */ const tileCols=['#e0473a','#f2c230','#2a9a5a','#2a6ad8','#f27ab0','#f2ece0','#e88a3a','#7ac0d8'];
   const tiles=M(P2(32,32,(g,w,h)=>{ const q=rng(54); for(let y=0;y<h;y+=4) for(let x=0;x<w;x+=4){ R(g,tileCols[q()*tileCols.length|0],x,y,4,4); if(q()<.3) ell(g,x+2,y+2,1,1,tileCols[q()*tileCols.length|0]); R(g,'#f2ece0',x,y,4,1); R(g,'#f2ece0',x,y,1,4); } },0,54));
   for(let k=0;k<12;k++){ B(g,tiles,24-k*.45,0,6.6,.46,(12-k)*.21,2.4); } B(g,tiles,26,0,5.2,.3,2.6,.3); for(let k=0;k<3;k++) B(g,C('#f2ece0'),24-k*2,2.6-k*.6,7.8,2,.06,.06);
@@ -2464,12 +2574,11 @@ for(const key of ['hongkong','baikal','rio','vegas']){ const sp=ST[key].spots; f
 
 
 /* =====================================================================================================
-   THE WALL MAP: a bare world map on the back wall of every station, nothing else on it. Blocky PS1 land
-   (real coastlines, Natural Earth 1:110m, on a 160x64 grid), the route as lines from city to city round
-   the globe: legs already ridden lit, legs to come dim, the sea tunnels dashed, a yellow square for here.
+   THE WALL MAP: a world map poster on the back wall of every station, in the blue of a 90s menu screen:
+   faceted continents on a navy grid, the route as lines from city to city round the globe (ridden legs
+   bright, legs to come dim, sea tunnels dashed), a square and a name for each stop, a yellow box for here.
    ===================================================================================================== */
-const LAND_W=160, LAND_H=64, LAND_LAT0=78, LAND_LAT1=-58;
-const LAND=(()=>{ const s=atob('AAAAORb4///+AAMAAAQAD8AAAAAAAABPl/AD//4AAAAA4AP/wAdAAAAAAP/e/AH//AAAAAGBH///g8AAAP4AX+7/wP/8AAA8AIP//////gCD////77Pg//AAAf/D//////////P/////4fD/g8AH////////////I//////34HwDgA////////////8D/////gcAOAAAP3///////////gH9///8B5AIAAA/P/////////nwAHAP//4H+AAABhc////////+A4AAwAf//+f8AAAGHn////////gHAAAAA///9/4AAA8//////////wYAAAAB/////gAAA///////////AAAAAAH////zAAAB//////////8AAAAAAH////OAAAH//////////QAAAAAAf///+AAAAf/5+f/////5AAAAAAB///+AAAAP7/g5//////MAAAAAAH///wAAAA+D//z/////wgAAAAAAf//+AAAADwFv/P////mCAAAAAAA///wAAAAG+A///////M4AAAAAAD///AAAAAf4AP/////4vAAAAAAAD//4AAAAD/5h//////wgAAAAAAAP//AAAAAf/////////AAAAAAAAAf4EAAAAD////3////8AAAAAAAAA/gYAAAAf//+/v////gAAAAAAAAA+AAAAAB///9/w////AAAAAAAAAB4jAAAAP/////h/3/AAAAAAAAAAHmDgAAAf///v8D8foAAAAAAAAAAH4AAAAB///+fgPg/BgAAAAAAAAAD4AAAAP///94AcB8EAAAAAAAAAADgAAAA////+ABwH4IAAAAAAAAAACPAAAB////+AHADAwAAAAAAAAAAP/gAAD////4AMBgDAAAAAAAAAAAH/AAAH////AAQCAEAAAAAAAAAAAf/gAAOP//8AAA0GAAAAAAAAAAAB//AAAAP//gAABx4AAAAAAAAAAAP/8AAAA//4AAADP4AAAAAAAAAAA//8AAAD//gAAAGdjQAAAAAAAAAD//+AAAH/8AAAAYWHxAAAAAAAAAP//+AAAf/gAAAAwAH4AAAAAAAAAf//4AAA//AAAAA4AfAAAAAAAAAB///AAAD/8AAAAAAACAAAAAAAAAD//4AAAP/wAAAAAA5AAAAAAAAAAP//gAAB//GAAAAAPkAAAAAAAAAAf/+AAAH/8wAAAAB/YAAAAAAAAAA//4AAAf/HAAAAAP/gAAAAAAAAAB//AAAA/8cAAAAH//AQAAAAAAAAH/4AAAD/xgAAAA//+AAAAAAAAAA/+AAAAP+CAAAAD//8AAAAAAAAAD/4AAAAf4AAAAAP//wAAAAAAAAAP/AAAAB/AAAAAAf//AAAAAAAAAA/4AAAAD4AAAAAB//8AAAAAAAAAD/gAAAAPAAAAAAHg/wAAAAAAAAAP4AAAAAAAAAAAAAB+AEAAAAAAAB/gAAAAAAAAAAAAADwAYAAAAAAAH4AAAAAAAAAAAAAAAABgAAAAAAAfAAAAAAAAAAAAAAAMAMAAAAAAAB4AAAAAAAAAAAAAAAABgAAAAAAAHAAAAAAAAAAAAAAAAAMAAAAAAAA+AAAAAAAAAAAAAAAAAAAAAAAAADwAAAAAAAAAAAAAAAAAAAAAAAAAHAAAAAAAAAAAAAAAAAAAAAAAAAAOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='), b=new Uint8Array(LAND_W*LAND_H); for(let i=0;i<b.length;i++) b[i]=(s.charCodeAt(i>>3)>>(7-(i&7)))&1; return b; })();
+const MAP_LAT0=82, MAP_LAT1=-56, MAP_LON0=-168, MAP_PADT=18, MAP_PADB=6;
 const MAP_STOPS={
   tokyo:   {lon:139.7,lat:35.7, code:'TYO',name:'TOKYO',     day:'DAY 1 - 06:10', col:'#ff5a4a'},
   hongkong:{lon:114.2,lat:22.3, code:'HKG',name:'HONG KONG', day:'DAY 2 - 12:15', col:'#ffa030'},
@@ -2481,48 +2590,38 @@ const MAP_STOPS={
 const MAP_ORDER=['tokyo','hongkong','baikal','london','naples','rio','vegas'];
 /* legs in riding order: [from,to,sea?,bulge]; bulge lifts the line north like a great circle */
 const MAP_LEGS=[['tokyo','hongkong',0,.1],['hongkong','baikal',0,.1],['baikal','london',0,.22],['london','naples',0,.1],['naples','rio',1,.12],['rio','vegas',0,.12],['vegas','tokyo',1,.16]];
-const MAPW=512, MAPH=208;
-const mapXY=k=>{ const s=MAP_STOPS[k]; return [(s.lon+180)/360*MAPW, (LAND_LAT0-s.lat)/(LAND_LAT0-LAND_LAT1)*MAPH]; };
+const MAPW=512, MAPH=224;
+const mapXY=k=>{ const s=MAP_STOPS[k]; return [(s.lon-MAP_LON0)/360*MAPW, MAP_PADT+(MAP_LAT0-s.lat)/(MAP_LAT0-MAP_LAT1)*(MAPH-MAP_PADT-MAP_PADB)]; };
 /* where each name sits beside its dot: [dx,dy] in texture pixels, so no two labels collide */
 const MAP_LABEL={tokyo:[9,-5],hongkong:[8,4],baikal:[-24,-17],london:[-56,-15],naples:[8,1],rio:[9,-4],vegas:[-34,-17]};
-function smoothMask(w,h,blur,cut){ /* the 160x64 land grid blown up, blurred and re-cut: soft, simplified coastlines */
-  const s=document.createElement('canvas'); s.width=LAND_W; s.height=LAND_H; const sg=s.getContext('2d'), id=sg.createImageData(LAND_W,LAND_H);
-  for(let i=0;i<LAND.length;i++){ id.data[i*4]=id.data[i*4+1]=id.data[i*4+2]=255; id.data[i*4+3]=LAND[i]*255; } sg.putImageData(id,0,0);
-  const c=document.createElement('canvas'); c.width=w; c.height=h; const cg=c.getContext('2d'); cg.imageSmoothingEnabled=true; cg.filter=`blur(${blur}px)`; cg.drawImage(s,0,0,w,h);
-  const d=cg.getImageData(0,0,w,h).data, m=new Uint8Array(w*h); for(let i=0;i<m.length;i++) m[i]=d[i*4+3]>cut?1:0; return m; }
-let LANDM=null, HALOM=null;
+/* continents as a handful of flat facets (Natural Earth outlines simplified hard, no Antarctica, cropped so the whole loop fits), like the nation picker in Kenny's soccer game */
+const LAND_POLY=[[173,-41,168,-47,167,-45],[50,-14,47,-25,44,-25,43,-21,44,-16],[144,-14,153,-26,149,-38,131,-31,117,-35,115,-29,114,-22,126,-14,136,-12,140,-18],[134,-1,145,-4,151,-10,145,-8,138,-8,138,-5,131,-1],[125,1,120,0,123,-1,121,-5,121,-3,119,-5,120,1],[118,2,115,-4,110,-3,110,2,117,7,119,5],[141,37,131,34,131,31,129,33,140,41],[-56,51,-54,48,-59,48],[-3,59,1,51,-6,50,-3,54,-6,57],[-15,66,-19,63,-22,65],[185,67,190,66,184,65,180,65,180,69],[-91,69,-81,68,-93,62,-92,57,-80,51,-78,62,-74,62,-56,52,-71,47,-60,46,-76,39,-80,25,-84,30,-97,28,-96,19,-87,22,-89,16,-81,9,-62,11,-35,-7,-41,-22,-63,-43,-68,-52,-75,-52,-70,-20,-81,-6,-78,8,-104,18,-114,32,-112,25,-124,40,-123,49,-134,58,-151,61,-165,54,-157,59,-168,66,-157,71],[-114,73,-105,73,-101,70,-107,69,-116,69,-112,70,-119,72],[-87,73,-62,67,-68,66,-66,62,-79,65,-73,68,-89,70,-90,72],[-120,71,-126,72,-122,74,-116,73],[58,71,51,72,61,76,69,77,58,74,55,72],[107,77,179,69,179,63,164,60,157,51,156,57,164,63,135,55,141,52,128,40,129,35,118,39,122,28,106,20,109,13,105,9,100,13,104,1,91,23,78,8,66,25,48,30,60,22,43,13,32,30,43,12,51,9,28,-33,18,-34,14,-22,9,4,-9,5,-17,12,-17,22,-6,36,34,31,36,37,26,39,42,42,39,47,31,47,22,36,13,46,16,38,9,44,-9,37,-9,43,-1,44,-5,49,9,57,20,54,29,60,21,61,22,66,13,55,5,62,25,71,40,68,33,67,37,64,73,73,72,66,75,73],[18,80,22,79,17,77,13,78,10,80],[-68,82,-62,82,-81,76,-88,78,-82,80,-92,82],[-27,82,-12,81,-20,80,-22,71,-46,61,-57,75,-73,78]];
 function wallMapTex(cur){ return P2(MAPW,MAPH,(g,w,h)=>{
-  const ci=MAP_ORDER.indexOf(cur);
-  if(!LANDM){ LANDM=smoothMask(w,h,2.2,120); HALOM=smoothMask(w,h,6,14); }
-  /* sea, then land in cream with a hard drop shadow and a ring of lighter water round every coast */
-  const img=g.createImageData(w,h), D=img.data, hex=c=>[parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)];
-  const SEA=hex('#14203a'), SEA2=hex('#1a2c50'), HALO=hex('#22386a'), SHAD=hex('#0a1226'), LANDC=hex('#f2e6c8'), LAND2=hex('#e4d4ae'), RIM=hex('#c8b488');
-  const L=(x,y)=>x>=0&&y>=0&&x<w&&y<h&&LANDM[y*w+x];
-  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const i=y*w+x; let c;
-    if(LANDM[i]){ c=(!L(x-1,y)||!L(x+1,y)||!L(x,y-1)||!L(x,y+1))?RIM:(((x>>2)+(y>>2))%2?LANDC:LANDC); if(y>h*.62||y<h*.12) c=LAND2; if(c!==RIM&&((x+y)%5===0)&&y>h*.62) c=LAND2; }
-    else if(L(x-3,y-3)) c=SHAD; else if(HALOM[i]) c=HALO; else c=(y%4===0&&((x>>1)%2))?SEA2:SEA;
-    D[i*4]=c[0]; D[i*4+1]=c[1]; D[i*4+2]=c[2]; D[i*4+3]=255; }
-  g.putImageData(img,0,0);
-  /* faint lines of latitude and longitude */ g.fillStyle=rgba('#5a78c8',.22); for(let lon=-150;lon<180;lon+=30){ const x=(lon+180)/360*w|0; for(let y=0;y<h;y+=4) if(!LANDM[y*w+x]) g.fillRect(x,y,1,2); }
-  for(let lat=60;lat>=-45;lat-=30){ const y=(LAND_LAT0-lat)/(LAND_LAT0-LAND_LAT1)*h|0; for(let x=0;x<w;x+=4) if(!LANDM[y*w+x]) g.fillRect(x,y,2,1); }
-  /* the route: a gold curve from city to city, the sea tunnels dashed, the Pacific leg off one edge and back in at the other */
-  g.lineCap='round'; g.lineJoin='round';
+  const ci=MAP_ORDER.indexOf(cur), X=lon=>(lon-MAP_LON0)/360*w, Y=lat=>MAP_PADT+(MAP_LAT0-lat)/(MAP_LAT0-MAP_LAT1)*(h-MAP_PADT-MAP_PADB);
+  /* navy screen with a grid */
+  vfill(g,0,0,w,h,[[0,'#10204a'],[1,'#0a1636']]);
+  for(let x=0;x<w;x+=32) R(g,'#182c62',x,0,1,h); for(let y=0;y<h;y+=26) R(g,'#182c62',0,y,w,1);
+  /* land: a drop shadow, a flat blue fill and a light edge */
+  const shape=(dx,dy)=>{ g.beginPath(); for(const p of LAND_POLY){ g.moveTo(X(p[0])+dx,Y(p[1])+dy); for(let i=2;i<p.length;i+=2) g.lineTo(X(p[i])+dx,Y(p[i+1])+dy); g.closePath(); } };
+  shape(3,3); g.fillStyle='#050c22'; g.fill();
+  shape(0,0); g.fillStyle='#2f5cb0'; g.fill(); g.lineJoin='miter'; g.lineWidth=1.5; g.strokeStyle='#6a9ae8'; g.stroke();
+  /* the route: lines from city to city, ridden legs bright, legs to come dim, sea tunnels dashed, the Pacific leg off one edge and back in at the other */
+  g.lineCap='square';
   MAP_LEGS.forEach(([a,b,sea,bu],li)=>{ const done=cur!=='tokyo'&&li<ci; let [x0,y0]=mapXY(a),[x1,y1]=mapXY(b); if(a==='vegas'&&b==='tokyo') x1-=w;
     const dist=Math.hypot(x1-x0,y1-y0), mx=(x0+x1)/2, my=(y0+y1)/2-dist*bu*2;
-    for(const off of (x1<0?[0,w]:[0])){ g.setLineDash(sea?[6,5]:[]); g.strokeStyle=rgba('#0a1226',.8); g.lineWidth=5; g.beginPath(); g.moveTo(x0+off,y0); g.quadraticCurveTo(mx+off,my,x1+off,y1); g.stroke();
-      g.strokeStyle=done?(sea?'#8ae0ff':'#f5c542'):(sea?'#4a78c0':'#b08a3a'); g.lineWidth=3; g.beginPath(); g.moveTo(x0+off,y0); g.quadraticCurveTo(mx+off,my,x1+off,y1); g.stroke(); } });
+    for(const off of (x1<0?[0,w]:[0])){ g.setLineDash(sea?[5,4]:[]); g.strokeStyle=done?'#e8f2ff':'#5a7cc0'; g.lineWidth=2; g.beginPath(); g.moveTo(x0+off,y0); g.quadraticCurveTo(mx+off,my,x1+off,y1); g.stroke(); } });
   g.setLineDash([]);
-  /* dots and names */
-  for(const k of MAP_ORDER){ const [x,y]=mapXY(k), S=MAP_STOPS[k], here=k===cur, [dx,dy]=MAP_LABEL[k];
-    if(here){ ell(g,x,y,10,10,rgba('#e0473a',.35)); ell(g,x,y,7,7,'#e0473a'); }
-    ell(g,x,y,4.5,4.5,'#0a1226'); ell(g,x,y,3.4,3.4,'#f6efe0'); ell(g,x,y,2,2,S.col);
+  /* square dots, names beside them; here gets the yellow box and a white tag */
+  for(const k of MAP_ORDER){ const [x,y]=mapXY(k), S=MAP_STOPS[k], here=k===cur, [dx,dy]=MAP_LABEL[k], X0=x|0, Y0=y|0;
     const nm=k==='baikal'?'BAIKAL':S.name, tx=Math.round(x+dx), ty=Math.round(y+dy), tw=textW(nm,2);
-    if(here){ R(g,'#e0473a',tx-3,ty-3,tw+6,16); text(g,nm,tx,ty,'#ffffff',2); }
-    else { text(g,nm,tx+1,ty+1,'#0a1226',2); text(g,nm,tx,ty,'#f6efe0',2); } }
+    if(here){ R(g,'#050c22',X0-6,Y0-6,12,12); R(g,'#ffd040',X0-5,Y0-5,10,10); R(g,'#050c22',X0-2,Y0-2,4,4); R(g,'#050c22',tx-3,ty-3,tw+6,16); R(g,'#ffffff',tx-2,ty-2,tw+4,14); text(g,nm,tx,ty,'#0a1636',2); }
+    else { R(g,'#050c22',X0-3,Y0-3,7,7); R(g,'#e8f2ff',X0-2,Y0-2,5,5); text(g,nm,tx+1,ty+1,'#050c22',2); text(g,nm,tx,ty,'#b8d0ff',2); } }
+  text(g,'WORLD',6,h-15,'#5a7cc0',2);
+  R(g,'#3a5aa8',0,0,w,2); R(g,'#3a5aa8',0,h-2,w,2); R(g,'#3a5aa8',0,0,2,h); R(g,'#3a5aa8',w-2,0,2,h);
 }); }
 /* on the back wall (the one behind you on the platform), poster-sized: 4.4 x 1.8 m at eye height, a thin dark edge */
-const MAP_WALL={tokyo:-3.25,hongkong:-7,baikal:-7,london:-7.5,naples:-7,rio:9,vegas:-7};
-for(const k in MAP_WALL){ const st=ST[k]; if(!st) continue; const H0=st.H0, mh=Math.min(1.8,H0-.9), mw=mh*MAPW/MAPH, y0=Math.min(1.1,H0-mh-.2), x=MAP_WALL[k];
+const MAP_WALL={tokyo:-3.25,hongkong:-7,baikal:-7,london:-7.5,naples:-7,rio:15,vegas:-7};
+for(const k in MAP_WALL){ const st=ST[k]; if(!st) continue; const H0=st.H0, mh=Math.min(1.85,H0-.9), mw=mh*MAPW/MAPH, y0=Math.min(1.1,H0-mh-.2), x=MAP_WALL[k];
   B(st.back,C('#0a1226'),x,y0-.05,SZ1-.06,mw+.1,mh+.1,.04);
   mk(wplane(mw,mh,mw,mh),M(wallMapTex(k),{emissive:0x404040}),st.back,x,y0+mh/2,SZ1-.1,0,Math.PI,0);
   st.map={x,y:y0+mh/2,z:SZ1-.1,w:mw}; }
@@ -2607,6 +2706,7 @@ function renderCard(){ card.innerHTML='';
   } else if(state.view==='wagons'){
     const W=WAGONS.find(w=>w.key===state.wagon), idx=WAGONS.indexOf(W);
     card.append(el('p','sub',`Car ${W.num} of 10 · ${W.sub}`),el('h2',null,W.name),el('p','body',W.note),chips(W.sw));
+    if(W.play){ const pl=el('p','body'); pl.append(el('b',null,'How it plays: '),W.play); card.append(pl); }
     const row=el('div','row'); const prev=el('button','btn ghost','‹ Car '+(idx>0?WAGONS[idx-1].num:'')), next=el('button','btn ghost','Car '+(idx<9?WAGONS[idx+1].num:'')+' ›'), sit=el('button','btn',state.fp?'Stand up':'Sit inside');
     for(const b of [prev,next,sit]) b.type='button'; sit.setAttribute('aria-pressed',String(state.fp)); prev.disabled=idx===0; next.disabled=idx===9; if(prev.disabled) prev.style.opacity=.35; if(next.disabled) next.style.opacity=.35;
     prev.addEventListener('click',()=>{ if(idx>0){ setWagon(WAGONS[idx-1].key); renderCard(); } }); next.addEventListener('click',()=>{ if(idx<9){ setWagon(WAGONS[idx+1].key); renderCard(); } });

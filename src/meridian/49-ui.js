@@ -78,6 +78,7 @@ function renderCard(){ card.innerHTML='';
   } else if(state.view==='wagons'){
     const W=WAGONS.find(w=>w.key===state.wagon), idx=WAGONS.indexOf(W);
     card.append(el('p','sub',`Car ${W.num} of 10 · ${W.sub}`),el('h2',null,W.name),el('p','body',W.note),chips(W.sw));
+    if(W.play){ const pl=el('p','body'); pl.append(el('b',null,'How it plays: '),W.play); card.append(pl); }
     const row=el('div','row'); const prev=el('button','btn ghost','‹ Car '+(idx>0?WAGONS[idx-1].num:'')), next=el('button','btn ghost','Car '+(idx<9?WAGONS[idx+1].num:'')+' ›'), sit=el('button','btn',state.fp?'Stand up':'Sit inside');
     for(const b of [prev,next,sit]) b.type='button'; sit.setAttribute('aria-pressed',String(state.fp)); prev.disabled=idx===0; next.disabled=idx===9; if(prev.disabled) prev.style.opacity=.35; if(next.disabled) next.style.opacity=.35;
     prev.addEventListener('click',()=>{ if(idx>0){ setWagon(WAGONS[idx-1].key); renderCard(); } }); next.addEventListener('click',()=>{ if(idx<9){ setWagon(WAGONS[idx+1].key); renderCard(); } });
