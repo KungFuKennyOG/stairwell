@@ -8,6 +8,8 @@ A gritty WebXR game for Meta Quest 3: a 30-floor tower, one floor per level, fis
 
 **Maiden Run art direction set (bullet-train concept on the same engine):** https://kungfukennyog.github.io/stairwell/train.html. Source in `src/train/`, built by `./build.sh` together with `src/10-engine.js`.
 
+**The Meridian art direction set (world-loop bullet train, a hitman on vacation with a bounty on him):** https://kungfukennyog.github.io/stairwell/meridian.html. Source in `src/meridian/`, same engine.
+
 Current build: physics prototype 01, a single apartment floor with three enemies.
 
 ## Building
