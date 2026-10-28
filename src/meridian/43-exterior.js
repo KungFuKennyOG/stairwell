@@ -26,13 +26,13 @@ const WAGONS=[
   {key:'baggage',num:'10',name:'Baggage',label:'BAGGAGE',crew:null,wins:[[.1,.15],[.85,.9]],glow:0xffb050,color:'#8a6a46',
     sub:'Where you wake up',note:'Crates, wardrobe trunks, a golf bag that is not full of golf clubs, a dinner jacket on a hanger and your sun lounger, which the porters said would fit. You start here with whatever is in your luggage.',sw:['#6b6f73','#9c7a4a','#e08a1e','#2a2c2f','#f27ab0']}
 ];
-const CAR_L=30, CAR_GAP=1.0, CAR_PITCH=CAR_L+CAR_GAP, CAR_HW=3.1;
+const CAR_L=30, CAR_GAP=1.0, CAR_PITCH=CAR_L+CAR_GAP, CAR_HW=3.1+DW, WIDE=CAR_HW/3.1;
 const PROF=[[0,-.7],[2.9,-.7],[3.05,-.4],[3.1,.4],[3.1,3.5],[3.02,3.95],[2.75,4.28],[2.1,4.48],[1.0,4.56],[0,4.58]];
 const PY0=-.7, PY1=4.58, YC=1.8;
 const vOf=y=>Math.min(.995,Math.max(.005,(y-PY0)/(PY1-PY0)));
 const vRow=(y,H)=>(1-vOf(y))*H;
 function loftHalf(g,secs,side,flipU,mi){ const base=g.P.length/3,start=g.I.length,n=PROF.length;
-  for(const sc of secs) for(const [z,y] of PROF){ const Y=YC+(y-YC)*sc.sy+sc.dy; g.v([sc.x,Y,side*z*sc.sz],[0,0,side],[flipU?1-sc.u:sc.u,vOf(y)]); }
+  for(const sc of secs) for(const [z,y] of PROF){ const Y=YC+(y-YC)*sc.sy+sc.dy; g.v([sc.x,Y,side*z*WIDE*sc.sz],[0,0,side],[flipU?1-sc.u:sc.u,vOf(y)]); }
   for(let i=0;i<secs.length-1;i++) for(let j=0;j<n-1;j++){ const a=base+i*n+j,b=a+n,c=b+1,d=a+1; if(side>0) g.I.push(a,b,c,a,c,d); else g.I.push(a,c,b,a,d,c); }
   g.groups.push({start,count:g.I.length-start,mi}); }
 function loft(secs){ const g=new Geo(); loftHalf(g,secs,1,false,0); loftHalf(g,secs,-1,true,0); smoothNormals(g); return g; }
@@ -59,12 +59,12 @@ function tailTex(){ return P2(128,64,(g,w,h)=>{ const row=y=>vRow(y,h);
 function winGlowTex(W){ return P2(512,16,(g,w,h)=>{ for(const [u0,u1] of W.wins){ vfill(g,u0*w,0,(u1-u0)*w,h,[[0,'#fff6e0'],[1,'#d8b888']]); for(let x=u0*w+8;x<u1*w;x+=14) R(g,'#5a4a3a',x|0,h-7,3,7); } }); }
 const LIVERY={}, GLOWM={};
 const mBogie=M(null,{color:0x22242a}), mWheel=M(tSteel,{color:[.55,.55,.58]});
-function bogie(parent,x){ const b=N(parent,x,0,0); mk(box(3.6,.5,3.6),mBogie,b,0,-.66,0); for(const dx of [-1.25,1.25]) for(const z of [-GAUGE,GAUGE]) mk(cyl(.5,.5,.16,12),mWheel,b,dx,-.6,z,Math.PI/2); return b; }
+function bogie(parent,x){ const b=N(parent,x,0,0); mk(box(3.6,.5,GAUGE*2+.6),mBogie,b,0,-.66,0); for(const dx of [-1.25,1.25]) for(const z of [-GAUGE,GAUGE]) mk(cyl(.5,.5,.16,12),mWheel,b,dx,-.6,z,Math.PI/2); return b; }
 function buildCarExt(parent,W,x){ const n=N(parent,x,0,0);
   const mat=LIVERY[W.key]||(LIVERY[W.key]=M(liveryTex(W)));
   const secs=[]; for(let i=0;i<=14;i++){ const t=i/14; secs.push({x:-CAR_L/2+t*CAR_L,sz:1,sy:1,dy:0,u:t}); }
   mk(loft(secs),mat,n); bogie(n,-CAR_L*.36); bogie(n,CAR_L*.36);
-  mk(box(CAR_GAP+.1,3.6,3.6),M(null,{color:0x14161a}),n,CAR_L/2+CAR_GAP/2,1.7,0);
+  mk(box(CAR_GAP+.1,3.6,3.6+DW*2),M(null,{color:0x14161a}),n,CAR_L/2+CAR_GAP/2,1.7,0);
   const gm=GLOWM[W.key]||(GLOWM[W.key]=M(winGlowTex(W),{cut:true,emissive:W.glow,color:[.1,.1,.1]}));
   const gw=N(n); gw.vis=false; n.glow=gw;
   for(const s of [1,-1]){ const gp=plane(CAR_L,1.6,24,1); if(s<0) for(let i=0;i<gp.T.length;i+=2) gp.T[i]=1-gp.T[i]; mk(gp,gm,gw,0,1.82,s*(CAR_HW+.06),0,s>0?0:Math.PI,0); }
@@ -83,7 +83,7 @@ function setGlow(on){ for(const c of TRAIN_CARS) c.glow.vis=on; for(const c of S
    strip, vending machines, sakura planters, departure board listing the whole loop.
    ===================================================================================================== */
 (function buildStation(){
-  const S=STATION, TZ=-5.2;
+  const S=STATION, TZ=-5.2-DW;
   const tile=M(P2(32,32,(g,w,h)=>{ for(let y=0;y<4;y++) for(let x=0;x<4;x++) vfill(g,x*8,y*8,8,8,(x+y)%2?[[0,'#e8e2d4'],[1,'#ddd6c6']]:[[0,'#d4ccbc'],[1,'#c8c0b0']]); for(let k=0;k<4;k++){ R(g,'#b0a898',k*8,0,1,h); R(g,'#b0a898',0,k*8,w,1); } },6,3),{repeat:[18,5]});
   { const ed=M(null,{color:0x8a8478}); mk(box(40,1.0,10,{at:[0,-.5,0]}),F(ed,ed,ed,tile,ed),S,0,0,3.2); }
   mk(plane(40,.6),M(P2(64,8,(g,w,h)=>{ R(g,'#f2c230',0,0,w,h); for(let x=0;x<w;x+=3) for(let y=1;y<h;y+=3) R(g,'#d8a820',x,y,2,2); },0),{repeat:[16,1]}),S,0,.002,-1.4,-Math.PI/2);

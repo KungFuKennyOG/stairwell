@@ -52,7 +52,7 @@ function pKatana(g){ mk(box(.03,.035,.28),M(P2(8,16,(g,w,h)=>{ R(g,'#1a1214',0,0
     meta:{name:'Baikalskaya',city:'Lake Baikal',num:'03',sw:['#f2d890','#2a5aa8','#f2ece4','#8a2a2a','#d4ad5a'],crew:['volkov','volkovc'],weapon:2,
       note:'An underground palace in the Moscow-metro manner: a yellow barrel vault set with mosaic panels, white marble arcades, bronze chandeliers on chains and a red-and-grey granite floor. Freezing outside, warm and gold down here.',
       lamps:[lamp(-22,4.5,2,[1.3,1.0,.6],10),lamp(-8,4.8,2,[1.3,1.0,.6],10),lamp(8,4.8,2,[1.3,1.0,.6],10),lamp(22,4.5,2,[1.3,1.0,.6],10),lamp(0,4,-5,[.8,.65,.45],12),lamp(14,1.4,5.6,[1.0,.8,.5],4)],amb:[.36,.3,.24],cam:{t:[-7,2,2.5],th:.4,ph:1.2,r:18}}});
-  ST.baikal.H=12.4; const top=ST.baikal.top; vaultArc(top,9.8,-.8,2.6,16,yellow,C('#c8a050'),8);
+  ST.baikal.H=12.4; const top=ST.baikal.top; vaultArc(top,9.8+DW*.55,-.8-DW*.55,2.6,16,yellow,C('#c8a050'),8);
   /* mosaic panels set into the vault crown */ for(let x=-28;x<=28;x+=8){ const n=N(top,x,2.6+9.7,-.8); mk(wplane(3,2.4),mosaic,n,0,0,0,Math.PI/2,0,0); }
   /* marble arcade between platform and track */ for(let x=-28;x<=28;x+=4){ B(g,marble,x,0,-.6,.6,3.2,.6); B(g,C('#d4ad5a'),x,3.2,-.6,.8,.25,.8); B(g,marble,x,0,-.6,.8,.3,.8); }
   for(let x=-26;x<=26;x+=4) for(let k=0;k<6;k++){ const a=Math.PI*(k+.5)/6, ax=x+Math.cos(a)*-1.7; B(g,marble,ax,3.4+Math.sin(a)*1.2,-.6,.7,.2,.5,0,0,Math.PI/2-a); }
@@ -75,7 +75,7 @@ function pKatana(g){ mk(box(.03,.035,.28),M(P2(8,16,(g,w,h)=>{ R(g,'#1a1214',0,0
     meta:{name:'Meridiano Copacabana',city:'Rio',num:'06',sw:['#8a8680','#d8d0c0','#e0473a','#f2c230','#2a9a5a'],crew:['tremor','tremorc'],weapon:5,
       note:'Blasted out of raw granite like Cardeal Arcoverde, with the rock left bare and lit warm from below. A staircase covered in hundreds of bright mismatched tiles comes down from the beach, the platform floor has the wave mosaic of the promenade, and there are palms in the gaps.',
       lamps:[lamp(-22,2.2,6,[1.4,1.0,.6],10),lamp(-8,2.2,6,[1.4,1.0,.6],10),lamp(8,2.2,6,[1.4,1.0,.6],10),lamp(22,2.2,6,[1.4,1.0,.6],10),lamp(0,5,-3,[.8,.6,.5],14),lamp(-20,1.2,4.5,[1.2,.7,.4],5)],amb:[.3,.26,.24],cam:{t:[-7,2,2.5],th:.4,ph:1.2,r:18}}});
-  ST.rio.H=12.8; const top=ST.rio.top; vaultArc(top,10.2,-.9,2.6,12,rock,null,0);
+  ST.rio.H=12.8; const top=ST.rio.top; vaultArc(top,10.2+DW*.55,-.9-DW*.55,2.6,12,rock,null,0);
   /* boulders bulging out of the back wall */ const r=rng(53); for(let k=0;k<14;k++){ const x=-30+k*4.4+r()*2; mk(lathe([[0,.6,.4],[.6,1.1,.7],[1.4,.9,.6],[1.9,.2,.2]],7),rock,ST.rio.back,x,r()*1.2,SZ1-.4,0,r()*3,0); }
   /* the tiled staircase down from the beach */ const tileCols=['#e0473a','#f2c230','#2a9a5a','#2a6ad8','#f27ab0','#f2ece0','#e88a3a','#7ac0d8'];
   const tiles=M(P2(32,32,(g,w,h)=>{ const q=rng(54); for(let y=0;y<h;y+=4) for(let x=0;x<w;x+=4){ R(g,tileCols[q()*tileCols.length|0],x,y,4,4); if(q()<.3) ell(g,x+2,y+2,1,1,tileCols[q()*tileCols.length|0]); R(g,'#f2ece0',x,y,4,1); R(g,'#f2ece0',x,y,1,4); } },0,54));

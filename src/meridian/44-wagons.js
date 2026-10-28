@@ -5,7 +5,7 @@
    Walls face inward and are one-sided (orbit view sees in); dressing on each wall lives in that wall's
    side node so it hides with the wall.
    ===================================================================================================== */
-const WL=28, WZ=2.9, WH=3.4;
+const WL=28, WZ0=2.9, WZ=WZ0+DW, WH=3.4;
 const WG={};
 function wplane(w,h,tu=1,tv=1){ const g=plane(w,h,Math.max(1,Math.round(w/2)),Math.max(1,Math.round(h/1.5))); for(let i=0;i<g.T.length;i+=2){ g.T[i]*=w/tu; g.T[i+1]*=h/tv; } return g; }
 function B(g,m,x,y,z,w,h,d,ry=0,rx=0,rz=0){ return mk(box(w,h,d,{at:[0,h/2,0]}),m,g,x,y,z,rx,ry,rz); }
@@ -34,7 +34,7 @@ function shell(key,d){
     B(g,d.door||C('#3a3c40'),x-e*.05,0,0,.07,2.3,1.2); if(d.trim) B(g,d.trim,x-e*.05,2.28,0,.09,.07,1.32); }
   B(g,C('#14161a'),0,-.7,0,WL,.65,WZ*2); bogie(g,-CAR_L*.36); bogie(g,CAR_L*.36);
   const W=WAGONS.find(w=>w.key===key);
-  WG[key]={g,side,W,lamps:d.lamps||[],ambK:d.ambK??1,sunK:d.sunK??1,cam:d.cam||{t:[0,1.2,0],th:.55,ph:.95,r:17},minLamp:d.minLamp??0,spots:{},anim:[]};
+  WG[key]={n0:g.kids.length,s0:{'-1':side['-1'].kids.length,'1':side['1'].kids.length},g,side,W,lamps:d.lamps||[],ambK:d.ambK??1,sunK:d.sunK??1,cam:d.cam||{t:[0,1.2,0],th:.55,ph:.95,r:17},minLamp:d.minLamp??0,spots:{},anim:[]};
   return g; }
 const winsEvery=(n,w,x0=-12.4,x1=12.4)=>{ const out=[],step=(x1-x0)/(n-1); for(let i=0;i<n;i++){ const c=x0+i*step; out.push([c-w/2,c+w/2]); } return out; };
 const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,0,wd,h); R(g,b,x+wd,0,wd,h); } },6,wd);
@@ -310,3 +310,13 @@ const stripes=(a,b,wd=4)=>P2(16,16,(g,w,h)=>{ for(let x=0;x<w;x+=wd*2){ R(g,a,x,
   for(const [x,z] of [[-2,1.4],[2.5,1.6],[6,.4]]) for(let k=0;k<7;k++) B(g,C('#5a5e64'),x,WH-.12-k*.1,z,.04,.08,.07,0,k%2*.5);
   WG.baggage.spots={nico:{x:-.8,z:.4,ry:-Math.PI/2}};
 })();
+
+/* The Meridian is 9.2 m across, half again a real bullet train, so there is room to fight. The car builders
+   above lay out against a 5.8 m car; here everything they set near a wall slides out to the real wall and
+   the middle stays where it is, so the extra width becomes open floor between the two sides. */
+const WIDEN_AT=1.6, widenZ=z=>Math.abs(z)>=WIDEN_AT?z+Math.sign(z)*DW:z;
+for(const k in WG){ const w=WG[k];
+  for(const n of w.g.kids.slice(w.n0)) n.p[2]=widenZ(n.p[2]);
+  for(const s of ['-1','1']) for(const n of w.side[s].kids.slice(w.s0[s])) n.p[2]+=(+s)*DW;
+  for(const id in w.spots) w.spots[id].z=widenZ(w.spots[id].z);
+  for(const l of w.lamps) l[0][2]=widenZ(l[0][2]); }

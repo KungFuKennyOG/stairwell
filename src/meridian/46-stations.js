@@ -2,10 +2,10 @@
 /* =====================================================================================================
    UNDERGROUND STATIONS. Every stop is underground: the scenery swaps while you are down here, the crew
    boards on the platform, and your handler has left the next weapon somewhere on it. Platform top y=0,
-   the train on the far track at z=-5.2, the back wall at z=+8.5, 64 m long. Walls and ceilings face
+   the train on the far track at z=TZS (-6.7), the back wall at z=+8.5, 64 m long. Walls and ceilings face
    inward and are one-sided, so the orbit camera sees in from outside.
    ===================================================================================================== */
-const ST={}, SL=64, SZ0=-10.2, SZ1=8.5;
+const ST={}, SL=64, SZ0=-10.2-DW-.5, SZ1=8.5, TZS=-5.2-DW;
 const ARSENAL=[
   {stop:'Tokyo',weapon:'Suppressed pistol',how:'In a coin locker, key taped under the bench. Your holiday was supposed to be unarmed.'},
   {stop:'Hong Kong',weapon:'A second pistol',how:'Inside a takeaway box on the dim sum counter. Two hands, two guns.'},
@@ -22,13 +22,13 @@ function stationShell(key,o){
   mk(wplane(SL,.5),C('#d8b020'),g,0,.004,-1.5,-Math.PI/2);
   B(g,o.edge||C('#5a5654'),0,-1.4,-1.62,SL,1.4,.3);
   mk(wplane(SL,SZ1-SZ0,2,2),M(sleeperTex(),{color:[.55,.55,.55]}),g,0,-1.25,(SZ1+SZ0)/2-6,-Math.PI/2);
-  for(const z of [-5.2-GAUGE,-5.2+GAUGE]) B(g,C('#8c9096'),0,-1.1,z,SL,.16,.09);
+  for(const z of [TZS-GAUGE,TZS+GAUGE]) B(g,C('#8c9096'),0,-1.1,z,SL,.16,.09);
   mk(wplane(SL,o.H,o.wallTile||1,o.wallTile||1),o.back,g,0,o.H/2,SZ1,0,Math.PI,0);
   mk(wplane(SL,o.H+1.4,o.wallTile||1,o.wallTile||1),o.far||o.back,g,0,o.H/2-.7,SZ0,0,0,0);
   for(const e of [-1,1]) mk(wplane(SZ1-SZ0,o.H+1.4,o.wallTile||1,o.wallTile||1),o.end||o.back,g,e*SL/2,o.H/2-.7,(SZ1+SZ0)/2,0,e<0?Math.PI/2:-Math.PI/2,0);
   if(o.ceil) mk(wplane(SL,SZ1-SZ0,o.ceilTile||1.5,o.ceilTile||1.5),o.ceil,g,0,o.H,(SZ1+SZ0)/2,Math.PI/2);
-  [WAGONS[7],WAGONS[8]].forEach((W,i)=>{ const c=buildCarExt(g,W,(i-.5)*CAR_PITCH); c.p[2]=-5.2; c.glow.vis=true; });
-  ST[key]=Object.assign({g,side,anim:[],back:N(g),top:N(g),H:o.H},o.meta); return g; }
+  [WAGONS[7],WAGONS[8]].forEach((W,i)=>{ const c=buildCarExt(g,W,(i-.5)*CAR_PITCH); c.p[2]=TZS; c.glow.vis=true; });
+  ST[key]=Object.assign({g,side,anim:[],back:N(g),top:N(g),H:o.H,H0:o.H},o.meta); return g; }
 /* a weapon left for you: an open case, the gun inside, a soft light and a glint ring on the floor */
 function weaponDrop(g,x,z,kind,caseCol){
   const n=N(g,x,0,z); const ring=mk(plane(1.6,1.6),M(tRing,{unlit:true,cut:true,color:0xf5c542}),n,0,.012,0,-Math.PI/2);
@@ -103,7 +103,7 @@ function pRifleM(g){ const wood=M(woodT('#5a3a24','#3a2416',303)); mk(box(.045,.
       note:'A Victorian tube hall dug out to fit the Meridian: one long barrel vault of cream tile over both tracks, a green-and-maroon band, poster frames, a big platform clock and puddles that never dry. The firm come down the stairs singing.',
       lamps:[lamp(-22,5,2,[1.15,.95,.7],10),lamp(-8,5.4,1,[1.15,.95,.7],10),lamp(8,5.4,1,[1.15,.95,.7],10),lamp(22,5,2,[1.15,.95,.7],10),lamp(0,4,-5,[.8,.7,.55],12),lamp(16,1.6,6,[1.0,.8,.5],4)],amb:[.3,.27,.24],cam:{t:[-7,2,1],th:.5,ph:1.18,r:18}}});
   /* the barrel vault: planes round an arc over both tracks and the platform, facing in */
-  const R0=9.6, zc=-1.0, yc=2.4, segs=14;
+  const R0=9.6+DW*.55, zc=-1.0-DW*.55, yc=2.4, segs=14;
   for(let i=0;i<segs;i++){ const a0=-Math.PI/2+i/segs*Math.PI, a1=-Math.PI/2+(i+1)/segs*Math.PI, am=(a0+a1)/2, len=2*R0*Math.sin((a1-a0)/2);
     const y=yc+Math.cos(am)*R0, z=zc+Math.sin(am)*R0; mk(wplane(SL,len,1.6,1.6),cream,g,0,y,z,am+Math.PI/2,0,0); }
   for(let x=-30;x<=30;x+=6){ for(let i=0;i<segs;i++){ const a=-Math.PI/2+i/segs*Math.PI; if(Math.sin(a)>.1) continue; B(g,C('#2a4a3a'),x,yc+Math.cos(a)*(R0-.05)-.1,zc+Math.sin(a)*(R0-.05),.25,.2,R0*Math.PI/segs*1.02,0,a,0); } }

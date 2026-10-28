@@ -2,7 +2,7 @@
 /* =====================================================================================================
    VIEWS, CAMERA, LIGHT, LOOP
    ===================================================================================================== */
-const FP={cab:[9.7,1.95,-.9,0],casino:[-7,1.6,1.4,-.08],pool:[-6.2,1.05,1.9,-.02],pub:[-10.9,1.2,2.25,-.12],trattoria:[-8.1,1.15,-1.7,.1],banya:[3.6,1.25,1.6,-.05],dimsum:[-12.1,1.15,-1.2,.05],capsule:[-10.5,1.8,-2.2,-Math.PI/2],aquarium:[-2.5,1.25,-1.4,Math.PI/2],baggage:[-8.5,1.1,1.6,0]};
+const FP=Object.fromEntries(Object.entries({cab:[9.7,1.95,-.9,0],casino:[-7,1.6,1.4,-.08],pool:[-6.2,1.05,1.9,-.02],pub:[-10.9,1.2,2.25,-.12],trattoria:[-8.1,1.15,-1.7,.1],banya:[3.6,1.25,1.6,-.05],dimsum:[-12.1,1.15,-1.2,.05],capsule:[-10.5,1.8,-2.2,-Math.PI/2],aquarium:[-2.5,1.25,-1.4,Math.PI/2],baggage:[-8.5,1.1,1.6,0]}).map(([k,v])=>[k,[v[0],v[1],widenZ(v[2]),v[3]]]));
 const state={view:'route',ps1:true,res:480,snap:true,affine:true,dither:true,scene:'tokyonight',wagon:'casino',fp:false,speed:30,castPose:'fight',station:'tokyo',focusCar:-1};
 try{ if(matchMedia('(prefers-reduced-motion: reduce)').matches) state.speed=0; }catch(e){}
 const cam={t:[0,1,0],th:.7,ph:1.2,r:16},goal={t:[0,1,0],th:.7,ph:1.2,r:16},fpv={yaw:0,pitch:-.04,gy:0,gp:-.04};
@@ -91,7 +91,7 @@ function renderCard(){ card.innerHTML='';
     const d=el('p','body'); d.append(el('b',null,'Left for you: '+A.weapon+'. '),A.how); card.append(d);
     if(st.drop2){ const d2=el('p','body'); d2.append(el('b',null,'On the last night: '+ARSENAL[7].weapon+'. '),ARSENAL[7].how); card.append(d2); }
     const row=el('div','row'); for(const k of STATION_ORDER){ const b=el('button','btn'+(k===state.station?'':' ghost'),ST[k].city); b.type='button'; b.addEventListener('click',()=>{ setStation(k); renderCard(); }); row.append(b); } card.append(row);
-    if(st.screen){ const mb=el('button','btn ghost','Look at the map'); mb.type='button'; mb.addEventListener('click',()=>setGoal({t:[st.screen.x,st.screen.cy,st.screen.z],th:st.screen.ry,ph:1.52,r:7.2})); const r2=el('div','row'); r2.append(mb); card.append(r2); }
+    if(st.map){ const mb=el('button','btn ghost','Look at the map'); mb.type='button'; mb.addEventListener('click',()=>setGoal({t:[st.map.x,st.map.y,st.map.z],th:Math.PI,ph:1.5,r:st.map.w*.95})); const r2=el('div','row'); r2.append(mb); card.append(r2); }
     card.append(el('p','seg-label','Your arsenal, stop by stop'),listOf(ARSENAL.map((a,i)=>({id:i,num:String(i+1).padStart(2,'0'),name:a.weapon,sub:a.stop,note:a.how})),st.weapon,()=>{}));
     card.append(el('p','body','Every stop is underground. While you are on the platform the old city is unloaded and the next one loads, so you never see the switch: the train climbs out of the tunnel into the new place.'));
   } else {

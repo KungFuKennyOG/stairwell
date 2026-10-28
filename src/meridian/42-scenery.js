@@ -5,7 +5,8 @@
    Every outside surface faces the track and is single-sided, so a camera outside it sees straight through.
    ===================================================================================================== */
 const OUT=N(world);
-const GROUND_Y=-1.4, RAIL_Y=-1.1, GAUGE=1.5;
+/* DW: how much wider than a real bullet train each side of the Meridian is (it is 9.2 m across) */
+const GROUND_Y=-1.4, RAIL_Y=-1.1, DW=1.5, GAUGE=2.3;
 const scrollers=[];
 let travel=0;
 function planeUV(w,h,flipU){ const g=plane(w,h,1,1); if(flipU) for(let i=0;i<g.T.length;i+=2) g.T[i]=1-g.T[i]; return g; }
@@ -16,15 +17,15 @@ const TRACK=N(OUT);
 (function buildTrack(){
   const mRail=M(null,{color:0x8c9096}), mBase=M(null,{color:0x4a4642});
   for(const z of [-GAUGE,GAUGE]){ mk(box(360,.16,.09),mRail,TRACK,0,RAIL_Y-.08,z); mk(box(360,.07,.18),mBase,TRACK,0,RAIL_Y-.18,z); }
-  const sl=M(sleeperTex(),{unlit:true,color:[.85,.85,.85]}), g=planeUV(12,4.6);
+  const sl=M(sleeperTex(),{unlit:true,color:[.85,.85,.85]}), g=planeUV(12,6.6);
   for(let i=0;i<30;i++){ const n=mk(g,sl,TRACK,0,RAIL_Y-.22,0,-Math.PI/2); addScroll(n,(i-15)*12,360,1,'*'); }
 })();
 const POLES=N(OUT), POLE_ARMS=[];
 (function buildPoles(){
   const m=M(null,{color:0x5a5e62}), mw=M(null,{color:0x2a2c2e});
   for(let i=0;i<10;i++){ const side=i%2?1:-1, n=N(POLES,0,0,0); addScroll(n,(i-5)*36,360,1,'poles');
-    mk(box(.3,10.6,.3),m,n,0,GROUND_Y+5.3,side*4.9); const arm=N(n); POLE_ARMS.push(arm);
-    mk(box(.16,.16,5.0),m,arm,0,GROUND_Y+10.0,side*2.45); mk(box(.08,.6,.08),m,arm,0,GROUND_Y+9.7,0); }
+    mk(box(.3,10.6,.3),m,n,0,GROUND_Y+5.3,side*(4.9+DW)); const arm=N(n); POLE_ARMS.push(arm);
+    mk(box(.16,.16,5.0+DW),m,arm,0,GROUND_Y+10.0,side*(2.45+DW/2)); mk(box(.08,.6,.08),m,arm,0,GROUND_Y+9.7,0); }
   const wire=mk(box(360,.04,.04),mw,POLES,0,GROUND_Y+9.35,0); POLE_ARMS.push(wire);
 })();
 
@@ -49,7 +50,7 @@ function buildScene(key){
     const t=water?P2(64,64,(g,w,h)=>{ R(g,col,0,0,w,h); const r=rng(5); for(let i=0;i<70;i++) R(g,rgba('#ffffff',.18+r()*.2),r()*w|0,r()*h|0,3+(r()*5|0),1); },6,5):flatTex(col,seed+s);
     mk(plane(460,230),M(t,{unlit:true,repeat:[70,35]}),root,0,y,s*115,-Math.PI/2); }
   for(const side of ['pos','neg']){ const s=side==='pos'?1:-1, vt=M(vergeFor(S.verge[side]),{unlit:true}), g=planeUV(24,7.2,s>0);
-    for(let i=0;i<14;i++){ const n=mk(g,vt,root,0,GROUND_Y+.01,s*7.2,-Math.PI/2); addScroll(n,(i-7)*24,336,1,key); }
+    for(let i=0;i<14;i++){ const n=mk(g,vt,root,0,GROUND_Y+.01,s*(7.2+DW),-Math.PI/2); addScroll(n,(i-7)*24,336,1,key); }
     const bt=M(sleeperTex(),{unlit:true,color:[.7,.7,.7]}), gb=planeUV(12,1.5);
     for(let i=0;i<28;i++){ const n=mk(gb,bt,root,0,GROUND_Y+.02,s*3.0,-Math.PI/2); addScroll(n,(i-14)*12,336,1,key); } }
   if(S.undersea) buildUndersea(sc);
@@ -62,7 +63,7 @@ function buildScene(key){
         for(let i=0;i<count;i++){ const n=mk(g,mats[(i+(s>0?1:0))%2],root,0,yb+h/2,s*z,0,s>0?Math.PI:0,0); addScroll(n,(i-count/2)*tw+(s>0?tw*.37:0),tw*count,k,key); } }); }
   }
   if(S.props){ const r=rng(seed+77); for(const side of ['pos','neg']){ const s=side==='pos'?1:-1;
-    for(let i=0;i<16;i++){ const [t,pw,ph]=S.props[(r()*S.props.length)|0], z=s*(5.2+r()*4.4);
+    for(let i=0;i<16;i++){ const [t,pw,ph]=S.props[(r()*S.props.length)|0], z=s*(5.2+DW+r()*4.4);
       const n=mk(planeUV(pw,ph,s>0),M(t,{unlit:true,cut:true}),root,0,GROUND_Y+ph/2,z,0,s>0?Math.PI:0,0); addScroll(n,(i/16)*336-168+r()*12,336,1,key); } } }
   /* weather: petals drift, snow falls, rain streaks, bubbles rise */
   const P=S.particles||(S.undersea?'bubble':null);
@@ -72,9 +73,9 @@ function buildScene(key){
   root.vis=false; SCN[key]=sc; return sc;
 }
 function buildUndersea(sc){ const root=sc.root, rib=M(null,{color:0xa8c0c8}), glow=M(null,{unlit:true,color:0xbfefff});
-  const ring=torus(5.6,.12,4,24);
+  const UR=5.6+DW, ring=torus(UR,.12,4,24);
   for(let i=0;i<36;i++){ const n=N(root,0,0,0); addScroll(n,(i-18)*10,360,1,sc.key); mk(ring,rib,n,0,GROUND_Y+3.6,0,0,Math.PI/2,0); mk(box(.5,.08,.08),glow,n,0,GROUND_Y+9.15,0); }
-  for(let k=0;k<7;k++){ const a=Math.PI*(.15+k*.7/6)*1.0+Math.PI*.35; const y=GROUND_Y+3.6+Math.sin(a)*5.6,z=Math.cos(a)*5.6; for(const s of [1,-1]) mk(box(360,.05,.05),rib,root,0,y,s*z); }
+  for(let k=0;k<7;k++){ const a=Math.PI*(.15+k*.7/6)*1.0+Math.PI*.35; const y=GROUND_Y+3.6+Math.sin(a)*UR,z=Math.cos(a)*UR; for(const s of [1,-1]) mk(box(360,.05,.05),rib,root,0,y,s*z); }
   const tex={whale:fishTex('whale'),shoal:fishTex('shoal'),gold:fishTex('gold')}, r=rng(91);
   for(let i=0;i<10;i++){ const kind=i<2?'whale':i%2?'shoal':'gold', s=i%2?1:-1, z=s*(16+r()*28), sz=kind==='whale'?[14,5.2]:[5,2.5];
     const n=mk(planeUV(sz[0],sz[1],s>0),M(tex[kind],{unlit:true,cut:true}),root,0,GROUND_Y+3+r()*12,z,0,s>0?Math.PI:0,0);
