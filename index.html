@@ -1230,10 +1230,10 @@ function setPose(E,name,t){
   return rel;
 }
 function clutch(E,M){ /* a free hand pressed on the worst wound, solved in pose space */
-  const w=E.wounds.filter(x=>!x.piece).reduce((a,b)=>!a||b.rate>a.rate?b:a,null); if(!w) return false;
+  const w=E.wounds.find(x=>x.part==='neck'&&!x.piece)||E.wounds.filter(x=>!x.piece).reduce((a,b)=>!a||b.rate>a.rate?b:a,null); if(!w) return false;
   const p=mulP(M[w.bone],w.lp),n=norm3(mv(rotOf(M[w.bone]),w.ln)),tgt=v3.add(p,v3.sc(n,.06));
   const sides=w.part==='neck'?['L','R']:[E.hp.armL>=E.hp.armR?'L':'R'];
-  for(const s of sides){ if(E.hp['arm'+s]<.35) continue; if(s===E.wpnHand&&E.wpnHeld) continue; ikArm(E.J,s,v3.add(tgt,[s==='L'?.02:-.02,0,0])); }
+  for(const s of sides){ if(E.hp['arm'+s]<.35) continue; if(s===E.wpnHand&&E.wpnHeld) continue; ikArm(E.J,s,v3.add(tgt,w.part==='neck'?[s==='L'?.045:-.045,-.015,-.01]:[s==='L'?.02:-.02,0,0])); }
   return true;
 }
 const rotOf=m=>[[m[0],m[1],m[2]],[m[4],m[5],m[6]],[m[8],m[9],m[10]]];
@@ -1241,15 +1241,16 @@ const rotOf=m=>[[m[0],m[1],m[2]],[m[4],m[5],m[6]],[m[8],m[9],m[10]]];
 function targetsFor(E,t,dt=1){
   const J=E.J,B=E.B; let pose='idle';
   const st=E.st;
+  const throat=!E.dead&&E.wounds.some(w=>w.part==='neck'&&!w.piece); /* a man holding his throat shut doesn't beg */
   if(st==='idle') pose='idle'; else if(st==='alert') pose='fight';
-  else if(st==='kneel') pose=E.near?'beg':'kneel';
+  else if(st==='kneel') pose=E.near&&!throat?'beg':'kneel';
   else if(st==='down'){ pose=E.fallT>0?'kneel':E.downMode||'writhe'; }
   else pose='writhe';
   const rel=setPose(E,pose,t);
   /* walking legs and attack swings, layered over the pose */
-  if(st==='alert'&&E.walkAmt>.01){ const a=E.walkAmt,ph=E.walkPh;
-    J.thighL.r[0]+=-Math.sin(ph)*.5*a; J.thighR.r[0]+=Math.sin(ph)*.5*a; J.kneeL.r[0]+=(.15+.65*Math.max(0,-Math.cos(ph)))*a; J.kneeR.r[0]+=(.15+.65*Math.max(0,Math.cos(ph)))*a;
-    J.armL.r[0]+=Math.sin(ph)*.25*a; }
+  if(st==='alert'&&E.walkAmt>.01){ const a=E.walkAmt,ph=E.walkPh,rn=E.runAmt||0,sw=.5+.4*rn;
+    J.thighL.r[0]+=-Math.sin(ph)*sw*a-.15*rn; J.thighR.r[0]+=Math.sin(ph)*sw*a-.15*rn; J.kneeL.r[0]+=(.15+.25*rn+(.65+.75*rn)*Math.max(0,-Math.cos(ph)))*a; J.kneeR.r[0]+=(.15+.25*rn+(.65+.75*rn)*Math.max(0,Math.cos(ph)))*a;
+    J.armL.r[0]+=Math.sin(ph)*(.25+.45*rn)*a; if(rn>.05){ J.elbowL.r[0]=lerp(J.elbowL.r[0],-1.3,rn); if(E.atkT<0){ J.armR.r[0]+=-Math.sin(ph)*.35*rn; } J.spine.r[0]+=.25*rn; J.hips.p[1]-=.04*rn; } }
   if(st==='alert'&&E.atkT>=0&&E.kind!=='gunman'){ const k=E.atkT; const wind=Math.min(1,k/.35),strike=clamp((k-.35)/.18,0,1);
     const h=E.wpnHand,sg=h==='R'?1:-1,A=J['arm'+h],El=J['elbow'+h],base=(h==='R'?E.fightJ:E.fightJL)['arm'+h][0];
     if(E.kind==='cutter'){ A.r=[lerp(lerp(base,-2.9,wind),-.5,strike),0,.25*sg]; El.r=[lerp(-1.2,-.2,strike),0,0]; J.spine.r[0]=lerp(-.1,.35,strike); }
@@ -1260,9 +1261,10 @@ function targetsFor(E,t,dt=1){
     const s=E.wpnHand,M0=fkMats(J),sh=mulP(M0['arm'+s],[0,0,0]),pt=mtv(ryM(E.hd),[PL.x-E.pos[0],1.42,PL.z-E.pos[1]]),a=norm3(v3.sub(pt,sh));
     ikArm(J,s,v3.add(sh,v3.add(v3.sc(a,.5),[s==='L'?-.05:.05,-.03,0]))); }
   if(st==='idle'){ J.spine.r[0]+=Math.sin(t*1.5+E.t0)*.02; J.head.r[1]+=Math.sin(t*.4+E.t0)*.3; }
+  if(throat&&(st==='kneel'||st==='down'&&pose!=='crawl'&&pose!=='scoot')){ J.neck.r=[.5,0,0]; J.head.r=[.35,0,0]; J.spine.r[0]=Math.max(J.spine.r[0],.45); }
   let M=fkMats(J);
   E.handRot={L:J.handL.r.slice(),R:J.handR.r.slice()};
-  if(!E.dead&&E.wounds.length&&(st==='kneel'&&!E.near||st==='down'&&(pose==='writhe'||pose==='downbeg'))){ if(clutch(E,M)) M=fkMats(J); }
+  if(!E.dead&&E.wounds.length&&(st==='kneel'&&(!E.near||throat)||throat&&st==='down'||st==='down'&&(pose==='writhe'||pose==='downbeg'))){ if(clutch(E,M)) M=fkMats(J); }
   const P=posePts(J,E.o,M);
   const Hp=frameFrom(P[PI_.hipL],P[PI_.hipR],P[PI_.pelvis],P[PI_.chest]),pel=P[PI_.pelvis],Ry=ryM(E.hd);
   /* poses blend over a few frames instead of snapping, so switching from writhing to crawling doesn't flip the body */
@@ -1646,10 +1648,12 @@ function think(E,dt,t){
       const k=Math.min(1,dt*2.5); E.aimYaw=clamp((E.aimYaw||0)+ye*k,-.7,.7); E.aimPit=clamp((E.aimPit||0)+(Math.asin(tp[1])-Math.asin(g.d[1]))*k,-.35,.35); }
     const want=Math.atan2(toP[0],toP[1])+(E.wpnHeld&&!E.oneHand?E.aimYaw||0:0); let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; const tr=E.stun>.3?0:2*(1-E.stun); E.hd+=clamp(dh,-tr*dt,tr*dt);
     const keep=E.kind==='gunman'&&E.wpnHeld?3.6:1.25;
-    if(dist>keep+.15&&E.atkT<0&&E.stun<.4){ const sp=(E.kind==='gunman'?.8:1.05)*(.55+.45*legs)*E.rise; let dir=norm3([toP[0],0,toP[1]]);
+    if(dist>keep+.15&&E.atkT<0&&E.stun<.4){ const melee=E.kind!=='gunman',sp=(melee?lerp(1.2,3.4,clamp((dist-1.7)/2.2,0,1)):.8)*(.55+.45*legs)*E.rise; /* blades charge at you; they ease off in the last couple of metres so they arrive swinging, not sliding */
+      E.runAmt=lerp(E.runAmt||0,clamp((sp-1.3)/1.6,0,1),Math.min(1,dt*5)); let dir=norm3([toP[0],0,toP[1]]);
       for(const a of [0,.7,-.7,1.3,-1.3]){ const c=Math.cos(a),s=Math.sin(a),dd=[dir[0]*c+dir[2]*s,0,-dir[0]*s+dir[2]*c],ah=[E.pos[0]+dd[0]*.55,E.pos[1]+dd[2]*.55];
         if(!BOXES.some(b=>ah[0]>b.x0-.3&&ah[0]<b.x1+.3&&ah[1]>b.z0-.3&&ah[1]<b.z1+.3)){ dir=dd; break; } }
-      E.pos[0]+=dir[0]*sp*dt; E.pos[1]+=dir[2]*sp*dt; E.walkAmt=lerp(E.walkAmt,1,Math.min(1,dt*8)); E.walkPh+=dt*sp*6.2; }
+      E.pos[0]+=dir[0]*sp*dt; E.pos[1]+=dir[2]*sp*dt; E.walkAmt=lerp(E.walkAmt,1,Math.min(1,dt*8)); E.walkPh+=dt*(sp<1.3?sp*6.2:7.2+sp*.9); }
+    else E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6));
     for(const b of BOXES){ const r=.28,px=E.pos[0],pz=E.pos[1]; if(px>b.x0-r&&px<b.x1+r&&pz>b.z0-r&&pz<b.z1+r){ const pens=[px-(b.x0-r),(b.x1+r)-px,pz-(b.z0-r),(b.z1+r)-pz]; const m=pens.indexOf(Math.min(...pens)); if(m===0) E.pos[0]=b.x0-r; else if(m===1) E.pos[0]=b.x1+r; else if(m===2) E.pos[1]=b.z0-r; else E.pos[1]=b.z1+r; } }
     for(const O of enemies) if(O!==E){ const op=O.st==='alert'||O.st==='idle'?O.pos:[O.B.x[0],O.B.x[2]],R=O.st==='alert'||O.st==='idle'?.7:.95,dx=E.pos[0]-op[0],dz=E.pos[1]-op[1],d=Math.hypot(dx,dz); if(d<R&&d>1e-3){ E.pos[0]+=dx/d*(R-d)*.5; E.pos[1]+=dz/d*(R-d)*.5; } }
     E.pos[0]=clamp(E.pos[0],-RX+.35,RX-.35); E.pos[1]=clamp(E.pos[1],-RZ+.35,RZ-.35);
@@ -1664,7 +1668,7 @@ function think(E,dt,t){
     const Rh=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),pel,X_(B,PI_.chest)),up=Rh[2][1];
     const canMove=E.cons>.35&&Math.max(E.hp.armL,E.hp.armR)>.35&&!E.wounds.some(w=>w.part==='neck');
     if(E.knocked||E.downT<1.3) E.downMode='writhe'; /* first lie there and hurt, then start dragging */
-    else if(dist<2.2&&E.cons>.3) E.downMode='downbeg';
+    else if(dist<2.2&&E.cons>.3&&!E.wounds.some(w=>w.part==='neck'&&!w.piece)) E.downMode='downbeg';
     else if(canMove&&dist<6){ E.downMode=up>(E.downMode==='crawl'?.45:.2)?'scoot':up<(E.downMode==='scoot'?-.45:-.2)?'crawl':(E.downMode==='scoot'||E.downMode==='crawl'?E.downMode:'writhe');
       if(E.downMode!=='writhe'){ const away=norm3([-toP[0],0,-toP[1]]),k=Math.sin((t+E.t0)*2.4); E.crawlF=[away[0],away[2],Math.max(0,E.downMode==='crawl'?Math.abs(k):Math.abs(Math.sin((t+E.t0)*2.6)))*.55*E.cons]; } }
     else E.downMode='writhe';
@@ -1678,11 +1682,12 @@ function think(E,dt,t){
     const neck=E.wounds.some(w=>w.part==='neck');
     if(neck&&E.wounds.length) bark(E,pick(LINES.neck));
     else if(E.cons<.4&&E.wounds.length) bark(E,pick(LINES.dying),3.2);
+    else if((E.st==='kneel'||E.st==='down')&&E.wounds.some(w=>w.part==='neck'&&!w.piece)) bark(E,pick(LINES.neck));
     else if((E.st==='kneel'||E.st==='down')&&E.near) bark(E,Math.random()<.35?E.extra:pick(LINES.beg));
     else if(E.st==='down'&&E.downMode!=='writhe'){ const f=enemies.filter(o=>o!==E); bark(E,Math.random()<.5&&f.length?pick(LINES.call(pick(f).name)):pick(LINES.crawl)); }
     if(E.barkT>0) GAME.barkGlobal=.8; }
   /* face */
-  const face=E.st==='kneel'&&E.near||E.downMode==='downbeg'&&E.st==='down'?'beg':(E.wounds.length||E.stun>.35)?'hurt':'fight';
+  const face=E.st==='kneel'&&E.near&&!E.wounds.some(w=>w.part==='neck')||E.downMode==='downbeg'&&E.st==='down'?'beg':(E.wounds.length||E.stun>.35)?'hurt':'fight';
   if(face!==E.face){ E.face=face; E.J.headMesh.mesh.mats[0]=E.C.faceM[face]; E.J.headMesh.mesh.runs=null; }
 }
 function switchHand(E,s){ /* the good hand takes the weapon; a two-handed grip becomes one-handed */
