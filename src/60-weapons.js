@@ -14,7 +14,7 @@ const WPN={
   axe:     {label:'Fire axe',build:pAxe,grip:[0,0,.04],fore:[0,0,.34],melee:'knife',bleed:1.6,sever:3,stun:1.6,push:2,chop:true,heavy:true,reach:1.6,pts:[[0,-.13,.6],[0,-.07,.6],[0,.0,.6]],speed:2},
   revolver:{label:'.38 revolver',build:pRevolver,grip:[0,-.035,-.015],gun:true,mag:6,rof:.3,muzzle:[0,.036,.15],axisY:.036,push:1.3,loadOne:true,snd:'revolver'},
   pistol:  {label:'9mm pistol',build:pPistol,grip:[0,-.035,-.005],gun:true,mag:12,rof:.11,muzzle:[0,.045,.17],axisY:.045},
-  shotgun: {label:'Pump shotgun',build:pShotgun,grip:[0,-.04,-.08],fore:[0,-.02,.24],gun:true,mag:5,rof:.8,muzzle:[0,.02,.6],axisY:.02,pellets:9,spread:.05,bleed:.5,sever:.55,push:.5,loadOne:true,snd:'shotgun'},
+  shotgun: {label:'Pump shotgun',build:pShotgun,grip:[0,-.04,-.08],fore:[0,-.02,.24],gun:true,mag:5,rof:.8,muzzle:[0,.02,.6],axisY:.02,pellets:9,spread:.05,bleed:.5,sever:.7,push:.5,loadOne:true,snd:'shotgun'},
   smg:     {label:'Compact SMG',build:pSMG,grip:[0,-.07,-.07],fore:[0,-.03,.12],gun:true,mag:30,rof:.07,auto:true,muzzle:[0,.012,.23],axisY:.012,spread:.014,snd:'smg'}
 };
 const WPN_KEYS=['fists','bottle','knife','machete','axe','revolver','pistol','shotgun','smg'];
@@ -96,7 +96,7 @@ function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye
   return true; }
 function bullet(o,d,w,h){
   const wall=rayRoom(o,d),hit=rayEnemiesExact(o,d,wall.t);
-  if(hit){ const p=hit.p; hitEnemy(hit.E,hit.seg,p,d,'gun',{bleed:w.bleed||1,sever:w.sever||1,push:w.push||1});
+  if(hit){ const p=hit.p; hitEnemy(hit.E,hit.seg,p,d,'gun',{bleed:w.bleed||1,sever:w.sever||1,push:w.push||1,pellet:!!w.pellets});
     const back=rayRoom(v3.add(p,v3.sc(d,.25)),d); if(back.t<2.6){ const wp=v3.add(v3.add(p,v3.sc(d,.25+back.t)),v3.sc(back.n,.004)); addDecal(DEC.splat,wp,back.n,rnd(.16,.3),260,back.n[1]===0?rnd(.25,.45):undefined); }
     if(hit.t<1.3) screenBlood(w.pellets?1:3); hitMarker(); if(XR.on) buzz(h.hand,.4,40); }
   else { const p=v3.add(v3.add(o,v3.sc(d,wall.t)),v3.sc(wall.n,.004)); addDecal(DEC.hole,p,wall.n,.028,140); for(let i=0;i<(w.pellets?2:8);i++) emit(p,v3.add(v3.sc(wall.n,rnd(.6,1.6)),[rnd(-.5,.5),rnd(0,.8),rnd(-.5,.5)]),rnd(.006,.012),'dust',.8); } }

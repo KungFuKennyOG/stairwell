@@ -510,7 +510,8 @@ function hitEnemy(E,seg,point,dir,weapon,o={}){
   E.stun=Math.min(1,E.stun+(D.stun||.3)*(behind?1.6:1)*ost); E.hitT=0;
   /* enough damage to one limb takes it off */
   const limb=key==='head'||key==='neck'?'head':key==='uarm'||key==='farm'?'arm'+side:key==='thigh'||key==='shin'||key==='foot'?'leg'+side:null;
-  if(limb&&!E.cut[limb]&&weapon!=='kick'){ E.sev[limb]+=(weapon==='gun'?(limb==='head'?.55:key==='foot'?.25:.4):(limb==='head'?(key==='neck'?.36:.12):.3))*os; if(E.sev[limb]>=1) sever(E,limb,dir); }
+  /* only a close shotgun blast or a heavy chop takes a limb off; pistol rounds and small knives don't */
+  if(limb&&!E.cut[limb]&&(o.pellet||o.chop)){ E.sev[limb]+=(weapon==='gun'?(limb==='head'?.55:key==='foot'?.25:.4):(limb==='head'?(key==='neck'?.36:.12):.3))*os; if(E.sev[limb]>=1) sever(E,limb,dir); }
   /* what he says */
   if(!E.headshot&&(!fatal||fatal==='throat')&&E.barkCd<1.2){ const L_=key==='neck'?LINES.neck:weapon==='knife'?LINES.stab:key==='thigh'||key==='shin'||key==='foot'?LINES.leg:key==='uarm'||key==='farm'?LINES.arm:LINES.torso; bark(E,pick(L_),2.2); }
   if(behind){ E.silent=true; if(!E.aware){ E.aware=true; E.st='kneel'; dropWeapon(E); } }
