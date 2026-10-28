@@ -3,8 +3,7 @@
    - Blades sit in the hand the way you really hold them: the handle runs through the fist (the controller's
      grip pose), the blade comes out over the thumb with a slight forward lean, the edge faces your knuckles.
      A/X flips a knife or bottle into a reverse (ice-pick) grip and back.
-   - Weight: the machete lags a little behind your hand, the axe a lot and its head sags. Two hands on the
-     axe (grab the handle anywhere) and it follows you properly and hits at full power.
+   - Weight: the machete lags a little behind your hand and its tip sags.
    - Speed is damage. A lazy swing just bumps off him.
    - A hard thrust point-first sinks the blade and it STAYS IN. Your hand stays on the handle; he's pulled
      around by it. Work it and he screams and bleeds more. Pull hard to rip it out (the blood follows it).
@@ -14,10 +13,10 @@
 const MEL={tilt:0,yaw:2}; /* Kenny's picks on the Quest: blade straight out of the fist, hands turned out 5° */
 const MELEE_TILT=[0,.44,.79],MELEE_TILT_LBL=['0°','25°','45°'];        /* blade lean forward from the grip axis */
 const HAND_YAW=[5,0,-5],HAND_YAW_LBL=['IN 5°','0°','OUT 5°'],HAND_DROP=.015; /* small correction to where the hands sit */
-const WEIGHT={machete:16,axe:5.5};    /* how fast the weapon catches up with your hand (1/s); missing = rigid */
-const SAG={machete:.1,axe:.42};        /* radians the head droops when held one-handed */
-const BURY={knife:.06,bottle:.04,machete:.09,axe:.035};
-const STICKS={knife:1,machete:1,axe:1};
+const WEIGHT={machete:16};    /* how fast the weapon catches up with your hand (1/s); missing = rigid */
+const SAG={machete:.1};        /* radians the head droops when held one-handed */
+const BURY={knife:.06,bottle:.04,machete:.09};
+const STICKS={knife:1,machete:1};
 
 /* ---------- quaternions for the weight lag ---------- */
 function qFromCols(X,Y,Z){ const tr=X[0]+Y[1]+Z[2]; let x,y,z,w;
@@ -61,7 +60,7 @@ function startStuck(h,E,bone,seg,chop){
   const L=m4.make(); m4.mul(L,rigidInv(Mb),Mi);
   h.stuck={E,bone,seg,L,work:0,prevC:mulP(h.M,FIST),t:0,wound:E.wounds[E.wounds.length-1]};
   E.impaled=(E.impaled||0)+1; E.stun=Math.max(E.stun,.9); h.prevPts=null; h.melQ=null;
-  if(!E.dead){ faceHold(E,'shock',.4); vox(E,key==='axe'?'scream':'stabbed'); }
+  if(!E.dead){ faceHold(E,'shock',.4); vox(E,key==='machete'&&Math.random()<.5?'scream':'stabbed'); }
   sfx('stick'); buzz(h.hand,1,130); return true; }
 function stuckWorld(S){ const M=S.E.M&&S.E.M[S.bone]; if(!M) return null; const o=m4.make(); m4.mul(o,M,S.L); return o; }
 function stuckTick(h,dt){

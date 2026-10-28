@@ -729,7 +729,7 @@ function pShotgun(g){ mk(box(.05,.07,.2),mBlack,g,0,0,0); mk(cyl(.012,.012,.5,6)
 function pSMG(g){ mk(box(.045,.07,.24),mBlack,g,0,0,.02); mk(cyl(.01,.01,.09,6),M(tBlued,{double:true}),g,0,.012,.18,Math.PI/2);
   mk(box(.03,.17,.04),mBlack,g,0,-.11,.04); mk(box(.035,.1,.04),mBlack,g,0,-.07,-.07,.25);
   mk(box(.01,.01,.22),mSteel,g,.02,.02,-.12); mk(box(.01,.01,.22),mSteel,g,-.02,.02,-.12); return g; }
-const WEAPONS={fists:pFists,bottle:pBottle,knife:pKnife,machete:pMachete,axe:pAxe,revolver:pRevolver,pistol:pPistol,shotgun:pShotgun,smg:pSMG};
+const WEAPONS={fists:pFists,bottle:pBottle,knife:pKnife,machete:pMachete,revolver:pRevolver,pistol:pPistol,shotgun:pShotgun,smg:pSMG};
 
 /* --- the cast --- */
 function baseMats(k){ const s=HEADS[k],sk=skinOf(k); return {headM:M(FACE[k].fight),noseM:M(null,{color:hexInt(mix(s.skin,s.skinD,.18))}),earM:M(null,{color:hexInt(mix(s.skin,s.skinD,.35))}),handM:M(sk.hand)}; }

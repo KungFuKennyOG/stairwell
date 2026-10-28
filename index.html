@@ -113,7 +113,7 @@ body.touch #testPanel .tp-keys{display:none}
     <p class="kick">Physics prototype 01 · Floor 01</p>
     <h1>Stair<span>well</span></h1>
     <p>The test floor: one generated storey of the tower. Grab anything off the armory rack on the landing, spawn any of the six kinds from the board, and try them all. Shoot a leg and he goes down and drags himself away; cut an artery and it pumps with his heartbeat; put him out cold with your fists. Walk up the stairs at the far end to climb a floor.</p>
-    <dl class="keys deskonly"><dt>WASD · mouse</dt><dd>Move · look (click to capture)</dd><dt>1-9</dt><dd>Fists, bottle, knife, machete, axe, .38, 9mm, shotgun, SMG</dd><dt>Click</dt><dd>Fire or swing (hold for the SMG)</dd><dt>F · E · Q</dt><dd>Knife in the left hand · kick (opens doors too) · throw what you hold</dd><dt>R · T</dt><dd>Reload · bullet time</dd></dl>
+    <dl class="keys deskonly"><dt>WASD · mouse</dt><dd>Move · look (click to capture)</dd><dt>1-8</dt><dd>Fists, bottle, knife, machete, .38, 9mm, shotgun, SMG</dd><dt>Click</dt><dd>Fire or swing (hold for the SMG)</dd><dt>F · E · Q</dt><dd>Knife in the left hand · kick (opens doors too) · throw what you hold</dd><dt>R · T</dt><dd>Reload · bullet time</dd></dl>
     <dl class="keys touchonly"><dt>Left thumb</dt><dd>Move</dd><dt>Right side drag</dt><dd>Look</dd><dt>Buttons</dt><dd>Shoot, stab, kick, reload, slow-mo</dd></dl>
     <div class="startrow"><button id="start" type="button">Start</button><button id="vrBtn" type="button" hidden>Play in VR</button></div>
     <p class="vrnote">In VR you start with your fists. Grip grabs from the rack, the floor or a body, grip again drops or throws. Trigger fires, A/X reloads that hand, B/Y kicks. Punch and cut by actually swinging. Poke the board buttons to spawn people. Left stick moves, click it for bullet time; right stick turns, click it for sharpness. Your frame rate is on your left wrist.</p>
@@ -854,7 +854,7 @@ function pShotgun(g){ mk(box(.05,.07,.2),mBlack,g,0,0,0); mk(cyl(.012,.012,.5,6)
 function pSMG(g){ mk(box(.045,.07,.24),mBlack,g,0,0,.02); mk(cyl(.01,.01,.09,6),M(tBlued,{double:true}),g,0,.012,.18,Math.PI/2);
   mk(box(.03,.17,.04),mBlack,g,0,-.11,.04); mk(box(.035,.1,.04),mBlack,g,0,-.07,-.07,.25);
   mk(box(.01,.01,.22),mSteel,g,.02,.02,-.12); mk(box(.01,.01,.22),mSteel,g,-.02,.02,-.12); return g; }
-const WEAPONS={fists:pFists,bottle:pBottle,knife:pKnife,machete:pMachete,axe:pAxe,revolver:pRevolver,pistol:pPistol,shotgun:pShotgun,smg:pSMG};
+const WEAPONS={fists:pFists,bottle:pBottle,knife:pKnife,machete:pMachete,revolver:pRevolver,pistol:pPistol,shotgun:pShotgun,smg:pSMG};
 
 /* --- the cast --- */
 function baseMats(k){ const s=HEADS[k],sk=skinOf(k); return {headM:M(FACE[k].fight),noseM:M(null,{color:hexInt(mix(s.skin,s.skinD,.18))}),earM:M(null,{color:hexInt(mix(s.skin,s.skinD,.35))}),handM:M(sk.hand)}; }
@@ -1028,8 +1028,8 @@ const TIER_NAMES=['Corner boys','Cutters','Gunmen','Doormen','Enforcers','The La
 const TIER_RANGE=['1-5','6-10','11-15','16-20','21-29','30'];
 const MAKERS=[makeCorner,makeCutter,makeGunman,makeDoorman,makeEnforcer,makeLandlord];
 const UNIT_TYPES=[['squat','squat','kitchen','stash','bedroom'],['squat','kitchen','stash','bedroom','living'],['living','kitchen','bedroom','stash','living'],['living','kitchen','bedroom','stash','office'],['office','living','bedroom','stash','office'],['office','living','bedroom','office']];
-const PICKUPS=[['bottle','knife'],['knife','machete','axe'],['axe','revolver','pistol'],['pistol','shotgun','revolver'],['shotgun','smg','pistol'],['smg','shotgun']];
-const PICK_NAMES={bottle:'Broken bottle',knife:'Kitchen knife',machete:'Machete',axe:'Fire axe',revolver:'.38 revolver',pistol:'9mm pistol',shotgun:'Pump shotgun',smg:'Compact SMG'};
+const PICKUPS=[['bottle','knife'],['knife','machete'],['machete','revolver','pistol'],['pistol','shotgun','revolver'],['shotgun','smg','pistol'],['smg','shotgun']];
+const PICK_NAMES={bottle:'Broken bottle',knife:'Kitchen knife',machete:'Machete',revolver:'.38 revolver',pistol:'9mm pistol',shotgun:'Pump shotgun',smg:'Compact SMG'};
 const NAMES=['Dani','Marco','Teo','Rui','Kev','Jojo','Luis','Sami','Andre','Nico','Big Mike','Petey','Omar','Dre','Felix','Sonny','Tomas','Ivan','Lenny','Chris','Paulie','Benji','Raf','Eddie','Mo','Junior','Vic','Hector','Alex','Tariq','Dom','Stas'];
 const DETAILS=['has a photo of his daughter taped to the fridge','owes the Landlord two months','keeps calling his mother on a dead phone','was a boxer once','sleeps with the light off because of the cameras','just moved in last week','is saving for a car','is the one who taped up the windows','plays the same cassette every night','used to fix the elevator','has a dog tied up in the bathroom','is somebody\'s little brother'];
 const tLinoStain=cl(32,32,'#6b6656',18,401,g=>{ for(let y=0;y<32;y+=8) for(let x=0;x<32;x+=8) if(((x+y)/8)%2) R(g,'#57534a',x,y,8,8); const r=rng(402); for(let i=0;i<4;i++) R(g,'rgba(40,30,15,.4)',r()*28|0,r()*28|0,6,4); });
@@ -2184,7 +2184,7 @@ const isTouch=matchMedia('(pointer: coarse)').matches;
 document.body.classList.toggle('touch',isTouch);
 addEventListener('keydown',e=>{ KEYS[e.code]=true; if(!GAME.started) return;
   if(e.code==='KeyF') stab(); else if(e.code==='KeyE') kick(); else if(e.code==='KeyR') reload(); else if(e.code==='KeyT') toggleSlow();
-  else if(/^Digit[1-9]$/.test(e.code)){ const k=WPN_KEYS[+e.code.slice(5)-1]; equip(HANDS.R,k==='fists'?null:newItem(k)); }
+  else if(/^Digit[1-8]$/.test(e.code)){ const k=WPN_KEYS[+e.code.slice(5)-1]; equip(HANDS.R,k==='fists'?null:newItem(k)); }
   else if(e.code==='KeyG') flatGrab();
   else if(e.code==='KeyQ'&&HANDS.L.grab){ endGrab(HANDS.L.grab,v3.add(v3.sc(camBasis().f,6),[0,1,0])); }
   else if(e.code==='KeyQ'&&HANDS.R.item){ HANDS.R.vel=v3.sc(camBasis().f,4); grabOrDrop(HANDS.R); } });
@@ -2290,6 +2290,7 @@ function frame(now){
     const side=sR*(gun?.19:.2)-sR*sw*(hv?.2:.08),up=(gun?-.2:-.22)+bob+rl+sw*(hv?.16:.07),fw=(gun?.42:.36)-h.rec*.06+sw*(hv?.25:.34),pitch=h.rec*.3+(rl?-.6:0)+(gun?0:-.1+sw*(hv?-.9:.1));
     if(h.grab) placeVM(h.node,v3.add(eye,v3.add(v3.sc(r,-.12),v3.add(v3.sc(u,-.18),v3.sc(f,.5)))),f,u,r,0); else if(window.__ads&&h.side==='R') { const S=SIGHTS[it&&it.key]||{y:.06,h:0},gy=FIST[1]-(w&&w.grip?w.grip[1]:0); placeVM(h.node,v3.add(eye,v3.add(v3.sc(u,-(gy+S.y+S.h-.003)),v3.sc(f,.24))),f,u,r,0); } else /* debug: look down the sights */
     placeVM(h.node,v3.add(eye,v3.add(v3.sc(r,side),v3.add(v3.sc(u,up),v3.sc(f,fw)))),f,u,r,pitch); m4.compose(h.M,h.node.p,h.node.r,[1,1,1]); h.node.vis=!PL.dead; updateAmmoLabel(h); }
+  updateArms(f,u,eye);
   for(const E of enemies) E.label.vis=false; panelN.vis=false;
   m4.persp(proj,50*Math.PI/180,cv.width/cv.height,0.05,120); m4.lookAt(view,eye,v3.add(eye,f),[0,1,0]);
   const h=state.res,w=Math.max(1,Math.round(h*cv.width/cv.height)); ensureFB(w,h); gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderWith(w,h); post(null,0,0,cv.width,cv.height,w,h);
@@ -2367,7 +2368,7 @@ function xrFrame(t,xf){
         XR.origin[0]=eye[0]+dx*c+dz*s; XR.origin[2]=eye[2]-dx*s+dz*c; XR.yaw+=a; } else if(Math.abs(sx)<.3) XR.snapHeld=false;
       if(stickC){ const L=[720,1080,1440],i=(L.indexOf(XR.res)+1)%L.length; XR.res=L[i]; vrToast(['Sharpness: low (more PS1)','Sharpness: medium','Sharpness: high'][i],1.6); } }
     meleeTick(h,dt); if(!h.supportOf) vrMelee(h,dt); else h.prevPts=null; pokeBoard(fp,h,dt); updateAmmoLabel(h); }
-  applySupport(HANDS.R); applySupport(HANDS.L); updateSights(eye);
+  applySupport(HANDS.R); applySupport(HANDS.L); updateArms(f,u,eye); updateSights(eye);
   /* keep the head out of walls and furniture by sliding the play space */
   { const bx=PL.x,bz=PL.z; collidePlayer(); XR.origin[0]+=PL.x-bx; XR.origin[2]+=PL.z-bz; }
   /* climbing out: walk onto the flight up */
@@ -2497,7 +2498,7 @@ function voiceTick(E,dt,dist){
    VR: each hand holds one thing or makes a fist. Grip grabs (from the rack, the floor, a body) and grip again
    drops or throws. Trigger fires that hand's gun, A/X reloads it. Melee is physical: a fist or blade has to
    actually move fast into a body, and harder swings hit harder.
-   Flat screen (testing): the right hand holds what you pick with 1-9, click uses it; the left hand keeps a knife (F).
+   Flat screen (testing): the right hand holds what you pick with 1-8, click uses it; the left hand keeps a knife (F).
    ===================================================================== */
 const FIST=[0,-.035,-.012];
 const WPN={
@@ -2505,25 +2506,26 @@ const WPN={
   bottle:  {label:'Broken bottle',build:pBottle,grip:[0,0,0],melee:'knife',bleed:.8,sever:.4,uses:6,reach:1.15,pts:[[0,0,.19],[0,0,.12]],speed:1.4},
   knife:   {label:'Kitchen knife',build:pKnife,grip:[0,0,0],melee:'knife',reach:1.2,pts:[[0,0,.23],[0,0,.15]],speed:1.3},
   machete: {label:'Machete',build:pMachete,grip:[0,0,0],melee:'knife',bleed:1.35,sever:1.7,stun:1.2,push:1.3,chop:true,reach:1.45,pts:[[0,-.012,.42],[0,-.012,.3],[0,-.012,.17]],speed:1.8},
-  axe:     {label:'Fire axe',build:pAxe,grip:[0,0,.04],fore:[0,0,.34],slideGrip:true,melee:'knife',bleed:1.6,sever:3,stun:1.6,push:2,chop:true,heavy:true,reach:1.6,pts:[[0,-.13,.6],[0,-.07,.6],[0,.0,.6]],speed:2},
-  revolver:{label:'.38 revolver',build:pRevolver,grip:[0,-.035,-.015],gun:true,bash:{pts:[[0,.036,.14],[0,-.07,-.03]],power:.8},mag:6,rof:.3,muzzle:[0,.036,.15],axisY:.036,push:1.3,loadOne:true,snd:'revolver'},
-  pistol:  {label:'9mm pistol',build:pPistol,grip:[0,-.035,-.005],gun:true,bash:{pts:[[0,.045,.15],[0,-.08,-.02]],power:.75},mag:12,rof:.11,muzzle:[0,.045,.17],axisY:.045},
+  revolver:{label:'.38 revolver',build:pRevolver,grip:[0,-.035,-.015],gun:true,cup:true,bash:{pts:[[0,.036,.14],[0,-.07,-.03]],power:.8},mag:6,rof:.3,muzzle:[0,.036,.15],axisY:.036,push:1.3,loadOne:true,snd:'revolver'},
+  pistol:  {label:'9mm pistol',build:pPistol,grip:[0,-.035,-.005],gun:true,cup:true,bash:{pts:[[0,.045,.15],[0,-.08,-.02]],power:.75},mag:12,rof:.11,muzzle:[0,.045,.17],axisY:.045},
   shotgun: {label:'Pump shotgun',build:pShotgun,grip:[0,-.04,-.08],fore:[0,-.02,.24],gun:true,pump:true,bash:{pts:[[0,.02,.58],[0,-.07,-.31],[0,-.02,-.2]],power:1.35},mag:5,rof:.8,muzzle:[0,.02,.6],axisY:.02,pellets:9,spread:.05,bleed:.5,sever:.7,push:.5,loadOne:true,snd:'shotgun'},
   smg:     {label:'Compact SMG',build:pSMG,grip:[0,-.07,-.07],fore:[0,-.03,.12],gun:true,bash:{pts:[[0,.012,.22],[0,-.03,-.2]],power:.95},mag:30,rof:.07,auto:true,muzzle:[0,.012,.23],axisY:.012,spread:.014,snd:'smg'}
 };
-const WPN_KEYS=['fists','bottle','knife','machete','axe','revolver','pistol','shotgun','smg'];
+const WPN_KEYS=['fists','bottle','knife','machete','revolver','pistol','shotgun','smg'];
 const KIND_WPN={corner:'bottle',cutter:'machete',gunman:'pistol',doorman:'shotgun',enforcer:'smg',landlord:'revolver'};
 function newItem(key,ammo){ const w=WPN[key],a=w.gun?(ammo??w.mag):0; return {key,ammo:a,reload:0,uses:w.uses||0,cd:0,chambered:!w.pump||a>0,spent:false,pumpSt:'in',rev:false}; }
 
 /* ---------- hands ---------- */
 function ammoTexNew(){ return tex(16,8,'#0a0b0d'); }
+const UPPER_ARM=.3,FOREARM=.27,WRIST=[0,-.04,-.05]; /* metres; the wrist sits just inside the back of the fist */
 function makeHand(side){ const n=N(world);
   mk(box(.072,.084,.094),M(side==='R'?tTape:tRayGlove),n,FIST[0],FIST[1],FIST[2]);
-  mk(lathe([[-.34,.05,.05],[0,.045,.045]],6),M(side==='R'?tRayArmR:tRayArmL),n,0,-.05,-.05,Math.PI/2,0,0);
-  return {side,hand:side==='R'?'right':'left',node:n,item:null,itemNode:null,M:m4.make(),prevPts:null,cd:0,rec:0,ammoTex:ammoTexNew(),ammoShown:-9,ammoN:null,swingT:-1,swingDone:false,vel:[0,0,0],prevPos:null}; }
+  /* the forearm is its own piece (updateArms): it runs from the wrist back to where your elbow is, so turning your wrist only turns the fist */
+  const arm=N(world); mk(lathe([[-FOREARM,.05,.05],[0,.044,.044]],6),M(side==='R'?tRayArmR:tRayArmL),arm,0,0,0,Math.PI/2,0,0);
+  return {side,armN:arm,hand:side==='R'?'right':'left',node:n,item:null,itemNode:null,M:m4.make(),prevPts:null,cd:0,rec:0,ammoTex:ammoTexNew(),ammoShown:-9,ammoN:null,swingT:-1,swingDone:false,vel:[0,0,0],prevPos:null}; }
 const HANDS={L:makeHand('L'),R:makeHand('R')};
 /* frame rate on the inside of the left wrist (VR) */
-const fpsTex=tex(24,8,'#0a0b0d'); const fpsN=mk(plane(.045,.015),M(fpsTex,{unlit:true}),HANDS.L.node,.035,-.03,-.09,0,Math.PI/2,0); fpsN.vis=false;
+const fpsTex=tex(24,8,'#0a0b0d'); const fpsN=mk(plane(.045,.015),M(fpsTex,{unlit:true}),HANDS.L.armN,.046,0,-.05,0,Math.PI/2,0); fpsN.vis=false;
 function drawFps(v){ fpsN.vis=XR.on; const g=fpsTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,24,8); const s=String(v); text(g,s,(24-textW(s))>>1,1,v>=68?'#7ec27a':v>=55?'#e2a33d':'#ff3b30');
   if(fpsTex.glt){ gl.bindTexture(gl.TEXTURE_2D,fpsTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,fpsTex.c); } }
 function equip(h,item){
@@ -2552,18 +2554,26 @@ function updateAmmoLabel(h){ const it=h.item; if(!it||!WPN[it.key].gun) return; 
   const t=h.ammoTex,g=t.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,16,8); const s=v<0?'--':String(v).padStart(2,'0'),dry=WPN[it.key].pump&&!it.chambered&&v>0; text(g,s,(16-textW(s))>>1,1,v===0?'#ff3b30':dry?'#5ab0ff':'#e2a33d'); /* blue: rack it */
   if(t.glt){ gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,t.c); } }
 
-/* ---------- two hands on one weapon (shotgun, SMG, axe) ----------
-   Grip with the free hand near the fore-end and it takes hold: the weapon then points from the back hand to the front hand. */
+/* ---------- two hands on one weapon ----------
+   Shotgun, SMG: grip with the free hand near the fore-end and it takes hold; the weapon then points from the back hand to the front hand.
+   Pistol, revolver (cup): grip with the free hand next to the gun hand and it wraps around it. The gun still aims where the gun hand
+   points; the second hand steadies it (half the recoil). Pull the hands more than ~25 cm apart, or grip again, to let go. */
 const otherHand=h=>h===HANDS.R?HANDS.L:HANDS.R;
 function forePt(h){ return mulP(itemM(h),WPN[h.item.key].fore); }
-function trySupport(h){ const o=otherHand(h); if(h.item||!o.item||!WPN[o.item.key].fore||o.support||!o.itemNode||o.stuck) return false;
-  const w=WPN[o.item.key],p=mulP(h.M,FIST); let z=w.fore[2];
-  if(w.slideGrip){ const l=mulP(rigidInv(itemM(o)),p); if(Math.hypot(l[0]-w.fore[0],l[1]-w.fore[1])>.1||l[2]<w.grip[2]+.1||l[2]>w.fore[2]+.28) return false; z=clamp(l[2],w.grip[2]+.14,w.fore[2]+.2); } /* the axe: take the handle anywhere */
+function cupPos(o,sg){ const G=mulP(o.M,FIST),X=colOf(o.M,0),Y=colOf(o.M,1),Z=colOf(o.M,2); return v3.add(G,v3.add(v3.sc(X,sg*.052),v3.add(v3.sc(Y,-.018),v3.sc(Z,.008)))); }
+function trySupport(h){ const o=otherHand(h); if(h.item||!o.item||!(WPN[o.item.key].fore||WPN[o.item.key].cup)||o.support||!o.itemNode||o.stuck) return false;
+  const w=WPN[o.item.key],p=mulP(h.M,FIST); let z=w.fore?w.fore[2]:0;
+  if(w.cup){ const sg=Math.sign(v3.dot(v3.sub(p,mulP(o.M,FIST)),colOf(o.M,0)))||1; if(Math.hypot(...v3.sub(p,cupPos(o,sg)))>.16) return false; h.cupSide=sg; } /* wrap whichever side your hand came from */
+  else if(w.slideGrip){ const l=mulP(rigidInv(itemM(o)),p); if(Math.hypot(l[0]-w.fore[0],l[1]-w.fore[1])>.1||l[2]<w.grip[2]+.1||l[2]>w.fore[2]+.28) return false; z=clamp(l[2],w.grip[2]+.14,w.fore[2]+.2); } /* a long handle: take it anywhere */
   else if(Math.hypot(...v3.sub(p,forePt(o)))>.2) return false;
   o.support=h; h.supportOf=o; h.supZ=z; o.melQ=null; sfx('click',.5); buzz(h.hand,.4,30); return true; }
 function releaseSupport(s){ const o=s.supportOf; if(!o) return; o.support=null; s.supportOf=null; o.itemW=null;
   restoreItemNode(o); if(o.itemNode&&o.itemNode.pump) o.itemNode.pump.p[2]=.21-(o.pumpSlide||0); }
 function applySupport(h){ const s=h.support; if(!s||!h.item||!h.itemNode){ h.itemW=null; return; }
+  if(WPN[h.item.key].cup){ /* pistol: the support fist sits beside the gun fist, overlapping it, rolled in so it wraps the grip */
+    const sg=s.cupSide||1,c=cupPos(h,sg); if(Math.hypot(...v3.sub(mulP(s.M,FIST),c))>.25){ releaseSupport(s); return; }
+    const X=colOf(h.M,0),Y=colOf(h.M,1),Zh=colOf(h.M,2),co=Math.cos(.35),sn=Math.sin(.35)*sg,Xh=v3.add(v3.sc(X,co),v3.sc(Y,sn)),Yh=v3.sub(v3.sc(Y,co),v3.sc(X,sn));
+    setLocal(s.node,m4.make(),fromCols(Xh,Yh,Zh,v3.sub(c,v3.add(v3.sc(Xh,FIST[0]),v3.add(v3.sc(Yh,FIST[1]),v3.sc(Zh,FIST[2])))))); return; }
   const w=WPN[h.item.key],G=mulP(h.M,FIST),S=mulP(s.M,FIST); if(Math.hypot(...v3.sub(S,G))>.9){ releaseSupport(s); return; } /* hands pulled apart: let go */
   const v=v3.sub(w.fore,w.grip),zm=norm3(v),um=norm3(v3.sub([0,1,0],v3.sc(zm,zm[1]))),xm=v3.cross(um,zm);
   const zw=norm3(v3.sub(S,G)),uh=colOf(h.M,1),uw=norm3(v3.sub(uh,v3.sc(zw,v3.dot(uh,zw)))),xw=v3.cross(uw,zw);
@@ -2575,11 +2585,27 @@ function applySupport(h){ const s=h.support; if(!s||!h.item||!h.itemNode){ h.ite
   /* the pump: pull the fore-end back toward you and push it home */
   let slide=0; if(w.pump){ const L0=Math.hypot(...v3.sub(w.fore,w.grip)); /* the fore-end only moves while the support hand squeezes its trigger; let go and it stays where it is */
     slide=h.pumpSlide=s.trigHeld||!XR.on?clamp(L0-Math.hypot(...v3.sub(S,G)),0,PUMP_STROKE):(h.pumpSlide||0); pumpTick(h,slide); if(h.itemNode.pump) h.itemNode.pump.p[2]=.21-slide; }
-  /* the front hand sits on the fore-end (or wherever it took the axe handle) instead of floating next to it */
-  /* the support hand cups the fore-end, its forearm running back and down toward your elbow (not cocked up at the controller's angle) */
+  /* the support hand cups the fore-end, angled back and down toward your elbow (its forearm follows in updateArms) */
   const fp=mulP(h.itemW,[w.fore[0],w.fore[1],(s.supZ??w.fore[2])-slide]),side=s.side==='L'?-1:1,arm=norm3(v3.add(v3.add(v3.sc(zw,-.5),[0,-.8,0]),v3.sc(xw,.25*side)));
   const Zh=v3.sc(arm,-1),Yh=norm3(v3.sub(uw,v3.sc(Zh,v3.dot(uw,Zh)))),Xh=v3.cross(Yh,Zh),org=v3.sub(fp,v3.add(v3.sc(Xh,FIST[0]),v3.add(v3.sc(Yh,FIST[1]),v3.sc(Zh,FIST[2]))));
   setLocal(s.node,m4.make(),fromCols(Xh,Yh,Zh,org)); }
+
+/* ---------- forearms: wrist to elbow ----------
+   The shoulder is guessed from your head (down 24 cm, out 18 cm, back 5 cm, turned with where you face). The elbow is solved
+   from shoulder and wrist with a two-bone arm, bending down and out like a real one. The forearm runs wrist -> elbow and only
+   takes the hand's twist, so a bent wrist shows as a bend at the wrist instead of swinging the whole arm. */
+function updateArms(f,u,eye){
+  let fx=f[0]-u[0]*f[1],fz=f[2]-u[2]*f[1]; const k=Math.hypot(fx,fz)||1; fx/=k; fz/=k; const fl=[fx,0,fz],rl=[-fz,0,fx],T=m4.make(),L=UPPER_ARM+FOREARM;
+  for(const h of [HANDS.L,HANDS.R]){ const a=h.armN; a.vis=h.node.vis!==false; if(!a.vis) continue;
+    m4.compose(T,h.node.p,h.node.r,[1,1,1]); const W=mulP(T,WRIST),sd=h.side==='R'?1:-1;
+    const S=v3.add(eye,v3.add([0,-.24,0],v3.add(v3.sc(rl,sd*.18),v3.sc(fl,-.05))));
+    const v=v3.sub(W,S),dl=Math.hypot(...v)||1,dir=v3.sc(v,1/dl),d=clamp(dl,.12,L-.005);
+    const al=(UPPER_ARM*UPPER_ARM-FOREARM*FOREARM+d*d)/(2*d),ht=Math.sqrt(Math.max(0,UPPER_ARM*UPPER_ARM-al*al));
+    let P=v3.add([0,-1,0],v3.add(v3.sc(rl,sd*.55),v3.sc(fl,-.2))); P=v3.sub(P,v3.sc(dir,v3.dot(P,dir))); const pl=Math.hypot(...P); P=pl>1e-4?v3.sc(P,1/pl):[0,-1,0];
+    const E=v3.add(S,v3.add(v3.sc(dir,al),v3.sc(P,ht)));
+    let Z=v3.sub(W,E); const zl=Math.hypot(...Z); Z=zl>1e-4?v3.sc(Z,1/zl):norm3(colOf(T,2));
+    const hy=colOf(T,1); let Y=v3.sub(hy,v3.sc(Z,v3.dot(hy,Z))); const yl=Math.hypot(...Y); Y=yl>.05?v3.sc(Y,1/yl):norm3(v3.sub([0,1,0],v3.sc(Z,Z[1])));
+    a.p=W; a.r=eul([v3.cross(Y,Z),Y,Z]); } }
 
 /* ---------- sights: a dot where the barrel points, and an optional laser ---------- */
 const tReticle=tex(16,16,null,g=>{ for(let y=0;y<16;y++) for(let x=0;x<16;x++){ const d=Math.hypot(x-7.5,y-7.5); if(d<3.2) R(g,d<1.8?'#ffd0c8':'#ff3b30',x,y,1,1); } }); /* the laser's spot */
@@ -2597,7 +2623,7 @@ function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye
   const it=h.item; if(!it||!GAME.started||PL.dead) return false; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.cd>0) return false;
   if(it.ammo<=0){ sfx('click'); it.cd=.25; if(!XR.on) reloadHand(h); return false; }
   if(w.pump&&!it.chambered){ sfx('click'); it.cd=.2; if(XR.on) buzz(h.hand,.2,15); return false; } /* nothing in the chamber: rack it */
-  it.ammo--; it.cd=w.rof; h.rec=w.pump?1.8:1; sfx(w.snd||'gun'); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
+  it.ammo--; it.cd=w.rof; h.rec=w.pump?1.8:w.cup&&h.support?.5:1; sfx(w.snd||'gun'); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
   if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }
   const Mi=itemM(h),mz=mulP(Mi,w.muzzle),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); muzzle(mz);
   const o=aim?aim.o:mz,d0=aim?aim.d:bd; alertAll([PL.x,0,PL.z]);
@@ -2627,8 +2653,8 @@ function meleeHit(h,E,seg,p,dir,speed,bone){
   else { const segI=SEGS.indexOf(seg); hitEnemy(E,seg,p,dir,'knife',{bleed:(w.bleed||1)*pk,sever:(w.sever||1)*pk,stun:w.stun||1,push:(w.push||1)*pk,chop:!!w.chop,heavy:!!w.heavy,power:clamp(speed/3,.6,1.6)*pk}); sfx(w.chop?'chop':'stab');
     /* point-first and hard: it goes in and stays in */
     if(XR.on&&bone&&STICKS[key]&&h.itemNode&&!h.stuck&&!E.segOff.has(segI)&&enemies.includes(E)){ const Zb=norm3(colOf(itemM(h),2)),al=v3.dot(dir,Zb),part=seg[3];
-      const stab=key!=='axe'&&al>.45&&speed*al>(key==='knife'?1:1.4); /* any real point-first push sticks, not just a perfect thrust */
-      const lodge=(key==='axe'||key==='machete')&&al<.5&&speed>(key==='axe'?2.6:3)&&/chest|belly|head|thigh|neck|uarm/.test(part)&&Math.random()<(key==='axe'?.7:.45); /* chops bite into bone and stay */
+      const stab=al>.45&&speed*al>(key==='knife'?1:1.4); /* any real point-first push sticks, not just a perfect thrust */
+      const lodge=key==='machete'&&al<.5&&speed>3&&/chest|belly|head|thigh|neck|uarm/.test(part)&&Math.random()<.45; /* chops bite into bone and stay */
       if(stab||lodge) startStuck(h,E,bone,seg,!stab); }
     if(w.uses){ h.item.uses--; if(h.item.uses<=0){ sfx('glass'); spray(p,v3.sc(dir,-1),10,1.6,.8,'dust',.008); equip(h,null); } } }
   if(XR.on) buzz(h.hand,1,w.heavy?140:90); h.cd=w.heavy?.45:.28; }
@@ -2675,10 +2701,10 @@ const RACK=[]; let rackN=null;
 function buildRack(){ if(rackN){ disposeTree(rackN); const i=world.kids.indexOf(rackN); if(i>=0) world.kids.splice(i,1); } RACK.length=0; if(!FLOOR.test) { rackN=null; return; }
   rackN=N(world); const z=1.9,y=1.25; GEO_TEMP=true;
   mk(box(2.7,.9,.04),M(tCrate),rackN,-11.5,y,z+.04); mk(box(2.7,.05,.06),mSteel,rackN,-11.5,y+.47,z+.02);
-  const lab=tex(256,16,null,g=>{ WPN_KEYS.forEach((k,i)=>{ const s=['FIST','BOTL','KNIF','MACH','AXE','.38','9MM','PUMP','SMG'][i]; text(g,s,i*28+14-(textW(s)>>1),4,'#e8e2cf'); }); });
+  const lab=tex(256,16,null,g=>{ WPN_KEYS.forEach((k,i)=>{ const s=['FIST','BOTL','KNIF','MACH','.38','9MM','PUMP','SMG'][i]; text(g,s,i*28+14-(textW(s)>>1),4,'#e8e2cf'); }); });
   mk(plane(2.52,.16),M(lab,{unlit:true,cut:true}),rackN,-11.5,y-.36,z+.005,0,Math.PI,0);
   WPN_KEYS.forEach((k,i)=>{ const x=-11.5+1.26-(i+.5)*.28; const hook=N(rackN,x,y+.05,z-.06,-Math.PI/2,Math.PI,0);
-    if(WPN[k].build){ const gn=N(hook,0,0,k==='axe'?-.3:k==='shotgun'?-.22:-.08); WPN[k].build(gn); addSights(gn,k); } else mk(box(.08,.09,.09),M(tTape),hook);
+    if(WPN[k].build){ const gn=N(hook,0,0,k==='shotgun'?-.22:-.08); WPN[k].build(gn); addSights(gn,k); } else mk(box(.08,.09,.09),M(tTape),hook);
     RACK.push({key:k,node:hook,x,y:y+.02,z:z-.08,taken:0}); });
   GEO_TEMP=false; }
 function nearestGrabbable(p,maxD){ let best=null,bd=maxD;
@@ -2710,8 +2736,7 @@ function kickDoor(D){ D.loud=true; setDoor(D,'open'); sfx('doorkick'); alertAll(
    - Blades sit in the hand the way you really hold them: the handle runs through the fist (the controller's
      grip pose), the blade comes out over the thumb with a slight forward lean, the edge faces your knuckles.
      A/X flips a knife or bottle into a reverse (ice-pick) grip and back.
-   - Weight: the machete lags a little behind your hand, the axe a lot and its head sags. Two hands on the
-     axe (grab the handle anywhere) and it follows you properly and hits at full power.
+   - Weight: the machete lags a little behind your hand and its tip sags.
    - Speed is damage. A lazy swing just bumps off him.
    - A hard thrust point-first sinks the blade and it STAYS IN. Your hand stays on the handle; he's pulled
      around by it. Work it and he screams and bleeds more. Pull hard to rip it out (the blood follows it).
@@ -2721,10 +2746,10 @@ function kickDoor(D){ D.loud=true; setDoor(D,'open'); sfx('doorkick'); alertAll(
 const MEL={tilt:0,yaw:2}; /* Kenny's picks on the Quest: blade straight out of the fist, hands turned out 5° */
 const MELEE_TILT=[0,.44,.79],MELEE_TILT_LBL=['0°','25°','45°'];        /* blade lean forward from the grip axis */
 const HAND_YAW=[5,0,-5],HAND_YAW_LBL=['IN 5°','0°','OUT 5°'],HAND_DROP=.015; /* small correction to where the hands sit */
-const WEIGHT={machete:16,axe:5.5};    /* how fast the weapon catches up with your hand (1/s); missing = rigid */
-const SAG={machete:.1,axe:.42};        /* radians the head droops when held one-handed */
-const BURY={knife:.06,bottle:.04,machete:.09,axe:.035};
-const STICKS={knife:1,machete:1,axe:1};
+const WEIGHT={machete:16};    /* how fast the weapon catches up with your hand (1/s); missing = rigid */
+const SAG={machete:.1};        /* radians the head droops when held one-handed */
+const BURY={knife:.06,bottle:.04,machete:.09};
+const STICKS={knife:1,machete:1};
 
 /* ---------- quaternions for the weight lag ---------- */
 function qFromCols(X,Y,Z){ const tr=X[0]+Y[1]+Z[2]; let x,y,z,w;
@@ -2768,7 +2793,7 @@ function startStuck(h,E,bone,seg,chop){
   const L=m4.make(); m4.mul(L,rigidInv(Mb),Mi);
   h.stuck={E,bone,seg,L,work:0,prevC:mulP(h.M,FIST),t:0,wound:E.wounds[E.wounds.length-1]};
   E.impaled=(E.impaled||0)+1; E.stun=Math.max(E.stun,.9); h.prevPts=null; h.melQ=null;
-  if(!E.dead){ faceHold(E,'shock',.4); vox(E,key==='axe'?'scream':'stabbed'); }
+  if(!E.dead){ faceHold(E,'shock',.4); vox(E,key==='machete'&&Math.random()<.5?'scream':'stabbed'); }
   sfx('stick'); buzz(h.hand,1,130); return true; }
 function stuckWorld(S){ const M=S.E.M&&S.E.M[S.bone]; if(!M) return null; const o=m4.make(); m4.mul(o,M,S.L); return o; }
 function stuckTick(h,dt){
