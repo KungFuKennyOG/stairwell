@@ -126,6 +126,7 @@ let enemies=[];
 function spawnEnemy(sp){
   const holder=N(world); GEO_TEMP=true; const C=sp.maker(holder,'game'); GEO_TEMP=false;
   C.pool.vis=false; C.blood.vis=false; if(C.dropped) C.dropped.vis=false;
+  if(C.wpn&&RANGED[C.kind]){ GEO_TEMP=true; addSights(C.wpn,KIND_WPN[C.kind]); GEO_TEMP=false; } /* same sights as yours */
   /* long guns: the art-test hold is low-ready (barrel down). In a fight they bring it up level, so re-solve both arms to a level gun */
   if(C.twoHand&&GUNS[C.gun]){ const G=GUNS[C.gun],d0=G.dir; G.dir=C.gun==='shotgun'?[.14,-.1,.985]:[.1,-.06,.99]; applyPose(C,'fight'); G.dir=d0; }
   const J=C.J; J.root.p=[0,0,0]; J.root.r=[0,0,0];

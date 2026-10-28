@@ -130,7 +130,7 @@ function useRight(){ const h=HANDS.R; if(h.item&&WPN[h.item.key].gun) fireHand(h
 
 /* ---------- things lying around: dropped, thrown, taken off the dead ---------- */
 const LOOSE=[];
-function addPickup(item,Mw,v,spin){ const n=N(world); GEO_TEMP=true; WPN[item.key].build(n); GEO_TEMP=false; setLocal(n,m4.make(),Mw);
+function addPickup(item,Mw,v,spin){ const n=N(world); GEO_TEMP=true; WPN[item.key].build(n); addSights(n,item.key); GEO_TEMP=false; setLocal(n,m4.make(),Mw);
   const P={item,node:n,v:v.slice(),spin:spin||[rnd(-5,5),rnd(-5,5),rnd(-5,5)],rest:false,thrown:Math.hypot(...v)>3,age:0}; LOOSE.push(P); return P; }
 function removePickup(P){ const i=LOOSE.indexOf(P); if(i>=0) LOOSE.splice(i,1); disposeTree(P.node); const k=world.kids.indexOf(P.node); if(k>=0) world.kids.splice(k,1); }
 function updatePickups(dt){ for(const P of LOOSE){ P.age+=dt; if(P.rest) continue; const n=P.node,old=n.p.slice();
@@ -154,7 +154,7 @@ function buildRack(){ if(rackN){ disposeTree(rackN); const i=world.kids.indexOf(
   const lab=tex(256,16,null,g=>{ WPN_KEYS.forEach((k,i)=>{ const s=['FIST','BOTL','KNIF','MACH','AXE','.38','9MM','PUMP','SMG'][i]; text(g,s,i*28+14-(textW(s)>>1),4,'#e8e2cf'); }); });
   mk(plane(2.52,.16),M(lab,{unlit:true,cut:true}),rackN,-11.5,y-.36,z+.005,0,Math.PI,0);
   WPN_KEYS.forEach((k,i)=>{ const x=-11.5+1.26-(i+.5)*.28; const hook=N(rackN,x,y+.05,z-.06,-Math.PI/2,Math.PI,0);
-    if(WPN[k].build) WPN[k].build(N(hook,0,0,k==='axe'?-.3:k==='shotgun'?-.22:-.08)); else mk(box(.08,.09,.09),M(tTape),hook);
+    if(WPN[k].build){ const gn=N(hook,0,0,k==='axe'?-.3:k==='shotgun'?-.22:-.08); WPN[k].build(gn); addSights(gn,k); } else mk(box(.08,.09,.09),M(tTape),hook);
     RACK.push({key:k,node:hook,x,y:y+.02,z:z-.08,taken:0}); });
   GEO_TEMP=false; }
 function nearestGrabbable(p,maxD){ let best=null,bd=maxD;
