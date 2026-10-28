@@ -11,7 +11,7 @@ function verge2(kind){ return P2(128,64,(g,w,h)=>{ const r=rng(kind.length*13+7)
   else if(kind==='brick'){ R(g,'#5a5654',0,0,w,h); for(let i=0;i<200;i++) R(g,r()>.5?'#6a6664':'#4a4644',r()*w|0,r()*h|0,2,1); for(let i=0;i<10;i++){ const x=r()*w|0,y=r()*h|0; ell(g,x,y,6+r()*8,2,rgba('#9ab0c4',.35)); } }
   else if(kind==='seabed'){ vfill(g,0,0,w,h,[[0,'#3a6a7a'],[1,'#2a5262']]); for(let i=0;i<120;i++) R(g,r()>.5?'#4a7a8a':'#21414e',r()*w|0,r()*h|0,2,1); for(let i=0;i<10;i++){ const x=r()*w; for(let k=0;k<6;k++) R(g,'#2f7a4a',x+k%2,h-(r()*30|0),1,6); } }
   else if(kind==='desert'){ vfill(g,0,0,w,h,[[0,'#d8a878'],[1,'#c48e5e']]); for(let i=0;i<220;i++) R(g,r()>.5?'#e6bc8e':'#a87648',r()*w|0,r()*h|0,1,1); for(let i=0;i<8;i++){ const x=r()*w|0,y=r()*h|0; R(g,'#7a8a4a',x,y,2,3); } }
-  else if(kind==='promenade'){ R(g,'#f2ece0',0,0,w,h); for(let y=0;y<h;y+=1) for(let x=0;x<w;x++) if(Math.sin(x/w*Math.PI*16+Math.sin(y/5)*2.4)>.6) R(g,'#2a2a2e',x,y,1,1); }
+  else if(kind==='promenade'){ R(g,'#f2ece0',0,0,w,h); for(let y=0;y<h;y+=1) for(let x=0;x<w;x++) if(Math.sin(x/w*Math.PI*24+Math.sin(y/4)*2.4)>.62) R(g,'#2a2a2e',x,y,1,1); }
   else return vergeTex(kind).c&&null;
 },kind==='promenade'?0:8,kind.length); }
 const VERGE={}; function vergeFor(k){ return VERGE[k]||(VERGE[k]=['snow','paddy','brick','seabed','desert','promenade'].includes(k)?verge2(k):vergeTex(k)); }

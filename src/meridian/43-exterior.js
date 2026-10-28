@@ -20,7 +20,7 @@ const WAGONS=[
   {key:'dimsum',num:'07',name:'Golden Crane Dim Sum',label:'GOLDEN CRANE',crew:'lau',wins:[[.12,.2],[.3,.38],[.5,.58],[.66,.74]],glow:0xff6040,color:'#c8302a',
     sub:'Boards in Hong Kong · the Golden Crane triad',note:'Red lacquer and gold, round tables with lazy susans, trolleys stacked with bamboo steamers, red lanterns overhead, a gold crane mural, and a steaming kitchen full of woks.',sw:['#a81c1c','#d4ad5a','#1a1414','#2a8a6a','#f2ece0']},
   {key:'capsule',num:'08',name:'Capsule Hotel',label:'CAPSULES',crew:'ren',wins:[[.42,.5],[.56,.64]],glow:0xe8f4ff,color:'#29e0e6',
-    sub:'Boards in Tokyo · the Kagami-gumi',note:'Two storeys of glowing white sleep pods down both walls, a strip of lockers, vending machines and a neon-lit lounge in the middle. Clean, bright and very narrow to fight in.',sw:['#eeeee8','#29e0e6','#2a2a34','#ff4fae','#f5c542']},
+    sub:'Boards in Tokyo, last stop · the Kagami-gumi',note:'Two storeys of glowing white sleep pods down both walls, a strip of lockers, vending machines and a neon-lit lounge in the middle. Clean, bright and very narrow to fight in.',sw:['#eeeee8','#29e0e6','#2a2a34','#ff4fae','#f5c542']},
   {key:'aquarium',num:'09',name:'Aquarium Lounge',label:'AQUARIUM',crew:null,wins:[[.06,.94]],glow:0x7ae8f0,color:'#1a6a86',
     sub:'Observation car · no crew of its own',note:'Floor-to-ceiling glass, a column tank of fish and blue velvet booths. Under the Atlantic the windows fill with whales; in the desert they fill with stars.',sw:['#0e3a52','#1a6a86','#bfefff','#2a2a5a','#d4ad5a']},
   {key:'baggage',num:'10',name:'Baggage',label:'BAGGAGE',crew:null,wins:[[.1,.15],[.85,.9]],glow:0xffb050,color:'#8a6a46',
@@ -67,7 +67,7 @@ function buildCarExt(parent,W,x){ const n=N(parent,x,0,0);
   mk(box(CAR_GAP+.1,3.6,3.6),M(null,{color:0x14161a}),n,CAR_L/2+CAR_GAP/2,1.7,0);
   const gm=GLOWM[W.key]||(GLOWM[W.key]=M(winGlowTex(W),{cut:true,emissive:W.glow,color:[.1,.1,.1]}));
   const gw=N(n); gw.vis=false; n.glow=gw;
-  for(const s of [1,-1]) mk(planeUV(CAR_L,1.6,s<0),gm,gw,0,1.82,s*(CAR_HW+.02),0,s>0?0:Math.PI,0);
+  for(const s of [1,-1]){ const gp=plane(CAR_L,1.6,24,1); if(s<0) for(let i=0;i<gp.T.length;i+=2) gp.T[i]=1-gp.T[i]; mk(gp,gm,gw,0,1.82,s*(CAR_HW+.06),0,s>0?0:Math.PI,0); }
   if(W.key==='cab'){ const ns=[]; for(let i=0;i<=10;i++){ const t=i/10; ns.push({x:CAR_L/2+t*12,sz:Math.max(.03,1-.86*Math.pow(t,1.5)),sy:Math.max(.05,1-.7*Math.pow(t,1.1)),dy:-1.05*Math.pow(t,1.3),u:t}); }
     mk(loft(ns),M(noseTex()),n); const pm=M(null,{color:0x3a3c40});
     mk(box(2,.1,.9),pm,n,-8,4.65,0); mk(box(.08,1.3,.08),pm,n,-8.3,5.2,0,0,0,.6); mk(box(.08,1.3,.08),pm,n,-7.7,5.2,0,0,0,-.6); mk(box(.1,.08,2.4),pm,n,-8,5.75,0); }
@@ -96,7 +96,7 @@ function setGlow(on){ for(const c of TRAIN_CARS) c.glow.vis=on; for(const c of S
   const sign=P2(160,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#14203a'],[1,'#0e1628']]); R(g,GOLD,2,2,w-4,1); R(g,GOLD,2,h-3,w-4,1); text(g,'TOKYO MERIDIAN TERMINAL',(w-textW('TOKYO MERIDIAN TERMINAL'))/2|0,8,'#f2ece0',1); text(g,'PLATFORM 0  WORLD LOOP',(w-textW('PLATFORM 0  WORLD LOOP'))/2|0,18,'#29e0e6',1); },0);
   mk(box(4.4,.9,.06),F(dark,M(sign),M(sign)),S,-8,5.4,-.7); for(const dx of [-1.9,1.9]) mk(box(.03,2.2,.03),gold,S,-8+dx,6.9,-.7);
   const board=P2(128,64,(g,w,h)=>{ R(g,'#0e0d0c',0,0,w,h); text(g,'THE MERIDIAN  WORLD LOOP',3,3,'#ffb020',1);
-    const stops=[['DAY 2','KYOTO PLAIN'],['DAY 3','HONG KONG'],['DAY 5','SIBERIA'],['DAY 8','NAPLES'],['DAY 9','LONDON'],['DAY 12','LAS VEGAS'],['DAY 15','RIO']];
+    const stops=[['DAY 3','HONG KONG'],['DAY 5','SIBERIA'],['DAY 8','NAPLES'],['DAY 9','LONDON'],['DAY 12','LAS VEGAS'],['DAY 15','RIO'],['DAY 18','TOKYO']];
     stops.forEach(([d,n],i)=>{ text(g,d,3,12+i*7,'#c88a20',1); text(g,n,34,12+i*7,'#c88a20',1); }); });
   mk(box(3.4,1.7,.12),F(dark,M(board,{unlit:true}),mBlack),S,8,5.0,-.7); mk(box(3.6,.1,.16),gold,S,8,5.9,-.7); for(const dx of [-1.4,1.4]) mk(box(.03,2.5,.03),gold,S,8+dx,7.1,-.7);
   const clockT=P2(32,32,(g,w,h)=>{ ell(g,16,16,15,15,'#d4ad5a'); ell(g,16,16,13,13,'#f6efe0'); for(let k=0;k<12;k++){ const a=k/12*Math.PI*2; R(g,'#14203a',16+Math.sin(a)*11|0,16-Math.cos(a)*11|0,1,1); } g.strokeStyle='#14203a'; g.lineWidth=1.5; g.beginPath(); g.moveTo(16,16); g.lineTo(16+Math.sin(.15)*10,16-Math.cos(.15)*10); g.moveTo(16,16); g.lineTo(16+Math.sin(6.2)*6,16-Math.cos(6.2)*6); g.stroke(); });

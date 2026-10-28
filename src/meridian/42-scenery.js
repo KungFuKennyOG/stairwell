@@ -39,6 +39,7 @@ function fishTex(kind){ return P2(kind==='whale'?128:64,kind==='whale'?48:32,(g,
 function buildScene(key){
   const S=SCENES[key], root=N(OUT), seed=key.length*131+key.charCodeAt(0);
   const sc={key,root,S,parts:[],swim:[]};
+  if(S.sun){ const [col]=S.sun; sc.sunN=mk(plane(16,16),M(P2(32,32,(g,w,h)=>{ radial(g,16,16,16,[[0,'#ffffff'],[.28,col],[.42,rgba(col,.9)],[.6,rgba(col,.0)]]); }),{unlit:true,cut:true}),root,0,0,0); }
   if(!S.undersea){ const [stops,o]=S.sky(); sc.sky=mk(cyl(104,104,124,28,{open:true}),M(skyTex(stops,o),{unlit:true,double:true,repeat:[4,1]}),root,0,45,0); sc.sky.mesh.geo.noCull=true;
     sc.cap=mk(plane(230,230),M(null,{unlit:true,color:hexInt(S.top)}),root,0,100,0,Math.PI/2); }
   else { sc.sky=mk(cyl(104,104,124,28,{open:true}),M(waterTex(),{unlit:true,double:true,repeat:[5,1]}),root,0,45,0); sc.sky.mesh.geo.noCull=true;
@@ -47,19 +48,22 @@ function buildScene(key){
     const col=S.ground[side], water=y<GROUND_Y-.1;
     const t=water?P2(64,64,(g,w,h)=>{ R(g,col,0,0,w,h); const r=rng(5); for(let i=0;i<70;i++) R(g,rgba('#ffffff',.18+r()*.2),r()*w|0,r()*h|0,3+(r()*5|0),1); },6,5):flatTex(col,seed+s);
     mk(plane(460,230),M(t,{unlit:true,repeat:[70,35]}),root,0,y,s*115,-Math.PI/2); }
-  for(const side of ['pos','neg']){ const s=side==='pos'?1:-1, vt=M(vergeFor(S.verge[side]),{unlit:true}), g=planeUV(24,11,s>0);
-    for(let i=0;i<14;i++){ const n=mk(g,vt,root,0,GROUND_Y+.01,s*9.2,-Math.PI/2); addScroll(n,(i-7)*24,336,1,key); }
+  for(const side of ['pos','neg']){ const s=side==='pos'?1:-1, vt=M(vergeFor(S.verge[side]),{unlit:true}), g=planeUV(24,7.2,s>0);
+    for(let i=0;i<14;i++){ const n=mk(g,vt,root,0,GROUND_Y+.01,s*7.2,-Math.PI/2); addScroll(n,(i-7)*24,336,1,key); }
     const bt=M(sleeperTex(),{unlit:true,color:[.7,.7,.7]}), gb=planeUV(12,1.5);
     for(let i=0;i<28;i++){ const n=mk(gb,bt,root,0,GROUND_Y+.02,s*3.0,-Math.PI/2); addScroll(n,(i-14)*12,336,1,key); } }
   if(S.undersea) buildUndersea(sc);
   else {
-    const spec=[[74,36,96,4,.06],[34,18,48,6,.35],[15,9,24,12,1]];
+    const spec=[[64,42,104,4,.06,0],[44,30,80,5,.16,3],[26,20,52,6,.4,1],[10.6,11,26,12,1,2]];
     for(const side of ['pos','neg']){ const s=side==='pos'?1:-1;
-      spec.forEach(([z,h,tw,count,k],li)=>{
-        const painter=S.layers[side][li], mats=[0,1].map(v=>M(P2(LW,LH,(g,w,h_)=>painter(g,w,h_,rng(seed+li*17+v*5+(s>0?100:0)),v),0,1),{unlit:true,cut:true}));
+      spec.forEach(([z,h,tw,count,k,li])=>{
+        const painter=li===3?S.back:S.layers[side][li]; if(!painter) return; const mats=[0,1].map(v=>M(P2(LW,LH,(g,w,h_)=>painter(g,w,h_,rng(seed+li*17+v*5+(s>0?100:0)),v),0,1),{unlit:true,cut:true}));
         const g=planeUV(tw,h,s>0), yb=li===0?GROUND_Y-1.6:GROUND_Y;
         for(let i=0;i<count;i++){ const n=mk(g,mats[(i+(s>0?1:0))%2],root,0,yb+h/2,s*z,0,s>0?Math.PI:0,0); addScroll(n,(i-count/2)*tw+(s>0?tw*.37:0),tw*count,k,key); } }); }
   }
+  if(S.props){ const r=rng(seed+77); for(const side of ['pos','neg']){ const s=side==='pos'?1:-1;
+    for(let i=0;i<16;i++){ const [t,pw,ph]=S.props[(r()*S.props.length)|0], z=s*(5.2+r()*4.4);
+      const n=mk(planeUV(pw,ph,s>0),M(t,{unlit:true,cut:true}),root,0,GROUND_Y+ph/2,z,0,s>0?Math.PI:0,0); addScroll(n,(i/16)*336-168+r()*12,336,1,key); } } }
   /* weather: petals drift, snow falls, rain streaks, bubbles rise */
   const P=S.particles||(S.undersea?'bubble':null);
   if(P){ const spec={petal:[.08,.06,0xffc8d8,90],snow:[.09,.09,0xffffff,160],rain:[.018,.55,0xa8b8c8,180],bubble:[.06,.06,0xbfefff,80]}[P];
@@ -82,6 +86,7 @@ function updateOut(dt,speed,eye,camX){
   for(const s of scrollers){ if(s.scene!=='*'&&s.scene!=='poles'&&(!curScene||s.scene!==curScene.key)) continue; s.n.p[0]=wrapX(s.base-travel*s.k,s.L); }
   if(!curScene) return; const sc=curScene, t=performance.now()/1000;
   sc.sky.p[0]=eye[0]; sc.sky.p[2]=eye[2]; sc.cap.p[0]=eye[0]; sc.cap.p[2]=eye[2];
+  if(sc.sunN){ const [,az,el]=sc.S.sun, d=[Math.sin(az)*Math.cos(el),Math.sin(el),-Math.cos(az)*Math.cos(el)]; sc.sunN.p=[eye[0]+d[0]*90,eye[1]+d[1]*90,eye[2]+d[2]*90]; sc.sunN.r=[0,Math.atan2(-d[0],-d[2]),0]; }
   for(const f of sc.swim){ f.n.p[0]=camX+wrapX(f.x-travel*f.k+t*f.own-camX,200); f.n.p[1]=f.y0+Math.sin(t*.4+f.ph)*.8; }
   for(const p of sc.parts){ let x,y,z=p.z;
     if(p.type==='petal'){ x=p.x-travel*.9+Math.sin(t*p.sp+p.ph)*.6; y=GROUND_Y+1+(p.y*.6+Math.sin(t*1.3*p.sp+p.ph)*.4); p.n.r=[t*2.1*p.sp+p.ph,t*1.7+p.ph,t*.9]; }

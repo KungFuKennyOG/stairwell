@@ -3,7 +3,7 @@
    VIEWS, CAMERA, LIGHT, LOOP
    ===================================================================================================== */
 const FP={cab:[9.7,1.95,-.9,0],casino:[-7,1.6,1.4,-.08],pool:[-6.2,1.05,1.9,-.02],pub:[-10.9,1.2,2.25,-.12],trattoria:[-8.1,1.15,-1.7,.1],banya:[3.6,1.25,1.6,-.05],dimsum:[-12.1,1.15,-1.2,.05],capsule:[-10.5,1.8,-2.2,-Math.PI/2],aquarium:[-2.5,1.25,-1.4,Math.PI/2],baggage:[-8.5,1.1,1.6,0]};
-const state={view:'route',ps1:true,res:480,snap:true,affine:true,dither:true,scene:'tokyo',wagon:'casino',fp:false,speed:30,castPose:'fight',focusCar:-1};
+const state={view:'route',ps1:true,res:480,snap:true,affine:true,dither:true,scene:'tokyonight',wagon:'casino',fp:false,speed:30,castPose:'fight',focusCar:-1};
 try{ if(matchMedia('(prefers-reduced-motion: reduce)').matches) state.speed=0; }catch(e){}
 const cam={t:[0,1,0],th:.7,ph:1.2,r:16},goal={t:[0,1,0],th:.7,ph:1.2,r:16},fpv={yaw:0,pitch:-.04,gy:0,gp:-.04};
 function setGoal(c,instant){ goal.t=c.t.slice(); goal.ph=c.ph; goal.r=c.r; let th=c.th; while(th-cam.th>Math.PI) th-=Math.PI*2; while(th-cam.th<-Math.PI) th+=Math.PI*2; goal.th=th; if(instant){ cam.t=goal.t.slice(); cam.th=goal.th; cam.ph=goal.ph; cam.r=goal.r; } }
@@ -36,7 +36,7 @@ function applyLight(){ const S=curScene.S, L0=S.light, fog=F3(S.horizon);
 
 /* ---------- views ---------- */
 const VIEWS={
-  route:{cam:{t:[90,1.8,0],th:.75,ph:1.2,r:26}},
+  route:{cam:{t:[92,2.6,0],th:.8,ph:1.32,r:22}},
   wagons:{},
   cast:{cam:{t:[-2.2,1.25,.5],th:0,ph:1.47,r:13.5}}
 };
@@ -68,7 +68,7 @@ function listOf(items,cur,onPick){ const ul=el('ul','list');
 const sceneItems=()=>SCENE_ORDER.map(k=>{ const S=SCENES[k]; const boss=S.boss?ROSTER[S.boss]:null; return {id:k,name:S.name,sub:S.country,note:S.note+(boss?` Boarding here: ${boss.name} and ${S.crew}.`:''),sw:S.swatch,right:S.time.split(' · ')[0].toUpperCase()}; });
 function renderCard(){ card.innerHTML='';
   if(state.view==='route'){
-    card.append(el('p','sub','World loop · Tokyo and back · 40,000 km · 18 days'),el('h2',null,'The Meridian'));
+    card.append(el('p','sub','World loop · Tokyo to Tokyo · 40,075 km · 18 days'),el('h2',null,'The Meridian'));
     const b=el('p','body'); b.append('The biggest bullet train ever built, on its first lap of the world: ten cars, each 30 metres long and twice the width of a normal train. You are a hitman on holiday with a price on your head. ',el('b',null,'At every stop a new crew gets on to collect it'),', and each one takes over a car.'); card.append(b);
     card.append(el('p','seg-label','The route'),listOf(sceneItems(),state.scene,it=>{ setSceneUI(it.id); renderCard(); }));
     const cars=WAGONS.map((W,i)=>({id:W.key,num:W.num,name:W.name,sub:W.crew?ROSTER[W.crew].name:W.sub.split(' · ')[0],color:W.color,right:'View'}));
@@ -81,7 +81,7 @@ function renderCard(){ card.innerHTML='';
     prev.addEventListener('click',()=>{ if(idx>0){ setWagon(WAGONS[idx-1].key); renderCard(); } }); next.addEventListener('click',()=>{ if(idx<9){ setWagon(WAGONS[idx+1].key); renderCard(); } });
     sit.addEventListener('click',()=>{ state.fp=!state.fp; const s=FP[state.wagon]; fpv.gy=fpv.yaw=s[3]; fpv.gp=fpv.pitch=-.04; renderCard(); });
     row.append(sit,prev,next); card.append(row);
-    card.append(el('p','seg-label','Outside the windows'),segOf(SCENE_ORDER.map(k=>[k,{tokyo:'Tokyo',japan:'Japan',hongkong:'HK',siberia:'Siberia',naples:'Naples',london:'London',atlantic:'Ocean',vegas:'Vegas',rio:'Rio'}[k]]),state.scene,v=>setSceneUI(v)));
+    card.append(el('p','seg-label','Outside the windows'),segOf(SCENE_ORDER.map(k=>[k,{tokyonight:'Tokyo',japan:'Japan',hongkong:'HK',siberia:'Siberia',naples:'Naples',london:'London',atlantic:'Ocean',vegas:'Vegas',rio:'Rio'}[k]]),state.scene,v=>setSceneUI(v)));
     card.append(listOf(WAGONS.map(w=>({id:w.key,num:w.num,name:w.name,sub:w.sub.split(' · ')[0],sw:w.sw})),state.wagon,it=>{ setWagon(it.id); renderCard(); }));
   } else {
     card.append(el('p','sub','Platform 0 · Tokyo Meridian Terminal · Day 1, 17:52'),el('h2',null,'The bounty hunters'));
@@ -128,6 +128,6 @@ function frame(now){
 setScene(state.scene);
 setView(location.hash.slice(1)||'route',true);
 const ld=document.getElementById('loading'); if(ld) ld.hidden=true;
-window.__mer={state,setView,setSceneUI,setWagon,cam,goal,setGoal,fpv,SCENES,WG,castChars,wagonChars,renderCard};
+window.__mer={TRAIN_CARS,GLOWM,state,setView,setSceneUI,setWagon,cam,goal,setGoal,fpv,SCENES,WG,castChars,wagonChars,renderCard};
 requestAnimationFrame(frame);
 })();
