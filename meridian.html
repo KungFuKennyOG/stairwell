@@ -96,6 +96,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible,#view:focus-visible{o
     <nav class="tabs" aria-label="Views">
       <a href="#route" data-view="route">The route</a>
       <a href="#wagons" data-view="wagons">Cars</a>
+      <a href="#stations" data-view="stations">Stations</a>
       <a href="#cast" data-view="cast">Bounty hunters</a>
     </nav>
   </header>
@@ -2196,16 +2197,143 @@ for(const key in WG){ const sp=WG[key].spots; for(const name in sp){ const s=sp[
 
 
 /* =====================================================================================================
+   UNDERGROUND STATIONS. Every stop is underground: the scenery swaps while you are down here, the crew
+   boards on the platform, and your handler has left the next weapon somewhere on it. Platform top y=0,
+   the train on the far track at z=-5.2, the back wall at z=+8.5, 64 m long. Walls and ceilings face
+   inward and are one-sided, so the orbit camera sees in from outside.
+   ===================================================================================================== */
+const ST={}, SL=64, SZ0=-10.2, SZ1=8.5;
+const ARSENAL=[
+  {stop:'Tokyo',weapon:'Suppressed pistol',how:'In a coin locker, key taped under the bench. Your holiday was supposed to be unarmed.'},
+  {stop:'Hong Kong',weapon:'A second pistol',how:'Inside a takeaway box on the dim sum counter. Two hands, two guns.'},
+  {stop:'Lake Baikal',weapon:'Pump shotgun',how:'Wrapped in a fur coat on a luggage trolley.'},
+  {stop:'London',weapon:'Compact SMG',how:'In a briefcase on a platform bench, next to a newspaper.'},
+  {stop:'Naples',weapon:'Assault rifle',how:'In a cello case leaning on the espresso bar.'},
+  {stop:'Rio',weapon:'Grenade launcher',how:'In a beach cooler full of ice.'},
+  {stop:'Las Vegas',weapon:'Gold-plated machine gun',how:'On a roulette table on the concourse, with a bow on it.'},
+  {stop:'Tokyo',weapon:'A katana',how:'For the last night. Wrapped in silk in the ticket office.'}
+];
+function stationShell(key,o){
+  const g=N(world); g.vis=false; const side={'-1':N(g),'1':N(g)};
+  mk(wplane(SL,SZ1+1.75,o.floorTile||1.5,o.floorTile||1.5),o.floor,g,0,0,(SZ1-1.75)/2,-Math.PI/2);
+  mk(wplane(SL,.5),C('#d8b020'),g,0,.004,-1.5,-Math.PI/2);
+  B(g,o.edge||C('#5a5654'),0,-1.4,-1.62,SL,1.4,.3);
+  mk(wplane(SL,SZ1-SZ0,2,2),M(sleeperTex(),{color:[.55,.55,.55]}),g,0,-1.25,(SZ1+SZ0)/2-6,-Math.PI/2);
+  for(const z of [-5.2-GAUGE,-5.2+GAUGE]) B(g,C('#8c9096'),0,-1.1,z,SL,.16,.09);
+  mk(wplane(SL,o.H,o.wallTile||1,o.wallTile||1),o.back,g,0,o.H/2,SZ1,0,Math.PI,0);
+  mk(wplane(SL,o.H+1.4,o.wallTile||1,o.wallTile||1),o.far||o.back,g,0,o.H/2-.7,SZ0,0,0,0);
+  for(const e of [-1,1]) mk(wplane(SZ1-SZ0,o.H+1.4,o.wallTile||1,o.wallTile||1),o.end||o.back,g,e*SL/2,o.H/2-.7,(SZ1+SZ0)/2,0,e<0?Math.PI/2:-Math.PI/2,0);
+  if(o.ceil) mk(wplane(SL,SZ1-SZ0,o.ceilTile||1.5,o.ceilTile||1.5),o.ceil,g,0,o.H,(SZ1+SZ0)/2,Math.PI/2);
+  [WAGONS[7],WAGONS[8]].forEach((W,i)=>{ const c=buildCarExt(g,W,(i-.5)*CAR_PITCH); c.p[2]=-5.2; c.glow.vis=true; });
+  ST[key]=Object.assign({g,side,anim:[],back:N(g),top:N(g),H:o.H},o.meta); return g; }
+/* a weapon left for you: an open case, the gun inside, a soft light and a glint ring on the floor */
+function weaponDrop(g,x,z,kind,caseCol){
+  const n=N(g,x,0,z); const ring=mk(plane(1.6,1.6),M(tRing,{unlit:true,cut:true,color:0xf5c542}),n,0,.012,0,-Math.PI/2);
+  const glow=U('#fff2c0');
+  if(kind==='locker'){ for(let r=0;r<4;r++) for(let c=0;c<3;c++){ const open=r===1&&c===1; const b=B(n,C(['#e8ecf0','#c8d4e0','#a8c8e0'][(r+c)%3]),c*.5-.5,r*.45,0,.48,.43,.5); if(open){ b.vis=false; B(n,C('#6a7480'),c*.5-.5,r*.45,-.2,.46,.41,.06); B(n,C('#e8ecf0'),c*.5-.5-.24,r*.45,.35,.03,.41,.46,.6); } }
+    const p=N(n,0,.62,0,0,Math.PI/2,0); pPistol(p); mk(cyl(.018,.018,.16,6),M(tBlued,{double:true}),p,0,.045,.23,Math.PI/2); B(n,glow,0,.86,.1,.3,.02,.3); }
+  else if(kind==='briefcase'){ B(n,C('#4a2e1a'),0,.46,0,.9,.06,.4); B(n,C('#5a3a22'),-.0,.52,-.22,.9,.4,.04,0,-.5); B(n,C('#2a1a10'),0,.52,0,.86,.02,.36); const p=N(n,0,.56,0,0,Math.PI/2,0); pSMG(p); B(n,C('#e8e2d0'),.6,.46,0,.3,.02,.22); }
+  else if(kind==='cello'){ const c=N(n,0,0,0,0,0,-.18); mk(lathe([[0,.06,.04],[.15,.2,.12],[.45,.22,.13],[.6,.15,.1],[.75,.2,.12],[1.1,.18,.1],[1.25,.07,.05]],12),C(caseCol||'#141416'),c,0,0,0); B(c,C('#2a1a12'),0,.2,.14,.3,.9,.02);
+    const p=N(n,.35,.9,.2,0,Math.PI/2,-.6); pRifleM(p); }
+  n.ring=ring; return n; }
+function pRifleM(g){ const wood=M(woodT('#5a3a24','#3a2416',303)); mk(box(.045,.07,.26),mBlack,g,0,0,.02); mk(cyl(.011,.011,.42,6),M(tBlued,{double:true}),g,0,.02,.36,Math.PI/2); mk(box(.04,.05,.2),mBlack,g,0,-.02,.22); mk(box(.035,.16,.05),mBlack,g,0,-.1,.08,-.3); mk(box(.04,.1,.24,{td:.7}),wood,g,0,-.03,-.2,.1); mk(box(.012,.04,.012),mBlack,g,0,.06,.0); return g; }
+
+/* ---------- Tokyo: B5, white tile, screen doors, ticket gates, vending machines ---------- */
+(function tokyoStation(){
+  const tile=M(P2(16,16,(g,w,h)=>{ R(g,'#eef0ee',0,0,w,h); R(g,'#d8dcd8',0,0,w,1); R(g,'#d8dcd8',0,0,1,h); },4,1));
+  const back=M(P2(32,32,(g,w,h)=>{ R(g,'#eef0ee',0,0,w,h); for(let k=0;k<4;k++){ R(g,'#d8dcd8',0,k*8,w,1); R(g,'#d8dcd8',k*8,0,1,h); } R(g,'#2a9a5a',0,18,w,5); },4,2));
+  const terr=M(P2(32,32,(g,w,h)=>{ R(g,'#9a9c9e',0,0,w,h); const r=rng(3); for(let i=0;i<160;i++) R(g,['#b8babc','#7a7c80','#c8c4b8'][i%3],r()*w|0,r()*h|0,1,1); },4,3));
+  const g=stationShell('tokyo',{floor:terr,floorTile:2,back,far:tile,end:back,ceil:M(P2(32,32,(g,w,h)=>{ R(g,'#e4e6e4',0,0,w,h); R(g,'#c8ccc8',0,0,w,1); R(g,'#c8ccc8',0,0,1,h); R(g,'#ffffff',12,0,8,h); },4,4)),ceilTile:3,H:4.6,
+    meta:{name:'Tokyo · B5',city:'Tokyo',num:'01',sw:['#eef0ee','#2a9a5a','#9a9c9e','#d63a2c','#f2c230'],crew:['ren','renc'],weapon:0,
+      note:'Five floors under the city: white tile, a green line colour, platform screen doors, ticket gates and a row of vending machines. You board here on day one with nothing but a golf bag, and come back on the last night when the Kagami-gumi are waiting.',
+      lamps:[lamp(-20,4.2,2,[1.0,1.05,1.1],10),lamp(-6,4.2,2,[1.0,1.05,1.1],10),lamp(8,4.2,2,[1.0,1.05,1.1],10),lamp(22,4.2,2,[1.0,1.05,1.1],10),lamp(0,3,-5,[.6,.62,.66],12),lamp(14,1.2,1.5,[1.2,1.0,.7],3.5)],amb:[.36,.37,.4],cam:{t:[-4,1.6,2.5],th:.35,ph:1.25,r:17}}});
+  /* platform screen doors: frames and a glass band, gaps at the car doors */
+  for(let x=-30;x<30;x+=2){ const door=Math.abs(((x+31)%31)-1)<1.5||Math.abs(x-(-.5))<1.6; if(door) continue; B(g,C('#c8ccd2'),x+1,0,-1.45,.08,1.5,.08); B(g,C('#a8c8d8',{emissive:0x0c1418}),x+1,.3,-1.45,1.92,1.1,.02); B(g,C('#2a9a5a'),x+1,1.5,-1.45,2,.1,.1); }
+  /* square columns with station number plates */
+  const plate=M(textTex(16,16,'#2a9a5a',[['G','c',2,'#ffffff'],['05','c',8,'#ffffff']]));
+  for(let x=-24;x<=24;x+=12){ B(g,tile,x,0,3,.7,4.6,.7); mk(wplane(.4,.4),plate,g,x,2.6,3.36); mk(wplane(.4,.4),plate,g,x,2.6,2.64,0,Math.PI,0); }
+  /* hanging signs */ const sign=M(textTex(96,16,'#1a1a1e',[['MERIDIAN  TOKYO','c',2,'#ffffff'],['PLATFORM 0  B5','c',9,'#2ae08a']]),{unlit:true});
+  for(const x of [-14,14]){ B(g,C('#1a1a1e'),x,3.3,1,3.2,.6,.08); mk(wplane(3,.5),sign,g,x,3.6,1.05); mk(wplane(3,.5),sign,g,x,3.6,.95,0,Math.PI,0); B(g,C('#888c90'),x-1.4,3.9,1,.03,.7,.03); B(g,C('#888c90'),x+1.4,3.9,1,.03,.7,.03); }
+  /* ticket gates along the back */ for(let k=0;k<6;k++){ const x=-6+k*1.6; B(g,C('#c8ccd2'),x,0,7.2,.25,1.0,1.4); B(g,G('#2ae08a'),x,1.0,6.6,.2,.02,.12); B(g,C('#d63a2c'),x+.8,.7,7.2,.6,.06,.06); }
+  /* vending machines, benches, an escalator up */
+  const vm=(x,c)=>B(g,F(C(c),M(P2(32,64,(g2,w,h)=>{ R(g2,c,0,0,w,h); R(g2,'#e8f4ff',3,4,w-6,30); const r=rng(x*5); for(let y=0;y<3;y++) for(let k=0;k<5;k++) R(g2,['#d63a2c','#2a6ad8','#f2c230','#2a9a5a','#f28a3a'][(k+y+(r()*3|0))%5],5+k*5,7+y*9,3,7); R(g2,'#2a2a30',4,40,w-8,8); }),{emissive:0x202020})),x,0,7.9,.9,1.9,.7,Math.PI);
+  vm(13,'#d63a2c'); vm(14,'#2a6ad8'); vm(15,'#f2f2ee'); vm(16,'#2a9a5a');
+  for(const x of [-18,-10,20]){ B(g,C('#c8ccd2'),x,.42,6.2,1.8,.06,.45); for(const dx of [-.8,.8]) B(g,C('#888c90'),x+dx,0,6.2,.06,.42,.4); }
+  for(let k=0;k<2;k++){ const ez=7.6-k*1.2; const n=N(g,-27,0,ez,0,0,.42); B(n,C('#c8ccd2'),3.5,0,0,8,.5,1.0); B(n,C('#2a2c30'),3.5,.5,0,8,.04,.8); B(n,C('#2a2c30'),3.5,.5,.42,8,.9,.06); }
+  const drop=weaponDrop(g,-10,5.8,'locker'); drop.r[1]=Math.PI; ST.tokyo.drop=drop;
+  ST.tokyo.spots={ren:{x:3,z:.6,ry:Math.PI*.8},renc:{x:1.2,z:-.6,ry:Math.PI*.7},renc2:{x:5,z:-.4,ry:Math.PI*.9}};
+})();
+
+/* ---------- Naples: the sea cave, blue mosaic, a light well spiralling up ---------- */
+(function naplesStation(){
+  const mosaic=(base,lite,seed)=>M(P2(32,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,lite],[1,base]]); const r=rng(seed); for(let y=0;y<h;y+=2) for(let x=(y>>1)%2;x<w;x+=2){ if(r()<.35) R(g,mix(base,'#ffffff',r()*.35),x,y,1,1); } for(let k=0;k<3;k++){ g.strokeStyle=rgba('#bfefff',.5); g.lineWidth=1; g.beginPath(); for(let x=0;x<=w;x++) g.lineTo(x,8+k*9+Math.sin(x/w*Math.PI*2+k)*2); g.stroke(); } },2,seed),{emissive:hexInt(mix(base,'#000000',.6))});
+  const deep=mosaic('#0e3a7a','#2a6ac8',11), gold=M(P2(16,16,(g,w,h)=>{ R(g,'#c89a3a',0,0,w,h); const r=rng(12); for(let i=0;i<40;i++) R(g,r()>.5?'#f2d27a':'#8a6a24',r()*w|0,r()*h|0,1,1); },0,12));
+  const stone=M(P2(32,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#4a4c58'],[1,'#3a3c48']]); for(let x=0;x<w;x+=16) R(g,'#2a2c36',x,0,1,h); R(g,'#2a2c36',0,0,w,1); const r=rng(13); for(let i=0;i<8;i++) ell(g,r()*w,r()*h,4,1,rgba('#7ad8ff',.35)); },4,13));
+  const g=stationShell('naples',{floor:stone,floorTile:2.5,back:deep,far:deep,end:deep,ceil:mosaic('#0a2a5a','#1a4a9a',14),ceilTile:3,H:6.5,
+    meta:{name:'Napoli Meridiana',city:'Naples',num:'05',sw:['#0e3a7a','#2a6ac8','#bfefff','#c89a3a','#1e1e24'],crew:['nonna','nonnac'],weapon:4,
+      note:'Built to look like the inside of a sea cave: walls and vault in deep blue mosaic with wave lines of light, a gold band at hand height, black stone underfoot and a light well spiralling up through the ceiling. There is an espresso bar on the platform.',
+      lamps:[lamp(-18,4.5,2,[.45,.75,1.3],12),lamp(0,5.5,2,[.6,.9,1.4],12),lamp(18,4.5,2,[.45,.75,1.3],12),lamp(-6,1.8,6.5,[1.3,.95,.55],5),lamp(10,1.4,5.5,[1.2,.9,.5],4),lamp(0,3,-5,[.3,.45,.7],12)],amb:[.18,.24,.36],cam:{t:[0,2.2,1.5],th:.5,ph:1.2,r:18}}});
+  for(const z of [SZ1-.02]) B(ST.naples.back,gold,0,.9,z-.02,SL,.6,.04);
+  /* the light well: a spiralling cone going up through the vault */
+  const cone=M(P2(16,64,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#e8f8ff'],[.3,'#6ab8f0'],[1,'#0e3a7a']]); for(let y=0;y<h;y+=6) R(g,'#bfefff',0,y,w,1); }),{unlit:true,double:true});
+  mk(lathe([[0,4.5,4.5],[1.5,3,3],[3,1.6,1.6],[4.5,.6,.6]],20,{capB:false,capT:false}),cone,ST.naples.top,0,6.5,3);
+  for(let k=0;k<24;k++){ const a=k/24*Math.PI*6, rr=4.2-k*.15; B(ST.naples.top,U('#e8f8ff'),Math.cos(a)*rr,6.6+k*.17,3+Math.sin(a)*rr,.3,.05,.3); }
+  /* wave lines of LED along the back wall */ for(let k=0;k<3;k++) for(let x=-31;x<31;x+=1){ B(ST.naples.back,U('#7ad8ff'),x+.5,2.6+k*1.1+Math.sin(x*.25+k)*.3,SZ1-.05,1.02,.05,.03); }
+  /* the espresso bar and its stools */
+  B(g,C('#1a1a1e'),-6,0,6.4,4,1.05,.9); B(g,gold,-6,1.05,6.4,4.1,.05,1.0); B(g,C('#c8ccd2'),-7.2,1.1,6.6,.6,.45,.4); B(g,C('#c8302a'),-7.2,1.55,6.6,.62,.06,.42); for(let k=0;k<5;k++) mk(cyl(.04,.035,.07,8),C('#f2ece0'),g,-5.4+k*.3,1.12,6.2);
+  for(let k=0;k<4;k++){ const x=-7.4+k*1; mk(cyl(.18,.18,.07,10),C('#c8302a'),g,x,.75,5.6); mk(cyl(.03,.03,.75,6),C('#c8ccd2'),g,x,.37,5.6); }
+  /* curved benches and lemon crates waiting to go on the train */
+  for(const x of [-20,14,22]){ B(g,stone,x,0,5.5,2.4,.45,.6); B(g,gold,x,.45,5.5,2.4,.03,.6); }
+  for(let k=0;k<5;k++){ B(g,M(woodT('#a87a46','#8a5e30',15)),18+(k%3)*.7,Math.floor(k/3)*.5,2.2,.6,.45,.45); for(let j=0;j<6;j++) mk(lathe([[0,.02,.02],[.04,.06,.05],[.08,.02,.02]],6),C('#f2d23a'),g,17.8+(k%3)*.7+(j%3)*.15,Math.floor(k/3)*.5+.45,2.1+(j>2?.15:0)); }
+  const name=M(textTex(96,16,'#0a2a5a',[['NAPOLI MERIDIANA','c',5,'#f2d27a']]),{unlit:true}); for(const x of [-24,8]) mk(wplane(5,.8),name,ST.naples.back,x,3.2,SZ1-.06,0,Math.PI,0);
+  const drop=weaponDrop(g,-3.2,5.8,'cello','#2a1a12'); drop.r[1]=Math.PI*.9; ST.naples.drop=drop;
+  ST.naples.spots={nonna:{x:2,z:1.4,ry:Math.PI*.85,seat:true},nonnac:{x:.6,z:.3,ry:Math.PI*.8},nonnac2:{x:3.6,z:.2,ry:Math.PI*.95}};
+})();
+
+/* ---------- London: a vaulted tiled tunnel, posters, a clock, wet floors ---------- */
+(function londonStation(){
+  const cream=M(P2(32,16,(g,w,h)=>{ R(g,'#ece2c8',0,0,w,h); for(let x=0;x<w;x+=8) R(g,'#d4c8a8',x,0,1,h); R(g,'#d4c8a8',0,0,w,1); R(g,'#d4c8a8',0,8,w,1); },4,21));
+  const band=M(P2(32,16,(g,w,h)=>{ R(g,'#2a4a3a',0,0,w,h); for(let x=0;x<w;x+=8) R(g,'#1e3a2c',x,0,1,h); R(g,'#8a2a2a',0,6,w,4); },4,22));
+  const floor=M(P2(32,32,(g,w,h)=>{ R(g,'#3a3634',0,0,w,h); for(let y=0;y<h;y+=8) for(let x=((y>>3)%2)*8;x<w;x+=16) R(g,'#46423e',x,y,16,8); const r=rng(23); for(let i=0;i<6;i++) ell(g,r()*w,r()*h,5,1.5,rgba('#9ab0c4',.35)); },6,23));
+  const g=stationShell('london',{floor,floorTile:2,back:band,far:cream,end:cream,H:2.4,
+    meta:{name:'Kings Meridian',city:'London',num:'04',sw:['#ece2c8','#2a4a3a','#8a2a2a','#3a3634','#f2c230'],crew:['gaffer','gafferc'],weapon:3,
+      note:'A Victorian tube hall dug out to fit the Meridian: one long barrel vault of cream tile over both tracks, a green-and-maroon band, poster frames, a big platform clock and puddles that never dry. The firm come down the stairs singing.',
+      lamps:[lamp(-22,5,2,[1.15,.95,.7],10),lamp(-8,5.4,1,[1.15,.95,.7],10),lamp(8,5.4,1,[1.15,.95,.7],10),lamp(22,5,2,[1.15,.95,.7],10),lamp(0,4,-5,[.8,.7,.55],12),lamp(16,1.6,6,[1.0,.8,.5],4)],amb:[.3,.27,.24],cam:{t:[0,2,1],th:.5,ph:1.18,r:18}}});
+  /* the barrel vault: planes round an arc over both tracks and the platform, facing in */
+  const R0=9.6, zc=-1.0, yc=2.4, segs=14;
+  for(let i=0;i<segs;i++){ const a0=-Math.PI/2+i/segs*Math.PI, a1=-Math.PI/2+(i+1)/segs*Math.PI, am=(a0+a1)/2, len=2*R0*Math.sin((a1-a0)/2);
+    const y=yc+Math.cos(am)*R0, z=zc+Math.sin(am)*R0; mk(wplane(SL,len,1.6,1.6),cream,g,0,y,z,am+Math.PI/2,0,0); }
+  for(let x=-30;x<=30;x+=6){ for(let i=0;i<segs;i++){ const a=-Math.PI/2+i/segs*Math.PI; B(g,C('#2a4a3a'),x,yc+Math.cos(a)*(R0-.05)-.1,zc+Math.sin(a)*(R0-.05),.25,.2,R0*Math.PI/segs*1.02,0,a,0); } }
+  /* poster frames on the back wall, a clock, benches, the name board */
+  const posters=['#f2c230','#2a6ad8','#c8302a','#2a9a5a','#f27ab0','#e88a3a'];
+  for(let k=0;k<8;k++){ const x=-26+k*7.4; const p=M(P2(16,24,(g,w,h)=>{ R(g,posters[k%6],0,0,w,h); ell(g,8,9,5,5,mix(posters[k%6],'#ffffff',.5)); R(g,'#14141c',2,17,12,2); R(g,'#14141c',2,20,8,1); }),{emissive:0x101010});
+    B(ST.london.back,C('#14141c'),x,1.2,SZ1-.05,1.3,1.8,.04); mk(wplane(1.2,1.7),p,ST.london.back,x,2.1,SZ1-.08,0,Math.PI,0); }
+  const nb=M(textTex(64,16,'#ece2c8',[['KINGS MERIDIAN','c',5,'#1a2a5a']]),{unlit:false}); for(const x of [-12,16]){ B(ST.london.back,C('#1a2a5a'),x,2.3,SZ1-.05,3.4,.7,.04); mk(wplane(3.2,.55),nb,ST.london.back,x,2.65,SZ1-.08,0,Math.PI,0); }
+  const clockT=P2(32,32,(g,w,h)=>{ ell(g,16,16,15,15,'#1a1a1c'); ell(g,16,16,13,13,'#f6efe0'); for(let k=0;k<12;k++){ const a=k/12*Math.PI*2; R(g,'#14141c',16+Math.sin(a)*11|0,16-Math.cos(a)*11|0,1,1); } g.strokeStyle='#14141c'; g.lineWidth=1.5; g.beginPath(); g.moveTo(16,16); g.lineTo(16+Math.sin(5.1)*6,16-Math.cos(5.1)*6); g.moveTo(16,16); g.lineTo(16+Math.sin(4.7)*10,16-Math.cos(4.7)*10); g.stroke(); });
+  mk(cyl(.7,.7,.16,16),[C('#1a1a1c'),M(clockT,{unlit:true}),M(clockT,{unlit:true})],g,2,4.8,2.4,Math.PI/2); B(g,C('#1a1a1c'),2,5.4,2.4,.05,2.4,.05);
+  for(const x of [-18,-4,10,24]){ B(g,M(woodT('#6a4428','#4a2e18',24)),x,.44,6.6,2.2,.06,.5); B(g,M(woodT('#6a4428','#4a2e18',25)),x,.5,6.88,2.2,.6,.06); for(const dx of [-1,1]) B(g,C('#2a4a3a'),x+dx,0,6.6,.06,.44,.45); }
+  mk(wplane(SL,.6),M(textTex(64,8,'#d8b020',[['MIND THE GAP','c',2,'#14141c']]),{repeat:[8,1]}),g,0,.006,-1.05,-Math.PI/2);
+  /* stairs coming down at the back corner */ for(let k=0;k<10;k++) B(g,C('#4a4642'),26-k*.4,0,7.2,.4,(10-k)*.18,1.8);
+  const drop=weaponDrop(g,-4,6.2,'briefcase'); drop.r[1]=Math.PI; ST.london.drop=drop;
+  ST.london.spots={gaffer:{x:4,z:1.2,ry:Math.PI*.85},gafferc:{x:2.4,z:2.6,ry:Math.PI*.75},gafferc2:{x:6,z:.4,ry:Math.PI*.95}};
+})();
+/* the boarding crews on each platform */
+const stationChars=[];
+for(const key in ST){ const sp=ST[key].spots; for(const name in sp){ const s=sp[name], id=name.replace(/2$/,''); const slot=N(ST[key].g,s.x,0,s.z,0,s.ry,0); const Cc=makeChar(id,slot,'s:'+key); stationChars.push(Cc); } }
+const STATION_ORDER=['tokyo','london','naples'];
+
+
+/* =====================================================================================================
    VIEWS, CAMERA, LIGHT, LOOP
    ===================================================================================================== */
 const FP={cab:[9.7,1.95,-.9,0],casino:[-7,1.6,1.4,-.08],pool:[-6.2,1.05,1.9,-.02],pub:[-10.9,1.2,2.25,-.12],trattoria:[-8.1,1.15,-1.7,.1],banya:[3.6,1.25,1.6,-.05],dimsum:[-12.1,1.15,-1.2,.05],capsule:[-10.5,1.8,-2.2,-Math.PI/2],aquarium:[-2.5,1.25,-1.4,Math.PI/2],baggage:[-8.5,1.1,1.6,0]};
-const state={view:'route',ps1:true,res:480,snap:true,affine:true,dither:true,scene:'tokyonight',wagon:'casino',fp:false,speed:30,castPose:'fight',focusCar:-1};
+const state={view:'route',ps1:true,res:480,snap:true,affine:true,dither:true,scene:'tokyonight',wagon:'casino',fp:false,speed:30,castPose:'fight',station:'tokyo',focusCar:-1};
 try{ if(matchMedia('(prefers-reduced-motion: reduce)').matches) state.speed=0; }catch(e){}
 const cam={t:[0,1,0],th:.7,ph:1.2,r:16},goal={t:[0,1,0],th:.7,ph:1.2,r:16},fpv={yaw:0,pitch:-.04,gy:0,gp:-.04};
 function setGoal(c,instant){ goal.t=c.t.slice(); goal.ph=c.ph; goal.r=c.r; let th=c.th; while(th-cam.th>Math.PI) th-=Math.PI*2; while(th-cam.th<-Math.PI) th+=Math.PI*2; goal.th=th; if(instant){ cam.t=goal.t.slice(); cam.th=goal.th; cam.ph=goal.ph; cam.r=goal.r; } }
 function effR(){ const asp=cv.width/Math.max(1,cv.height); return cam.r*Math.max(1,.95/asp); }
 function eyePos(){ const r=effR(); return [cam.t[0]+r*Math.sin(cam.ph)*Math.sin(cam.th),cam.t[1]+r*Math.cos(cam.ph),cam.t[2]+r*Math.sin(cam.ph)*Math.cos(cam.th)]; }
-const LIM={route:[3,30],wagons:[1.2,24],cast:[1.2,18]};
+const LIM={route:[3,30],wagons:[1.2,24],cast:[1.2,18],stations:[1.5,26]};
 const clampGoal=()=>{ goal.ph=Math.min(1.62,Math.max(.12,goal.ph)); const l=LIM[state.view]; goal.r=Math.min(l[1],Math.max(l[0],goal.r)); fpv.gp=Math.max(-1.2,Math.min(1.1,fpv.gp)); };
 const ptrs=new Map(); let lastPinch=0,panMode=false;
 cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); panMode=e.button===2||e.shiftKey; if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; lastPinch=Math.hypot(a.x-b.x,a.y-b.y); } });
@@ -2226,6 +2354,7 @@ const inFP=()=>state.view==='wagons'&&state.fp;
 const STATION_LIGHT={amb:[.46,.42,.5],dir:[-.6,.45,.5],dirCol:[.95,.62,.52],pl:[[[-12,7.5,2.5],[.95,.98,1.05],9],[[-4,7.5,2.5],[.95,.98,1.05],9],[[4,7.5,2.5],[.95,.98,1.05],9],[[12,7.5,2.5],[.95,.98,1.05],9],[[0,3,9],[.45,.42,.42],12]]};
 function applyLight(){ const S=curScene.S, L0=S.light, fog=F3(S.horizon);
   if(state.view==='cast'){ setLights(Object.assign({fog,fogNear:110,fogFar:220},STATION_LIGHT)); return; }
+  if(state.view==='stations'){ const st=ST[state.station]; setLights({amb:st.amb,dir:[0,1,.3],dirCol:[.12,.12,.14],fog:[.03,.03,.04],fogNear:110,fogFar:220,pl:st.lamps}); return; }
   if(state.view==='wagons'){ const w=WG[state.wagon], k=Math.max(S.lamp,w.minLamp);
     setLights({amb:L0.amb.map(v=>v*w.ambK),dir:L0.dir,dirCol:L0.dirCol.map(v=>v*w.sunK),fog,fogNear:110,fogFar:220,pl:w.lamps.map(([p,c,d])=>[p,c.map(v=>v*k),d])}); return; }
   setLights({amb:L0.amb,dir:L0.dir,dirCol:L0.dirCol,fog,fogNear:110,fogFar:220,pl:[]}); }
@@ -2234,18 +2363,19 @@ function applyLight(){ const S=curScene.S, L0=S.light, fog=F3(S.horizon);
 const VIEWS={
   route:{cam:{t:[92,2.6,0],th:.8,ph:1.32,r:22}},
   wagons:{},
-  cast:{cam:{t:[-2.2,1.25,.5],th:0,ph:1.47,r:13.5}}
+  cast:{cam:{t:[-2.2,1.25,.5],th:0,ph:1.47,r:13.5}},
+  stations:{}
 };
 function wagonCam(){ const w=WG[state.wagon]; return Object.assign({},w.cam,{t:w.cam.t.slice()}); }
 function setWagon(key,instant){ for(const k in WG) WG[k].g.vis=false; state.wagon=key; WG[key].g.vis=state.view==='wagons'; if(state.view==='wagons'){ setGoal(wagonCam(),instant); const s=FP[key]; fpv.gy=fpv.yaw=s[3]; fpv.gp=fpv.pitch=-.04; applyLight(); } }
 function setSceneUI(key){ state.scene=key; setScene(state.view==='cast'?'tokyo':key); POLES.vis=state.view!=='cast'&&!curScene.S.undersea; setGlow(!!(curScene.S.night||curScene.S.undersea)&&state.view!=='cast'); applyLight(); updateClock(); }
 function setView(v,instant){
   if(!VIEWS[v]) v='route'; state.view=v;
-  TRAIN.vis=v==='route'; STATION.vis=v==='cast'; for(const k in WG) WG[k].g.vis=(v==='wagons'&&k===state.wagon);
+  TRAIN.vis=v==='route'; STATION.vis=v==='cast'; for(const k in WG) WG[k].g.vis=(v==='wagons'&&k===state.wagon); for(const k in ST) ST[k].g.vis=(v==='stations'&&k===state.station); OUT.vis=v!=='stations';
   POLES.vis=v!=='cast'; for(const a of POLE_ARMS) a.vis=v==='route';
   setScene(v==='cast'?'tokyo':state.scene); POLES.vis=v!=='cast'&&!curScene.S.undersea;
   setGlow(!!(curScene.S.night||curScene.S.undersea)&&v!=='cast');
-  if(v==='wagons') setGoal(wagonCam(),instant); else setGoal(VIEWS[v].cam,instant);
+  if(v==='wagons') setGoal(wagonCam(),instant); else if(v==='stations') setGoal(ST[state.station].cam,instant); else setGoal(VIEWS[v].cam,instant);
   if(v==='wagons'){ const s=FP[state.wagon]; fpv.gy=fpv.yaw=s[3]; fpv.gp=fpv.pitch=-.04; }
   document.querySelectorAll('.tabs a').forEach(a=>{ if(a.dataset.view===v) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   applyLight(); renderCard(); updateClock(); }
@@ -2279,6 +2409,13 @@ function renderCard(){ card.innerHTML='';
     row.append(sit,prev,next); card.append(row);
     card.append(el('p','seg-label','Outside the windows'),segOf(SCENE_ORDER.map(k=>[k,{tokyonight:'Tokyo',japan:'Japan',hongkong:'HK',siberia:'Siberia',naples:'Naples',london:'London',atlantic:'Ocean',vegas:'Vegas',rio:'Rio'}[k]]),state.scene,v=>setSceneUI(v)));
     card.append(listOf(WAGONS.map(w=>({id:w.key,num:w.num,name:w.name,sub:w.sub.split(' · ')[0],sw:w.sw})),state.wagon,it=>{ setWagon(it.id); renderCard(); }));
+  } else if(state.view==='stations'){
+    const st=ST[state.station], A=ARSENAL[st.weapon];
+    card.append(el('p','sub',`Underground · ${st.city} · the crew boards here`),el('h2',null,st.name),el('p','body',st.note),chips(st.sw));
+    const d=el('p','body'); d.append(el('b',null,'Left for you: '+A.weapon+'. '),A.how); card.append(d);
+    const row=el('div','row'); for(const k of STATION_ORDER){ const b=el('button','btn'+(k===state.station?'':' ghost'),ST[k].city); b.type='button'; b.addEventListener('click',()=>{ setStation(k); renderCard(); }); row.append(b); } card.append(row);
+    card.append(el('p','seg-label','Your arsenal, stop by stop'),listOf(ARSENAL.map((a,i)=>({id:i,num:String(i+1).padStart(2,'0'),name:a.weapon,sub:a.stop,note:a.how})),st.weapon,()=>{}));
+    card.append(el('p','body','Every stop is underground. While you are on the platform the old city is unloaded and the next one loads, so you never see the switch: the train climbs out of the tunnel into the new place.'));
   } else {
     card.append(el('p','sub','Platform 0 · Tokyo Meridian Terminal · Day 1, 06:10'),el('h2',null,'The bounty hunters'));
     card.append(el('p','body','The Tourist, the seven bosses in front and a member of each crew behind. Every one of them runs on the Stairwell rig: the same skinned body, painted faces and expressions and two-handed gun holds. Only the faces, clothes, hats and props are new.'));
@@ -2286,7 +2423,8 @@ function renderCard(){ card.innerHTML='';
     const ids=[]; for(const id of LINE){ ids.push(id); if(ROSTER[id].crew) ids.push(ROSTER[id].crew); }
     card.append(listOf(ids.map(id=>({id,name:ROSTER[id].name,sub:ROSTER[id].role,note:ROSTER[id].note+' '+ROSTER[id].stop+'.',color:ROSTER[id].color})),null,it=>{ const p=castSlots[it.id]; setGoal({t:[p[0],1.15,p[1]],th:0,ph:1.42,r:3}); }));
   } }
-function updateClock(){ const S=SCENES[state.view==='cast'?'tokyo':state.scene]; clockEl.innerHTML=''; const t=state.view==='cast'?'Day 1 · 06:10':S.time; const b=el('b',null,t.split(' · ')[1]); clockEl.append(b,state.view==='cast'?'Tokyo · Platform 0':`${t.split(' · ')[0]} · ${S.name} · km ${S.km.toLocaleString('en-US')}`); }
+function setStation(key,instant){ for(const k in ST) ST[k].g.vis=false; state.station=key; ST[key].g.vis=state.view==='stations'; if(state.view==='stations'){ setGoal(ST[key].cam,instant); applyLight(); updateClock(); } }
+function updateClock(){ if(state.view==='stations'){ const st=ST[state.station]; clockEl.innerHTML=''; clockEl.append(el('b',null,'B5'),`Underground · ${st.city}`); return; } const S=SCENES[state.view==='cast'?'tokyo':state.scene]; clockEl.innerHTML=''; const t=state.view==='cast'?'Day 1 · 06:10':S.time; const b=el('b',null,t.split(' · ')[1]); clockEl.append(b,state.view==='cast'?'Tokyo · Platform 0':`${t.split(' · ')[0]} · ${S.name} · km ${S.km.toLocaleString('en-US')}`); }
 
 window.addEventListener('hashchange',()=>setView(location.hash.slice(1)));
 document.querySelectorAll('.tabs a').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); const v=a.dataset.view; try{ history.replaceState(null,'','#'+v); }catch(_){} setView(v); }));
@@ -2307,6 +2445,7 @@ function frame(now){
   fpv.yaw+=(fpv.gy-fpv.yaw)*k; fpv.pitch+=(fpv.gp-fpv.pitch)*k;
   const target=state.view==='cast'?0:state.speed; curSpeed+=(target-curSpeed)*(1-Math.exp(-dt*1.5));
   for(const C of castChars) if(state.view==='cast'){ animateChar(C,clock); skinUpdate(C); }
+  if(state.view==='stations'){ for(const C of stationChars) if(C.grp==='s:'+state.station){ animateChar(C,clock); skinUpdate(C); } const dr=ST[state.station].drop; if(dr){ const s=1+Math.sin(clock*3)*.12; dr.ring.s=[s,s,1]; } }
   if(state.view==='wagons'){ for(const C of wagonChars) if(C.grp==='w:'+state.wagon){ animateChar(C,clock); skinUpdate(C); } for(const f of WG[state.wagon].anim) f(clock); }
   if(curScene.S.undersea&&state.view!=='cast'){ const f=.5+.5*Math.sin(clock*1.3)*Math.sin(clock*.7+1); const a=curScene.S.light.amb; const w=state.view==='wagons'?WG[state.wagon].ambK:1; L.amb=[(a[0]+f*.04)*w,(a[1]+f*.12)*w,(a[2]+f*.14)*w]; }
   resize();
@@ -2314,6 +2453,7 @@ function frame(now){
   if(inFP()){ const s=FP[state.wagon]; eye=[s[0],s[1],s[2]]; const cp=Math.cos(fpv.pitch); tgt=[eye[0]+Math.cos(fpv.yaw)*cp,eye[1]+Math.sin(fpv.pitch),eye[2]-Math.sin(fpv.yaw)*cp]; }
   else { eye=eyePos(); tgt=cam.t; }
   updateOut(dt,curSpeed,eye,state.view==='route'?cam.t[0]:0);
+  if(state.view==='stations'){ const st=ST[state.station]; st.back.vis=eye[2]<SZ1; st.top.vis=eye[1]<st.H; }
   if(state.view==='wagons'){ const sd=WG[state.wagon].side, near=eye[2]>0?'1':'-1', far=near==='1'?'-1':'1'; sd[far].vis=true; sd[near].vis=inFP()||Math.abs(eye[2])<WZ; }
   if(state.ps1){ const h=state.res,w=Math.max(1,Math.round(h*cv.width/cv.height)); ensureFB(w,h); gl.bindTexture(gl.TEXTURE_2D,null); gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderScene(world,eye,tgt,w,h,[w,h]);
     gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,cv.width,cv.height); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null;
@@ -2324,7 +2464,7 @@ function frame(now){
 setScene(state.scene);
 setView(location.hash.slice(1)||'route',true);
 const ld=document.getElementById('loading'); if(ld) ld.hidden=true;
-window.__mer={TRAIN_CARS,GLOWM,state,setView,setSceneUI,setWagon,cam,goal,setGoal,fpv,SCENES,WG,castChars,wagonChars,renderCard};
+window.__mer={setStation,ST,TRAIN_CARS,GLOWM,state,setView,setSceneUI,setWagon,cam,goal,setGoal,fpv,SCENES,WG,castChars,wagonChars,renderCard};
 requestAnimationFrame(frame);
 })();
 
