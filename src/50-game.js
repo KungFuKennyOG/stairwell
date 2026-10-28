@@ -830,6 +830,7 @@ function frame(now){
   const bob=GAME.started?Math.sin(now*.008)*.004*Math.min(1,Math.hypot(stick.dx,stick.dy)+(KEYS.KeyW||KEYS.KeyS||KEYS.KeyA||KEYS.KeyD?1:0)):0;
   for(const h of [HANDS.R,HANDS.L]){ const sR=h.side==='R'?1:-1,sw=h.swingT>=0?Math.sin(Math.PI*clamp(h.swingT,0,1)):0,it=h.item,w=it&&WPN[it.key],gun=w&&w.gun,rl=it&&it.reload>0?-.12:0,hv=w&&w.heavy;
     const side=sR*(gun?.19:.2)-sR*sw*(hv?.2:.08),up=(gun?-.2:-.22)+bob+rl+sw*(hv?.16:.07),fw=(gun?.42:.36)-h.rec*.06+sw*(hv?.25:.34),pitch=h.rec*.3+(rl?-.6:0)+(gun?0:-.1+sw*(hv?-.9:.1));
+    if(window.__ads&&h.side==='R') { const S=SIGHTS[it&&it.key]||{y:.06,h:0},gy=FIST[1]-(w&&w.grip?w.grip[1]:0); placeVM(h.node,v3.add(eye,v3.add(v3.sc(u,-(gy+S.y+S.h-.003)),v3.sc(f,.24))),f,u,r,0); } else /* debug: look down the sights */
     placeVM(h.node,v3.add(eye,v3.add(v3.sc(r,side),v3.add(v3.sc(u,up),v3.sc(f,fw)))),f,u,r,pitch); m4.compose(h.M,h.node.p,h.node.r,[1,1,1]); h.node.vis=!PL.dead; updateAmmoLabel(h); }
   for(const E of enemies) E.label.vis=false; panelN.vis=false;
   m4.persp(proj,50*Math.PI/180,cv.width/cv.height,0.05,120); m4.lookAt(view,eye,v3.add(eye,f),[0,1,0]);

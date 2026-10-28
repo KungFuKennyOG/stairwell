@@ -38,7 +38,16 @@ function equip(h,item){
   h.item=item; h.itemNode=null; h.ammoN=null; h.prevPts=null; h.ammoShown=-9;
   const w=item&&WPN[item.key]; if(!w||!w.build) return;
   const g=N(h.node,FIST[0]-w.grip[0],FIST[1]-w.grip[1],FIST[2]-w.grip[2]); GEO_TEMP=true; w.build(g); GEO_TEMP=false; h.itemNode=g;
-  if(w.gun) h.ammoN=mk(plane(.032,.016),M(h.ammoTex,{unlit:true}),g,0,w.axisY+.03,.02,-Math.PI/2,0,0); }
+  if(w.gun){ h.ammoN=mk(plane(.032,.016),M(h.ammoTex,{unlit:true}),g,-.03,w.axisY+.012,.0,0,-Math.PI/2,0); addSights(g,item.key); } }
+/* iron sights: a rear notch and a front post on the same line as the bore, with glowing dots you can find in a dark corridor */
+const mSightDot=M(null,{color:0xe2c25a,unlit:true}),mSightRear=M(null,{color:0xd8d4c4,unlit:true});
+const SIGHTS={ pistol:{y:.0625,front:.145,rear:-.026,h:.007}, revolver:{y:.0475,front:.142,rear:.0,h:.008,frontY:.045}, smg:{y:.035,front:.128,rear:-.085,h:.013,hood:true}, shotgun:{y:.035,front:.59,rear:-.06,h:.006,bead:true,frontY:.032} };
+function addSights(g,key){ const S=SIGHTS[key]; if(!S) return; const top=S.y+S.h;
+  const fy=S.frontY??S.y;
+  if(S.bead){ mk(box(.006,.006,.006),mSightDot,g,0,fy+.004,S.front); }
+  else { mk(box(.004,top-fy,.006,{at:[0,(top-fy)/2,0]}),mBlack,g,0,fy,S.front); mk(box(.0042,.0028,.002),mSightDot,g,0,top-.002,S.front-.0035); }
+  if(S.hood) for(const s of [-1,1]) mk(box(.003,S.h+.003,.01,{at:[0,(S.h+.003)/2,0]}),mBlack,g,s*.007,S.y,S.front);
+  for(const s of [-1,1]){ mk(box(.004,S.h,.006,{at:[0,S.h/2,0]}),mBlack,g,s*.0055,S.y,S.rear); if(!S.bead) mk(box(.0018,.0022,.002),mSightRear,g,s*.0055,top-.002,S.rear-.0035); } }
 const transl=p=>{ const m=m4.make(); m[12]=p[0]; m[13]=p[1]; m[14]=p[2]; return m; };
 function itemM(h){ if(h.itemW) return h.itemW; const o=m4.make(); m4.mul(o,h.M,transl(h.itemNode?h.itemNode.p:[0,0,0])); return o; }
 function handPts(h){ const w=WPN[h.item?h.item.key:'fists']; if(!h.item||!h.itemNode) return [mulP(h.M,FIST)]; const Mi=itemM(h); return w.pts.map(p=>mulP(Mi,p)); }
@@ -64,13 +73,13 @@ function applySupport(h){ const s=h.support; if(!s||!h.item||!h.itemNode){ h.ite
   const fp=mulP(h.itemW,w.fore),sm=new Float32Array(s.M),cur=mulP(s.M,FIST); sm[12]+=fp[0]-cur[0]; sm[13]+=fp[1]-cur[1]; sm[14]+=fp[2]-cur[2]; setLocal(s.node,m4.make(),sm); }
 
 /* ---------- sights: a dot where the barrel points, and an optional laser ---------- */
-const tReticle=tex(16,16,null,g=>{ for(let y=0;y<16;y++) for(let x=0;x<16;x++){ const d=Math.hypot(x-7.5,y-7.5); if(d>5.2&&d<7.2||d<1.6) R(g,d<1.6?'#ff3b30':'#ff6a3d',x,y,1,1); } });
+const tReticle=tex(16,16,null,g=>{ for(let y=0;y<16;y++) for(let x=0;x<16;x++){ const d=Math.hypot(x-7.5,y-7.5); if(d<3.2) R(g,d<1.8?'#ffd0c8':'#ff3b30',x,y,1,1); } }); /* the laser's spot */
 const mLaser=M(null,{color:0xff2a1a,unlit:true});
 for(const h of Object.values(HANDS)){ h.retN=mk(plane(.02,.02),M(tReticle,{unlit:true,cut:true,double:true}),world); h.retN.vis=false; h.laserN=mk(box(1,1,1),mLaser,world); h.laserN.vis=false; }
 function updateSights(eye){
-  for(const h of Object.values(HANDS)){ const on=XR.on&&!PL.dead&&h.item&&WPN[h.item.key].gun&&h.itemNode; h.retN.vis=!!on; h.laserN.vis=!!on&&XR.laser; if(!on) continue;
+  for(const h of Object.values(HANDS)){ const on=XR.on&&!PL.dead&&h.item&&WPN[h.item.key].gun&&h.itemNode&&XR.laser; h.retN.vis=!!on; h.laserN.vis=!!on; if(!on) continue;
     const w=WPN[h.item.key],Mi=itemM(h),mz=mulP(Mi,w.muzzle),d=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))),wall=rayRoom(mz,d),en=rayEnemies(mz,d,wall.t),t=Math.min(en?en.t:wall.t,40),p=v3.add(mz,v3.sc(d,t));
-    const Z=norm3(v3.sub(eye,p)),X=norm3(Math.abs(Z[1])>.95?[1,0,0]:v3.cross([0,1,0],Z)),Y=v3.cross(Z,X),k=clamp(Math.hypot(...v3.sub(eye,p))*.65,.25,8);
+    const Z=norm3(v3.sub(eye,p)),X=norm3(Math.abs(Z[1])>.95?[1,0,0]:v3.cross([0,1,0],Z)),Y=v3.cross(Z,X),k=clamp(Math.hypot(...v3.sub(eye,p))*.3,.15,4);
     h.retN.p=v3.add(p,v3.sc(Z,.02)); h.retN.r=eul([X,Y,Z]); h.retN.s=[k,k,1];
     if(XR.laser){ const lx=norm3(Math.abs(d[1])>.95?[1,0,0]:v3.cross([0,1,0],d)),ly=v3.cross(d,lx); h.laserN.p=v3.add(mz,v3.sc(d,t/2)); h.laserN.r=eul([lx,ly,d]); h.laserN.s=[.0022,.0022,t]; } } }
 
