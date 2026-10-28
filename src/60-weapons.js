@@ -11,15 +11,15 @@ const WPN={
   bottle:  {label:'Broken bottle',build:pBottle,grip:[0,0,0],melee:'knife',bleed:.8,sever:.4,uses:6,reach:1.15,pts:[[0,0,.19],[0,0,.12]],speed:1.4},
   knife:   {label:'Kitchen knife',build:pKnife,grip:[0,0,0],melee:'knife',reach:1.2,pts:[[0,0,.23],[0,0,.15]],speed:1.3},
   machete: {label:'Machete',build:pMachete,grip:[0,0,0],melee:'knife',bleed:1.35,sever:1.7,stun:1.2,push:1.3,chop:true,reach:1.45,pts:[[0,-.012,.42],[0,-.012,.3],[0,-.012,.17]],speed:1.8},
-  axe:     {label:'Fire axe',build:pAxe,grip:[0,0,.04],fore:[0,0,.34],melee:'knife',bleed:1.6,sever:3,stun:1.6,push:2,chop:true,heavy:true,reach:1.6,pts:[[0,-.13,.6],[0,-.07,.6],[0,.0,.6]],speed:2},
-  revolver:{label:'.38 revolver',build:pRevolver,grip:[0,-.035,-.015],gun:true,mag:6,rof:.3,muzzle:[0,.036,.15],axisY:.036,push:1.3,loadOne:true,snd:'revolver'},
-  pistol:  {label:'9mm pistol',build:pPistol,grip:[0,-.035,-.005],gun:true,mag:12,rof:.11,muzzle:[0,.045,.17],axisY:.045},
-  shotgun: {label:'Pump shotgun',build:pShotgun,grip:[0,-.04,-.08],fore:[0,-.02,.24],gun:true,mag:5,rof:.8,muzzle:[0,.02,.6],axisY:.02,pellets:9,spread:.05,bleed:.5,sever:.7,push:.5,loadOne:true,snd:'shotgun'},
-  smg:     {label:'Compact SMG',build:pSMG,grip:[0,-.07,-.07],fore:[0,-.03,.12],gun:true,mag:30,rof:.07,auto:true,muzzle:[0,.012,.23],axisY:.012,spread:.014,snd:'smg'}
+  axe:     {label:'Fire axe',build:pAxe,grip:[0,0,.04],fore:[0,0,.34],slideGrip:true,melee:'knife',bleed:1.6,sever:3,stun:1.6,push:2,chop:true,heavy:true,reach:1.6,pts:[[0,-.13,.6],[0,-.07,.6],[0,.0,.6]],speed:2},
+  revolver:{label:'.38 revolver',build:pRevolver,grip:[0,-.035,-.015],gun:true,bash:{pts:[[0,.036,.14],[0,-.07,-.03]],power:.8},mag:6,rof:.3,muzzle:[0,.036,.15],axisY:.036,push:1.3,loadOne:true,snd:'revolver'},
+  pistol:  {label:'9mm pistol',build:pPistol,grip:[0,-.035,-.005],gun:true,bash:{pts:[[0,.045,.15],[0,-.08,-.02]],power:.75},mag:12,rof:.11,muzzle:[0,.045,.17],axisY:.045},
+  shotgun: {label:'Pump shotgun',build:pShotgun,grip:[0,-.04,-.08],fore:[0,-.02,.24],gun:true,pump:true,bash:{pts:[[0,.02,.58],[0,-.07,-.31],[0,-.02,-.2]],power:1.35},mag:5,rof:.8,muzzle:[0,.02,.6],axisY:.02,pellets:9,spread:.05,bleed:.5,sever:.7,push:.5,loadOne:true,snd:'shotgun'},
+  smg:     {label:'Compact SMG',build:pSMG,grip:[0,-.07,-.07],fore:[0,-.03,.12],gun:true,bash:{pts:[[0,.012,.22],[0,-.03,-.2]],power:.95},mag:30,rof:.07,auto:true,muzzle:[0,.012,.23],axisY:.012,spread:.014,snd:'smg'}
 };
 const WPN_KEYS=['fists','bottle','knife','machete','axe','revolver','pistol','shotgun','smg'];
 const KIND_WPN={corner:'bottle',cutter:'machete',gunman:'pistol',doorman:'shotgun',enforcer:'smg',landlord:'revolver'};
-function newItem(key,ammo){ const w=WPN[key]; return {key,ammo:w.gun?(ammo??w.mag):0,reload:0,uses:w.uses||0,cd:0}; }
+function newItem(key,ammo){ const w=WPN[key],a=w.gun?(ammo??w.mag):0; return {key,ammo:a,reload:0,uses:w.uses||0,cd:0,chambered:!w.pump||a>0,spent:false,pumpSt:'in',rev:false}; }
 
 /* ---------- hands ---------- */
 function ammoTexNew(){ return tex(16,8,'#0a0b0d'); }
@@ -33,11 +33,14 @@ const fpsTex=tex(24,8,'#0a0b0d'); const fpsN=mk(plane(.045,.015),M(fpsTex,{unlit
 function drawFps(v){ fpsN.vis=XR.on; const g=fpsTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,24,8); const s=String(v); text(g,s,(24-textW(s))>>1,1,v>=68?'#7ec27a':v>=55?'#e2a33d':'#ff3b30');
   if(fpsTex.glt){ gl.bindTexture(gl.TEXTURE_2D,fpsTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,fpsTex.c); } }
 function equip(h,item){
-  if(h.support) releaseSupport(h.support); if(h.supportOf) releaseSupport(h);
+  if(h.stuck) unstick(h); if(h.support) releaseSupport(h.support); if(h.supportOf) releaseSupport(h);
   if(h.itemNode){ disposeTree(h.itemNode); const i=h.node.kids.indexOf(h.itemNode); if(i>=0) h.node.kids.splice(i,1); }
-  h.item=item; h.itemNode=null; h.ammoN=null; h.prevPts=null; h.ammoShown=-9;
+  h.item=item; h.itemNode=null; h.ammoN=null; h.prevPts=null; h.ammoShown=-9; h.itemL=null; h.itemPR=null; h.itemW=null; h.melQ=null;
   const w=item&&WPN[item.key]; if(!w||!w.build) return;
-  const g=N(h.node,FIST[0]-w.grip[0],FIST[1]-w.grip[1],FIST[2]-w.grip[2]); GEO_TEMP=true; w.build(g); GEO_TEMP=false; h.itemNode=g;
+  /* VR melee: turned so the handle runs through the fist and the blade comes out over the thumb (61-melee.js) */
+  const a=XR.on&&w.melee?meleeAngle(item):0,c=Math.cos(a),sn=Math.sin(a),gr=w.grip,rg=[gr[0],gr[1]*c-gr[2]*sn,gr[1]*sn+gr[2]*c];
+  const g=N(h.node,FIST[0]-rg[0],FIST[1]-rg[1],FIST[2]-rg[2],a,0,0); GEO_TEMP=true; w.build(g); GEO_TEMP=false; h.itemNode=g;
+  h.itemPR={p:g.p.slice(),r:g.r.slice()}; h.itemL=m4.make(); m4.compose(h.itemL,g.p,g.r,[1,1,1]);
   if(w.gun){ h.ammoN=mk(plane(.032,.016),M(h.ammoTex,{unlit:true}),g,-.03,w.axisY+.012,.0,0,-Math.PI/2,0); addSights(g,item.key); } }
 /* iron sights: a rear notch and a front post on the same line as the bore, with glowing dots you can find in a dark corridor */
 const mSightDot=M(null,{color:0xe2c25a,unlit:true}),mSightRear=M(null,{color:0xd8d4c4,unlit:true});
@@ -49,28 +52,36 @@ function addSights(g,key){ const S=SIGHTS[key]; if(!S) return; const top=S.y+S.h
   if(S.hood) for(const s of [-1,1]) mk(box(.003,S.h+.003,.01,{at:[0,(S.h+.003)/2,0]}),mBlack,g,s*.007,S.y,S.front);
   for(const s of [-1,1]){ mk(box(.004,S.h,.006,{at:[0,S.h/2,0]}),mBlack,g,s*.0055,S.y,S.rear); if(!S.bead) mk(box(.0018,.0022,.002),mSightRear,g,s*.0055,top-.002,S.rear-.0035); } }
 const transl=p=>{ const m=m4.make(); m[12]=p[0]; m[13]=p[1]; m[14]=p[2]; return m; };
-function itemM(h){ if(h.itemW) return h.itemW; const o=m4.make(); m4.mul(o,h.M,transl(h.itemNode?h.itemNode.p:[0,0,0])); return o; }
+function itemM(h){ if(h.itemW) return h.itemW; const o=m4.make(); m4.mul(o,h.M,h.itemL||transl([0,0,0])); return o; }
 function handPts(h){ const w=WPN[h.item?h.item.key:'fists']; if(!h.item||!h.itemNode) return [mulP(h.M,FIST)]; const Mi=itemM(h); return w.pts.map(p=>mulP(Mi,p)); }
-function updateAmmoLabel(h){ const it=h.item; if(!it||!WPN[it.key].gun) return; const v=it.reload>0?-2:it.ammo; if(v===h.ammoShown) return; h.ammoShown=v;
-  const t=h.ammoTex,g=t.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,16,8); const s=v<0?'--':String(v).padStart(2,'0'); text(g,s,(16-textW(s))>>1,1,v===0?'#ff3b30':'#e2a33d');
+function updateAmmoLabel(h){ const it=h.item; if(!it||!WPN[it.key].gun) return; const v=it.reload>0?-2:it.ammo,key=v*2+(it.chambered?1:0); if(key===h.ammoShown) return; h.ammoShown=key;
+  const t=h.ammoTex,g=t.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,16,8); const s=v<0?'--':String(v).padStart(2,'0'),dry=WPN[it.key].pump&&!it.chambered&&v>0; text(g,s,(16-textW(s))>>1,1,v===0?'#ff3b30':dry?'#5ab0ff':'#e2a33d'); /* blue: rack it */
   if(t.glt){ gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,t.c); } }
 
 /* ---------- two hands on one weapon (shotgun, SMG, axe) ----------
    Grip with the free hand near the fore-end and it takes hold: the weapon then points from the back hand to the front hand. */
 const otherHand=h=>h===HANDS.R?HANDS.L:HANDS.R;
 function forePt(h){ return mulP(itemM(h),WPN[h.item.key].fore); }
-function trySupport(h){ const o=otherHand(h); if(h.item||!o.item||!WPN[o.item.key].fore||o.support||!o.itemNode) return false;
-  if(Math.hypot(...v3.sub(mulP(h.M,FIST),forePt(o)))>.2) return false; o.support=h; h.supportOf=o; sfx('click',.5); buzz(h.hand,.4,30); return true; }
+function trySupport(h){ const o=otherHand(h); if(h.item||!o.item||!WPN[o.item.key].fore||o.support||!o.itemNode||o.stuck) return false;
+  const w=WPN[o.item.key],p=mulP(h.M,FIST); let z=w.fore[2];
+  if(w.slideGrip){ const l=mulP(rigidInv(itemM(o)),p); if(Math.hypot(l[0]-w.fore[0],l[1]-w.fore[1])>.1||l[2]<w.grip[2]+.1||l[2]>w.fore[2]+.28) return false; z=clamp(l[2],w.grip[2]+.14,w.fore[2]+.2); } /* the axe: take the handle anywhere */
+  else if(Math.hypot(...v3.sub(p,forePt(o)))>.2) return false;
+  o.support=h; h.supportOf=o; h.supZ=z; o.melQ=null; sfx('click',.5); buzz(h.hand,.4,30); return true; }
 function releaseSupport(s){ const o=s.supportOf; if(!o) return; o.support=null; s.supportOf=null; o.itemW=null;
-  if(o.itemNode&&o.item){ const w=WPN[o.item.key]; o.itemNode.p=[FIST[0]-w.grip[0],FIST[1]-w.grip[1],FIST[2]-w.grip[2]]; o.itemNode.r=[0,0,0]; } }
+  restoreItemNode(o); if(o.itemNode&&o.itemNode.pump) o.itemNode.pump.p[2]=.21; }
 function applySupport(h){ const s=h.support; if(!s||!h.item||!h.itemNode){ h.itemW=null; return; }
   const w=WPN[h.item.key],G=mulP(h.M,FIST),S=mulP(s.M,FIST); if(Math.hypot(...v3.sub(S,G))>.9){ releaseSupport(s); return; } /* hands pulled apart: let go */
   const v=v3.sub(w.fore,w.grip),zm=norm3(v),um=norm3(v3.sub([0,1,0],v3.sc(zm,zm[1]))),xm=v3.cross(um,zm);
   const zw=norm3(v3.sub(S,G)),uh=colOf(h.M,1),uw=norm3(v3.sub(uh,v3.sc(zw,v3.dot(uh,zw)))),xw=v3.cross(uw,zw);
-  const R=mm([xw,uw,zw],[[xm[0],um[0],zm[0]],[xm[1],um[1],zm[1]],[xm[2],um[2],zm[2]]]),O=v3.sub(G,mv(R,w.grip));
+  let R=mm([xw,uw,zw],[[xm[0],um[0],zm[0]],[xm[1],um[1],zm[1]],[xm[2],um[2],zm[2]]]);
+  /* recoil: the muzzle climbs and the gun drives back into you, both hands go with it */
+  const kick=h.rec*(w.pump?.2:.07); if(kick>1e-3){ const c=Math.cos(-kick),sn=Math.sin(-kick); R=R.map(v=>rodr(v,xw,c,sn)); }
+  const O=v3.sub(v3.sub(G,mv(R,w.grip)),v3.sc(zw,h.rec*(w.pump?.045:.015)));
   h.itemW=fromCols(R[0],R[1],R[2],O); setLocal(h.itemNode,h.M,h.itemW);
-  /* the front hand sits on the fore-end instead of floating next to it */
-  const fp=mulP(h.itemW,w.fore),sm=new Float32Array(s.M),cur=mulP(s.M,FIST); sm[12]+=fp[0]-cur[0]; sm[13]+=fp[1]-cur[1]; sm[14]+=fp[2]-cur[2]; setLocal(s.node,m4.make(),sm); }
+  /* the pump: pull the fore-end back toward you and push it home */
+  let slide=0; if(w.pump){ const L0=Math.hypot(...v3.sub(w.fore,w.grip)); slide=clamp(L0-Math.hypot(...v3.sub(S,G)),0,.085); pumpTick(h,slide); if(h.itemNode.pump) h.itemNode.pump.p[2]=.21-slide; }
+  /* the front hand sits on the fore-end (or wherever it took the axe handle) instead of floating next to it */
+  const fp=mulP(h.itemW,[w.fore[0],w.fore[1],(s.supZ??w.fore[2])-slide]),sm=new Float32Array(s.M),cur=mulP(s.M,FIST); sm[12]+=fp[0]-cur[0]; sm[13]+=fp[1]-cur[1]; sm[14]+=fp[2]-cur[2]; setLocal(s.node,m4.make(),sm); }
 
 /* ---------- sights: a dot where the barrel points, and an optional laser ---------- */
 const tReticle=tex(16,16,null,g=>{ for(let y=0;y<16;y++) for(let x=0;x<16;x++){ const d=Math.hypot(x-7.5,y-7.5); if(d<3.2) R(g,d<1.8?'#ffd0c8':'#ff3b30',x,y,1,1); } }); /* the laser's spot */
@@ -87,38 +98,49 @@ function updateSights(eye){
 function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye down the crosshair) */
   const it=h.item; if(!it||!GAME.started||PL.dead) return false; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.cd>0) return false;
   if(it.ammo<=0){ sfx('click'); it.cd=.25; if(!XR.on) reloadHand(h); return false; }
-  it.ammo--; it.cd=w.rof; h.rec=1; sfx(w.snd||'gun'); if(XR.on) buzz(h.hand,.9,w.pellets?110:60);
+  if(w.pump&&!it.chambered){ sfx('click'); it.cd=.2; if(XR.on) buzz(h.hand,.2,15); return false; } /* nothing in the chamber: rack it */
+  it.ammo--; it.cd=w.rof; h.rec=w.pump?1.8:1; sfx(w.snd||'gun'); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
+  if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }
   const Mi=itemM(h),mz=mulP(Mi,w.muzzle),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); muzzle(mz);
   const o=aim?aim.o:mz,d0=aim?aim.d:bd; alertAll([PL.x,0,PL.z]);
-  const n=w.pellets||1,sp=w.spread||.006;
-  for(let i=0;i<n;i++) bullet(o,norm3(v3.add(d0,[rnd(-sp,sp),rnd(-sp,sp),rnd(-sp,sp)])),w,h);
+  const n=w.pellets||1,sp=w.spread||.006,tally=new Map();
+  for(let i=0;i<n;i++){ const r=bullet(o,norm3(v3.add(d0,[rnd(-sp,sp),rnd(-sp,sp),rnd(-sp,sp)])),w,h); if(r) tally.set(r.E,{n:(tally.get(r.E)||{n:0}).n+1,t:r.t}); }
+  if(w.pellets){ flash.t=.1; flash.big=true; for(let i=0;i<10;i++) emit(mz,v3.add(v3.sc(bd,rnd(.6,2.2)),[rnd(-.3,.3),rnd(-.1,.4),rnd(-.3,.3)]),rnd(.012,.03),'dust',.9); /* smoke */
+    for(const [E,r] of tally) shotgunShove(E,d0,r.n,r.t); }
   if(it.ammo===0&&!XR.on) setTimeout(()=>reloadHand(h),250);
   return true; }
 function bullet(o,d,w,h){
   const wall=rayRoom(o,d),hit=rayEnemiesExact(o,d,wall.t);
-  if(hit){ const p=hit.p; hitEnemy(hit.E,hit.seg,p,d,'gun',{bleed:w.bleed||1,sever:w.sever||1,push:w.push||1,pellet:!!w.pellets});
+  if(hit){ const p=hit.p; hitEnemy(hit.E,hit.seg,p,d,'gun',{bleed:w.bleed||1,sever:w.sever||1,push:w.push||1,pellet:!!w.pellets,dist:hit.t});
     const back=rayRoom(v3.add(p,v3.sc(d,.25)),d); if(back.t<2.6){ const wp=v3.add(v3.add(p,v3.sc(d,.25+back.t)),v3.sc(back.n,.004)); addDecal(DEC.splat,wp,back.n,rnd(.16,.3),260,back.n[1]===0?rnd(.25,.45):undefined); }
-    if(hit.t<1.3) screenBlood(w.pellets?1:3); hitMarker(); if(XR.on) buzz(h.hand,.4,40); }
+    if(hit.t<1.3) screenBlood(w.pellets?1:3); hitMarker(); if(XR.on) buzz(h.hand,.4,40); return {E:hit.E,t:hit.t}; }
   else { const p=v3.add(v3.add(o,v3.sc(d,wall.t)),v3.sc(wall.n,.004)); addDecal(DEC.hole,p,wall.n,.028,140); for(let i=0;i<(w.pellets?2:8);i++) emit(p,v3.add(v3.sc(wall.n,rnd(.6,1.6)),[rnd(-.5,.5),rnd(0,.8),rnd(-.5,.5)]),rnd(.006,.012),'dust',.8); } }
 function reloadHand(h){ const it=h.item; if(!it) return; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.ammo>=w.mag) return;
   it.reload=w.loadOne?.42:1.35; sfx(w.loadOne?'shell':'reload'); }
 function tickItem(h,dt){ const it=h.item; h.rec=Math.max(0,h.rec-dt*7); h.cd-=dt; if(!it) return; it.cd-=dt;
-  if(it.reload>0){ it.reload-=dt; if(it.reload<=0){ const w=WPN[it.key]; it.reload=0; it.ammo=w.loadOne?Math.min(w.mag,it.ammo+1):w.mag; if(w.loadOne&&it.key==='shotgun') sfx('pump',.7); } } }
+  if(it.reload>0){ it.reload-=dt; if(it.reload<=0){ const w=WPN[it.key]; it.reload=0; it.ammo=w.loadOne?Math.min(w.mag,it.ammo+1):w.mag; if(w.pump&&!it.chambered&&!XR.on){ it.chambered=true; it.spent=false; sfx('pump',.7); } } } } /* VR: a loaded tube still needs racking */
 
 /* ---------- melee ---------- */
-function meleeHit(h,E,seg,p,dir,speed){
+function meleeHit(h,E,seg,p,dir,speed,bone){
   const key=h.item?h.item.key:'fists',w=WPN[key];
+  if(w.gun){ const pw=clamp(speed/3.2,.45,1.6)*w.bash.power; hitEnemy(E,seg,p,dir,'blunt',{power:pw}); sfx('bash'); if(XR.on){ buzz(h.hand,1,90); if(h.support) buzz(h.support.hand,.8,70); } h.cd=.35; return; } /* pistol-whip, butt-stroke */
+  const oneAxe=w.heavy&&!h.support,pk=oneAxe?.6:1;
   if(w.melee==='blunt'){ hitEnemy(E,seg,p,dir,'blunt',{power:clamp(speed/3.2,.45,1.7)}); sfx('punch'); }
-  else { hitEnemy(E,seg,p,dir,'knife',{bleed:w.bleed||1,sever:w.sever||1,stun:w.stun||1,push:w.push||1,chop:!!w.chop,heavy:!!w.heavy,power:clamp(speed/3,.6,1.6)}); sfx(w.chop?'chop':'stab');
+  else { const segI=SEGS.indexOf(seg); hitEnemy(E,seg,p,dir,'knife',{bleed:(w.bleed||1)*pk,sever:(w.sever||1)*pk,stun:w.stun||1,push:(w.push||1)*pk,chop:!!w.chop,heavy:!!w.heavy,power:clamp(speed/3,.6,1.6)*pk}); sfx(w.chop?'chop':'stab');
+    /* point-first and hard: it goes in and stays in */
+    if(XR.on&&bone&&STICKS[key]&&h.itemNode&&!h.stuck&&!E.segOff.has(segI)&&enemies.includes(E)){ const Zb=norm3(colOf(itemM(h),2)),al=v3.dot(dir,Zb),part=seg[3];
+      if(key==='axe'?(speed>3.3&&!oneAxe&&/chest|belly|head|thigh/.test(part)&&Math.random()<.5):(al>.7&&speed>w.speed*1.15)) startStuck(h,E,bone,seg); }
     if(w.uses){ h.item.uses--; if(h.item.uses<=0){ sfx('glass'); spray(p,v3.sc(dir,-1),10,1.6,.8,'dust',.008); equip(h,null); } } }
   if(XR.on) buzz(h.hand,1,w.heavy?140:90); h.cd=w.heavy?.45:.28; }
 /* VR: every frame, each striking point of each hand is swept from where it was to where it is */
 function vrMelee(h,dt){
-  if(h.item&&WPN[h.item.key].gun){ h.prevPts=null; return; }
-  const pts=handPts(h),w=WPN[h.item?h.item.key:'fists'];
-  if(h.prevPts&&h.cd<=0&&GAME.started&&!PL.dead) for(let i=0;i<pts.length;i++){ const a=h.prevPts[i],b=pts[i],d=v3.sub(b,a),len=Math.hypot(...d),speed=len/Math.max(dt,1e-3);
-    if(speed<w.speed||len<1e-4) continue; const dir=v3.sc(d,1/len),o=v3.sub(a,v3.sc(dir,.04)),hit=rayEnemies(o,dir,len+.08,.03); if(!hit) continue;
-    const ex=rayMesh(hit.E,o,dir,0,len+.09); if(!ex) continue; const p=v3.add(o,v3.sc(dir,ex.t)); meleeHit(h,hit.E,segFor(hit.E,ex.bone,p),p,dir,speed); break; }
+  if(h.stuck){ h.prevPts=null; return; }
+  const w=WPN[h.item?h.item.key:'fists'],pts=w.gun?(h.itemNode?w.bash.pts.map(q=>mulP(itemM(h),q)):[]):handPts(h),need=w.gun?2.2:w.speed*(w.heavy&&!h.support?1.35:1);
+  if(h.prevPts&&h.prevPts.length===pts.length&&h.cd<=0&&GAME.started&&!PL.dead) for(let i=0;i<pts.length;i++){ const a=h.prevPts[i],b=pts[i],d=v3.sub(b,a),len=Math.hypot(...d),speed=len/Math.max(dt,1e-3);
+    if(speed<.5||len<1e-4) continue; const dir=v3.sc(d,1/len),o=v3.sub(a,v3.sc(dir,.04)),hit=rayEnemies(o,dir,len+.08,.03); if(!hit) continue;
+    const ex=rayMesh(hit.E,o,dir,0,len+.09); if(!ex) continue; const p=v3.add(o,v3.sc(dir,ex.t)),seg=segFor(hit.E,ex.bone,p);
+    if(speed<need){ if((h.bumpCd||0)<=0){ h.bumpCd=.25; for(const k of [seg[0],seg[1]]) kickV(hit.E.B,k,v3.sc(dir,.6),H); buzz(h.hand,.25,18); sfx('bump',.4); } break; } /* too slow: it just bumps off him */
+    meleeHit(h,hit.E,seg,p,dir,speed,ex.bone); break; }
   h.prevPts=pts; }
 /* flat screen: a swing that lands a moment after you click, down the crosshair */
 function flatSwing(h){ if(!GAME.started||PL.dead||h.swingT>=0||h.cd>0) return; h.swingT=0; h.swingDone=false; }
@@ -138,7 +160,9 @@ function updatePickups(dt){ for(const P of LOOSE){ P.age+=dt; if(P.rest) continu
   /* a thrown blade or bottle that reaches someone hurts him */
   if(P.thrown&&P.age>.05){ const d=v3.sub(n.p,old),len=Math.hypot(...d); if(len>1e-4){ const dir=v3.sc(d,1/len),hit=rayEnemies(old,dir,len+.05,.05);
     if(hit){ const ex=rayMesh(hit.E,old,dir,0,len+.1),p=ex?v3.add(old,v3.sc(dir,ex.t)):v3.add(old,v3.sc(dir,hit.t)),seg=ex?segFor(hit.E,ex.bone,p):hit.seg,w=WPN[P.item.key],sp=Math.hypot(...P.v);
-      if(w.melee==='knife'&&Math.random()<.65) hitEnemy(hit.E,seg,p,dir,'knife',{bleed:w.bleed||1,sever:(w.sever||1)*.6,stun:1.2,push:.8,power:clamp(sp/5,.6,1.4)}); else hitEnemy(hit.E,seg,p,dir,'blunt',{power:clamp(sp/5,.5,1.4)});
+      const pointFirst=w.melee==='knife'&&Math.random()<.65;
+      if(pointFirst) hitEnemy(hit.E,seg,p,dir,'knife',{bleed:w.bleed||1,sever:(w.sever||1)*.6,stun:1.2,push:.8,power:clamp(sp/5,.6,1.4)}); else hitEnemy(hit.E,seg,p,dir,'blunt',{power:clamp(sp/5,.5,1.4)});
+      if(pointFirst&&STICKS[P.item.key]&&ex&&sp>4&&enemies.includes(hit.E)&&!hit.E.segOff.has(SEGS.indexOf(seg))&&embedThrown(P,hit.E,ex.bone,seg,p,dir)){ sfx('stick'); hitMarker(); return updatePickups(0); } /* it sticks in him */
       if(P.item.key==='bottle'){ sfx('glass'); spray(p,v3.sc(dir,-1),12,1.5,.8,'dust',.008); removePickup(P); return updatePickups(0); }
       sfx(w.melee==='knife'?'stab':'punch'); hitMarker(); P.v=v3.sc(P.v,-.15); P.thrown=false; } } }
   const r=.04,q=[n.p[0],n.p[2]]; let floorY=r;
@@ -158,10 +182,12 @@ function buildRack(){ if(rackN){ disposeTree(rackN); const i=world.kids.indexOf(
     RACK.push({key:k,node:hook,x,y:y+.02,z:z-.08,taken:0}); });
   GEO_TEMP=false; }
 function nearestGrabbable(p,maxD){ let best=null,bd=maxD;
+  for(const e of EMB){ if(!e.handle) continue; const d=Math.hypot(...v3.sub(p,e.handle))*.8; if(d<bd){ bd=d; best={emb:e}; } } /* a blade left in someone */
   for(const R of RACK){ if(R.taken>0) continue; const d=Math.hypot(p[0]-R.x,(p[1]-R.y)*.6,p[2]-R.z); if(d<bd){ bd=d; best={rack:R}; } }
   for(const P of LOOSE){ const q=P.node.p,d=Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2]); if(d<bd){ bd=d; best={pick:P}; } }
   return best; }
 function grabOrDrop(h){
+  if(h.stuck){ leaveEmbedded(h); return; } /* let go of a blade that's in him: it stays in him */
   if(h.grab){ endGrab(h.grab,Math.hypot(...h.vel)>1.5?v3.sc(h.vel,1.1):null); return; } /* let go of him, or throw him */
   if(h.supportOf){ releaseSupport(h); sfx('click',.4); return; }
   if(!h.item&&trySupport(h)) return;
@@ -171,6 +197,7 @@ function grabOrDrop(h){
     equip(h,null); sfx('swish',.4); return; }
   const g=nearestGrabbable(mulP(h.M,FIST),.26); if(!g) return;
   if(g.rack){ if(g.rack.key==='fists') return; equip(h,newItem(g.rack.key)); g.rack.taken=.8; g.rack.node.vis=false; }
+  else if(g.emb) takeEmbedded(h,g.emb);
   else { equip(h,g.pick.item); removePickup(g.pick); }
   sfx('click',.6); buzz(h.hand,.5,40); }
 function tickRack(dt){ for(const R of RACK) if(R.taken>0){ R.taken-=dt; if(R.taken<=0) R.node.vis=true; } }

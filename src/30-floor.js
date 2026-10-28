@@ -26,7 +26,7 @@ function boxesAt(x,z){ if(boxGridDirty) buildBoxGrid(); const i=Math.floor(x+RX)
 const FURN_H={mattress:.27,bed:.5,couch:.9,tv:.92,table:.77,counter:.92,fridge:1.7,crates:1.1,trash:.35,wardrobe:1.9,desk:.78,filing:1.3,bucket:.3};
 function genFloor(n,seed,test=true){
   disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
-  FLOOR.n=n; FLOOR.seed=seed; FLOOR.test=test; FLOOR.doors=[]; FLOOR.windows=[];
+  FLOOR.n=n; FLOOR.seed=seed; FLOOR.test=test; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.mode='tower';
   const G=floorN; GEO_TEMP=true;
   const tier=tierOf(n), deco=tier<2?0:tier<4?1:2;
   const r=rng((seed*2654435761 ^ n*40503)>>>0);
@@ -92,7 +92,7 @@ function genFloor(n,seed,test=true){
       mk(box(3,.04,1.8),M(null,{color:0x050506,unlit:true}),G,sx*11.5,.006,-1.05);
       mk(box(2.6,.04,.04),mSteel,G,sx*11.6,.95,-.12); addBox(sx*10.3,sx*12.9,-1.95,-.2,0,1.0,'rail');
       blockRect(sx>0?10.2:-13.1,.15,sx>0?13.1:-10.2,1.95); blockRect(sx>0?10.3:-13.1,-1.95,sx>0?13.1:-10.3,-.2); }
-    const nm=N(G,sx*12.92,1.7,-1.0,0,sx>0?-Math.PI/2:Math.PI/2,0); mk(plane(1.0,.5),M(floorNum(sx<0?n:Math.min(30,n+1)),{cut:true}),nm);
+    const nm=N(G,sx*12.92,westTest?2.38:1.7,-1.0,0,sx>0?-Math.PI/2:Math.PI/2,0); mk(plane(1.0,.5),M(floorNum(sx<0?n:Math.min(30,n+1)),{cut:true}),nm);
     if(sx>0&&n>=8){ const c=N(G,11.2,1.15,-1.92); mk(box(.9,.5,.12),F(M(tAxeRed),M(tAxeCase)),c); }
   }
   FLOOR.stairUp={x0:10.35,x1:12.9,z0:.2,z1:1.9};
@@ -223,3 +223,46 @@ function navDir(x,z,tx,tz){
 function freeSpot(pred,minD=4){ for(let tries=0;tries<400;tries++){ const i=Math.random()*NX|0,k=Math.random()*NZ|0,id=k*NX+i; if(FLOOR.nav[id]) continue;
     const x=cellX(i),z=cellZ(k); let ok=true; for(let a=-1;a<=1&&ok;a++) for(let b=-1;b<=1;b++){ const q=id+a*NX+b; if(q<0||q>=FLOOR.nav.length||FLOOR.nav[q]){ ok=false; break; } }
     if(!ok||Math.hypot(x-PL.x,z-PL.z)<minD||!pred(x,z,FLOOR.space[id])) continue; if(enemies.some(E=>Math.hypot(E.pos[0]-x,E.pos[1]-z)<.9)) continue; return {x,z}; } return null; }
+
+/* ---------- the first room (test): the one-apartment level from prototype 01, rebuilt next to the armory landing ----------
+   The landing (rack, spawn board, map) is the same; walk east through the doorway into the apartment. Dani, Marco and Teo live here. */
+const ROOM_DX=-6; /* the old room was centred on 0; here it sits between x -10 and -2 */
+function genRoom(n){
+  disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
+  FLOOR.n=n; FLOOR.test=true; FLOOR.mode='room'; FLOOR.doors=[]; FLOOR.windows=[];
+  const G=floorN,T=.14,H_=RH; GEO_TEMP=true;
+  const wall=(x0,z0,x1,z1,mat,gaps=[])=>{ const alongX=Math.abs(x1-x0)>Math.abs(z1-z0),a0=alongX?Math.min(x0,x1):Math.min(z0,z1),a1=alongX?Math.max(x0,x1):Math.max(z0,z1),c=alongX?z0:x0;
+    const seg=(a,b,y0,y1)=>{ if(b-a<.01) return; const m=(a+b)/2,l=b-a; if(alongX){ mk(box(l,y1-y0,T),mat,G,m,(y0+y1)/2,c); addBox(a,b,c-T/2,c+T/2,y0,y1,'wall'); } else { mk(box(T,y1-y0,l),mat,G,c,(y0+y1)/2,m); addBox(c-T/2,c+T/2,a,b,y0,y1,'wall'); } };
+    let s=a0; for(const g of gaps){ seg(s,g[0],0,H_); seg(g[0],g[1],g[2],H_); s=g[1]; } seg(s,a1,0,H_); };
+  const peel=M(tPeel,{repeat:[2,1.4]}),stw=M(tStairWall,{repeat:[1,1]});
+  /* the landing */
+  wall(-13,-2,-13,2,stw); wall(-13,-2,-10,-2,stw); wall(-13,2,-10,2,stw);
+  mk(plane(3,4,3,4),M(tConcrete,{repeat:[1.5,2]}),G,-11.5,.004,0,-Math.PI/2);
+  const nm=N(G,-12.92,2.38,-1.0,0,Math.PI/2,0); mk(plane(1.0,.5),M(floorNum(n),{cut:true}),nm);
+  /* the apartment: west wall has the doorway from the landing */
+  wall(-10,-4,-10,4,peel,[[-.6,.6,2.1]]); wall(-2,-4,-2,4,peel); wall(-10,-4,-2,-4,peel); wall(-10,4,-2,4,peel);
+  mk(plane(8,8,8,8),M(tLinoStain,{repeat:[4,4]}),G,-6,0,0,-Math.PI/2);
+  mk(plane(14,10,14,10),M(tConcrete,{repeat:[7,5],color:0x8a8a8a}),G,-7,RH,0,Math.PI/2);
+  mk(box(1.0,2.1,.06,{at:[0,1.05,0]}),F(mBlack,M(tFireDoor)),G,-3.5,0,-4+.1);
+  mk(box(1.0,2.1,.06,{at:[0,1.05,0]}),F(mBlack,M(tDoorWood)),G,-7.2,0,4-.1,0,Math.PI,0);
+  mk(plane(1.4,1.1),M(tNightWin,{unlit:true,color:0x9a9a9a}),G,-2-.08,1.5,-1.4,0,-Math.PI/2,0); addBox(-2.08,-1.92,-2.1,-.7,.9,2.0,'window');
+  mk(plane(1.6,.4),M(TAGS[2],{cut:true}),G,-10+.08,1.55,-2.4,0,Math.PI/2,0); mk(plane(1.6,.4),M(TAGS[7],{cut:true}),G,-5.6,1.7,-4+.08);
+  const tube=M(tFluo,{unlit:true}); mk(box(1.2,.05,.2),tube,G,-4.2,RH-.03,1.3); FLOOR.flick={mat:tube,i:0};
+  mk(cyl(.004,.004,.5,3),mBlack,G,-6.5,RH-.25,-1.2); mk(box(.08,.1,.08),M(tBulb,{unlit:true}),G,-6.5,RH-.53,-1.2);
+  mk(cyl(.004,.004,.4,3),mBlack,G,-11.5,2.6,0); mk(box(.08,.1,.08),M(tBulb,{unlit:true}),G,-11.5,2.36,0);
+  const furn=[],seats=[],beds=[];
+  const place=(kind,x,z,ry)=>{ const node=N(G,x+ROOM_DX,0,z,0,ry,0),info=FURN[kind](node); let [w,d]=info.size; if(Math.abs(Math.sin(ry))>.5) [w,d]=[d,w];
+    addBox(x+ROOM_DX-w/2,x+ROOM_DX+w/2,z-d/2,z+d/2,0,FURN_H[kind]||.8,'furn'); const rec={kind,node,x:x+ROOM_DX,z,info}; furn.push(rec); if(info.seat) seats.push(rec); if(info.bed) beds.push(rec); };
+  place('couch',-2.2,-3.45,0); place('tv',-2.2,-1.6,Math.PI); place('table',1.3,-.9,0); place('mattress',2.95,2.55,Math.PI/2); place('fridge',-3.55,1.3,Math.PI/2); place('crates',3.2,-3.35,0); place('trash',.3,-3.6,0);
+  GEO_TEMP=false;
+  /* where people can walk, and which "space" each cell is (0 = the apartment, -2 = the landing) */
+  const nav=new Uint8Array(NX*NZ),space=new Int16Array(NX*NZ).fill(-9);
+  for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i,inRoom=x>-10&&x<-2&&Math.abs(z)<4,inLand=x>-13&&x<=-10&&Math.abs(z)<2;
+    space[id]=inRoom?0:inLand?-2:-9; let bl=!(inRoom||inLand);
+    if(!bl) for(const b of BOXES){ if(b.y0>1.5) continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; break; } } nav[id]=bl?1:0; }
+  const units=[{id:0,side:1,x0:-10,x1:-2,z0:-4,z1:4,w:8,apt:'APT',door:-10,win:[-2,-1.4],room:true,lit:true}];
+  Object.assign(FLOOR,{nav,space,units,party:[],bx:99,seats,beds,furn,stairUp:null});
+  const lights=[[[-4.2,2.6,1.3],[1.15,1.25,1.4],6.5],[[-6.5,2.2,-1.2],[1.7,1.0,.5],7.5],[[-8.2,1.0,-1.95],[.35,.5,1.0],3.2],[[-2.5,1.6,-1.4],[.3,.4,.65],4.5],[[-11.5,2.35,0],[1.35,1.0,.62],5.5]];
+  FLOOR.lights=lights;
+  setLights({amb:[.19,.18,.21],dir:[.3,1,.4],dirCol:[.08,.08,.1],fog:[.016,.016,.02],fogNear:7,fogFar:20,pl:[...lights,[[0,-50,0],[0,0,0],1]]});
+  boxGridDirty=true; navDirty=true; }
