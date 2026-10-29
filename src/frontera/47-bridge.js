@@ -62,6 +62,41 @@ const tKidSneakB=garment(64,32,1795,()=>['#2a2a30','canvas',.2],{folds:2,grime:.
 function gumTray(J,o){ const sy=1.09*o.hf, y=.93*o.hf-sy, z=frontAt(o,.93,.0)+.14; mk(box(.42,.05,.26),M(null,{color:0x8a6a42}),J.spine,0,y,z); mk(box(.42,.06,.01),M(null,{color:0x7a5a32}),J.spine,0,y+.05,z+.13);
   const r=rng(1776); for(let i=0;i<12;i++) mk(box(.06,.03,.05),M(null,{color:[0xe84a6a,0xf2c84a,0x3a8ae8,0x4ac86a,0xe8e2d4][i%5]}),J.spine,-.17+(i%6)*.068,y+.04,z-.07+(i/6|0)*.1);
   for(const s of [-1,1]) mk(box(.012,.4,.012),M(null,{color:0x2a2a2a}),J.spine,s*.17,y+.2,z-.1,-.4,0,0); }
+/* Kane's hit team: plainclothes, nothing that says cartel */
+Object.assign(HEADS,{
+  sicario:{seed:1801,skin:'#c49a78',skinD:'#946a50',hair:'buzz',hairC:'#3a2e24',hairFront:15,shadow:true,brow:'#3a2e24',browT:2,iris:'#4a5a6a',lip:'#94564a',beard:'stubble',beardC:'#4a3a2e'},
+  gordo:{seed:1802,skin:'#b07a56',skinD:'#80523a',hair:'slick',hairC:'#1a1410',hairFront:13,sideburn:38,shadow:true,brow:'#1a1410',browT:2,iris:'#2a1a10',lip:'#84483a',beard:'full',beardC:'#1a1410'},
+  flaco:{seed:1803,skin:'#d8ae8e',skinD:'#a88066',hair:'bleach',hairC:'#c8b080',hairFront:14,brow:'#7a6040',iris:'#4a6a7a',lip:'#a8685c',beard:'goatee',beardC:'#8a7050'},
+  spotter:{seed:1804,skin:'#e0b494',skinD:'#b08a6c',hair:'buzz',hairC:'#6a5a4a',hairFront:15,brow:'#6a5a4a',iris:'#5a7a8a',lip:'#b07060',beard:'stubble',beardC:'#7a6a5a'},
+  aduanero:{seed:1805,skin:'#a8724e',skinD:'#7a4a30',hair:'buzz',hairC:'#141010',hairFront:15,shadow:true,brow:'#141010',browT:2,iris:'#2a1a10',lip:'#7a4232',beard:'mustache',beardC:'#141010'}
+});
+const tSicTorso=torsoP('sicario',1811,(x,y)=>{ if(crewNeck(x,y,13,10)) return sk('sicario'); return y>T3.belt+2?['#3a3c3a','twill',.6]:['#5a5c58','canvas',.7]; },{decor:I=>{ neckShadow(I); softLine(I,64,T3.neck+10,64,T3.belt-6,'#3a3c38',.9,1.6); for(const x of [40,88]) softRect(I,x-10,T3.nav-30,20,22,'#4a4c48',.7,1); beltI(I,'#1a1a1c','#6a6a6e'); }});
+const tSicArm=armP(1812,()=>['#5a5c58','canvas',.7],{decor:I=>softRect(I,0,114,64,14,'#4a4c48',.9,2)});
+const tSicLeg=legP(1813,()=>['#3a3c3a','twill'],{decor:I=>{ seam(I,48,0,48,128); softRect(I,0,110,64,18,'#6a5a44',.2,4); }});
+const tGorTorso=torsoP('gordo',1821,(x,y)=>{ if(vNeck(x,y,8,16)) return sk('gordo'); return y>T3.belt+2?['#2a3448','denim',.6]:[plaid(x,y,'#5a6a3a','#3a4a24','#c8b88a'),'cotton',.7]; },{decor:I=>{ neckShadow(I); buttons(I,[64],T3.neck+20,T3.belt-4,16,'#d8d0c0'); beltI(I,'#3a2414','#c8a040'); }});
+const tGorArm=armP(1822,(x,y)=>y<40?[plaid(x,y,'#5a6a3a','#3a4a24','#c8b88a'),'cotton',.7]:sk('gordo'),{decor:I=>blob(I,32,44,30,3,-.18)});
+const tFlaTorso=torsoP('flaco',1831,(x,y)=>{ if(crewNeck(x,y,12,9)) return sk('flaco'); return y>T3.belt+2?['#1e1e22','poly',.5]:['#2a3a6a','poly',.6]; },{decor:I=>{ neckShadow(I); softLine(I,64,T3.neck+8,64,T3.belt-6,'#c8c4bc',.9,1.4); for(const x of [30,34,94,98]) softLine(I,x,T3.neck+8,x,T3.belt-6,'#e8e4dc',.9,1.2); }});
+const tFlaArm=armP(1832,()=>['#2a3a6a','poly',.6],{decor:I=>{ for(const x of [13,18,45,50]) softLine(I,x,0,x,114,'#e8e4dc',.9,1.2); }});
+const tFlaLeg=legP(1833,()=>['#1e1e22','poly'],{decor:I=>{ for(const x of [13,18,45,50]) softLine(I,x,0,x,120,'#e8e4dc',.9,1.2); }});
+const tSpoTorso=torsoP('spotter',1841,(x,y)=>{ if(crewNeck(x,y,12,9)) return sk('spotter'); return y>T3.belt+2?['#6a5a44','twill',.6]:['#a8946a','nylon',.6]; },{decor:I=>{ neckShadow(I); softLine(I,64,T3.neck+8,64,T3.belt-4,'#7a6a4a',.9,1.6); softRect(I,0,T3.belt-8,128,8,'#8a7854',.9,1.5); }});
+const tSpoArm=armP(1842,()=>['#a8946a','nylon',.6],{decor:I=>softRect(I,0,114,64,14,'#8a7854',.9,2)});
+const tAduTorso=torsoP('aduanero',1851,(x,y)=>{ if(vNeck(x,y,7,14)) return sk('aduanero'); return y>T3.belt+2?['#1e2636','twill',.6]:['#8aa0b8','cotton',.6]; },{decor:I=>{ neckShadow(I); buttons(I,[64],T3.neck+20,T3.belt-4,16,'#e8e4dc');
+  for(const x of [42,86]) softRect(I,x-9,T3.chest-12,18,14,'#7a90a8',.7,1); softEll(I,42,T3.chest-18,5,6,'#c8a040',.95,.5); textI(I,'PORT',53,T3.chest+30,'#e8e4dc',1,.7); beltI(I,'#141416','#a8a8ac'); softRect(I,96,T3.belt-4,12,18,'#141416',.95,1); }});
+const tAduArm=armP(1852,(x,y)=>y<46?['#8aa0b8','cotton',.6]:sk('aduanero'),{decor:I=>{ blob(I,32,50,30,3,-.18); softRect(I,40,12,12,14,'#2a3a5a',.9,1); softRect(I,42,15,8,3,'#c8a040',.9,.5); }});
+const tAduLeg=legP(1853,()=>['#1e2636','twill'],{decor:I=>{ seam(I,32,0,32,128); softLine(I,52,0,52,128,'#c8a040',.5,1); }});
+const HIDDEN_PISTOL={prop:pPistol,support:true,gripHand:true,wFight:{p:[.036,-.139,.035],r:[Math.PI/2,0,0]},fight:AIM_ONE};
+Object.assign(ROSTER,{
+  sicario:Object.assign({as:'gunman',side:'hit',name:'The hitters',role:'Kane\'s hit team · in the jam',color:'#5a5c58',note:'Work jacket, nothing to look at. Sitting with the engine off and both hands below the window. They\'re here for the back seat of the lead SUV, and anyone in the way.',
+    o:{hf:1.0,w:1.02,depth:1.02,lg:1.0,ag:1.02,jacket:.012,pants:.01},torso:tSicTorso,arm:tSicArm,leg:tSicLeg,foot:tWorkBoot},HIDDEN_PISTOL),
+  gordo:Object.assign({as:'enforcer',side:'hit',name:'The hitters · the big one',role:'Kane\'s hit team · carbine under a coat',color:'#5a6a3a',note:'Carries the long gun in the footwell. First out of the car when it starts, straight for the convoy.',
+    o:{hf:1.02,w:1.12,depth:1.12,belly:1.18,lg:1.1,ag:1.12,jacket:.008,pants:.012},torso:tGorTorso,arm:tGorArm,leg:tJeans,foot:tWorkBoot},TWO(pSMG,'smg')),
+  flaco:Object.assign({as:'gunman',side:'hit',name:'The hitters · the young one',role:'Kane\'s hit team · driver',color:'#2a3a6a',note:'Keeps the engine off and the radio low, waiting for the spotter. Will run if it goes wrong.',
+    o:{hf:.98,w:.92,depth:.94,lg:.94,ag:.92,jacket:.008,pants:.01,shoeW:.095},torso:tFlaTorso,arm:tFlaArm,leg:tFlaLeg,foot:tSneakW},HIDDEN_PISTOL),
+  spotter:{side:'hit',name:'The spotter',role:'Kane\'s man · on the footbridge',color:'#a8946a',note:'Leaning on the footbridge rail like he\'s watching the traffic. Radio to his ear, calls the moment. Kill him quietly and nobody calls it.',
+    o:{hf:1.0,w:.98,depth:1.0,lg:.98,ag:.98,jacket:.012,pants:.01},torso:tSpoTorso,arm:tSpoArm,leg:tJeans,foot:tSneakW,extra:J=>cap(J,'#3a3a2e','#3a3a2e'),prop:pRadio,gripHand:true,fight:{armR:[-.6,0,.3],elbowR:[-2.3,0,0],armL:[-.6,0,-.2],elbowL:[-.6,0,0],spine:[.2,0,0],head:[.25,-.15,.1],thighL:[-.04,0,.04]},wFight:{p:[0,-.07,.03],r:[.3,0,0]}},
+  aduanero:Object.assign({as:'gunman',side:'hit',name:'The booth officers',role:'Bought · at the customs booths',color:'#8aa0b8',note:'Uniform, badge, holster. Paid to wave the convoy\'s killers through and to look the other way. They\'ll shoot at whoever is winning.',
+    o:{hf:1.0,w:1.04,depth:1.06,belly:1.12,lg:1.0,ag:1.04,jacket:.004,pants:.01},torso:tAduTorso,arm:tAduArm,leg:tAduLeg,foot:tBlackBoot,extra:J=>cap(J,'#1e2636','#141414')},PISTOL,{fight:AIM_ONE})
+});
 Object.assign(ROSTER,{
   agente:Object.assign({as:'enforcer',side:'cop',name:'The escort',role:'Kessler\'s squad · riding the convoy',color:'#6a6c6e',note:'Narcotics, paid twice: once by the city, once by Kane. Out of the SUV with his carbine, checking every car and every face in the line. Jumpy, and getting jumpier.',
     o:{hf:1.0,w:1.04,depth:1.04,belly:1.06,lg:1.02,ag:1.04,jacket:.006,pants:.01},torso:tAgTorso,arm:tAgArm,leg:tAgLeg,foot:tBlackBoot,hand:tGlove,extra:(J,o)=>{ plateCarrier(J,o,TV_AG); cap(J,'#141416','#141416'); shades(J); }},TWO(pSMG,'smg')),
@@ -87,6 +122,7 @@ Object.assign(ROSTER,{
 function bridgePoses(C){ const S=C.poses.sit; if(!S) return; const sit=j=>({hipsY:S.hipsY,wpn:'drop',j:Object.assign({},S.j,j)});
   C.poses.drive=sit({armL:[-1.2,0,.08],elbowL:[-.55,0,0],armR:[-1.2,0,-.08],elbowR:[-.55,0,0],head:[.12,0,0]});
   C.poses.cuffed=sit({armL:[-.55,0,-.22],elbowL:[-1.05,0,0],armR:[-.55,0,.22],elbowR:[-1.05,0,0],spine:[.12,0,0],head:[.3,0,0]});
+  C.poses.sitArmed=Object.assign(sit({armR:[-.75,0,-.05],elbowR:[-.9,0,0],armL:[-.6,0,.2],elbowL:[-1.0,0,0],head:[.05,0,0]}),{wpn:'hang'});
   C.poses.stare=sit({spine:[-.1,-.35,0],head:[.1,-.85,0],armR:[-1.0,0,-.3],elbowR:[-1.4,0,0]}); }
 function whoB(H,id,x,z,ry,pose,o={}){ const n=N(H.g,x,o.y||0,z,0,ry,0); const C=makeChar(id,n,'p:'+H.key); bridgePoses(C); applyPose(C,pose);
   skinUpdate(C); C.node=n; tagHeat(C); H.chars.push(C); H.people.push({id,C,x,z,y:o.y||0}); return C; }
@@ -119,7 +155,7 @@ Object.assign(FX,{
      o.tint: tinted rear glass; o.door: open the front-right door; o.taxi: roof sign */
   carX(g,c,kind='sedan',o={}){ const body=col(c), tire=col(0x141416), suv=kind==='suv', L=suv?4.7:kind==='pickup'?5.0:4.6, W=1.85, h=suv?.85:.65, top=.35+h, ch=suv?.72:.58;
     const cabL=suv?3.0:kind==='pickup'?1.7:2.3, cz=suv?-.2:kind==='pickup'?.55:-.1, z0=cz-cabL/2, z1=cz+cabL/2;
-    mk(box(W,h,L,{at:[0,top-h/2,0]}),body,g); heatTag(mk(box(W-.3,.02,1.2),body,g,0,top+.01,L/2-.7),.62);
+    mk(box(W,h,L,{at:[0,top-h/2,0]}),body,g); { const hood=mk(box(W-.3,.02,1.2),body,g,0,top+.01,L/2-.7); if(!o.cold) heatTag(hood,.62); }
     if(kind==='pickup'){ mk(box(W-.1,.3,1.9),col(c-0x0a0a0a),g,0,top+.12,-1.4); mk(box(W-.3,.02,1.8),col(0x1a1a1a),g,0,top-.08,-1.4); }
     for(const [x,z] of [[W/2-.05,z1],[-W/2+.05,z1],[W/2-.05,z0],[-W/2+.05,z0],[W/2-.05,(z0+z1)/2+(suv?.25:0)],[-W/2+.05,(z0+z1)/2+(suv?.25:0)]]) mk(box(.07,ch,.08,{at:[0,ch/2,0]}),body,g,x,top,z);
     mk(box(W-.04,.06,cabL+.08),body,g,0,top+ch,cz);
@@ -133,7 +169,7 @@ Object.assign(FX,{
     if(kind!=='pickup'){ mk(box(W-.3,.12,.5),mSeat,g,0,seatY-.06,rz); mk(box(W-.3,.6,.12),mSeat,g,0,seatY+.28,rz-.28,-.12,0,0); }
     for(const sx of [-1,1]) for(const sz of [-1,1]) mk(cyl(.34,.34,.24,10),tire,g,sx*(W/2-.08),.34,sz*(L/2-.85),0,0,Math.PI/2);
     for(const sx of [-1,1]){ mk(box(.28,.12,.04),M(null,{color:0xfff2c8,unlit:true}),g,sx*.65,.35+h*.6,L/2+.01); mk(box(.28,.1,.04),M(null,{color:0xc81a1a,unlit:true}),g,sx*.68,.35+h*.6,-L/2-.01); }
-    heatTag(mk(cyl(.035,.035,.14,6),col(0x2a2a2a),g,.6,.3,-L/2-.03,Math.PI/2,0,0),.7);
+    { const ex=mk(cyl(.035,.035,.14,6),col(0x2a2a2a),g,.6,.3,-L/2-.03,Math.PI/2,0,0); if(!o.cold) heatTag(ex,.7); }
     if(o.door){ const d=N(g,-W/2,.35,z1-.05,0,.95,0); mk(box(.05,h,1.05,{at:[0,h/2,-.52]}),body,d); mk(plane(1.0,ch*.8),mGlassCar,d,0,h+ch*.4,-.52,0,Math.PI/2,0); }
     if(o.taxi){ mk(box(.5,.16,.22),col(0xf2e8c8),g,0,top+ch+.1,cz); mk(box(W+.01,.12,L*.9),col(0x2a8a4a),g,0,top-.25,0); }
     return {seatY,fz,rz}; },
@@ -153,8 +189,8 @@ Object.assign(FX,{
 
 /* ================= the bridge ================= */
 function buildBridge(){ const H=House('bridge',{name:'The bridge',where:'Puente Seco, northbound to the US · late afternoon',
-  note:'Four lanes of idling cars going nowhere, vendors walking the lanes, and a covered walkway where people queue on foot behind a chest-high railing. Two black SUVs are stuck in the jam right beside it. Don Aurelio is cuffed in the back of the first one, on his way to an extradition he isn\'t meant to survive.',
-  plays:'You start on your own feet, in the pedestrian line, a few metres from the convoy. Stay in line, hop the railing and walk the lanes like a vendor, or climb the footbridge stairs and look down onto the SUVs. You pick the moment. Then it\'s ten seconds among the civilians.',
+  note:'Four lanes of idling cars, vendors walking the lanes, a covered walkway where people queue on foot. Two black SUVs are stuck right beside it with Don Aurelio cuffed in the back. The convoy is the bait: Kane\'s hit team is already in the jam, in two ordinary cars, with a spotter on the footbridge and two bought officers at the booths.',
+  plays:'You start on foot in the pedestrian line. First you read the jam: which cars are the hitters (in thermal, the ones with cold engines). Wait, and the hitters start it and the cops shoot back, and you work in the chaos. Start it yourself, and both hit cars empty out from opposite ends of the jam with you between them. Either way they\'re going for the back seat of the lead SUV, so if you want Don Aurelio alive you have to move through the lanes, car to car. Take the spotter or a hitter quietly first and it\'s one fewer when it goes loud.',
   cam:{t:[-3,.4,2],th:.95,ph:.9,r:30},day:true,peopleLabel:'On the bridge'});
   /* deck, lanes, walkway, river below */
   mk(box(54,.8,28.4,{at:[0,-.4,0]}),col(0x8a8274),H.g,-4,0,-2.4); mk(box(10.6,.8,2.2,{at:[0,-.4,0]}),col(0x8a8274),H.g,2.2,0,11.6);
@@ -199,8 +235,9 @@ function buildBridge(){ const H=House('bridge',{name:'The bridge',where:'Puente 
   function car(x,z,c,kind,o={}){ const n=N(H.g,x,0,z,0,Math.PI/2,0); const s=(o.open===false?FX.car(n,c,kind):FX.carX(n,c,kind,o)); if(s) SEATS.push({x,z,s}); return s; }
   const seat=(x,z,s,lx,front,yAdj=0)=>({x:x+(front?s.fz:s.rz),z:z-lx,y:s.seatY-.46+yAdj});
   const tx=car(1.6,5.4,0xe8e4dc,'sedan',{taxi:true}); car(7.8,5.4,0x8a2a22,'pickup'); const s1=car(-4.4,5.4,0x0e0e10,'suv',{tint:true,door:true}); const s2=car(-10.6,5.4,0x0e0e10,'suv',{tint:true}); car(-17,5.4,0xb8b8b4,'sedan'); car(-23.2,5.4,0x4a6a3a,'pickup');
-  car(8.6,1.8,0xd8c8a0,'sedan'); const kc=car(2.6,1.8,0x2a4a6a,'sedan'); car(-3.4,1.8,0xe8e4dc,'suv'); car(-9.6,1.8,0x8a6a2a,'pickup'); car(-15.8,1.8,0x3a3a3c,'sedan'); car(-22,1.8,0xc8402e,'suv');
-  for(const [x,c,k] of [[9.2,0x3a3a3c,'suv'],[3.2,0xc8c0b0,'pickup'],[-2.8,0x8a2a22,'sedan'],[-9.2,0x2a3a5a,'sedan'],[-15.4,0xd8c8a0,'pickup'],[-21.6,0xb8b8b4,'sedan']]) car(x,-1.8,c,k,{open:false});
+  const hb=car(8.6,1.8,0xd8c8a0,'sedan',{cold:true}); const kc=car(2.6,1.8,0x2a4a6a,'sedan'); car(-3.4,1.8,0xe8e4dc,'suv'); car(-9.6,1.8,0x8a6a2a,'pickup'); car(-15.8,1.8,0x3a3a3c,'sedan'); car(-22,1.8,0xc8402e,'suv');
+  for(const [x,c,k] of [[9.2,0x3a3a3c,'suv'],[3.2,0xc8c0b0,'pickup'],[-2.8,0x8a2a22,'sedan'],[-15.4,0xd8c8a0,'pickup'],[-21.6,0xb8b8b4,'sedan']]) car(x,-1.8,c,k,{open:false});
+  const ha=car(-9.2,-1.8,0x2a3a5a,'sedan',{cold:true});
   for(const [x,c,k] of [[8.4,0xe8e4dc,'sedan'],[2.2,0x4a5a6a,'suv'],[-4,0x6a2a2a,'sedan'],[-10.2,0xc8a050,'sedan'],[-16.6,0x2a2a2e,'suv']]) car(x,-5.4,c,k,{open:false});
   { const n=N(H.g,-6,0,-11.6,0,-Math.PI/2,0); FX.car(n,0xe8e4dc,'pickup'); const m=N(H.g,9,0,-13.4,0,-Math.PI/2,0); FX.car(m,0x5a6a7a,'sedan'); }
   place(H,'cooler',-8.4,9.7,.3);
@@ -214,9 +251,18 @@ function buildBridge(){ const H=House('bridge',{name:'The bridge',where:'Puente 
   /* the line, the lanes, the cars */
   whoB(H,'hielero',-8.6,9.1,Math.PI/2,'watch',{y:.15}); whoB(H,'obrera',-7.2,9.2,Math.PI/2,'phone',{y:.15}); whoB(H,'madre',-5.7,9.35,Math.PI/2+.5,'watch',{y:.15}); whoB(H,'nina',-5.5,8.75,-.7,'idle',{y:.15});
   whoB(H,'vendedor',-.6,3.6,-Math.PI/2+.3,'idle');
+  /* Kane's hit team: two ordinary cars, engines off, nobody looking at their phone */
+  p=seat(-9.2,-1.8,ha,.4,true); whoB(H,'sicario',p.x,p.z,Math.PI/2,'drive',{y:p.y});
+  p=seat(-9.2,-1.8,ha,-.4,true); whoB(H,'gordo',p.x,p.z,Math.PI/2,'sitArmed',{y:p.y});
+  p=seat(-9.2,-1.8,ha,-.45,false); whoB(H,'flaco',p.x,p.z,Math.PI/2,'sitArmed',{y:p.y});
+  p=seat(8.6,1.8,hb,.4,true); whoB(H,'flaco',p.x,p.z,Math.PI/2,'drive',{y:p.y});
+  p=seat(8.6,1.8,hb,-.4,true); whoB(H,'sicario',p.x,p.z,Math.PI/2+.25,'sitArmed',{y:p.y});
+  /* the spotter on the footbridge, the bought officers at the booths */
+  whoB(H,'spotter',5.3,5.3,-Math.PI/2-.35,'fight',{y:5.3});
+  whoB(H,'aduanero',14.0,4.45,-Math.PI/2+.4,'watch',{y:.22}); whoB(H,'aduanero',14.1,-.85,-Math.PI/2-.3,'idle',{y:.22});
   p=seat(1.6,5.4,tx,.4,true); whoB(H,'taxista',p.x,p.z,Math.PI/2,'drive',{y:p.y});
   p=seat(2.6,1.8,kc,-.45,false); whoB(H,'nino',p.x,p.z,Math.PI/2,'stare',{y:p.y+.3});
   room(H,'The line · where Ray waits',-12,7.6,0,10.8,{t:[-6,.9,8.8],th:-2.75,ph:1.18,r:7}); room(H,'The convoy',-13,3.6,-1,7.6,{t:[-6.5,.9,5.6],th:.35,ph:.9,r:9.5});
-  room(H,'Footbridge · the view down',4.4,-8.4,6.8,12.4,{t:[-5,.6,5.2],th:1.5,ph:.95,r:12}); room(H,'Customs',12,-7.6,19,7.6,{t:[14,3.0,0],th:-1.5,ph:1.42,r:9});
+  room(H,'Footbridge · the view down',4.4,-8.4,6.8,12.4,{t:[-5,.6,5.2],th:1.5,ph:.95,r:12}); room(H,'The hit team',-12,-3.6,10,3.6,{t:[0,.9,0],th:-.2,ph:.85,r:16}); room(H,'Customs',12,-7.6,19,7.6,{t:[14,3.0,0],th:-1.5,ph:1.42,r:9});
   return H; }
 PLACE_BUILDERS.bridge=buildBridge;
