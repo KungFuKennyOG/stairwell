@@ -87,6 +87,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var
       <a href="#cast" data-view="cast">Cast</a>
       <a href="#arsenal" data-view="arsenal">Arsenal</a>
       <a href="#floor" data-view="floor">Floor gen</a>
+      <a href="houses.html" data-ext="1">Houses &#8599;</a>
     </nav>
   </header>
   <details class="look" id="look">
@@ -1393,7 +1394,7 @@ function setView(v,instant){
   document.querySelectorAll('.tabs a').forEach(a=>{ if(a.dataset.view===v) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   renderCard(); }
 window.addEventListener('hashchange',()=>setView(location.hash.slice(1)));
-document.querySelectorAll('.tabs a').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); const v=a.dataset.view; try{ history.replaceState(null,'','#'+v); }catch(_){} setView(v); }));
+document.querySelectorAll('.tabs a:not([data-ext])').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); const v=a.dataset.view; try{ history.replaceState(null,'','#'+v); }catch(_){} setView(v); }));
 const $=id=>document.getElementById(id);
 function syncLook(){ state.ps1=$('ps1').checked; state.snap=$('snap').checked; state.affine=$('affine').checked; state.dither=$('dither').checked; state.spin=$('spin').checked; $('ps1opts').classList.toggle('dim',!state.ps1); texFilter=state.ps1?gl.NEAREST:gl.LINEAR; }
 document.querySelectorAll('.look input').forEach(i=>i.addEventListener('change',syncLook));
