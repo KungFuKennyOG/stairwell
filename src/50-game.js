@@ -85,7 +85,6 @@ function buildBody(E){
 }
 const X_=(B,i)=>[B.x[i*3],B.x[i*3+1],B.x[i*3+2]];
 function setX(B,i,v){ B.x[i*3]=v[0]; B.x[i*3+1]=v[1]; B.x[i*3+2]=v[2]; }
-function kickV_(B,i,v,h){ kickV(B,i,v,h); }
 function kickV(B,i,v,h){ for(let c=0;c<3;c++) B.p[i*3+c]-=v[c]*h; B.wake=1; }
 const H=1/240;
 /* tuning for bodies on the floor (see the stepBody/targetsFor comments) */
@@ -223,7 +222,7 @@ function targetsFor(E,t,dt=1){
   const twitch=E.dead?.008*Math.max(0,1-E.deadT/1.2):0;
   for(let i=0;i<NP;i++){ const limb=PD[i][4]; let s=E.drop?0:E.dead?twitch:c; /* dropping: no tone at all, nothing holds him up */
     if(!E.dead&&!E.drop){ if(limb==='legL') s*=.2+.8*E.hp.legL; else if(limb==='legR') s*=.2+.8*E.hp.legR; else if(limb==='armL') s*=.12+.88*clamp(E.hp.armL,0,1); else if(limb==='armR') s*=.12+.88*clamp(E.hp.armR,0,1); }
-    E.K[i]=E.sevP[i]?0:(sup*.13+(1-sup)*PHYS.k)*s; E.KD[i]=E.sevP[i]?0:E.drop?(limb==='core'?.003:.01):(sup>.5?PHYS.kd:PHYS.kdDown)*s+.002; }
+    E.K[i]=E.sevP[i]?0:(sup*.13+(1-sup)*PHYS.k)*s; E.KD[i]=E.sevP[i]?0:E.drop?(limb==='core'?.003:.01):E.dead?.003+.03*clamp((E.deadT-.4)/.8,0,1):(sup>.5?PHYS.kd:PHYS.kdDown)*s+.002; } /* a corpse on the floor: dead weight, its limbs don't keep swinging */
   E.relMode=rel;
 }
 
@@ -236,16 +235,8 @@ function stepBody(E,h){
   if(E.drop&&E.drop.t<E.drop.Tg){ const D=E.drop,k=(1-D.t/D.Tg)*h*h,ad=(i,v)=>{ const o=i*3; x[o]+=v[0]*k; x[o+2]+=v[2]*k; };
     for(const s of ['L','R']) if(B.ground[PI_['an'+s]]||B.ground[PI_['toe'+s]]) ad(PI_['kn'+s],D.aKnee); /* only a leg with weight on it buckles; a free leg just hangs */
     for(const i of [PI_.chest,PI_.neck,PI_.head,PI_.shL,PI_.shR]) ad(i,D.aTop); for(const i of [PI_.pelvis,PI_.hipL,PI_.hipR]) ad(i,D.aHip); }
-  if(E.fence){ const F=E.fence,a=Math.min(1,F.t/.15)*Math.min(1,(F.T-F.t)/.5),sh=s=>X_(B,PI_['sh'+s]),
-    Rs=frameFrom(X_(B,PI_.shL),X_(B,PI_.shR),X_(B,PI_.chest),X_(B,PI_.neck)),ux=s=>v3.sc(Rs[0],s==='L'?.12:-.12);
-    const T={['el'+F.up]:v3.add(sh(F.up),v3.add(v3.sc(Rs[2],.22),v3.add(v3.sc(Rs[1],.12),ux(F.up)))),['hd'+F.up]:v3.add(sh(F.up),v3.add(v3.sc(Rs[2],.46),v3.add(v3.sc(Rs[1],.26),ux(F.up)))),
-      ['el'+F.cur]:v3.add(sh(F.cur),v3.add(v3.sc(Rs[1],-.24),v3.sc(Rs[2],.06))),['hd'+F.cur]:v3.add(sh(F.cur),v3.add(v3.sc(Rs[2],.14),v3.sc(Rs[1],-.06)))};
-    if(Rs[2][1]<-.3) F.t=Math.max(F.t,F.T-.5); /* face down: the raised arm would only push into the floor and roll him, so it lets go */
-    for(const key in T) T[key][1]=Math.max(T[key][1],.06);
-    let sx=0,sy=0,sz=0,n=0; for(const key in T){ if(E.cut['arm'+key.slice(-1)]) continue; const o=PI_[key]*3; for(let c=0;c<3;c++){ const d=clamp((T[key][c]-x[o+c])*.03*a,-.0012,.0012); x[o+c]+=d; if(c===0) sx+=d; else if(c===1) sy+=d; else sz+=d; } n++; }
-    if(n) for(const i of [PI_.chest,PI_.neck]){ const o=i*3; x[o]-=sx/2; x[o+1]-=Math.max(0,sy)/2; x[o+2]-=sz/2; } } /* the push comes off the chest: the arm moves, the body doesn't rise */
   /* the arms go dead first: a body falling as one piece would keep a raised gun arm up all the way down, so they are pulled down on their own */
-  if(E.drop&&E.drop.t<.6&&!E.fence){ const k=(1-E.drop.t/.6)*h*h; for(const s of ['L','R']){ x[PI_['hd'+s]*3+1]-=9*k; x[PI_['el'+s]*3+1]-=5*k; } }
+  if(E.drop&&E.drop.t<.6){ const k=(1-E.drop.t/.6)*h*h; for(const s of ['L','R']){ x[PI_['hd'+s]*3+1]-=9*k; x[PI_['el'+s]*3+1]-=5*k; } }
   /* muscles: blend of a world-anchored puppet (standing) and a pose held relative to the pelvis (hurt, on the ground).
      The relative part is internal force only: its net push is removed, so a body on the floor can curl up and kick but can't lift itself off it. */
   const s=E.sup; let Ha=null,pel=null;
@@ -288,30 +279,41 @@ function solveBody(E){
    a correction can only take energy out of a body, never put it in */
 function fixP(B,i,dx,dy,dz){ const o=i*3,l=Math.hypot(dx,dy,dz); if(l<1e-9) return; const x=B.x,p=B.p,nx=dx/l,ny=dy/l,nz=dz/l,vn=(x[o]-p[o])*nx+(x[o+1]-p[o+1])*ny+(x[o+2]-p[o+2])*nz;
   x[o]+=dx; x[o+1]+=dy; x[o+2]+=dz; p[o]+=dx; p[o+1]+=dy; p[o+2]+=dz; if(vn<0){ p[o]+=nx*vn; p[o+1]+=ny*vn; p[o+2]+=nz*vn; } }
-function limitBody(E,hard){ /* knees and elbows only bend one way, the head stays on the shoulders.
+/* move b relative to a by d, half each way: the body's centre of mass and momentum don't change, so a correction can't push a body along
+   the floor or lift it. Positions and histories move together (no speed added), and only the two ends' speed toward each other along d is
+   cancelled, so it can't add energy either. */
+function pairFix(B,a,b,d,sev){ const x=B.x,p=B.p,l=Math.hypot(d[0],d[1],d[2]); if(l<1e-9) return; const wa=sev&&sev[a]?0:.5,wb=sev&&sev[b]?0:.5; if(!wa&&!wb) return;
+  const ka=wa/(wa+wb),kb=wb/(wa+wb),n=[d[0]/l,d[1]/l,d[2]/l],A=a*3,Bb=b*3;
+  const vr=(x[Bb]-p[Bb]-x[A]+p[A])*n[0]+(x[Bb+1]-p[Bb+1]-x[A+1]+p[A+1])*n[1]+(x[Bb+2]-p[Bb+2]-x[A+2]+p[A+2])*n[2];
+  for(let c=0;c<3;c++){ x[Bb+c]+=d[c]*kb; p[Bb+c]+=d[c]*kb; x[A+c]-=d[c]*ka; p[A+c]-=d[c]*ka; if(vr<0){ p[Bb+c]+=n[c]*vr*kb; p[A+c]-=n[c]*vr*ka; } } }
+function limitBody(E,hard,CAP=.02){ /* CAP: largest correction per call. Small for a corpse at rest, so it can only hold its shape, never pump it */ /* knees and elbows only bend one way, the head stays on the shoulders.
   Standing (muscles holding a pose): corrections are small and move the particle's history with it, so a limit never throws the body around.
   Limp or downed (hard): the joint is a real stop. The bone is put back inside its range and its speed into the limit is cancelled
   (position moved, history left), run several times a step so a fall or a hit can't push through it. */
   const B=E.B,P=i=>X_(B,i);
-  const nudge=hard?(i,d,cap)=>{ if(E.sevP[i]) return; const l=Math.hypot(d[0],d[1],d[2]); if(l<1e-6) return; const k=Math.min(1,.02/l); fixP(B,i,d[0]*k,d[1]*k,d[2]*k); }
+  const nudge=hard?(i,d,cap)=>{ if(E.sevP[i]) return; const l=Math.hypot(d[0],d[1],d[2]); if(l<1e-6) return; const k=Math.min(1,CAP/l); fixP(B,i,d[0]*k,d[1]*k,d[2]*k); }
     :(i,d,cap=.006)=>{ const l=Math.hypot(d[0],d[1],d[2]); if(l<1e-6) return; const k=Math.min(1,cap/l); for(let c=0;c<3;c++){ B.x[i*3+c]+=d[c]*k; B.p[i*3+c]+=d[c]*k; } };
+  /* limp: a stop turns the bone about its joint (its length kept), so the distance solver has nothing to undo and can't feed energy back in */
+  const turn=(a,b,c)=>{ const pa=P(a),pb=P(b),v=v3.sub(pb,pa),l=Math.hypot(...v); if(l<1e-6) return; const vn=v3.sc(v,1/l),cp=v3.sub(c,v3.sc(vn,v3.dot(c,vn)));
+    let d=v3.sub(v3.add(pa,v3.sc(norm3(v3.add(v,cp)),l)),pb); const dl=Math.hypot(...d); if(dl<1e-7) return; if(dl>CAP) d=v3.sc(d,CAP/dl);
+    pairFix(B,a,b,d,E.sevP); };
   const Rh=frameFrom(P(PI_.hipL),P(PI_.hipR),P(PI_.pelvis),P(PI_.chest)),Rs=frameFrom(P(PI_.shL),P(PI_.shR),P(PI_.chest),P(PI_.neck));
   for(const s of ['L','R']){
     const hip=P(PI_['hip'+s]),kn=P(PI_['kn'+s]),an=P(PI_['an'+s]),t=norm3(v3.sub(kn,hip)),f=norm3(v3.sub(Rh[2],v3.sc(t,v3.dot(t,Rh[2])))),e=v3.dot(v3.sub(an,kn),f);
     if(e>.01&&!E.cut['leg'+s]&&!hard){ nudge(PI_['an'+s],v3.sc(f,-(e-.01)*.8)); nudge(PI_['kn'+s],v3.sc(f,(e-.01)*.2)); }
     const sh=P(PI_['sh'+s]),el=P(PI_['el'+s]),hd=P(PI_['hd'+s]),u=norm3(v3.sub(el,sh)),fa0=v3.sub(Rs[2],v3.sc(u,v3.dot(u,Rs[2]))),fa=norm3(fa0),ea=v3.dot(v3.sub(hd,el),fa);
-    if(ea<-.01&&!E.cut['arm'+s]&&Math.hypot(...fa0)>.5){ /* only judged while the upper arm isn't pointing along the chest's forward axis, where 'forward' stops meaning anything */ nudge(PI_['hd'+s],v3.sc(fa,(-ea-.01)*.8)); if(hard) nudge(PI_['el'+s],v3.sc(fa,(ea+.01)*.2)); } }
+    if(ea<-.01&&!E.cut['arm'+s]&&Math.hypot(...fa0)>.5){ /* only judged while the upper arm isn't pointing along the chest's forward axis, where 'forward' stops meaning anything */ if(hard) turn(PI_['el'+s],PI_['hd'+s],v3.sc(fa,(-ea-.01))); else nudge(PI_['hd'+s],v3.sc(fa,(-ea-.01)*.8)); } }
   const nk=P(PI_.neck),hd=P(PI_.head),d=v3.sub(hd,nk),L=Math.hypot(...d),dn=v3.sc(d,1/(L||1));
   if(!E.cut.head){ const c=v3.dot(dn,Rs[1]);
     if(!hard){ if(c<.5){ const tg=v3.add(nk,v3.sc(norm3(v3.add(dn,v3.sc(Rs[1],.6))),L)); nudge(PI_.head,v3.sc(v3.sub(tg,hd),.3)); } }
     else if(c<.42){ /* limp: the head can tip about 63 degrees off the spine; past that it is put back to the edge of that range, not beyond it */
-      const pp=v3.sub(dn,v3.sc(Rs[1],c)),pl=Math.hypot(...pp); if(pl>1e-5){ const tgd=v3.add(v3.sc(Rs[1],.45),v3.sc(pp,.893/pl)),tg=v3.add(nk,v3.sc(tgd,L)); nudge(PI_.head,v3.sc(v3.sub(tg,hd),.8)); } } }
+      const pp=v3.sub(dn,v3.sc(Rs[1],c)),pl=Math.hypot(...pp); if(pl>1e-5){ const tgd=v3.add(v3.sc(Rs[1],.45),v3.sc(pp,.893/pl)),tg=v3.add(nk,v3.sc(tgd,L)); let dd=v3.sc(v3.sub(tg,hd),.8); const dl=Math.hypot(...dd); if(dl>CAP) dd=v3.sc(dd,CAP/dl); pairFix(B,PI_.neck,PI_.head,dd,E.sevP); } } }
   /* the rest of the skeleton's range: a limp body can only fold the ways a real one does. Each limit is a cone around a bone:
      if the bone leans further than mx along axis ax (in its parent's frame), the end of the bone is eased back. */
   if(!hard) return; /* standing: the muscles already hold a real pose; only limp or downed bodies need the full range checks */
   const SL=.035; /* slop: a pose within a hair of a limit is left alone, or a body lying still would be corrected against the floor forever and creep */
   const lim=(a,b,ax,mx,also,k=.8)=>{ const pa=P(a),pb=P(b),v=v3.sub(pb,pa),l=Math.hypot(...v); if(l<1e-6) return; const e=v3.dot(v,ax)/l-mx-SL; if(e<=0) return;
-    const c=v3.sc(ax,-e*l*k); nudge(b,c); nudge(a,v3.sc(c,-.2)); if(also) nudge(also,v3.sc(c,.6)); };
+    turn(a,b,v3.sc(ax,-e*l*k)); };
   const neg=v=>v3.sc(v,-1);
   for(const s of ['L','R']){ const sg=s==='L'?1:-1,out=v3.sc(Rh[0],sg),outS=v3.sc(Rs[0],sg);
     if(!E.cut['leg'+s]){ const hp=PI_['hip'+s],kn=PI_['kn'+s];
@@ -322,7 +324,7 @@ function limitBody(E,hard){ /* knees and elbows only bend one way, the head stay
       const t=norm3(v3.sub(P(kn),P(hp))),hx0=v3.sub(Rh[0],v3.sc(t,v3.dot(Rh[0],t))),hl=Math.hypot(...hx0),hx=hl>1e-4?v3.sc(hx0,1/hl):Rh[0],bk=v3.cross(hx,t);
       lim(kn,PI_['an'+s],neg(bk),.04);
       { const an=PI_['an'+s],v=v3.sub(P(an),P(kn)),l=Math.hypot(...v); if(l>1e-5){ const lat=v3.dot(v,hx)/l,ok=.06+.38*Math.max(0,v3.dot(v,bk)/l); /* sideways give grows with the bend: a slightly bent knee can't bend sideways */
-        if(Math.abs(lat)>ok+SL){ const c=v3.sc(hx,-Math.sign(lat)*(Math.abs(lat)-ok-SL)*l*.8); nudge(an,c); nudge(kn,v3.sc(c,-.25)); } } }
+        if(Math.abs(lat)>ok+SL) turn(kn,an,v3.sc(hx,-Math.sign(lat)*(Math.abs(lat)-ok-SL)*l*.8)); } }
       if(!E.sevP[PI_['toe'+s]]){ const an=PI_['an'+s],sh=norm3(v3.sub(P(an),P(kn))),pp=v=>v3.sub(v,v3.sc(sh,v3.dot(v,sh))),
         fs0=v3.add(v3.sc(pp(t),2),v3.sc(pp(Rh[2]),.5)),fs=norm3(fs0),fside=norm3(v3.cross(sh,fs));
         const fk=.8*clamp((Math.hypot(...fs0)-.25)/.4,0,1); /* how sure we are which way the front of the shin faces */
@@ -332,14 +334,14 @@ function limitBody(E,hard){ /* knees and elbows only bend one way, the head stay
     if(!E.cut['arm'+s]){ const sh=PI_['sh'+s],el=PI_['el'+s];
       lim(sh,el,neg(Rs[2]),.75); lim(sh,el,v3.sc(outS,-1),.72); } } /* arms don't go far behind the back or through the chest */
   /* the spine: folds well forward, little back or sideways, and only twists so far */
-  lim(PI_.pelvis,PI_.neck,neg(Rh[2]),.4,PI_.chest); lim(PI_.pelvis,PI_.neck,Rh[0],.45,PI_.chest); lim(PI_.pelvis,PI_.neck,neg(Rh[0]),.45,PI_.chest);
+  for(const [a,b] of [[PI_.pelvis,PI_.chest],[PI_.chest,PI_.neck]]){ lim(a,b,neg(Rh[2]),.4); lim(a,b,Rh[0],.45); lim(a,b,neg(Rh[0]),.45); } /* each piece of the spine turned about the one below */
   /* how far a knee or elbow can fold: a knee to about 150 degrees (heel near the backside), an elbow to about 145 */
   if(!B.flexMin){ const bl=(i,j)=>Math.hypot(...v3.sub(B.bind[i],B.bind[j])),m=(a,b,c,deg)=>{ const p=bl(a,b),q=bl(b,c),g=(180-deg)*Math.PI/180; return Math.sqrt(p*p+q*q-2*p*q*Math.cos(g)); };
     B.flexMin={}; for(const s of ['L','R']){ B.flexMin['leg'+s]=m(PI_['hip'+s],PI_['kn'+s],PI_['an'+s],150); B.flexMin['arm'+s]=m(PI_['sh'+s],PI_['el'+s],PI_['hd'+s],145); } }
   for(const s of ['L','R']) for(const [lb,a,b] of [['leg'+s,PI_['hip'+s],PI_['an'+s]],['arm'+s,PI_['sh'+s],PI_['hd'+s]]]){ if(E.cut[lb]) continue;
-    const v=v3.sub(P(b),P(a)),l=Math.hypot(...v),mn=B.flexMin[lb]-.01; if(l<mn&&l>1e-5){ const c=v3.sc(v,(mn-l)/l); nudge(b,v3.sc(c,.75)); nudge(a,v3.sc(c,-.25)); } }
+    const v=v3.sub(P(b),P(a)),l=Math.hypot(...v),mn=B.flexMin[lb]-.01; if(l<mn&&l>1e-5){ let c=v3.sc(v,Math.min(CAP,mn-l)/l); pairFix(B,a,b,c,E.sevP); } }
   const tw=v3.dot(v3.cross(Rh[0],Rs[0]),Rh[1]);
-  if(Math.abs(tw)>.6){ const k=(Math.abs(tw)-.6)*.05*Math.sign(tw); nudge(PI_.shL,v3.sc(Rh[2],k)); nudge(PI_.shR,v3.sc(Rh[2],-k)); }
+  if(Math.abs(tw)>.6){ const k=(Math.abs(tw)-.6)*.05*Math.sign(tw); if(hard) pairFix(B,PI_.shR,PI_.shL,v3.sc(Rh[2],2*k),E.sevP); else { nudge(PI_.shL,v3.sc(Rh[2],k)); nudge(PI_.shR,v3.sc(Rh[2],-k)); } }
 }
 /* a body can't pass through itself: legs against each other, limbs against the trunk and head. Each part is a capsule; the pairs that
    meet at a joint are skipped near that joint. Same correction as a hard limit: pushed apart, speed into each other cancelled. */
@@ -359,12 +361,13 @@ function selfCollide(E){ const x=E.B.x,sv=E.sevP,cp=[0,0,0],cq=[0,0,0];
     if(s<skip) continue;
     for(let k=0;k<3;k++){ cp[k]=x[a0+k]+(k===0?d1x:k===1?d1y:d1z)*s; cq[k]=x[b0+k]+(k===0?d2x:k===1?d2y:d2z)*t; }
     let nx=cp[0]-cq[0],ny=cp[1]-cq[1],nz=cp[2]-cq[2],d=Math.hypot(nx,ny,nz); const pen=A[2]+Bs[2]-d-.008; if(pen<=0) continue; /* a few mm of slop, same reason */
-    if(d<1e-5){ nx=0; ny=1; nz=0; d=1; } const m=Math.min(pen,.02)*.5/d; nx*=m; ny*=m; nz*=m;
-    /* pairs that meet at a joint (thigh against belly or the other thigh, upper arm against the trunk) push the far end of the limb only:
-       the hip and shoulder points are locked to the trunk, and pushing them just makes the two fight */
-    const wa=a<1e-9?[1,0]:skip?[0,1]:[1-s,s],wb=e<1e-9?[1,0]:(skip&&Bs[0]!==PI_.pelvis&&Bs[0]!==PI_.chest)?[0,1]:[1-t,t],na=wa[0]*wa[0]+wa[1]*wa[1],nb=wb[0]*wb[0]+wb[1]*wb[1];
-    if(wa[0]) fixP(E.B,A[0],nx*wa[0]/na,ny*wa[0]/na,nz*wa[0]/na); if(wa[1]&&A[0]!==A[1]) fixP(E.B,A[1],nx*wa[1]/na,ny*wa[1]/na,nz*wa[1]/na);
-    if(wb[0]) fixP(E.B,Bs[0],-nx*wb[0]/nb,-ny*wb[0]/nb,-nz*wb[0]/nb); if(wb[1]&&Bs[0]!==Bs[1]) fixP(E.B,Bs[1],-nx*wb[1]/nb,-ny*wb[1]/nb,-nz*wb[1]/nb); } }
+    if(d<1e-5){ nx=0; ny=1; nz=0; d=1; } nx/=d; ny/=d; nz/=d; const m=Math.min(pen,.02)*.5;
+    /* joint-adjacent pairs push the far end of the limb only (the hip and shoulder points are locked to the trunk); each side moves half the
+       overlap in total, so momentum is conserved, and only the two sides' speed into each other is cancelled */
+    const wa=a<1e-9?[1,0]:skip?[0,1]:[1-s,s],wb=e<1e-9?[1,0]:(skip&&Bs[0]!==PI_.pelvis&&Bs[0]!==PI_.chest)?[0,1]:[1-t,t],sa=wa[0]+wa[1],sb=wb[0]+wb[1];
+    const ends=[[A[0],wa[0]/sa,1],[A[1],A[0]===A[1]?0:wa[1]/sa,1],[Bs[0],wb[0]/sb,-1],[Bs[1],Bs[0]===Bs[1]?0:wb[1]/sb,-1]],p=E.B.p;
+    let vr=0; for(const [i,w,sg] of ends){ if(!w) continue; const o=i*3; vr+=sg*w*((x[o]-p[o])*nx+(x[o+1]-p[o+1])*ny+(x[o+2]-p[o+2])*nz); }
+    for(const [i,w,sg] of ends){ if(!w) continue; const o=i*3,k=sg*w*m,kv=vr<0?-sg*w*vr*.5:0; x[o]+=nx*k; x[o+1]+=ny*k; x[o+2]+=nz*k; p[o]+=nx*(k-kv); p[o+1]+=ny*(k-kv); p[o+2]+=nz*(k-kv); } } }
 function collideBody(E){
   const B=E.B,x=B.x,p=B.p;
   if(!B.imp){ B.imp=new Float32Array(NP); B.impDir=PD.map(()=>[0,-1,0]); }
@@ -397,12 +400,15 @@ function physics(h){
   const live=enemies.filter(E=>!E.asleep&&!E.dormant);
   for(const E of live) stepBody(E,h);
   applyGrabs(h);
-  for(const E of live) E.limp=E.dead||E.sup<.9;
-  for(let it=0;it<5;it++){ for(const E of live){ solveBody(E); if(E.limp){ if(it===3) selfCollide(E); else if(it===4) limitBody(E,true); } else if(it===4) limitBody(E); } if(it===2) applyGrabs(h); }
+  /* full joint stops while a limp body is moving: falling, or just hit, kicked or grabbed. A corpse that has come down and been left alone
+     keeps the shape it landed in (self-contact stays on so limbs can't sink into it); pressing the stops against the floor any longer
+     only makes it fidget or sit up */
+  for(const E of live){ E.limp=E.dead||E.sup<.9; E.stops=E.limp&&(!E.dead||E.deadT<1.6||(E.hitT||0)<1.2||!!E.grabbed); }
+  for(let it=0;it<5;it++){ for(const E of live){ solveBody(E); if(E.limp){ if(it===3) selfCollide(E); else if(it===4) limitBody(E,true,E.stops?.02:.005); } else if(it===4) limitBody(E); } if(it===2) applyGrabs(h); }
   for(const E of live) collideBody(E);
   /* a corpse that has been left alone and is nearly still goes to sleep (no physics) until something touches it. Its joint stops and
      self-contact would otherwise keep nudging it against the floor forever, and it would creep or bob. Twitching or just-hit bodies stay awake. */
-  for(const E of live){ E.B.wake=0; if(!E.dead||E.deadT<2.2||E.spasm||E.fence||E.grabbed||(E.hitT||0)<1.5){ E.calm=0; continue; } let mv=0,mx=0; const x=E.B.x,p=E.B.p; for(let i=0;i<NP*3;i++){ const d=Math.abs(x[i]-p[i]); mv+=d; if(d>mx) mx=d; } mv/=NP*3; /* average motion: one buzzing foot shouldn't keep the whole body awake */
+  for(const E of live){ E.B.wake=0; if(!E.dead||E.deadT<2.2||E.grabbed||(E.hitT||0)<1.5){ E.calm=0; continue; } let mv=0,mx=0; const x=E.B.x,p=E.B.p; for(let i=0;i<NP*3;i++){ const d=Math.abs(x[i]-p[i]); mv+=d; if(d>mx) mx=d; } mv/=NP*3; /* average motion: one buzzing foot shouldn't keep the whole body awake */
     E.calm=mv<.0004&&mx<.01?(E.calm||0)+h:0; if(E.calm>.35||E.deadT>6.5&&(E.hitT||0)>3&&mv<.0025) E.asleep=true; } /* and nothing dead keeps fidgeting past a few seconds of being left alone */
   for(const E of live) if(E.pins) for(const q of E.pins){ const a=q.a*3,i=q.i*3; for(let c=0;c<3;c++){ E.B.x[i+c]=E.B.x[a+c]+q.off[c]; E.B.p[i+c]=E.B.x[i+c]; } } /* a limb that no longer exists */
   for(let i=0;i<live.length;i++) for(let j=i+1;j<live.length;j++) collidePair(live[i],live[j]);
@@ -732,30 +738,7 @@ function startDrop(E,T){ const B=E.B,pel=X_(B,PI_.pelvis); if(E.drop||pel[1]<.42
   kickV(B,PI_.pelvis,[0,-.8,0],H); for(const i of [PI_.hipL,PI_.hipR]) kickV(B,i,[0,-.7,0],H); for(const i of [PI_.knL,PI_.knR]) kickV(B,i,v3.sc(fw,rnd(.7,1)),H); /* the legs give, knees first: no frozen beat standing there dead */
   for(const i of [PI_.chest,PI_.neck,PI_.shL,PI_.shR]) kickV(B,i,push,H); kickV(B,PI_.head,v3.sc(push,1.3),H);
   E.drop.aKnee=v3.sc(fw,rnd(4,5.5)); E.drop.aTop=v3.add(v3.sc(fd,fwd?rnd(3,4.5):rnd(2.5,3.5)),v3.sc(rt,side*1.2)); E.drop.aHip=fwd?[0,0,0]:v3.sc(fw,-rnd(2,3)); /* falling back: the hips sit back over the heels */ }
-/* after a headshot the brain doesn't always switch off cleanly. Often one arm locks up stiff and the other curls in for a second or two
-   (the fencing response), and for several seconds after he lands the limbs jerk and a leg or foot trembles in short bursts that die away.
-   Nothing of the sort when the head is gone. Small internal kicks only: limbs move, the body never lifts or turns. */
-function startSpasm(E){ if(E.cut.head||Math.random()<.55) return; /* most headshots are lights out, nothing after: only some twitch */
-  if(Math.random()<.4){ const s=Math.random()<.5?'L':'R'; E.fence={t:0,T:rnd(1.2,2.6),up:s,cur:s==='L'?'R':'L'}; }
-  if(Math.random()<.8) E.spasm={t:0,T:rnd(3,7),next:rnd(.7,1.3),burst:0,bt:0,bi:0}; }
-function tickSpasm(E,dt){
-  if(E.fence){ E.fence.t+=dt; if(E.fence.t>=E.fence.T) E.fence=null; }
-  const S=E.spasm; if(!S) return; S.t+=dt; if(S.t>=S.T){ E.spasm=null; return; }
-  const B=E.B,k=Math.pow(1-S.t/S.T,1.2),r=()=>rnd(-1,1),TR=[PI_.pelvis,PI_.hipL,PI_.hipR,PI_.chest,PI_.neck,PI_.shL,PI_.shR],
-    kickV=(B,i,v,h)=>{ kickV_(B,i,v,h); const q=[-v[0]/7,Math.min(0,-v[1])/7,-v[2]/7]; for(const t of TR) kickV_(B,t,q,h); }; /* every jerk pushes back on the trunk, so the body as a whole stays put */
-  E.settle=Math.max(E.settle||0,.1); /* and it doesn't turn on the floor while he twitches */
-  if(S.burst>0){ S.bt-=dt; if(S.bt<=0){ S.bt=rnd(.08,.12); S.burst--; S.bi^=1; const side=S.side,sg=S.bi?1:-1; /* a trembling foot or leg: quick alternating jerks */
-      kickV(B,PI_['toe'+side],[0,sg*.35*k,0],H); kickV(B,PI_['an'+side],[0,sg*.2*k,0],H); if(S.leg) kickV(B,PI_['kn'+side],[r()*.1*k,sg*.18*k,r()*.1*k],H); } return; }
-  S.next-=dt; if(S.next>0) return; S.next=rnd(.25,1.1)/(.5+.5*k); /* jerks come further apart as he goes */
-  const Rs=frameFrom(X_(B,PI_.shL),X_(B,PI_.shR),X_(B,PI_.chest),X_(B,PI_.neck)),side=Math.random()<.5?'L':'R',roll=Math.random();
-  if(roll<.35){ S.burst=Math.round(rnd(3,8)*(.4+.6*k)); S.bt=0; S.side=side; S.leg=Math.random()<.4; }
-  else if(roll<.7&&!E.cut['arm'+side]){ /* an arm jerks: the forearm snaps in toward the chest or flicks out */
-    const hd=PI_['hd'+side],el=PI_['el'+side],to=Math.random()<.6?v3.sub(X_(B,PI_['sh'+side]),X_(B,hd)):v3.add(Rs[2],v3.sc(Rs[0],side==='L'?.6:-.6)),v=v3.sc(norm3(to),rnd(.7,1.3)*k);
-    kickV(B,hd,v,H); kickV(B,el,v3.sc(v,-.35),H); }
-  else if(!E.cut['leg'+side]){ /* a leg kicks: the knee draws up a little */
-    const v=v3.add(v3.sc(Rs[2],.5*k),v3.sc(Rs[1],-.2*k)); kickV(B,PI_['kn'+side],v,H); kickV(B,PI_['an'+side],v3.sc(v,.4),H); }
-  if(Math.random()<.25*k) kickV(B,PI_.head,[r()*.25*k,0,r()*.25*k],H); }
-function die(E){ if(E.dead) return; startDrop(E); if(E.headshot) startSpasm(E); if(!E.headshot&&!E.cut.head) vox(E,'rattle'); E.dead=true; E.st='dead'; E.deadT=0; dropWeapon(E); E.face='sleep'; E.J.headMesh.mesh.mats[0]=E.C.faceM.sleep; E.J.headMesh.mesh.runs=null; E.barkT=0;
+function die(E){ if(E.dead) return; startDrop(E); if(!E.headshot&&!E.cut.head) vox(E,'rattle'); E.dead=true; E.st='dead'; E.deadT=0; dropWeapon(E); E.face='sleep'; E.J.headMesh.mesh.mats[0]=E.C.faceM.sleep; E.J.headMesh.mesh.runs=null; E.barkT=0;
   for(const O of enemies) if(O!==E&&!O.dead&&!E.silent&&O.barkCd<=0&&Math.random()<.8){ bark(O,pick(LINES.friend(E.name))); break; } }
 
 /* weapons that fall out of hands */
@@ -769,7 +752,7 @@ function dropWeapon(E){ if(!E.wpnHeld||!E.C.wpn) return; E.wpnHeld=false; const 
 function think(E,dt,t){
   const B=E.B,pel=X_(B,PI_.pelvis),toP=[PL.x-pel[0],PL.z-pel[2]],dist=Math.hypot(toP[0],toP[1]);
   E.settle=Math.max(0,(E.settle||0)-dt); E.barkT-=dt; E.barkCd-=dt; E.stun=Math.max(0,E.stun-dt*(E.dead?0:.9)); E.hitT+=dt; E.near=E.near?dist<3.9:dist<3.1;
-  if(E.dead){ E.deadT+=dt; if(E.deadT>.7) tickSpasm(E,dt); else if(E.fence) E.fence.t+=dt; return; }
+  if(E.dead){ E.deadT+=dt; return; }
   if(E.koT&&E.st==='down'&&E.downT<E.koT) E.stun=1; /* out cold */
   /* blood and the heart */
   const bleed=E.wounds.reduce((s,w)=>s+(w.piece?0:w.rate),0)*(.3+.7*E.blood/100);
