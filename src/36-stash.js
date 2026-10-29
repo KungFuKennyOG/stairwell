@@ -38,7 +38,7 @@ const STASH_CAST=[
   {id:'pistolero',name:'Memo Chico',x:12.2,z:1.2,hd:-Math.PI/2,extra:ES('Mi jefa me está esperando—','My mom is waiting for me—'),detail:'watches the alley'},
   {id:'escolta',name:'Chuy',x:16.9,z:-8.3,hd:-2.2,extra:ES('¡No dispares, tengo hijos!','Don\'t shoot, I have kids!'),detail:'warms up at the fire'}];
 /* weapons lying around the block: [key, x, y, z, yaw] */
-const STASH_LOOT=[['bottle',-6.25,1.15,-10.8,.4],['knife',-3.4,1.0,8.9,1.2],['revolver',1.2,.6,-11.3,.3],['shotgun',6.3,.86,-13.25,0],['machete',15.4,.6,2.7,2.2],['pistol',19.4,1.35,-11.2,1.0],['bottle',12.5,.1,-10.6,0]];
+const STASH_LOOT=[['bottle',-6.25,1.15,-10.8,.4],['knife',-3.4,1.0,8.9,1.2],['revolver',1.2,.6,-11.3,.3],['shotgun',6.3,.86,-13.25,0],['machete',15.4,.6,2.7,2.2],['pistol',19.4,1.35,-11.2,1.0],['bottle',12.5,.1,-10.6,0],['can',5.7,.95,-13.3,.4]];
 
 function stashCast(){ for(const sp of STASH_CAST){ const E=spawnEnemy(Object.assign({},sp,{maker:(h,g)=>cartelChar(sp.id,h,g)})); E.detail=sp.detail; E.radio=!!sp.radio;
     if(sp.patrol){ E.patrol={pts:sp.patrol,i:1,wait:0}; E.st='alert'; } enemies.push(E); } attachLabels(); }
