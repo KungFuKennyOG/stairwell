@@ -2263,7 +2263,7 @@ function tunNear(id,x,z){ const P=tunPaths().find(p=>p.id===id); let bi=0,bd=1e9
 /* ---------- the level ---------- */
 function genTunnel(){
   disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
-  FLOOR.n=1; FLOOR.test=true; FLOOR.mode='tunnel'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.flick=null; setLang(true);
+  FLOOR.n=1; FLOOR.test=true; FLOOR.mode='tunnel'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; setLang(true);
   const G=floorN, B={g:G}, TH=TUN.TH; GEO_TEMP=true;
   /* sample the open field on a 0.25 m grid that runs a little past the play area */
   const GS=.25,X0=-13.5,Z0=-6.5,GW=Math.round(27/GS)+1,GH=Math.round(13/GS)+1,FF=new Float32Array(GW*GH),FI=new Int16Array(GW*GH);
@@ -2320,7 +2320,7 @@ function genTunnel(){
   { const l=N(G,-12.65,0,-3,0,-Math.PI/2,0); FX.ladder(l,TH+.3); mk(plane(.9,.9),M(null,{color:0x8a7454,unlit:true,double:true}),G,-12.45,TH-.01,-3,Math.PI/2); }
   place(B,'sandbags',-11.9,-4.3,0,6); place(B,'gascyl',-10.75,-4.25);
   /* the pump room: generator (shoot it: lights out), a table, the product */
-  const gen=place(B,'generator',-5.35,.62); heatTag(gen,.75); const gb=addBox(-5.8,-4.9,.34,.9,0,1.0,'generator'); gb.onHit=()=>tunnelPower(false);
+  const gen=powered(place(B,'generator',-5.35,.62),.75,25); const gb=addBox(-5.8,-4.9,.34,.9,0,1.0,'generator'); gb.onHit=()=>tunnelPower(false);
   place(B,'table',-3.65,-.25,Math.PI/2,1.0,.6,0xd8d4cc); addBox(-3.95,-3.35,-.75,.25,0,.77,'furn'); mk(box(.3,.2,.2),M(null,{color:0x2a2a2e}),G,-3.6,.88,-.3);
   place(B,'bricksPile',-4.35,.75,0,12,13); addBox(-4.95,-3.75,.45,1.05,0,.4,'furn'); place(B,'gascyl',-3.4,.75);
   /* the old bore: no rails, thinner older timbers, a wall slumped into a bulge, a cooler someone left in a hollow, one dead bulb */
@@ -2334,7 +2334,7 @@ function genTunnel(){
   mk(plane(1.6,.4),MT(tSpray,{cut:true,double:true}),G,11.3,1.45,4.98,0,Math.PI,0);
   /* bulbs on the cable: four weak ones lit (each is a light), the rest dead, so long stretches and every bend are black */
   const lights=[]; const lit=[[-11.6,-3.0],[-4.6,-.25],[-.2,-3.75],[11.2,3.9]];
-  lit.forEach(([x,z],i)=>{ const p=i===0||i===1||i===3?{x,z}:tunNear(-1,x,z); const n=N(G,p.x,1.86,p.z); FX.bulb(n,true); if(i===0) FLOOR.flick={mat:n.kids[0].mesh.mats[0],i:0}; lights.push([[p.x,1.78,p.z],i===1?[1.0,.72,.4]:[.85,.55,.26],i===1?3.9:3.4]); });
+  lit.forEach(([x,z],i)=>{ const p=i===0||i===1||i===3?{x,z}:tunNear(-1,x,z); const n=N(G,p.x,1.86,p.z); FX.bulb(n,true); powered(n,.9,4); if(i===0) FLOOR.flick={mat:n.kids[0].mesh.mats[0],i:0}; lights.push([[p.x,1.78,p.z],i===1?[1.0,.72,.4]:[.85,.55,.26],i===1?3.9:3.4]); });
   for(const [x,z] of [[-7.6,-3.2],[-3.0,-3.9],[3.4,-2.5],[6.7,.9],[8.9,4.5]]){ const p=tunNear(-1,x,z); FX.bulb(N(G,p.x,1.86,p.z),false); }
   GEO_TEMP=false;
   /* navigation: walkable cells are well inside open space and clear of furniture */
@@ -2359,7 +2359,7 @@ const tRailsPaint=tex(32,32,null,g=>{ for(let y=0;y<32;y+=32) { R(g,'#4a3420',2,
 const TUN_LIGHT={amb:[.02,.017,.014],dir:[0,1,0],dirCol:[0,0,0],fog:[.003,.0025,.002],fogNear:1.5,fogFar:11};
 function tunnelLights(){ setLights(Object.assign({},TUN_LIGHT,FLOOR.power?{pl:FLOOR.lights}:{amb:[.003,.003,.003],pl:[]})); }
 function tunnelPower(on){ if(FLOOR.mode!=='tunnel'||FLOOR.power===on) return; FLOOR.power=on;
-  if(!on){ FLOOR.flick=null; sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Qué pasó?','What happened?'),es('¡Prendan la planta!','Start the generator!')]),2.4); } },200+Math.random()*700); } }
+  if(!on){ FLOOR.offT=GAME.t; FLOOR.flick=null; sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Qué pasó?','What happened?'),es('¡Prendan la planta!','Start the generator!')]),2.4); } },200+Math.random()*700); } }
   tunnelLights(); visionApply(); }
 
 /* ---------- seeing in the dark ---------- */
@@ -2375,7 +2375,12 @@ function nearGoggles(p,eye,f,u){ const v=v3.sub(p,eye); return Math.hypot(...v)<
 function visionMode(){ return GAME.vision==='thermal'?'thermal':FLOOR.power===false?'cut':'lit'; }
 function visionApply(){ const m=visionMode(); markKeep(); applyMode(world,m); GAME.visionT=.5; }
 function markKeep(){ if(typeof boardN!=='undefined'&&boardN) boardN._keep=true; for(const h of Object.values(HANDS)){ if(h.ammoN) h.ammoN._keep=true; if(h.retN) h.retN._keep=true; } for(const E of enemies) if(E.label) E.label._keep=true; }
-function tagScene(){ for(const k of ['bright','dark','gib']) if(dynN[k]) dynN[k]._heat=.72; if(dynN.pool) dynN.pool._heat=.6; if(dynN.splat) dynN.splat._heat=.62;
+/* things the generator runs: hot in thermal while it runs, cooling to room temperature once it's cut
+   (fast at first, then slower: bulbs in a few seconds, the engine block over ~25 s) */
+function powered(n,h,cool){ heatTag(n,h); FLOOR.hot.push({n,h,cool}); return n; }
+function coolPowered(){ if(!FLOOR.hot) return; const off=FLOOR.power===false&&FLOOR.offT!=null;
+  for(const o of FLOOR.hot){ let h=o.h; if(off){ const k=Math.min(1,(GAME.t-FLOOR.offT)/o.cool); h=o.h+(.22-o.h)*(1-(1-k)*(1-k)); } heatTag(o.n,+h.toFixed(2)); } }
+function tagScene(){ coolPowered(); for(const k of ['bright','dark','gib']) if(dynN[k]) dynN[k]._heat=.72; if(dynN.pool) dynN.pool._heat=.6; if(dynN.splat) dynN.splat._heat=.62;
   for(const h of Object.values(HANDS)){ (function w(n){ if(n.mesh) n._heat=.86; for(const k of n.kids) w(k); })(h.node); if(h.itemNode) heatTag(h.itemNode,.22); }
   for(const E of enemies) if(E.dead){ const k=1-Math.min(1,E.deadT/60)*.45; (function w(n){ if(n.mesh){ if(n._heatArr0||n._heatArr){ n._heatArr0=n._heatArr0||n._heatArr; n._heatArr=n._heatArr0.map(v=>+(v*k).toFixed(2)); } else if(n._heat!=null&&n._heat>.4){ n._heat0=n._heat0??n._heat; n._heat=+(n._heat0*k).toFixed(2); } } for(const c of n.kids) w(c); })(E.holder); } }
 function visionTick(dt){ const m=visionMode();
@@ -2412,7 +2417,7 @@ function stashCast(){ for(const sp of STASH_CAST){ const E=spawnEnemy(Object.ass
 
 function genStash(){
   disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
-  FLOOR.n=3; FLOOR.test=true; FLOOR.mode='stash'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.flick=null; FLOOR.down=false; setLang(true);
+  FLOOR.n=3; FLOOR.test=true; FLOOR.mode='stash'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; FLOOR.down=false; setLang(true);
   const G=floorN, B={g:G}; GEO_TEMP=true;
   /* a wall as drawn by the house builder, plus its collision: doors and gaps are open, windows are solid to 1.4 m
      (you can't climb through, but people see and shoot over the sill) */
@@ -2460,12 +2465,12 @@ function genStash(){
   /* the alley: where you start. a dumped mattress, trash */
   place(B,'mattress',-12.2,1.45,0); place(B,'bins',-12.6,-1.5,0,1);
   /* ---------- the yard ---------- */
-  const gen=place(B,'generator',-3.5,-4.45,0); heatTag(gen,.75); const gb=addBox(-3.95,-3.05,-4.73,-4.17,0,1.0,'generator'); gb.onHit=()=>stashPower(false);
+  const gen=powered(place(B,'generator',-3.5,-4.45,0),.75,25); const gb=addBox(-3.95,-3.05,-4.73,-4.17,0,1.0,'generator'); gb.onHit=()=>stashPower(false);
   place(B,'gascyl',-2.35,-4.6); place(B,'laundry',-4.4,1.0,Math.PI/2,4.0); place(B,'pchair',-3.0,4.7,2.6); place(B,'bricksPile',-5.6,4.9,0,10,11);
   /* ---------- the count (front room) ---------- */
   place(B,'counttable',.6,-3.0,Math.PI/2); addBox(.12,1.08,-3.92,-2.08,0,.8,'furn');
   for(const [x,z,ry] of [[-.05,-3.0,Math.PI/2],[1.35,-3.4,-Math.PI/2]]) place(B,'pchair',x,z,ry);
-  const crt=place(B,'crt',1.75,.05,Math.PI); heatTag(crt,.5); addBox(1.38,2.12,-.22,.36,0,1.0,'furn');
+  const crt=powered(place(B,'crt',1.75,.05,Math.PI),.5,10); addBox(1.38,2.12,-.22,.36,0,1.0,'furn');
   place(B,'mattress',-.85,-4.45,0); place(B,'bricksPile',1.75,-4.5,0,16,5); addBox(1.2,2.3,-4.8,-4.15,0,.5,'furn');
   /* kitchen */
   place(B,'counter',-.9,3.56,Math.PI,1.9,tCabinetW,tCounterTop,{sink:.5,stove:-.5,upper:false}); addBox(-1.86,.06,3.24,3.88,0,.92,'furn');
@@ -2479,9 +2484,9 @@ function genStash(){
   /* the back strip: a water drum, bins */
   place(B,'bins',8.0,-4.2,Math.PI/2,1); addBox(7.6,8.4,-4.6,-3.85,0,1.05,'furn');
   /* ---------- lights: four bulbs and the TV run off the generator, the streetlight is city power ---------- */
-  const bulb=(x,y,z)=>{ mk(cyl(.004,.004,WH-y-.06,3,{at:[0,(WH-y)/2,0]}),mBlack,G,x,y,z); mk(box(.08,.1,.08),M(null,{color:0xffd8a0,unlit:true}),G,x,y,z); };
-  bulb(.6,2.2,-3.0); bulb(4.7,2.15,-2.6); mk(box(1.2,.05,.16),M(null,{color:0xe8f0ff,unlit:true}),G,.4,WH-.04,2.0);
-  mk(box(.08,.1,.08),M(null,{color:0xffd8a0,unlit:true}),G,-2.2,2.3,-2.0);
+  const bulb=(x,y,z)=>{ mk(cyl(.004,.004,WH-y-.06,3,{at:[0,(WH-y)/2,0]}),mBlack,G,x,y,z); powered(mk(box(.08,.1,.08),M(null,{color:0xffd8a0,unlit:true}),G,x,y,z),.9,4); };
+  bulb(.6,2.2,-3.0); bulb(4.7,2.15,-2.6); powered(mk(box(1.2,.05,.16),M(null,{color:0xe8f0ff,unlit:true}),G,.4,WH-.04,2.0),.6,4);
+  powered(mk(box(.08,.1,.08),M(null,{color:0xffd8a0,unlit:true}),G,-2.2,2.3,-2.0),.9,4);
   const lights=[[[.6,2.15,-3.0],[1.45,1.05,.6],5.5],[[1.75,1.0,-.5],[.5,.65,1.3],4.5],[[.4,2.45,2.0],[1.0,1.1,1.05],5],[[4.7,2.1,-2.6],[1.4,1.0,.55],4.5],
     [[-2.3,2.25,-2.0],[1.4,.95,.5],5.2],[[-7.8,5.2,-.4],[1.7,.9,.38],13]];
   GEO_TEMP=false;
@@ -2498,7 +2503,7 @@ function genStash(){
 const STASH_LIGHT={amb:[.075,.08,.11],dir:[.35,1,.25],dirCol:[.1,.11,.17],fog:[.012,.014,.024],fogNear:6,fogFar:24};
 function stashLights(){ setLights(Object.assign({},STASH_LIGHT,FLOOR.power?{pl:FLOOR.lights}:{amb:[.035,.038,.055],pl:FLOOR.lights.map((l,i)=>i===5?l:[[0,-50,0],[0,0,0],1])})); }
 function stashPower(on){ if(FLOOR.mode!=='stash'||FLOOR.power===on) return; FLOOR.power=on;
-  if(!on){ sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Quién apagó la planta?','Who shut off the generator?'),es('¡Memo! ¿Qué ves?','Memo! What do you see?')]),2.4); } },200+Math.random()*900); } }
+  if(!on){ FLOOR.offT=GAME.t; sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Quién apagó la planta?','Who shut off the generator?'),es('¡Memo! ¿Qué ves?','Memo! What do you see?')]),2.4); } },200+Math.random()*900); } }
   stashLights(); visionApply(); }
 function stashReset(){ if(FLOOR.power===false){ FLOOR.power=null; stashPower(true); } FLOOR.down=false; stashCast(); visionApply(); }
 function goStash(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genStash(); buildRack(); buildBoard(); SPAWNOPT.where='any'; resetGame(); if(XR.on) vrRecenter(); }

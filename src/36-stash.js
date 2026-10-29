@@ -23,7 +23,7 @@ function stashCast(){ for(const sp of STASH_CAST){ const E=spawnEnemy(Object.ass
 
 function genStash(){
   disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
-  FLOOR.n=3; FLOOR.test=true; FLOOR.mode='stash'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.flick=null; FLOOR.down=false; setLang(true);
+  FLOOR.n=3; FLOOR.test=true; FLOOR.mode='stash'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; FLOOR.down=false; setLang(true);
   const G=floorN, B={g:G}; GEO_TEMP=true;
   /* a wall as drawn by the house builder, plus its collision: doors and gaps are open, windows are solid to 1.4 m
      (you can't climb through, but people see and shoot over the sill) */
@@ -71,12 +71,12 @@ function genStash(){
   /* the alley: where you start. a dumped mattress, trash */
   place(B,'mattress',-12.2,1.45,0); place(B,'bins',-12.6,-1.5,0,1);
   /* ---------- the yard ---------- */
-  const gen=place(B,'generator',-3.5,-4.45,0); heatTag(gen,.75); const gb=addBox(-3.95,-3.05,-4.73,-4.17,0,1.0,'generator'); gb.onHit=()=>stashPower(false);
+  const gen=powered(place(B,'generator',-3.5,-4.45,0),.75,25); const gb=addBox(-3.95,-3.05,-4.73,-4.17,0,1.0,'generator'); gb.onHit=()=>stashPower(false);
   place(B,'gascyl',-2.35,-4.6); place(B,'laundry',-4.4,1.0,Math.PI/2,4.0); place(B,'pchair',-3.0,4.7,2.6); place(B,'bricksPile',-5.6,4.9,0,10,11);
   /* ---------- the count (front room) ---------- */
   place(B,'counttable',.6,-3.0,Math.PI/2); addBox(.12,1.08,-3.92,-2.08,0,.8,'furn');
   for(const [x,z,ry] of [[-.05,-3.0,Math.PI/2],[1.35,-3.4,-Math.PI/2]]) place(B,'pchair',x,z,ry);
-  const crt=place(B,'crt',1.75,.05,Math.PI); heatTag(crt,.5); addBox(1.38,2.12,-.22,.36,0,1.0,'furn');
+  const crt=powered(place(B,'crt',1.75,.05,Math.PI),.5,10); addBox(1.38,2.12,-.22,.36,0,1.0,'furn');
   place(B,'mattress',-.85,-4.45,0); place(B,'bricksPile',1.75,-4.5,0,16,5); addBox(1.2,2.3,-4.8,-4.15,0,.5,'furn');
   /* kitchen */
   place(B,'counter',-.9,3.56,Math.PI,1.9,tCabinetW,tCounterTop,{sink:.5,stove:-.5,upper:false}); addBox(-1.86,.06,3.24,3.88,0,.92,'furn');
@@ -90,9 +90,9 @@ function genStash(){
   /* the back strip: a water drum, bins */
   place(B,'bins',8.0,-4.2,Math.PI/2,1); addBox(7.6,8.4,-4.6,-3.85,0,1.05,'furn');
   /* ---------- lights: four bulbs and the TV run off the generator, the streetlight is city power ---------- */
-  const bulb=(x,y,z)=>{ mk(cyl(.004,.004,WH-y-.06,3,{at:[0,(WH-y)/2,0]}),mBlack,G,x,y,z); mk(box(.08,.1,.08),M(null,{color:0xffd8a0,unlit:true}),G,x,y,z); };
-  bulb(.6,2.2,-3.0); bulb(4.7,2.15,-2.6); mk(box(1.2,.05,.16),M(null,{color:0xe8f0ff,unlit:true}),G,.4,WH-.04,2.0);
-  mk(box(.08,.1,.08),M(null,{color:0xffd8a0,unlit:true}),G,-2.2,2.3,-2.0);
+  const bulb=(x,y,z)=>{ mk(cyl(.004,.004,WH-y-.06,3,{at:[0,(WH-y)/2,0]}),mBlack,G,x,y,z); powered(mk(box(.08,.1,.08),M(null,{color:0xffd8a0,unlit:true}),G,x,y,z),.9,4); };
+  bulb(.6,2.2,-3.0); bulb(4.7,2.15,-2.6); powered(mk(box(1.2,.05,.16),M(null,{color:0xe8f0ff,unlit:true}),G,.4,WH-.04,2.0),.6,4);
+  powered(mk(box(.08,.1,.08),M(null,{color:0xffd8a0,unlit:true}),G,-2.2,2.3,-2.0),.9,4);
   const lights=[[[.6,2.15,-3.0],[1.45,1.05,.6],5.5],[[1.75,1.0,-.5],[.5,.65,1.3],4.5],[[.4,2.45,2.0],[1.0,1.1,1.05],5],[[4.7,2.1,-2.6],[1.4,1.0,.55],4.5],
     [[-2.3,2.25,-2.0],[1.4,.95,.5],5.2],[[-7.8,5.2,-.4],[1.7,.9,.38],13]];
   GEO_TEMP=false;
@@ -109,7 +109,7 @@ function genStash(){
 const STASH_LIGHT={amb:[.075,.08,.11],dir:[.35,1,.25],dirCol:[.1,.11,.17],fog:[.012,.014,.024],fogNear:6,fogFar:24};
 function stashLights(){ setLights(Object.assign({},STASH_LIGHT,FLOOR.power?{pl:FLOOR.lights}:{amb:[.035,.038,.055],pl:FLOOR.lights.map((l,i)=>i===5?l:[[0,-50,0],[0,0,0],1])})); }
 function stashPower(on){ if(FLOOR.mode!=='stash'||FLOOR.power===on) return; FLOOR.power=on;
-  if(!on){ sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Quién apagó la planta?','Who shut off the generator?'),es('¡Memo! ¿Qué ves?','Memo! What do you see?')]),2.4); } },200+Math.random()*900); } }
+  if(!on){ FLOOR.offT=GAME.t; sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Quién apagó la planta?','Who shut off the generator?'),es('¡Memo! ¿Qué ves?','Memo! What do you see?')]),2.4); } },200+Math.random()*900); } }
   stashLights(); visionApply(); }
 function stashReset(){ if(FLOOR.power===false){ FLOOR.power=null; stashPower(true); } FLOOR.down=false; stashCast(); visionApply(); }
 function goStash(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genStash(); buildRack(); buildBoard(); SPAWNOPT.where='any'; resetGame(); if(XR.on) vrRecenter(); }
