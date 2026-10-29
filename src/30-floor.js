@@ -199,24 +199,46 @@ function sightClear(a,b){ const d=v3.sub(b,a),L=Math.hypot(...d); if(L<1e-3) ret
 /* ---------- navigation: one distance field from the player, shared by everyone hunting him ---------- */
 let navDirty=true,navT=0; const NAVD=new Int32Array(NX*NZ);
 const navCell=(x,z)=>{ const i=Math.round((x+13)*2),k=Math.round((z+6)*2); return (i<0||k<0||i>=NX||k>=NZ)?-1:k*NX+i; };
+const NAVPEN=new Uint8Array(NX*NZ);
+/* Dijkstra on 8 neighbours (10 straight, 14 diagonal, no corner cutting) with a bucket queue; pen marks cells that cost extra */
+function navField(F,src,pen){ const nav=FLOOR.nav; F.fill(1e9); const buckets=[[src]]; F[src]=0;
+  for(let dd=0;dd<buckets.length;dd++){ const q=buckets[dd]; if(!q) continue;
+    for(const c of q){ if(F[c]!==dd) continue; const ci=c%NX,ck=(c-ci)/NX;
+      for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ if(!i&&!k) continue; const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const nc=nk*NX+ni; if(nav[nc]) continue;
+        if(i&&k&&(nav[ck*NX+ni]||nav[nk*NX+ci])) continue; const nd=dd+(i&&k?14:10)+(pen&&pen[nc]?30:0); if(nd<F[nc]){ F[nc]=nd; (buckets[nd]||(buckets[nd]=[])).push(nc); } } } } }
 function navUpdate(dt,tx,tz){ navT-=dt; if(navT>0&&!navDirty) return; navT=.25; navDirty=false;
   const nav=FLOOR.nav; NAVD.fill(1e9); let src=navCell(tx,tz); if(src<0) return;
   if(nav[src]){ /* standing against a wall: start from the nearest open cell */ let bd=1e9,bs=-1; for(let k=-2;k<=2;k++) for(let i=-2;i<=2;i++){ const c=src+k*NX+i; if(c>=0&&c<nav.length&&!nav[c]&&i*i+k*k<bd){ bd=i*i+k*k; bs=c; } } if(bs<0) return; src=bs; }
-  /* Dijkstra on 8 neighbours (10 straight, 14 diagonal, no corner cutting) with a bucket queue */
-  const buckets=[[src]]; NAVD[src]=0;
-  for(let dd=0;dd<buckets.length;dd++){ const q=buckets[dd]; if(!q) continue;
-    for(const c of q){ if(NAVD[c]!==dd) continue; const ci=c%NX,ck=(c-ci)/NX;
-      for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ if(!i&&!k) continue; const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const nc=nk*NX+ni; if(nav[nc]) continue;
-        if(i&&k&&(nav[ck*NX+ni]||nav[nk*NX+ci])) continue; const nd=dd+(i&&k?14:10); if(nd<NAVD[nc]){ NAVD[nc]=nd; (buckets[nd]||(buckets[nd]=[])).push(nc); } } } } }
+  navField(NAVD,src,null);
+  /* spreading out: the hunter nearest you takes the shortest way; each one behind him treats the routes the men ahead are
+     taking as in the way (+3 m per cell along them). When that sends a man a different way round, he commits to it: he picks a
+     point on his new route (E.via) and walks there first, then hunts you from that side. One flank each, given up once he sees you. */
+  const H=enemies.filter(E=>!E.dead&&E.st==='alert'&&!E.grabbed).map(E=>{ const c=navCell(E.pos[0],E.pos[1]); return {E,c,d:c>=0?NAVD[c]:1e9}; }).filter(h=>h.c>=0&&h.d<1e9).sort((a,b)=>a.d-b.d);
+  for(const E of enemies) E.navF=null;
+  NAVPEN.fill(0);
+  const trace=(F,c,fn)=>{ for(let step=0;step<240&&F[c]>0;step++){ const ci=c%NX,ck=(c-ci)/NX; let best=c,bd=F[c];
+      for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(F[q]<bd){ bd=F[q]; best=q; } }
+      if(best===c) break; c=best; fn(c); } };
+  const mark=c=>{ const ci=c%NX,ck=(c-ci)/NX; for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni>=0&&nk>=0&&ni<NX&&nk<NZ) NAVPEN[nk*NX+ni]=1; } };
+  for(let n=0;n<H.length&&n<6;n++){ const E=H[n].E,c0=H[n].c; let F=NAVD;
+    if(E.via&&(E.canSee||Math.hypot(E.pos[0]-E.via[0],E.pos[1]-E.via[1])<1.0||GAME.t-E.viaT>20)){ E.via=null; E.viaDone=true; }
+    if(n>0&&!E.via&&!E.viaDone){ E.navFB=E.navFB||new Int32Array(NX*NZ); navField(E.navFB,src,NAVPEN);
+      /* how far does his new route stray from the plain shortest one? if it goes a genuinely different way, commit to its far point */
+      const plain=[]; trace(NAVD,c0,c=>plain.push(c)); let far=-1,fd=0;
+      trace(E.navFB,c0,c=>{ const x=cellX(c%NX),z=cellZ((c-c%NX)/NX); let m=1e9; for(const q of plain){ const d=Math.hypot(x-cellX(q%NX),z-cellZ((q-q%NX)/NX)); if(d<m) m=d; } if(m>fd){ fd=m; far=c; } });
+      if(far>=0&&fd>2.5){ E.via=[cellX(far%NX),cellZ((far-far%NX)/NX)]; E.viaT=GAME.t; } }
+    if(E.via){ E.navFB=E.navFB||new Int32Array(NX*NZ); navField(E.navFB,navCell(E.via[0],E.via[1]),null); E.navF=E.navFB; trace(E.navF,c0,mark); continue; }
+    if(n>0){ E.navFB=E.navFB||new Int32Array(NX*NZ); navField(E.navFB,src,NAVPEN); E.navF=F=E.navFB; }
+    trace(F,c0,mark); } }
 function lineClearNav(x0,z0,x1,z1){ const L=Math.hypot(x1-x0,z1-z0),n=Math.ceil(L/.2); for(let s=1;s<n;s++){ const c=navCell(x0+(x1-x0)*s/n,z0+(z1-z0)*s/n); if(c<0||FLOOR.nav[c]) return false; } return true; }
 /* which way to walk from (x,z) to reach the player: straight if nothing is in the way, otherwise down the distance field */
-function navDir(x,z,tx,tz){
+function navDir(x,z,tx,tz,F=NAVD){
   if(lineClearNav(x,z,tx,tz)) return norm3([tx-x,0,tz-z]);
   let c=navCell(x,z); if(c<0) return norm3([tx-x,0,tz-z]);
-  if(NAVD[c]>=1e9){ let bd=1e9; for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const q=c+k*NX+i; if(q>=0&&q<NAVD.length&&NAVD[q]<bd){ bd=NAVD[q]; c=q; } } if(bd>=1e9) return norm3([tx-x,0,tz-z]); }
+  if(F[c]>=1e9){ let bd=1e9; for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const q=c+k*NX+i; if(q>=0&&q<F.length&&F[q]<bd){ bd=F[q]; c=q; } } if(bd>=1e9) return norm3([tx-x,0,tz-z]); }
   /* follow the field a few cells ahead and aim at the furthest one we can walk to in a straight line */
-  let cur=c,aim=null; for(let step=0;step<6;step++){ const ci=cur%NX,ck=(cur-ci)/NX; let best=cur,bd=NAVD[cur];
-    for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(NAVD[q]<bd){ bd=NAVD[q]; best=q; } }
+  let cur=c,aim=null; for(let step=0;step<6;step++){ const ci=cur%NX,ck=(cur-ci)/NX; let best=cur,bd=F[cur];
+    for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(F[q]<bd){ bd=F[q]; best=q; } }
     if(best===cur) break; cur=best; const bxp=cellX(cur%NX),bzp=cellZ((cur-cur%NX)/NX); if(lineClearNav(x,z,bxp,bzp)) aim=[bxp,bzp]; else if(aim) break; else { aim=[bxp,bzp]; break; } }
   if(!aim) return norm3([tx-x,0,tz-z]); const d=norm3([aim[0]-x,0,aim[1]-z]); return Math.hypot(d[0],d[2])>1e-4?d:norm3([tx-x,0,tz-z]); }
 /* a free spot in a unit (or the corridor), away from the player */

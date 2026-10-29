@@ -86,15 +86,18 @@ function drawMap(g){ const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.fillRect(0
   g.textAlign='center'; g.textBaseline='middle';
   for(const b of MAP_BTN){ const on=W===b.w; g.fillStyle=on?'#e2a33d':'#23262a'; g.fillRect(b.x,7,160,28); g.fillStyle=on?'#0a0a0a':'#f2ede2'; g.font='800 18px "Big Shoulders Display","Arial Narrow",sans-serif'; g.fillText(b.l,b.x+80,22,150); }
   const R=(x0,z0,x1,z1,fill,stroke)=>{ const a=toMap(Math.min(x0,x1),Math.min(z0,z1)),b=toMap(Math.max(x0,x1),Math.max(z0,z1)); g.fillStyle=fill; g.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]); if(stroke){ g.strokeStyle=stroke; g.lineWidth=2; g.strokeRect(a[0]+1,a[1]+1,b[0]-a[0]-2,b[1]-a[1]-2); } };
-  R(-13,-2,-10,2,'#1b1a18'); R(10,-2,13,2,'#1b1a18');
-  if(FLOOR.mode!=='room') R(-10,-1,10,1,W==='corridor'?'#7a5a20':'#1e2124','#3a3d40');
+  const tun=FLOOR.mode==='tunnel';
+  if(tun){ for(const r of TUN_RECTS) if(r[4]<0) R(r[0],r[1],r[2],r[3],r[4]===-3?'#141619':W==='corridor'?'#7a5a20':'#1e2124'); } /* the tunnel as dug, the old bore darker */
+  else { R(-13,-2,-10,2,'#1b1a18'); R(10,-2,13,2,'#1b1a18'); }
+  if(FLOOR.mode!=='room'&&!tun) R(-10,-1,10,1,W==='corridor'?'#7a5a20':'#1e2124','#3a3d40');
   for(const u of FLOOR.units){ const on=W===u.id||W==='any'; R(u.x0,u.z0??u.side*1,u.x1,u.z1??u.side*6,W===u.id?'#e2a33d':on?'#4a3a1c':'#2a2620','#55504a');
     if(u.win){ const a=toMap(u.win[0],u.win[1]-.7),b=toMap(u.win[0],u.win[1]+.7); g.fillStyle='#6fa8d0'; g.fillRect(a[0]-2,a[1],4,b[1]-a[1]); }
     else if(u.w>=3.6){ const a=toMap((u.x0+u.x1)/2-.7,u.side*6),b=toMap((u.x0+u.x1)/2+.7,u.side*6); g.fillStyle='#6fa8d0'; g.fillRect(a[0],a[1]-2,b[0]-a[0],4); } /* window */
     if(!u.room){ const d=toMap(u.door,u.side); g.fillStyle='#0d0d0e'; g.fillRect(d[0]-9,d[1]-3,18,6); }
-    const c=toMap((u.x0+u.x1)/2,u.side*3.5); g.fillStyle=W===u.id?'#0a0a0a':'#c4bfb3'; g.font='700 15px "IBM Plex Mono",monospace'; g.fillText(u.apt,c[0],c[1]); }
+    const c=toMap((u.x0+u.x1)/2,tun?(u.z0+u.z1)/2:u.side*3.5); g.fillStyle=W===u.id?'#0a0a0a':'#c4bfb3'; g.font='700 15px "IBM Plex Mono",monospace'; g.fillText(u.apt,c[0],c[1]); }
   if(FLOOR.bx<20){ const a=toMap(FLOOR.bx-.6,-.9),b=toMap(FLOOR.bx+.6,.9); g.fillStyle='#7a1a14'; g.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]); }
-  g.font='700 13px "IBM Plex Mono",monospace'; g.fillStyle='#8a857a'; { const a=toMap(-11.5,0),b=toMap(11.5,0); g.fillText('IN',a[0],a[1]); if(FLOOR.mode!=='room') g.fillText('UP',b[0],b[1]); }
+  g.font='700 13px "IBM Plex Mono",monospace'; g.fillStyle='#8a857a'; if(!tun){ const a=toMap(-11.5,0),b=toMap(11.5,0); g.fillText('IN',a[0],a[1]); if(FLOOR.mode!=='room') g.fillText('UP',b[0],b[1]); }
+  else { const a=toMap(-11.6,-3),b=toMap(3.6,4); g.fillText('IN',a[0],a[1]); g.fillStyle='#5a564e'; g.fillText('OLD BORE',b[0],b[1]); }
   for(const E of enemies){ const q=toMap(E.B?E.B.x[0]:E.pos[0],E.B?E.B.x[2]:E.pos[1]); g.fillStyle=E.dead?'#5a5650':E.aware?'#ff3b30':'#e8e2cf'; g.beginPath(); g.arc(q[0],q[1],4,0,6.3); g.fill(); }
   { const q=toMap(PL.x,PL.z),f=camBasis().f,a=Math.atan2(f[2],f[0]); g.fillStyle='#7ec27a'; g.beginPath(); g.moveTo(q[0]+Math.cos(a)*9,q[1]+Math.sin(a)*9); g.lineTo(q[0]+Math.cos(a+2.5)*6,q[1]+Math.sin(a+2.5)*6); g.lineTo(q[0]+Math.cos(a-2.5)*6,q[1]+Math.sin(a-2.5)*6); g.fill(); } }
 function uploadMap(){ if(mapTex.glt){ gl.bindTexture(gl.TEXTURE_2D,mapTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,mapTex.c); } }

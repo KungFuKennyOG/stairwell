@@ -9,13 +9,17 @@
    goggles up / night vision / thermal.
    ===================================================================================================== */
 const TUN={TH:2.05,D:.6};
-/* open space: [x0,z0,x1,z1,space id] (-2 start dugout, -1 tunnel, 0 pump room, 1 exit) */
-const TUN_RECTS=[[-13,-4.6,-10.2,-1.4,-2],[-10.2,-3.65,7.3,-2.35,-1],[-6.4,-2.35,-3.2,.65,0],[5.6,-2.35,7.3,4.65,-1],[7.3,3.35,10.4,4.65,-1],[10.4,2.8,12.6,5.2,1]];
+/* open space: [x0,z0,x1,z1,space id] (-2 start dugout, -1 tunnel, -3 the old bore, 0 pump room, 1 exit)
+   The old bore is the second route: an earlier, half-collapsed dig that leaves the main tunnel just past the pump room and
+   comes back in at the far corner, so the middle of the level is a loop. No bulbs in it: pitch black even with the power on. */
+const TUN_RECTS=[[-13,-4.6,-10.2,-1.4,-2],[-10.2,-3.65,7.3,-2.35,-1],[-6.4,-2.35,-3.2,.65,0],[5.6,-2.35,7.3,4.65,-1],[7.3,3.35,10.4,4.65,-1],[10.4,2.8,12.6,5.2,1],
+  [.6,-2.35,1.8,4.65,-3],[1.8,3.35,5.6,4.65,-3]];
 /* dug walls: [axis the wall runs along, its fixed coordinate, from, to, outward side] */
 const TUN_WALLS=[['z',-13,-4.6,-1.4,-1],['x',-1.4,-13,-10.2,1],['x',-4.6,-13,-10.2,-1],['z',-10.2,-4.6,-3.65,1],['z',-10.2,-2.35,-1.4,1],
-  ['x',-2.35,-10.2,-6.4,1],['x',-2.35,-3.2,5.6,1],['x',-3.65,-10.2,7.3,-1],
+  ['x',-2.35,-10.2,-6.4,1],['x',-2.35,-3.2,.6,1],['x',-2.35,1.8,5.6,1],['x',-3.65,-10.2,7.3,-1],
   ['z',-6.4,-2.35,.65,-1],['z',-3.2,-2.35,.65,1],['x',.65,-6.4,-3.2,1],
-  ['z',5.6,-2.35,4.65,-1],['z',7.3,-3.65,3.35,1],['x',3.35,7.3,10.4,-1],['x',4.65,5.6,10.4,1],
+  ['z',5.6,-2.35,3.35,-1],['z',7.3,-3.65,3.35,1],['x',3.35,7.3,10.4,-1],['x',4.65,.6,10.4,1],
+  ['z',.6,-2.35,4.65,-1],['z',1.8,-2.35,3.35,1],['x',3.35,1.8,5.6,-1],
   ['z',10.4,2.8,3.35,-1],['z',10.4,4.65,5.2,-1],['x',2.8,10.4,12.6,-1],['x',5.2,10.4,12.6,1],['z',12.6,2.8,5.2,1]];
 const TUN_CAST=[
   {id:'comando',name:'Chuy',x:-1.2,z:-3.0,hd:-Math.PI/2,extra:'¡No dispares, tengo hijos! (Don\'t shoot, I have kids!)'},
@@ -65,7 +69,7 @@ function genTunnel(){
   /* timber frames: posts at both sides, a header across, every 1.5 m */
   const frame=(x,z,along,w)=>{ for(const s of [-1,1]){ const px=along==='x'?x:x+s*(w/2-.07),pz=along==='x'?z+s*(w/2-.07):z; mk(box(.12,TH-.02,.12,{at:[0,(TH-.02)/2,0]}),MT(tBeam),G,px,0,pz); addBox(px-.06,px+.06,pz-.06,pz+.06,0,TH,'wall'); }
     mk(box(along==='x'?.14:w+.06,.14,along==='x'?w+.06:.14),MT(tBeam),G,x,TH-.08,z); };
-  for(let x=-9.4;x<5.8;x+=1.5) if(x<-6.6||x>-3.0) frame(x,-3,'x',1.3);
+  for(let x=-9.4;x<5.8;x+=1.5) if((x<-6.6||x>-3.0)&&!(x>.3&&x<2.1)) frame(x,-3,'x',1.3); /* no frame across the pump room or the old bore's mouth */
   for(let z=-1.4;z<3.2;z+=1.5) frame(6.45,z,'z',1.7);
   for(let x=8.1;x<10.2;x+=1.5) frame(x,4,'x',1.3);
   /* rails, a cart, the vent duct, the bulb cable, puddles */
@@ -81,6 +85,14 @@ function genTunnel(){
   const gen=place(B,'generator',-5.95,-1.25,Math.PI/2); heatTag(gen,.75); const gb=addBox(-6.25,-5.65,-1.75,-.75,0,1.0,'generator'); gb.onHit=()=>tunnelPower(false);
   place(B,'table',-4.0,-.15,0,1.0,.6,0xd8d4cc); addBox(-4.5,-3.5,-.45,.15,0,.77,'furn'); mk(box(.3,.2,.2),M(null,{color:0x2a2a2e}),G,-4.1,.88,-.15);
   place(B,'bricksPile',-5.3,.25,0,12,13); addBox(-5.9,-4.7,-.05,.6,0,.4,'furn'); place(B,'gascyl',-3.55,-2.0);
+  /* the old bore: no rails, older thinner timbers, a slumped wall, a cooler someone left, one dead bulb */
+  for(const z of [-1.1,.7,2.6]) frame(1.2,z,'z',1.2);
+  for(const x of [2.9,4.5]) frame(x,4,'x',1.3);
+  { const n=N(G,1.58,0,1.75,0,.12,0); mk(box(.5,.5,.95,{at:[0,.25,0]}),MT(tEarth),n,0,0,0,0,0,-.35); addBox(1.36,1.8,1.25,2.25,0,.45,'furn'); } /* the wall slumped in */
+  mk(box(.14,.14,1.3),MT(tBeam),G,1.05,.07,2.5,0,.25,0); /* its header, fallen */
+  { const n=N(G,.82,0,-.1,0,Math.PI/2,0); mk(box(.55,.36,.36,{at:[0,.18,0]}),M(null,{color:0xe8e4dc}),n); mk(box(.57,.06,.38),M(null,{color:0x2a6ab0}),n,0,.39,0); } addBox(.62,1.0,-.38,.18,0,.4,'furn');
+  mk(plane(.9,1.6),MT(tWater,{color:0x3a4848}),G,1.2,.012,-1.5,-Math.PI/2); mk(plane(1.6,.9),MT(tWater,{color:0x3a4848}),G,3.6,.012,4.0,-Math.PI/2);
+  { const n=N(G,1.2,1.86,.9); FX.bulb(n,false); } mk(box(.02,.02,4.2),mBlackPipe,G,1.45,1.93,.6);
   /* the exit: sandbags, a ladder up to the other side, the spray paint */
   place(B,'sandbags',11.0,3.15,0,6); addBox(10.4,11.6,2.85,3.45,0,.36,'furn');
   { const l=N(G,12.3,0,4,0,Math.PI/2,0); FX.ladder(l,TH+.3); mk(plane(.8,.8),M(null,{color:0x0a0c10}),G,12.2,TH-.01,4,Math.PI/2); }
@@ -92,8 +104,10 @@ function genTunnel(){
   GEO_TEMP=false;
   /* navigation: walkable cells are inside the open rectangles, away from walls and furniture */
   const nav=new Uint8Array(NX*NZ).fill(1),space=new Int16Array(NX*NZ).fill(-9);
-  for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i; const R_=TUN_RECTS.find(r=>x>r[0]+.2&&x<r[2]-.2&&z>r[1]+.2&&z<r[3]-.2); if(!R_) continue; space[id]=R_[4];
-    let bl=false; for(const b of BOXES){ if(b.kind!=='furn'&&b.kind!=='generator') continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; break; } } nav[id]=bl?1:0; }
+  for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i; const R_=TUN_RECTS.find(r=>x>r[0]&&x<r[2]&&z>r[1]&&z<r[3]); if(!R_) continue; space[id]=R_[4];
+    let bl=false; for(const b of BOXES){ let m;
+      if(b.kind==='furn'||b.kind==='generator') m=.22; else if(b.kind==='wall'&&(b.x1-b.x0>.2||b.z1-b.z0>.2)) m=.2; else continue; /* thin timber posts are slid around, not routed around */
+      if(x>b.x0-m&&x<b.x1+m&&z>b.z0-m&&z<b.z1+m){ bl=true; break; } } nav[id]=bl?1:0; }
   const units=[{id:0,side:1,x0:-6.4,x1:-3.2,z0:-2.35,z1:.65,w:3.2,apt:'PUMP',door:-4.8,room:true,lit:true},{id:1,side:1,x0:10.4,x1:12.6,z0:2.8,z1:5.2,w:2.2,apt:'EXIT',door:10.4,room:true,lit:true}];
   Object.assign(FLOOR,{nav,space,units,party:[],bx:99,seats:[],beds:[],furn:[],stairUp:null,start:{x:-11.4,z:-3.0,yaw:-Math.PI/2},lights});
   tunnelLights(); boxGridDirty=true; navDirty=true; GAME.vision=GAME.vision||'off'; visionApply(); }
@@ -105,7 +119,9 @@ function tunnelPower(on){ if(FLOOR.mode!=='tunnel'||FLOOR.power===on) return; FL
 
 /* ---------- seeing in the dark ---------- */
 /* in a dark tunnel they see you up close, or by your muzzle flash for a moment after you fire */
-function seenInDark(E,dist){ return FLOOR.power!==false||dist<1.8||(GAME.t-(GAME.shotT??-99)<1.4&&dist<16); }
+function inBore(x,z){ if(FLOOR.mode!=='tunnel'||!FLOOR.space) return false; const c=navCell(x,z); return c>=0&&FLOOR.space[c]===-3; }
+function seenInDark(E,dist){ const flash=GAME.t-(GAME.shotT??-99)<1.4&&dist<16;
+  if(FLOOR.power!==false&&!inBore(PL.x,PL.z)) return true; return dist<(FLOOR.power!==false?2.6:1.8)||flash; }
 function huntsInDark(E){ return FLOOR.power!==false||E.canSee; }
 const NVP2=program(PVS,NVFS), THP2=program(PVS,THFS);
 function cycleVision(){ const o=['off','nv','thermal']; GAME.vision=o[(o.indexOf(GAME.vision||'off')+1)%3]; sfx('click',.9); sfx(GAME.vision==='off'?'slowout':'slowin',.35); visionApply(); }

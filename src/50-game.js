@@ -661,7 +661,7 @@ function think(E,dt,t){
     const want=FLOOR.power===false&&!E.canSee?E.hd+Math.sin(t*.6+E.t0)*.3:(!E.canSee&&E.moveDir&&dist>2?Math.atan2(E.moveDir[0],E.moveDir[2]):Math.atan2(toP[0],toP[1]))+(E.wpnHeld&&!E.oneHand&&E.canSee?E.aimYaw||0:0); let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; const tr=E.stun>.3?0:2*(1-E.stun); E.hd+=clamp(dh,-tr*dt,tr*dt);
     const KS=KSTAT[E.kind]||{},keep=armed(E)?KS.keep:1.25;
     if((dist>keep+.15||!E.canSee)&&E.atkT<0&&E.stun<.4&&!E.grabbed&&huntsInDark(E)){ const melee=!armed(E),sp=(melee?lerp(1.2,KS.run||2.6,clamp((dist-1.7)/2.2,0,1)):!E.canSee&&dist>6?1.6:.85)*(.55+.45*legs)*E.rise; /* blades charge at you; they ease off in the last couple of metres so they arrive swinging, not sliding */
-      E.runAmt=lerp(E.runAmt||0,clamp((sp-1.3)/1.6,0,1),Math.min(1,dt*5)); const dir=navDir(E.pos[0],E.pos[1],PL.x,PL.z); E.moveDir=dir;
+      E.runAmt=lerp(E.runAmt||0,clamp((sp-1.3)/1.6,0,1),Math.min(1,dt*5)); const dir=E.via?navDir(E.pos[0],E.pos[1],E.via[0],E.via[1],E.navF||NAVD):navDir(E.pos[0],E.pos[1],PL.x,PL.z,E.navF||NAVD); E.moveDir=dir; /* a flanker heads for his point on the other route first */
       { const D=doorNear(E.pos[0],E.pos[1],.9); if(D&&D.state==='closed'){ setDoor(D,'open'); sfx('door',.5); } } /* people who live here just open doors */
       E.pos[0]+=dir[0]*sp*dt; E.pos[1]+=dir[2]*sp*dt; E.walkAmt=lerp(E.walkAmt,1,Math.min(1,dt*8)); E.walkPh+=dt*(sp<1.3?sp*6.2:7.2+sp*.9); }
     else E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6));
