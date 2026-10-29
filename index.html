@@ -2068,12 +2068,12 @@ function genRoom(n){
    ===================================================================================================== */
 const TUN={TH:2.05,D:.6};
 /* open space: [x0,z0,x1,z1,space id] (-2 start dugout, -1 tunnel, 0 pump room, 1 exit) */
-const TUN_RECTS=[[-13,-4.6,-10.2,-1.4,-2],[-10.2,-3.65,7.3,-2.35,-1],[-6.4,-2.35,-3.2,.65,0],[6.0,-2.35,7.3,4.65,-1],[7.3,3.35,10.4,4.65,-1],[10.4,2.8,12.6,5.2,1]];
+const TUN_RECTS=[[-13,-4.6,-10.2,-1.4,-2],[-10.2,-3.65,7.3,-2.35,-1],[-6.4,-2.35,-3.2,.65,0],[5.6,-2.35,7.3,4.65,-1],[7.3,3.35,10.4,4.65,-1],[10.4,2.8,12.6,5.2,1]];
 /* dug walls: [axis the wall runs along, its fixed coordinate, from, to, outward side] */
 const TUN_WALLS=[['z',-13,-4.6,-1.4,-1],['x',-1.4,-13,-10.2,1],['x',-4.6,-13,-10.2,-1],['z',-10.2,-4.6,-3.65,1],['z',-10.2,-2.35,-1.4,1],
-  ['x',-2.35,-10.2,-6.4,1],['x',-2.35,-3.2,6.0,1],['x',-3.65,-10.2,7.3,-1],
+  ['x',-2.35,-10.2,-6.4,1],['x',-2.35,-3.2,5.6,1],['x',-3.65,-10.2,7.3,-1],
   ['z',-6.4,-2.35,.65,-1],['z',-3.2,-2.35,.65,1],['x',.65,-6.4,-3.2,1],
-  ['z',6.0,-2.35,4.65,-1],['z',7.3,-3.65,3.35,1],['x',3.35,7.3,10.4,-1],['x',4.65,6.0,10.4,1],
+  ['z',5.6,-2.35,4.65,-1],['z',7.3,-3.65,3.35,1],['x',3.35,7.3,10.4,-1],['x',4.65,5.6,10.4,1],
   ['z',10.4,2.8,3.35,-1],['z',10.4,4.65,5.2,-1],['x',2.8,10.4,12.6,-1],['x',5.2,10.4,12.6,1],['z',12.6,2.8,5.2,1]];
 const TUN_CAST=[
   {id:'comando',name:'Chuy',x:-1.2,z:-3.0,hd:-Math.PI/2,extra:'¡No dispares, tengo hijos! (Don\'t shoot, I have kids!)'},
@@ -2124,16 +2124,16 @@ function genTunnel(){
   const frame=(x,z,along,w)=>{ for(const s of [-1,1]){ const px=along==='x'?x:x+s*(w/2-.07),pz=along==='x'?z+s*(w/2-.07):z; mk(box(.12,TH-.02,.12,{at:[0,(TH-.02)/2,0]}),MT(tBeam),G,px,0,pz); addBox(px-.06,px+.06,pz-.06,pz+.06,0,TH,'wall'); }
     mk(box(along==='x'?.14:w+.06,.14,along==='x'?w+.06:.14),MT(tBeam),G,x,TH-.08,z); };
   for(let x=-9.4;x<5.8;x+=1.5) if(x<-6.6||x>-3.0) frame(x,-3,'x',1.3);
-  for(let z=-1.4;z<3.2;z+=1.5) frame(6.65,z,'z',1.3);
+  for(let z=-1.4;z<3.2;z+=1.5) frame(6.45,z,'z',1.7);
   for(let x=8.1;x<10.2;x+=1.5) frame(x,4,'x',1.3);
   /* rails, a cart, the vent duct, the bulb cable, puddles */
-  place(B,'rails',-1.6,-3,Math.PI/2,16.4); place(B,'rails',6.65,.9,0,6.6); place(B,'rails',8.8,4,Math.PI/2,3.2);
-  place(B,'cart',6.65,2.0); addBox(6.28,7.02,1.42,2.58,0,.92,'furn');
-  { const d1=N(G,-1.6,1.84,-2.47,0,Math.PI/2,0); d1.s=[.75,.75,1]; FX.duct(d1,16.6); const d2=N(G,6.12,1.84,1.1,0,0,0); d2.s=[.75,.75,1]; FX.duct(d2,6.8); }
+  place(B,'rails',-1.6,-3,Math.PI/2,16.4); place(B,'rails',6.9,.9,0,6.6); place(B,'rails',8.8,4,Math.PI/2,3.2);
+  place(B,'cart',6.9,2.0); addBox(6.53,7.27,1.42,2.58,0,.92,'furn'); /* pushed to the right: room to squeeze past on the left */
+  { const d1=N(G,-1.6,1.84,-2.47,0,Math.PI/2,0); d1.s=[.75,.75,1]; FX.duct(d1,16.6); const d2=N(G,5.78,1.84,1.1,0,0,0); d2.s=[.75,.75,1]; FX.duct(d2,6.8); }
   mk(box(17.4,.02,.02),mBlackPipe,G,-1.6,1.93,-3.45); mk(box(.02,.02,6.8),mBlackPipe,G,7.1,1.93,1.1); mk(box(4.4,.02,.02),mBlackPipe,G,9.0,1.93,3.55);
   for(const [x,z,w,d] of [[-8.4,-3.1,1.1,.7],[2.8,-2.9,1.4,.8],[6.6,-.8,.8,1.2]]) mk(plane(w,d),MT(tWater,{color:0x4a5a5a}),G,x,.012,z,-Math.PI/2);
   /* start dugout: the ladder up into the stash house, light falling down the shaft */
-  { const l=N(G,-12.7,0,-3,0,-Math.PI/2,0); FX.ladder(l,TH+.3); mk(plane(.9,.9),M(null,{color:0xffe0b0,unlit:true,double:true}),G,-12.5,TH-.01,-3,Math.PI/2); }
+  { const l=N(G,-12.7,0,-3,0,-Math.PI/2,0); FX.ladder(l,TH+.3); mk(plane(.9,.9),M(null,{color:0x8a7454,unlit:true,double:true}),G,-12.5,TH-.01,-3,Math.PI/2); }
   place(B,'sandbags',-12.3,-4.2,0,6); place(B,'gascyl',-10.6,-4.25);
   /* the pump room: generator (shoot it: lights out), a table, a mattress, the product */
   const gen=place(B,'generator',-5.95,-1.25,Math.PI/2); heatTag(gen,.75); const gb=addBox(-6.25,-5.65,-1.75,-.75,0,1.0,'generator'); gb.onHit=()=>tunnelPower(false);
@@ -2143,10 +2143,10 @@ function genTunnel(){
   place(B,'sandbags',11.0,3.15,0,6); addBox(10.4,11.6,2.85,3.45,0,.36,'furn');
   { const l=N(G,12.3,0,4,0,Math.PI/2,0); FX.ladder(l,TH+.3); mk(plane(.8,.8),M(null,{color:0x0a0c10}),G,12.2,TH-.01,4,Math.PI/2); }
   mk(plane(1.6,.4),MT(tSpray,{cut:true,double:true}),G,11.4,1.45,5.19,0,Math.PI,0);
-  /* bulbs on the cable: six lit (each is a light), two dead */
-  const lights=[]; const lit=[[-11.6,-3.0],[-7.6,-3.0],[-4.8,-.9],[1.4,-3.0],[6.65,.4],[11.5,4.0]];
-  lit.forEach(([x,z],i)=>{ const n=N(G,x,1.86,z); FX.bulb(n,true); if(i===0) FLOOR.flick={mat:n.kids[0].mesh.mats[0],i:0}; lights.push([[x,1.78,z],i===2?[1.5,1.2,.75]:[1.6,1.1,.55],i===2?4.6:5.6]); });
-  for(const [x,z] of [[-2.6,-3.0],[8.9,4.0]]){ const n=N(G,x,1.86,z); FX.bulb(n,false); }
+  /* bulbs on the cable: four weak ones lit (each is a light), the rest dead, so long stretches are black */
+  const lights=[]; const lit=[[-11.6,-3.0],[-4.8,-.9],[1.4,-3.0],[11.5,4.0]];
+  lit.forEach(([x,z],i)=>{ const n=N(G,x,1.86,z); FX.bulb(n,true); if(i===0) FLOOR.flick={mat:n.kids[0].mesh.mats[0],i:0}; lights.push([[x,1.78,z],i===1?[1.0,.72,.4]:[.85,.55,.26],i===1?3.9:3.4]); });
+  for(const [x,z] of [[-7.6,-3.0],[-2.6,-3.0],[6.45,.4],[8.9,4.0]]){ const n=N(G,x,1.86,z); FX.bulb(n,false); }
   GEO_TEMP=false;
   /* navigation: walkable cells are inside the open rectangles, away from walls and furniture */
   const nav=new Uint8Array(NX*NZ).fill(1),space=new Int16Array(NX*NZ).fill(-9);
@@ -2155,8 +2155,8 @@ function genTunnel(){
   const units=[{id:0,side:1,x0:-6.4,x1:-3.2,z0:-2.35,z1:.65,w:3.2,apt:'PUMP',door:-4.8,room:true,lit:true},{id:1,side:1,x0:10.4,x1:12.6,z0:2.8,z1:5.2,w:2.2,apt:'EXIT',door:10.4,room:true,lit:true}];
   Object.assign(FLOOR,{nav,space,units,party:[],bx:99,seats:[],beds:[],furn:[],stairUp:null,start:{x:-11.4,z:-3.0,yaw:-Math.PI/2},lights});
   tunnelLights(); boxGridDirty=true; navDirty=true; GAME.vision=GAME.vision||'off'; visionApply(); }
-const TUN_LIGHT={amb:[.05,.045,.04],dir:[0,1,0],dirCol:[0,0,0],fog:[.012,.009,.006],fogNear:5,fogFar:24};
-function tunnelLights(){ setLights(Object.assign({},TUN_LIGHT,FLOOR.power?{pl:FLOOR.lights}:{amb:[.012,.011,.01],pl:[]})); }
+const TUN_LIGHT={amb:[.02,.017,.014],dir:[0,1,0],dirCol:[0,0,0],fog:[.003,.0025,.002],fogNear:1.5,fogFar:11};
+function tunnelLights(){ setLights(Object.assign({},TUN_LIGHT,FLOOR.power?{pl:FLOOR.lights}:{amb:[.003,.003,.003],pl:[]})); }
 function tunnelPower(on){ if(FLOOR.mode!=='tunnel'||FLOOR.power===on) return; FLOOR.power=on;
   if(!on){ FLOOR.flick=null; sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Qué pasó?','What happened?'),es('¡Prendan la planta!','Start the generator!')]),2.4); } },200+Math.random()*700); } }
   tunnelLights(); visionApply(); }
