@@ -8,6 +8,7 @@
 let RX=13,RZ=6,RH=2.8; /* the world: x in ±RX, z in ±RZ, up to RH. 26 x 12 m for the tower; the tunnel and the warehouse are bigger (the warehouse is 7 m tall) */
 const BOXES=[];                       /* {x0,x1,z0,z1,y0,h,kind} axis-aligned, y from y0 to h */
 const floorN=N(world);
+const NO_DOOR_LEAVES=true; /* the game has no doors: house-builder walls keep the opening, no leaf (the art sets still draw them) */
 const FLOOR={n:1,seed:1,test:true,nav:null,space:null,units:[],doors:[],lights:[],start:{x:-11.3,z:0,yaw:-Math.PI/2},flick:null,bx:0,party:[]};
 
 function addBox(x0,x1,z0,z1,y0,h,kind){ const b={x0:Math.min(x0,x1),x1:Math.max(x0,x1),z0:Math.min(z0,z1),z1:Math.max(z0,z1),y0,h,kind}; BOXES.push(b); return b; }
@@ -97,12 +98,7 @@ function genFloor(n,seed,test=true){ setWorld(13,6);
   }
   FLOOR.stairUp={x0:10.35,x1:12.9,z0:.2,z1:1.9};
 
-  /* doors: every door hangs on a hinge so it can be opened later (kicked in loud, or eased open) */
-  for(const u of units){ const z=u.side*1, dm=F(M(tDoorWood),M(tDoorWood));
-    if(u.doorState==='kicked'){ mk(box(1.0,.05,2.05),F(M(tDoorWood),M(tDoorWood),M(tDoorWood),M(tDoorWood)),G,u.door+.1,.03,u.side*2.1,0,.25,0); continue; }
-    const hinge=N(G,u.door-.5,0,z,0,0,0); mk(box(1.0,2.05,.05,{at:[.5,1.025,0]}),dm,hinge);
-    const D={u,x:u.door,side:u.side,hinge,ang:0,target:0,box:null,state:'closed',swingT:0};
-    setDoor(D,u.doorState==='open'?'open':'closed',true); FLOOR.doors.push(D); }
+  /* no doors: every unit is an open doorway (Kenny, 2026-10-29). The door code below stays for later; FLOOR.doors is empty */
   /* windows: glass you can't fall through (yet) */
   for(const u of units) if(u.w>=3.6){ mk(plane(1.4,1.1),M(tNightWin,{unlit:true,color:0x9a9a9a}),G,(u.x0+u.x1)/2,1.45,u.side*5.94,0,u.side>0?Math.PI:0,0);
     addBox((u.x0+u.x1)/2-.7,(u.x0+u.x1)/2+.7,u.side*6-.07,u.side*6+.07,.9,2.0,'window'); }
@@ -285,8 +281,6 @@ function genRoom(n){ setWorld(13,6);
   wall(-10,-4,-10,4,peel,[[-.6,.6,2.1]]); wall(-2,-4,-2,4,peel); wall(-10,-4,-2,-4,peel); wall(-10,4,-2,4,peel);
   mk(plane(8,8,8,8),M(tLinoStain,{repeat:[4,4]}),G,-6,0,0,-Math.PI/2);
   mk(plane(14,10,14,10),M(tConcrete,{repeat:[7,5],color:0x8a8a8a}),G,-7,RH,0,Math.PI/2);
-  mk(box(1.0,2.1,.06,{at:[0,1.05,0]}),F(mBlack,M(tFireDoor)),G,-3.5,0,-4+.1);
-  mk(box(1.0,2.1,.06,{at:[0,1.05,0]}),F(mBlack,M(tDoorWood)),G,-7.2,0,4-.1,0,Math.PI,0);
   mk(plane(1.4,1.1),M(tNightWin,{unlit:true,color:0x9a9a9a}),G,-2-.08,1.5,-1.4,0,-Math.PI/2,0); addBox(-2.08,-1.92,-2.1,-.7,.9,2.0,'window');
   mk(plane(1.6,.4),M(TAGS[2],{cut:true}),G,-10+.08,1.55,-2.4,0,Math.PI/2,0); mk(plane(1.6,.4),M(TAGS[7],{cut:true}),G,-5.6,1.7,-4+.08);
   const tube=M(tFluo,{unlit:true}); mk(box(1.2,.05,.2),tube,G,-4.2,RH-.03,1.3); FLOOR.flick={mat:tube,i:0};

@@ -1453,7 +1453,7 @@ function wall(H,x0,z0,x1,z1,a,b,holes=[],o={}){
     if(q.win||q.glass){ const gh=q.y1-q.y0; mk(plane(q.w,gh),MT(tGlassCut,{cut:true,double:true,repeat:[Math.max(1,Math.round(q.w/.8)),1]}),n,0,q.y0+gh/2,0);
       mk(box(q.w+.06,.04,WT+.08),q.glass?mFrame:mWhiteTrim,n,0,q.y0-.02,0); if(q.y1<h-.01) mk(box(q.w+.06,.04,WT+.04),q.glass?mFrame:mWhiteTrim,n,0,q.y1+.02,0);
       for(const sx of [-1,1]) mk(box(.04,gh,WT+.04),q.glass?mFrame:mWhiteTrim,n,sx*(q.w/2+.01),q.y0+gh/2,0); }
-    if(q.door){ const leaf=N(n,-q.w/2+.02,0,0,0,(q.swing??1.2)*(q.flip?-1:1),0); mk(box(q.w-.04,q.y1-.02,.045,{at:[(q.w-.04)/2,(q.y1-.02)/2,0]}),F(mFrame,MT(q.doorT||tDoorWood),MT(q.doorT||tDoorWood)),leaf); }
+    if(q.door&&!(typeof NO_DOOR_LEAVES!=='undefined'&&NO_DOOR_LEAVES)){ const leaf=N(n,-q.w/2+.02,0,0,0,(q.swing??1.2)*(q.flip?-1:1),0); mk(box(q.w-.04,q.y1-.02,.045,{at:[(q.w-.04)/2,(q.y1-.02)/2,0]}),F(mFrame,MT(q.doorT||tDoorWood),MT(q.doorT||tDoorWood)),leaf); }
   }
   piece(s,s1,0,h); }
 /* rectangular room shell helper: floor plus the four walls, each wall given as {a,b,holes} or null to skip (shared walls are built once) */
