@@ -2228,17 +2228,17 @@ const TUN_ROOMS=[{id:-2,c:[-11.575,-3.0],h:[1.375,1.6],r:.12,n:0},{id:0,c:[-4.6,
 const TUN_EXIT=[28.15,-12.6]; /* the ladder up the far side */
 const TUN_WET=[12.2,18.6]; /* the flooded stretch of the main line, by x */
 const TUN_CAST=[
-  {id:'comando',name:'Chuy',x:-1.6,z:-3.95,hd:-Math.PI/2,extra:'¡No dispares, tengo hijos! (Don\'t shoot, I have kids!)'},
-  {id:'pistolero',name:'Lalo',x:-4.3,z:-.45,hd:Math.PI,extra:'Yo nomás cuento el dinero— (I just count the money—)'},
-  {id:'halcon',name:'Nico',x:-5.5,z:-.35,hd:Math.PI*.8,extra:'Tengo veintidós años, güey— (I\'m twenty-two, man—)'},
-  {id:'halcon',name:'Memo',x:-2.4,z:-10.9,hd:Math.PI/2,extra:'¡Estaba dormido, lo juro! (I was asleep, I swear!)'},
-  {id:'machetero',name:'Paco',x:-4.4,z:-11.7,hd:Math.PI*.35,extra:'Yo sólo cargo cajas— (I just carry boxes—)'},
-  {id:'machetero',name:'Beto',x:6.55,z:2.05,hd:Math.PI,extra:'Me obligaron, lo juro— (They made me, I swear—)'},
-  {id:'pistolero',name:'Rubén',x:16.6,z:2.0,hd:-Math.PI/2,extra:'Mi hija cumple seis mañana— (My daughter turns six tomorrow—)'},
-  {id:'escolta',name:'Toño',x:19.4,z:-.3,hd:-Math.PI/2,extra:'Mi jefa me está esperando— (My mom is waiting for me—)'},
-  {id:'patron',name:'Gera',x:21.0,z:-.55,hd:Math.PI,extra:'Te pago. Lo que quieras, te pago. (I\'ll pay you. Whatever you want.)'},
-  {id:'comando',name:'Chava',x:22.6,z:-1.5,hd:Math.PI/2,extra:'No sabía que eras tú— (I didn\'t know it was you—)'},
-  {id:'escolta',name:'Kike',x:27.7,z:-12.2,hd:0,extra:'Nomás cuido la escalera— (I just watch the ladder—)'}];
+  {id:'comando',name:'Chuy',x:-1.6,z:-3.95,hd:-Math.PI/2,extra:'Don\'t shoot, I have kids!'},
+  {id:'pistolero',name:'Lalo',x:-4.3,z:-.45,hd:Math.PI,extra:'I just count the money—'},
+  {id:'halcon',name:'Nico',x:-5.5,z:-.35,hd:Math.PI*.8,extra:'I\'m twenty-two, man—'},
+  {id:'halcon',name:'Memo',x:-2.4,z:-10.9,hd:Math.PI/2,extra:'I was asleep, I swear!'},
+  {id:'machetero',name:'Paco',x:-4.4,z:-11.7,hd:Math.PI*.35,extra:'I just carry boxes—'},
+  {id:'machetero',name:'Beto',x:6.55,z:2.05,hd:Math.PI,extra:'They made me, I swear—'},
+  {id:'pistolero',name:'Rubén',x:16.6,z:2.0,hd:-Math.PI/2,extra:'My daughter turns six tomorrow—'},
+  {id:'escolta',name:'Toño',x:19.4,z:-.3,hd:-Math.PI/2,extra:'My mom is waiting for me—'},
+  {id:'patron',name:'Gera',x:21.0,z:-.55,hd:Math.PI,extra:'I\'ll pay you. Whatever you want.'},
+  {id:'comando',name:'Chava',x:22.6,z:-1.5,hd:Math.PI/2,extra:'I didn\'t know it was you—'},
+  {id:'escolta',name:'Kike',x:27.7,z:-12.2,hd:0,extra:'I just watch the ladder—'}];
 const CARTEL_OF={corner:'halcon',cutter:'machetero',gunman:'pistolero',doorman:'escolta',enforcer:'comando',landlord:'patron'};
 const NAMES_ES=['Chuy','Lalo','Nico','Beto','Toño','Memo','Paco','Chava','Rubén','Gera','Poncho','Kike','Rafa','Tavo','Lupe','Neto'];
 /* a cartel man, playing as one of the tower kinds; the lookout fights with a bottle in the game */
@@ -2247,21 +2247,21 @@ function tunnelCast(){ for(const sp of TUN_CAST){ const E=spawnEnemy(Object.assi
   /* whoever dug the cave-in left his shotgun on a crate at the end of it */
   if(FLOOR.reward){ const r=FLOOR.reward,Mw=m4.compose(m4.make(),[r[0],r[1],r[2]],[0,r[3],Math.PI/2],[1,1,1]); const P=addPickup(newItem('shotgun'),Mw,[0,0,0],[0,0,0]); P.rest=true; } }
 
-/* ---------- Spanish lines, with the English in brackets ---------- */
+/* ---------- the cartel men's lines. Ray speaks Spanish, so they're shown as he hears them: in English. es(spanish,english) keeps the Spanish in the source for reference only ---------- */
 let LINES_EN=null;
-const es=(a,b)=>`${a} (${b})`;
+const es=(a,b)=>b;
 const LINES_ES={
   alert:[es('¡Ahí está!','There he is!'),es('¿Quién anda ahí?','Who\'s there?'),es('¡Es el policía!','It\'s the cop!'),es('¡Sigue vivo!','He\'s still alive!'),es('¡Agárrenlo!','Get him!')],
   leg:[es('¡Mi pierna!','My leg!'),es('No me puedo parar—','I can\'t stand—'),es('¡Mi rodilla, cabrón!','My knee!')],
   torso:[es('¡Me dieron!','I\'m hit!'),es('¡Espérate, espérate!','Wait, wait!'),es('Ay, no—','Oh no—')],
   arm:[es('¡Mi brazo!','My arm!'),es('No siento la mano—','I can\'t feel my hand—')],
-  neck:['*ahogándose* (choking)','*gorgoteo* (gurgling)','—hhk—'],
-  stab:['¡Hnn—!',es('No, no—','No, no—'),es('Sácalo, sácalo—','Get it out—')],
+  neck:['*choking*','*gurgling*','—hhk—'],
+  stab:['Hnn—!',es('No, no—','No, no—'),es('Sácalo, sácalo—','Get it out—')],
   beg:[es('Por favor. Por favor.','Please. Please.'),es('Ya, ya, me rindo.','Okay, I give up.'),es('No lo hagas.','Don\'t do it.'),es('Yo no te hice nada—','I didn\'t do anything to you—'),es('Por mi madre, no—','On my mother, no—')],
   crawl:[es('Ayúdenme...','Help me...'),es('No te acerques—','Stay back—'),es('No siento las piernas—','I can\'t feel my legs—')],
   dying:[es('...tengo frío...','...I\'m cold...'),es('Mamá...','Mom...'),es('No me quiero morir...','I don\'t want to die...'),es('...está oscuro...','...it\'s dark...')],
-  friend:n=>[`¡${n}!`,es(`¡${n}! ¡Levántate!`,`${n}! Get up!`),es(`¡Mataron a ${n}!`,`They killed ${n}!`)],
-  call:n=>[es(`¡${n}! ¡Ayúdame!`,`${n}! Help me!`),`${n}... por favor...`] };
+  friend:n=>[`${n}!`,es(`¡${n}! ¡Levántate!`,`${n}! Get up!`),es(`¡Mataron a ${n}!`,`They killed ${n}!`)],
+  call:n=>[es(`¡${n}! ¡Ayúdame!`,`${n}! Help me!`),`${n}... please...`] };
 function setLang(spanish){ if(!LINES_EN){ LINES_EN={}; for(const k in LINES) LINES_EN[k]=LINES[k]; } const src=spanish?LINES_ES:LINES_EN; for(const k in src) LINES[k]=src[k]; }
 
 /* ---------- the level ---------- */

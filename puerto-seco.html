@@ -1183,8 +1183,8 @@ const floorNumTex={};
 function floorNum(n){ if(!floorNumTex[n]) floorNumTex[n]=tex(32,16,null,g=>{ const s=String(n).padStart(2,'0'); text(g,s,(32-textW(s,3))>>1,1,'#d8d4c4',3); }); return floorNumTex[n]; }
 const tAxeCase=cl(16,16,'#8a1a14',10,425,g=>{ R(g,'#2a3438',2,2,12,12); R(g,'#5f7a82',3,3,2,1); text(g,'AXE',2,9,'#e8e2cf'); });
 
-const NX=53,NZ=25;
-const cellX=i=>-13+i*.5, cellZ=k=>-6+k*.5;
+let NX=53,NZ=25; /* the nav grid: 0.5 m cells over the whole world, which each level sizes (setWorld in 30-floor.js) */
+const cellX=i=>-RX+i*.5, cellZ=k=>-RZ+k*.5;
 const FL={seed:0x3f2a,n:1,route:'both',data:null,quietMesh:null,loudMesh:null};
 function tierOf(n){ return n>=30?5:n>=21?4:Math.floor((n-1)/5); }
 
