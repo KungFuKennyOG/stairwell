@@ -576,12 +576,14 @@ uniform vec2 uRes;
 uniform vec3 uAmb, uDirDir, uDirCol;
 uniform vec3 uPLPos[8]; uniform vec3 uPLCol[8]; uniform float uPLDist[8];
 uniform float uFogNear, uFogFar;
-out vec3 vAff; out vec3 vLight; out vec3 vView;
+in vec4 aRect; /* an atlas rectangle for a tiled texture (z>0), or, on the far field, the centre and radius of the tile it stands in for */
+uniform float uFar, uFarSwap; uniform vec3 uFarEye;
+out vec3 vAff; out vec3 vLight; out vec3 vView; out vec4 vRect;
 void main(){
   vec4 wp = modelMatrix * vec4(position,1.0);
   vec3 n = normalize(mat3(modelMatrix) * normal);
   vec3 L = uAmb + uDirCol * max(dot(n, normalize(uDirDir)), 0.0);
-  for(int i=0;i<8;i++){
+  if(uUnlit < 0.5) for(int i=0;i<8;i++){
     vec3 d = uPLPos[i] - wp.xyz; float dist = length(d);
     float a = clamp(1.0 - dist / uPLDist[i], 0.0, 1.0); a *= a;
     L += uPLCol[i] * a * max(dot(n, d / max(dist, 1e-4)), 0.0);
@@ -593,15 +595,19 @@ void main(){
   vView = vp.xyz; /* fog goes by true distance (per pixel), the same distance the culling uses, so nothing pops at the edges of a wide headset view */
   float aw = mix(1.0, cp.w, clamp(uAffine, 0.0, 1.0)); vAff = vec3(uv * aw, aw); /* uAffine 0..1: how much of the PS1 texture warp */
   gl_Position = cp;
+  vRect = uFar > 0.5 ? vec4(0.0) : aRect;
+  /* the far field: a stand-in only shows while the real tile it stands in for is too far to be drawn (the same test the CPU uses) */
+  if(uFar > 0.5 && length(uFarEye - aRect.xyz) - aRect.w <= uFarSwap) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
 }`;
 const FS=`#version 300 es
 precision highp float;
 uniform sampler2D map; uniform float uHasMap, uCut;
 uniform vec3 uColor, uEmissive, uFogCol; uniform vec2 uRepeat; uniform float uNoFog, uFogNear, uFogFar, uSkyFade;
-in vec3 vAff; in vec3 vLight; in vec3 vView;
+in vec3 vAff; in vec3 vLight; in vec3 vView; in vec4 vRect;
 out vec4 outColor;
 void main(){
   vec2 uv = vAff.xy / vAff.z * uRepeat;
+  if(vRect.z > 0.0) uv = vRect.xy + fract(uv) * vRect.zw; /* a tiled texture living in the atlas: wrap inside its own rectangle */
   vec4 t = uHasMap > 0.5 ? texture(map, uv) : vec4(1.0);
   if(uCut > 0.5 && t.a < 0.5) discard;
   vec3 c = t.rgb * uColor * vLight + t.rgb * uEmissive;
@@ -630,7 +636,7 @@ function program(vs,fs,attribs){ const p=gl.createProgram();
   (attribs||[]).forEach((a,i)=>gl.bindAttribLocation(p,i,a)); gl.linkProgram(p); if(!gl.getProgramParameter(p,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
   const loc={}; const n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS); for(let i=0;i<n;i++){ const u=gl.getActiveUniform(p,i); loc[u.name.replace('[0]','')]=gl.getUniformLocation(p,u.name); } return {p,loc}; }
 let MAIN,POST;
-try{ MAIN=program(VS,FS,['position','normal','uv']); POST=program(PVS,PFS); } catch(e){ fail('The renderer could not start: '+e.message); return; }
+try{ MAIN=program(VS,FS,['position','normal','uv','aRect']); POST=program(PVS,PFS); } catch(e){ fail('The renderer could not start: '+e.message); return; }
 const emptyVAO=gl.createVertexArray();
 let texFilter=gl.NEAREST;
 function glTex(t){
@@ -639,7 +645,7 @@ function glTex(t){
   if(t.f!==texFilter){ gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,texFilter); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,texFilter); t.f=texFilter; }
   return t.glt; }
 function upload(g){ g.vao=gl.createVertexArray(); gl.bindVertexArray(g.vao); g.bufs=[];
-  [[g.P,3],[g.Nm,3],[g.T,2]].forEach(([arr,size],i)=>{ const b=gl.createBuffer(); g.bufs.push(b); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(arr),gl.STATIC_DRAW); gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i,size,gl.FLOAT,false,0,0); });
+  [[g.P,3],[g.Nm,3],[g.T,2],...(g.R?[[g.R,4]]:[])].forEach(([arr,size],i)=>{ const b=gl.createBuffer(); g.bufs.push(b); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(arr),gl.STATIC_DRAW); gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i,size,gl.FLOAT,false,0,0); });
   const ib=gl.createBuffer(); g.bufs.push(ib); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(g.I),gl.STATIC_DRAW); gl.bindVertexArray(null); }
 function disposeTree(n){ if(n.mesh){ const g=n.mesh.geo; if(g.temp&&g.vao){ gl.deleteVertexArray(g.vao); for(const b of g.bufs) gl.deleteBuffer(b); g.vao=null; } } for(const k of n.kids) disposeTree(k); }
 const L={amb:[.1,.1,.1],dirDir:[0,1,0],dirCol:[0,0,0],plPos:new Float32Array(24),plCol:new Float32Array(24),plDist:new Float32Array([1,1,1,1,1,1,1,1]),fog:[0,0,0],fogNear:8,fogFar:30};
@@ -656,7 +662,10 @@ function ensureFB(w,h){ if(w===fbW&&h===fbH) return; fbW=w; fbH=h;
 const view=m4.make(),proj=m4.make(); let curCull=null,curMat=null,curTex=null; const viewShift=[0,0];
 /* frustum culling: one bounding sphere per geometry (skinned bodies and the dynamic blood meshes are never culled), tested against
    the current eye's clip planes and the fog distance. Material state is only re-sent when it actually changes. */
-const FR=new Float32Array(24),VPm=m4.make(); let cullOn=false,cullEye=[0,0,0],cullFar=1e9;
+const FR=new Float32Array(24),VPm=m4.make(); let cullOn=false,cullEye=[0,0,0],cullFar=1e9,swapEye=[0,0,0],swapD=1e9;
+/* near/far swap: a real tile (g.dsph, its tile's sphere) is drawn while that sphere is within swapD of the head; its far-field stand-in
+   takes over past that, decided in the vertex shader with the same numbers. One eye position for both eyes, so they swap together */
+function setSwap(eye,d){ swapEye=eye; swapD=d; }
 function setCull(eye,far){ m4.mul(VPm,proj,view); const m=VPm;
   const rows=[[m[3]+m[0],m[7]+m[4],m[11]+m[8],m[15]+m[12]],[m[3]-m[0],m[7]-m[4],m[11]-m[8],m[15]-m[12]],[m[3]+m[1],m[7]+m[5],m[11]+m[9],m[15]+m[13]],[m[3]-m[1],m[7]-m[5],m[11]-m[9],m[15]-m[13]],[m[3]+m[2],m[7]+m[6],m[11]+m[10],m[15]+m[14]],[m[3]-m[2],m[7]-m[6],m[11]-m[10],m[15]-m[14]]];
   rows.forEach((r,i)=>{ const l=Math.hypot(r[0],r[1],r[2])||1; FR[i*4]=r[0]/l; FR[i*4+1]=r[1]/l; FR[i*4+2]=r[2]/l; FR[i*4+3]=r[3]/l; }); cullOn=true; cullEye=eye; cullFar=far; }
@@ -665,7 +674,8 @@ function geoBounds(g){ if(g.bs) return g.bs; const P=g.P; let x0=1e9,y0=1e9,z0=1
 function culled(n,g){ if(!cullOn||g.noCull||!g.P.length) return false; const b=geoBounds(g),w=n.world,c=b.c;
   const x=w[0]*c[0]+w[4]*c[1]+w[8]*c[2]+w[12],y=w[1]*c[0]+w[5]*c[1]+w[9]*c[2]+w[13],z=w[2]*c[0]+w[6]*c[1]+w[10]*c[2]+w[14];
   const r=b.r*Math.max(Math.hypot(w[0],w[1],w[2]),Math.hypot(w[4],w[5],w[6]),Math.hypot(w[8],w[9],w[10]));
-  if(Math.hypot(x-cullEye[0],y-cullEye[1],z-cullEye[2])-r>cullFar) return true;
+  if(g.dsph){ const s=g.dsph.c; if(Math.hypot(s[0]-swapEye[0],s[1]-swapEye[1],s[2]-swapEye[2])-g.dsph.r>swapD) return true; }
+  else if(!g.noDist&&Math.hypot(x-cullEye[0],y-cullEye[1],z-cullEye[2])-r>cullFar) return true;
   for(let i=0;i<24;i+=4) if(FR[i]*x+FR[i+1]*y+FR[i+2]*z+FR[i+3]<-r) return true; return false; }
 function runsOf(mesh){ if(mesh.runs) return mesh.runs; const runs=[]; const g=mesh.geo;
   if(mesh.mats.length===1){ runs.push({start:0,count:g.I.length,m:mesh.mats[0]}); }
@@ -676,7 +686,7 @@ function drawTree(n){ if(!n.vis) return;
     for(const run of runsOf(n.mesh)){ const m=run.m; const cull=!m.dbl; if(cull!==curCull){ cull?gl.enable(gl.CULL_FACE):gl.disable(gl.CULL_FACE); curCull=cull; }
       if(m!==curMat){ curMat=m; if(m.tex){ const t=glTex(m.tex); if(t!==curTex){ gl.bindTexture(gl.TEXTURE_2D,t); curTex=t; } }
         gl.uniform1f(MAIN.loc.uHasMap,m.tex?1:0); gl.uniform3fv(MAIN.loc.uColor,m.color); gl.uniform3fv(MAIN.loc.uEmissive,m.emis);
-        gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut); gl.uniform1f(MAIN.loc.uNoFog,m.nofog||0); }
+        gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut); gl.uniform1f(MAIN.loc.uNoFog,m.nofog||0); gl.uniform1f(MAIN.loc.uFar,m.far?1:0); }
       gl.drawElements(gl.TRIANGLES,run.count,gl.UNSIGNED_SHORT,run.start*2); } } }
   for(const k of n.kids) drawTree(k); }
 function renderScene(root,eye,target,w,h,snapRes){

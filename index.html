@@ -565,12 +565,14 @@ uniform vec2 uRes;
 uniform vec3 uAmb, uDirDir, uDirCol;
 uniform vec3 uPLPos[8]; uniform vec3 uPLCol[8]; uniform float uPLDist[8];
 uniform float uFogNear, uFogFar;
-out vec3 vAff; out vec3 vLight; out vec3 vView;
+in vec4 aRect; /* an atlas rectangle for a tiled texture (z>0), or, on the far field, the centre and radius of the tile it stands in for */
+uniform float uFar, uFarSwap; uniform vec3 uFarEye;
+out vec3 vAff; out vec3 vLight; out vec3 vView; out vec4 vRect;
 void main(){
   vec4 wp = modelMatrix * vec4(position,1.0);
   vec3 n = normalize(mat3(modelMatrix) * normal);
   vec3 L = uAmb + uDirCol * max(dot(n, normalize(uDirDir)), 0.0);
-  for(int i=0;i<8;i++){
+  if(uUnlit < 0.5) for(int i=0;i<8;i++){
     vec3 d = uPLPos[i] - wp.xyz; float dist = length(d);
     float a = clamp(1.0 - dist / uPLDist[i], 0.0, 1.0); a *= a;
     L += uPLCol[i] * a * max(dot(n, d / max(dist, 1e-4)), 0.0);
@@ -582,15 +584,19 @@ void main(){
   vView = vp.xyz; /* fog goes by true distance (per pixel), the same distance the culling uses, so nothing pops at the edges of a wide headset view */
   float aw = mix(1.0, cp.w, clamp(uAffine, 0.0, 1.0)); vAff = vec3(uv * aw, aw); /* uAffine 0..1: how much of the PS1 texture warp */
   gl_Position = cp;
+  vRect = uFar > 0.5 ? vec4(0.0) : aRect;
+  /* the far field: a stand-in only shows while the real tile it stands in for is too far to be drawn (the same test the CPU uses) */
+  if(uFar > 0.5 && length(uFarEye - aRect.xyz) - aRect.w <= uFarSwap) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
 }`;
 const FS=`#version 300 es
 precision highp float;
 uniform sampler2D map; uniform float uHasMap, uCut;
 uniform vec3 uColor, uEmissive, uFogCol; uniform vec2 uRepeat; uniform float uNoFog, uFogNear, uFogFar, uSkyFade;
-in vec3 vAff; in vec3 vLight; in vec3 vView;
+in vec3 vAff; in vec3 vLight; in vec3 vView; in vec4 vRect;
 out vec4 outColor;
 void main(){
   vec2 uv = vAff.xy / vAff.z * uRepeat;
+  if(vRect.z > 0.0) uv = vRect.xy + fract(uv) * vRect.zw; /* a tiled texture living in the atlas: wrap inside its own rectangle */
   vec4 t = uHasMap > 0.5 ? texture(map, uv) : vec4(1.0);
   if(uCut > 0.5 && t.a < 0.5) discard;
   vec3 c = t.rgb * uColor * vLight + t.rgb * uEmissive;
@@ -619,7 +625,7 @@ function program(vs,fs,attribs){ const p=gl.createProgram();
   (attribs||[]).forEach((a,i)=>gl.bindAttribLocation(p,i,a)); gl.linkProgram(p); if(!gl.getProgramParameter(p,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
   const loc={}; const n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS); for(let i=0;i<n;i++){ const u=gl.getActiveUniform(p,i); loc[u.name.replace('[0]','')]=gl.getUniformLocation(p,u.name); } return {p,loc}; }
 let MAIN,POST;
-try{ MAIN=program(VS,FS,['position','normal','uv']); POST=program(PVS,PFS); } catch(e){ fail('The renderer could not start: '+e.message); return; }
+try{ MAIN=program(VS,FS,['position','normal','uv','aRect']); POST=program(PVS,PFS); } catch(e){ fail('The renderer could not start: '+e.message); return; }
 const emptyVAO=gl.createVertexArray();
 let texFilter=gl.NEAREST;
 function glTex(t){
@@ -628,7 +634,7 @@ function glTex(t){
   if(t.f!==texFilter){ gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,texFilter); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,texFilter); t.f=texFilter; }
   return t.glt; }
 function upload(g){ g.vao=gl.createVertexArray(); gl.bindVertexArray(g.vao); g.bufs=[];
-  [[g.P,3],[g.Nm,3],[g.T,2]].forEach(([arr,size],i)=>{ const b=gl.createBuffer(); g.bufs.push(b); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(arr),gl.STATIC_DRAW); gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i,size,gl.FLOAT,false,0,0); });
+  [[g.P,3],[g.Nm,3],[g.T,2],...(g.R?[[g.R,4]]:[])].forEach(([arr,size],i)=>{ const b=gl.createBuffer(); g.bufs.push(b); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(arr),gl.STATIC_DRAW); gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i,size,gl.FLOAT,false,0,0); });
   const ib=gl.createBuffer(); g.bufs.push(ib); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(g.I),gl.STATIC_DRAW); gl.bindVertexArray(null); }
 function disposeTree(n){ if(n.mesh){ const g=n.mesh.geo; if(g.temp&&g.vao){ gl.deleteVertexArray(g.vao); for(const b of g.bufs) gl.deleteBuffer(b); g.vao=null; } } for(const k of n.kids) disposeTree(k); }
 const L={amb:[.1,.1,.1],dirDir:[0,1,0],dirCol:[0,0,0],plPos:new Float32Array(24),plCol:new Float32Array(24),plDist:new Float32Array([1,1,1,1,1,1,1,1]),fog:[0,0,0],fogNear:8,fogFar:30};
@@ -645,7 +651,10 @@ function ensureFB(w,h){ if(w===fbW&&h===fbH) return; fbW=w; fbH=h;
 const view=m4.make(),proj=m4.make(); let curCull=null,curMat=null,curTex=null; const viewShift=[0,0];
 /* frustum culling: one bounding sphere per geometry (skinned bodies and the dynamic blood meshes are never culled), tested against
    the current eye's clip planes and the fog distance. Material state is only re-sent when it actually changes. */
-const FR=new Float32Array(24),VPm=m4.make(); let cullOn=false,cullEye=[0,0,0],cullFar=1e9;
+const FR=new Float32Array(24),VPm=m4.make(); let cullOn=false,cullEye=[0,0,0],cullFar=1e9,swapEye=[0,0,0],swapD=1e9;
+/* near/far swap: a real tile (g.dsph, its tile's sphere) is drawn while that sphere is within swapD of the head; its far-field stand-in
+   takes over past that, decided in the vertex shader with the same numbers. One eye position for both eyes, so they swap together */
+function setSwap(eye,d){ swapEye=eye; swapD=d; }
 function setCull(eye,far){ m4.mul(VPm,proj,view); const m=VPm;
   const rows=[[m[3]+m[0],m[7]+m[4],m[11]+m[8],m[15]+m[12]],[m[3]-m[0],m[7]-m[4],m[11]-m[8],m[15]-m[12]],[m[3]+m[1],m[7]+m[5],m[11]+m[9],m[15]+m[13]],[m[3]-m[1],m[7]-m[5],m[11]-m[9],m[15]-m[13]],[m[3]+m[2],m[7]+m[6],m[11]+m[10],m[15]+m[14]],[m[3]-m[2],m[7]-m[6],m[11]-m[10],m[15]-m[14]]];
   rows.forEach((r,i)=>{ const l=Math.hypot(r[0],r[1],r[2])||1; FR[i*4]=r[0]/l; FR[i*4+1]=r[1]/l; FR[i*4+2]=r[2]/l; FR[i*4+3]=r[3]/l; }); cullOn=true; cullEye=eye; cullFar=far; }
@@ -654,7 +663,8 @@ function geoBounds(g){ if(g.bs) return g.bs; const P=g.P; let x0=1e9,y0=1e9,z0=1
 function culled(n,g){ if(!cullOn||g.noCull||!g.P.length) return false; const b=geoBounds(g),w=n.world,c=b.c;
   const x=w[0]*c[0]+w[4]*c[1]+w[8]*c[2]+w[12],y=w[1]*c[0]+w[5]*c[1]+w[9]*c[2]+w[13],z=w[2]*c[0]+w[6]*c[1]+w[10]*c[2]+w[14];
   const r=b.r*Math.max(Math.hypot(w[0],w[1],w[2]),Math.hypot(w[4],w[5],w[6]),Math.hypot(w[8],w[9],w[10]));
-  if(Math.hypot(x-cullEye[0],y-cullEye[1],z-cullEye[2])-r>cullFar) return true;
+  if(g.dsph){ const s=g.dsph.c; if(Math.hypot(s[0]-swapEye[0],s[1]-swapEye[1],s[2]-swapEye[2])-g.dsph.r>swapD) return true; }
+  else if(!g.noDist&&Math.hypot(x-cullEye[0],y-cullEye[1],z-cullEye[2])-r>cullFar) return true;
   for(let i=0;i<24;i+=4) if(FR[i]*x+FR[i+1]*y+FR[i+2]*z+FR[i+3]<-r) return true; return false; }
 function runsOf(mesh){ if(mesh.runs) return mesh.runs; const runs=[]; const g=mesh.geo;
   if(mesh.mats.length===1){ runs.push({start:0,count:g.I.length,m:mesh.mats[0]}); }
@@ -665,7 +675,7 @@ function drawTree(n){ if(!n.vis) return;
     for(const run of runsOf(n.mesh)){ const m=run.m; const cull=!m.dbl; if(cull!==curCull){ cull?gl.enable(gl.CULL_FACE):gl.disable(gl.CULL_FACE); curCull=cull; }
       if(m!==curMat){ curMat=m; if(m.tex){ const t=glTex(m.tex); if(t!==curTex){ gl.bindTexture(gl.TEXTURE_2D,t); curTex=t; } }
         gl.uniform1f(MAIN.loc.uHasMap,m.tex?1:0); gl.uniform3fv(MAIN.loc.uColor,m.color); gl.uniform3fv(MAIN.loc.uEmissive,m.emis);
-        gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut); gl.uniform1f(MAIN.loc.uNoFog,m.nofog||0); }
+        gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut); gl.uniform1f(MAIN.loc.uNoFog,m.nofog||0); gl.uniform1f(MAIN.loc.uFar,m.far?1:0); }
       gl.drawElements(gl.TRIANGLES,run.count,gl.UNSIGNED_SHORT,run.start*2); } } }
   for(const k of n.kids) drawTree(k); }
 function renderScene(root,eye,target,w,h,snapRes){
@@ -1917,7 +1927,7 @@ function boxesAt(x,z){ if(boxGridDirty) buildBoxGrid(); const i=Math.floor(x+RX)
 /* ---------- generation ---------- */
 const FURN_H={mattress:.27,bed:.5,couch:.9,tv:.92,table:.77,counter:.92,fridge:1.7,crates:1.1,trash:.35,wardrobe:1.9,desk:.78,filing:1.3,bucket:.3};
 function genFloor(n,seed,test=true){ setWorld(13,6);
-  disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
+  disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true;
   FLOOR.n=n; FLOOR.seed=seed; FLOOR.test=test; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.mode='tower'; FLOOR.power=true; setLang(false); FLOOR.start={x:-11.3,z:0,yaw:-Math.PI/2};
   const G=floorN; GEO_TEMP=true;
   const tier=tierOf(n), deco=tier<2?0:tier<4?1:2;
@@ -2162,7 +2172,7 @@ function freeSpot(pred,minD=4){ for(let tries=0;tries<400;tries++){ const i=Math
    The landing (rack, spawn board, map) is the same; walk east through the doorway into the apartment. Dani, Marco and Teo live here. */
 const ROOM_DX=-6; /* the old room was centred on 0; here it sits between x -10 and -2 */
 function genRoom(n){ setWorld(13,6);
-  disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
+  disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true;
   FLOOR.n=n; FLOOR.test=true; FLOOR.mode='room'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; setLang(false); FLOOR.start={x:-11.3,z:0,yaw:-Math.PI/2};
   const G=floorN,T=.14,H_=RH; GEO_TEMP=true;
   const wall=(x0,z0,x1,z1,mat,gaps=[])=>{ const alongX=Math.abs(x1-x0)>Math.abs(z1-z0),a0=alongX?Math.min(x0,x1):Math.min(z0,z1),a1=alongX?Math.max(x0,x1):Math.max(z0,z1),c=alongX?z0:x0;
@@ -2343,7 +2353,7 @@ function dirtHeap(n,rx,rz,H,seed){ const g=new Geo(),R0=6,SG=14,ht=(u,a)=>{ cons
 /* ---------- the level ---------- */
 function genTunnel(){
   setWorld(TUN.RX,TUN.RZ);
-  disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
+  disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true;
   FLOOR.n=1; FLOOR.test=true; FLOOR.mode='tunnel'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; FLOOR.rewards=[]; setLang(true);
   const G=floorN, B={g:G}, TH=TUN.TH; GEO_TEMP=true;
   /* sample the open field on a 0.25 m grid over the world */
@@ -2773,23 +2783,26 @@ function meshMerge(root,o={}){ const tile=o.tile??12,hot=new Set((FLOOR.hot||[])
   const skip=n=>n.live||n.fire||hot.has(n)||(o.keep&&o.keep(n));
   const add=(n,M,run,g,keepF)=>{ const m=run.m,plain=!m.tex&&!m.cut,cx=M[12],cz=M[14],tk=tile?Math.floor(cx/tile)+','+Math.floor(cz/tile):'0';
     /* a texture used once over (no tiling) can go in the atlas */
-    let ar=null; if(!plain&&m.tex&&m.tex.c&&!m.tex.dyn){ let lo=1e9,hi=-1e9; for(let i=run.start;i<run.start+run.count;i++){ const v=g.I[i],u=g.T[v*2]*m.rep[0],w=g.T[v*2+1]*m.rep[1]; lo=Math.min(lo,u,w); hi=Math.max(hi,u,w); } if(lo>=-.002&&hi<=1.002) ar=atlasRect(m.tex); }
+    let ar=null,wr=null; if(!plain&&m.tex&&m.tex.c&&!m.tex.dyn){ let lo=1e9,hi=-1e9; for(let i=run.start;i<run.start+run.count;i++){ const v=g.I[i],u=g.T[v*2]*m.rep[0],w=g.T[v*2+1]*m.rep[1]; lo=Math.min(lo,u,w); hi=Math.max(hi,u,w); }
+      if(lo>=-.002&&hi<=1.002) ar=atlasRect(m.tex); else if(o.wrap!==false) wr=atlasRect(m.tex); } /* tiled (a wall, a floor): it goes in the atlas too, and wraps inside its own rectangle there (aRect) */
+    if(wr) ar=wr;
     const look=plain?'pal|'+m.unlit+(m.dbl?1:0)+'|'+m.emis.join():ar?('atlas|'+m.color.map(v=>v.toFixed(3))+'|'+m.emis.join()+'|'+m.unlit+m.cut+(m.dbl?1:0)):(tid(m.tex)+'|'+m.color.map(v=>v.toFixed(3))+'|'+m.emis.join()+'|'+m.unlit+m.cut+(m.dbl?1:0));
     const key=look+'|'+(n._heat??'-')+'|'+(keepF?'K':'')+'|'+tk;
-    let b=bins.get(key); if(!b||b.g.P.length/3>60000){ b={g:new Geo(),m:plain?mergeMat('pal'+tid(pal.t)+look,m,{tex:pal.t,color:[1,1,1],rep:[1,1]}):ar?mergeMat(look,m,{tex:ATLAS.t,rep:[1,1]}):mergeMat(look,m,{rep:[1,1]}),heat:n._heat,keep:keepF}; outs.push(b); bins.set(key,b); }
+    let b=bins.get(key); if(!b||b.g.P.length/3>60000){ b={g:new Geo(),tk,m:plain?mergeMat('pal'+tid(pal.t)+look,m,{tex:pal.t,color:[1,1,1],rep:[1,1]}):ar?mergeMat(look,m,{tex:ATLAS.t,rep:[1,1]}):mergeMat(look,m,{rep:[1,1]}),heat:n._heat,keep:keepF}; if(ar) b.g.R=[]; outs.push(b); bins.set(key,b); }
     const G2=b.g,P=g.P,Nm=g.Nm,T=g.T,map=new Map(),puv=plain?pal.uv(m.color):null;
     for(let i=run.start;i<run.start+run.count;i++){ const v=g.I[i]; let j=map.get(v); if(j===undefined){ const x=P[v*3],y=P[v*3+1],z=P[v*3+2],nx=Nm[v*3],ny=Nm[v*3+1],nz=Nm[v*3+2];
         const n3=norm3([M[0]*nx+M[4]*ny+M[8]*nz,M[1]*nx+M[5]*ny+M[9]*nz,M[2]*nx+M[6]*ny+M[10]*nz]);
         j=G2.P.length/3; G2.P.push(M[0]*x+M[4]*y+M[8]*z+M[12],M[1]*x+M[5]*y+M[9]*z+M[13],M[2]*x+M[6]*y+M[10]*z+M[14]); G2.Nm.push(n3[0],n3[1],n3[2]);
         if(puv) G2.T.push(puv[0],puv[1]);
-        else if(ar){ const u=Math.min(1,Math.max(0,T[v*2]*m.rep[0])),w=Math.min(1,Math.max(0,T[v*2+1]*m.rep[1])); G2.T.push((ar.x+.5+u*(ar.w-1))/ATLAS.W,1-(ar.y+.5+(1-w)*(ar.h-1))/ATLAS.H); }
+        else if(wr){ G2.T.push(T[v*2]*m.rep[0],T[v*2+1]*m.rep[1]); G2.R.push((wr.x+.5)/ATLAS.W,(ATLAS.H-wr.y-wr.h+.5)/ATLAS.H,(wr.w-1)/ATLAS.W,(wr.h-1)/ATLAS.H); }
+        else if(ar){ const u=Math.min(1,Math.max(0,T[v*2]*m.rep[0])),w=Math.min(1,Math.max(0,T[v*2+1]*m.rep[1])); G2.T.push((ar.x+.5+u*(ar.w-1))/ATLAS.W,1-(ar.y+.5+(1-w)*(ar.h-1))/ATLAS.H); if(G2.R) G2.R.push(0,0,0,0); }
         else G2.T.push(T[v*2]*m.rep[0],T[v*2+1]*m.rep[1]); map.set(v,j); } G2.I.push(j); } };
   (function walk(n,M,keepF){ if(!n.vis||skip(n)) return; keepF=keepF||!!n._keep;
     if(n.mesh){ const g=n.mesh.geo; for(const run of runsOf(n.mesh)) if(run.m) add(n,M,run,g,keepF); n.mesh=null; merged++; }
     for(const k of n.kids){ const L=m4.compose(m4.make(),k.p,k.r,k.s),C=m4.make(); m4.mul(C,M,L); walk(k,C,keepF); } })(root,m4.make(),false);
   (function prune(n){ for(let i=n.kids.length-1;i>=0;i--){ const k=n.kids[i]; prune(k); if(!k.mesh&&!k.kids.length&&!skip(k)&&!k._ref) n.kids.splice(i,1); } })(root);
   const prev=GEO_TEMP; GEO_TEMP=true;
-  for(const b of outs){ const g=new Geo(); g.P=b.g.P; g.Nm=b.g.Nm; g.T=b.g.T; g.I=b.g.I; g.groups=[{start:0,count:g.I.length,mi:0}]; const n=mk(g,b.m,root); if(b.heat!=null) n._heat=b.heat; if(b.keep) n._keep=true; }
+  for(const b of outs){ const g=new Geo(); g.P=b.g.P; g.Nm=b.g.Nm; g.T=b.g.T; g.I=b.g.I; if(b.g.R) g.R=b.g.R; g.tileKey=b.tk; g.groups=[{start:0,count:g.I.length,mi:0}]; const n=mk(g,b.m,root); if(b.heat!=null) n._heat=b.heat; if(b.keep) n._keep=true; }
   GEO_TEMP=prev; return {merged,meshes:outs.length}; }
 /* the level: everything static, in 12 m tiles (each tile is culled on its own) */
 function batchStatic(root){ PAL=makePalette(); return meshMerge(root,{tile:16}); }
@@ -3075,7 +3088,7 @@ function stashCast(){ for(const sp of STASH_CAST){ const E=spawnEnemy(Object.ass
 function stashLoot(){ for(const [k,x,y,z,ry] of STASH_LOOT){ const Mw=m4.compose(m4.make(),[x,y,z],[k==='knife'||k==='machete'||k==='bottle'?Math.PI/2:0,ry,0],[1,1,1]); addPickup(newItem(k),Mw,[0,0,0],[0,0,0]); } }
 
 function genStash(){
-  setWorld(43,25); disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true; FIRES.length=0;
+  setWorld(43,25); disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true; FIRES.length=0;
   FLOOR.n=3; FLOOR.test=true; FLOOR.mode='stash'; FLOOR.dormD=10; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; FLOOR.down=false; setLang(true);
   const lights=[], addBoxW=addBox;
   const walkB=(B,x0,z0,x1,z1)=>{ const w=x1-x0,d=z1-z0; mk(box(w,.07,d),F(MT(tWalkCo,{repeat:[w/1.2,.1]}),MT(tWalkCo,{repeat:[w,d]}),MT(tWalkCo,{repeat:[w/1.2,.1]}),MT(tWalkCo,{repeat:[w,d]}),MT(tWalkCo,{repeat:[w/1.2,.1]})),B.g,(x0+x1)/2,.035,(z0+z1)/2); };
@@ -3412,6 +3425,7 @@ function genStash(){
   Object.assign(FLOOR,{nav,space,units,party:[],bx:99,seats:[],beds:[],furn:[],stairUp:null,start:{x:-11.6,z:0,yaw:-Math.PI/2},lights:[]});
   LM.list=lights;
   const st=batchStatic(floorN); FLOOR.batch=st;
+  FLOOR.batch.far=buildFarField(floorN,{swapD:22,drawD:34}); /* stand-ins for everything past ~22 m: the whole colonia shows */
   stashLights(); boxGridDirty=true; navDirty=true; GAME.vision=GAME.vision||'off'; visionApply(); }
 /* a wall from the house builder plus its collision (through the given addBox, so a moved frame can offset it): doors and gaps are open;
    window and hole sills block to 1.4 m (you can't climb through, but people see and shoot over them) */
@@ -3423,7 +3437,7 @@ function stashWall(B,addB,x0,z0,x1,z1,a,b,holes=[],o={}){ wall(B,x0,z0,x1,z1,a,b
   solid(s,s1,0,h,'wall'); }
 
 /* dark: no moon to speak of. Everything you see is lit by something: sodium lamps, bulbs, the TV, the fire, candles */
-const STASH_LIGHT={amb:[.018,.018,.026],dir:[.3,1,.2],dirCol:[.03,.032,.05],fog:[.018,.014,.016],fogNear:5,fogFar:27}; /* fog with a little sodium in it; the night swallows anything past ~27 m, and nothing past it is drawn (the sky is drawn past the fog) */
+const STASH_LIGHT={amb:[.018,.018,.026],dir:[.3,1,.2],dirCol:[.03,.032,.05],fog:[.018,.014,.016],fogNear:10,fogFar:95}; /* a light haze with a little sodium in it, no wall: past ~22 m the far field (38-farfield.js) stands in, out to the edge of the colonia; the last of the haze dissolves into the sky */
 function stashLights(){ setLights(Object.assign({},STASH_LIGHT,{pl:[]})); if(FLOOR.power===false) L.amb=[.01,.011,.018]; lmTick(); }
 function stashPower(on,quiet){ if(FLOOR.mode!=='stash'||FLOOR.power===on) return; FLOOR.power=on; stashLever();
   if(!on){ FLOOR.offT=GAME.t;
@@ -3461,7 +3475,7 @@ function stashDescend(){ FLOOR.down=true; sfx('door',.5); const dead=enemies.fil
 /* a beat to walk: there and back, a few seconds' look at each end */
 function patrolGoal(E,dt){ const P=E.patrol; if(P.wait>0){ P.wait-=dt; return null; } const q=P.pts[P.i];
   if(Math.hypot(E.pos[0]-q[0],E.pos[1]-q[1])<.7||stuck(E,dt)){ P.i=(P.i+1)%P.pts.length; P.wait=rnd(2.5,5); freshGoal(E); return null; } return {x:q[0],z:q[1],sp:.85}; }
-function tickStash(dt){ if(FLOOR.mode!=='stash') return;
+function tickStash(dt){ if(FLOOR.mode!=='stash') return; farTick();
   if(GAME.vision!=='nv') L.plCol.set([0,0,0],18); /* the goggles' torch is off when they're up */
   lmTick(); fireTick(GAME.t);
   /* a shot into the open sky hits the grid's lid: no bullet holes hanging in the air */
@@ -3720,7 +3734,7 @@ Object.assign(FX,{
 
 /* ---------- the level ---------- */
 function genWare(){
-  setWorld(WARE.RX,WARE.RZ,WARE.RH); disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true; FIRES.length=0;
+  setWorld(WARE.RX,WARE.RZ,WARE.RH); disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true; FIRES.length=0;
   FLOOR.n=5; FLOOR.test=true; FLOOR.mode='ware'; FLOOR.dormD=12; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; FLOOR.up=false; FLOOR.goals={}; FLOOR.rewards=[]; setLang(false);
   const G=floorN, B={g:G}, BH=WARE.BH, SH=WARE.SH; GEO_TEMP=true;
   /* a wall from the house builder plus its collision (as in the stash house): open doors and gaps; window sills block to 1.4 m */
@@ -3969,10 +3983,11 @@ function genWare(){
   Object.assign(FLOOR,{nav,space,units,party:[],bx:99,seats:[],beds:[],furn:[],stairUp:null,start:{x:-11.5,z:0,yaw:-Math.PI/2},lights:[]});
   WARE.lights=lights; LM.list=lights;
   const st=meshMerge(G,{tile:TILE,pal:PAL=makePalette()}); FLOOR.batch=st;
+  FLOOR.batch.far=buildFarField(G,{swapD:22,drawD:34}); /* stand-ins past ~22 m: the yard, the fence and the street lights show all the way out */
   wareLights(); boxGridDirty=true; navDirty=true; GAME.vision=GAME.vision||'off'; visionApply(); }
 
 /* night: a little moon, the city's glow in the fog. Inside, what's lit is lit by something */
-const WARE_LIGHT={amb:[.05,.051,.06],dir:[.25,1,-.3],dirCol:[.03,.035,.06],fog:[.026,.027,.034],fogNear:12,fogFar:26};
+const WARE_LIGHT={amb:[.05,.051,.06],dir:[.25,1,-.3],dirCol:[.03,.035,.06],fog:[.026,.027,.034],fogNear:14,fogFar:90}; /* a haze, not a wall: the far field (38-farfield.js) stands in past ~22 m */
 function wareLights(){ setLights(Object.assign({},WARE_LIGHT,{pl:[]})); if(FLOOR.power===false) L.amb=[.014,.015,.022]; wareLM(); }
 /* the six lights nearest you: the fixed ones plus any flashlight that's on */
 function wareLM(){ const tl=[]; for(const E of enemies) if(E.tl&&E.torchOn) tl.push(E.tl); LM.list=tl.length?WARE.lights.concat(tl):WARE.lights; lmTick(); }
@@ -4023,7 +4038,7 @@ function wareTorches(){ const eye=[PL.x,1.4,PL.z]; let lit=false;
   return lit; }
 
 /* ---------- the level's frame ---------- */
-function tickWare(dt){ if(FLOOR.mode!=='ware') return;
+function tickWare(dt){ if(FLOOR.mode!=='ware') return; farTick();
   if(GAME.vision!=='nv') L.plCol.set([0,0,0],18);
   const beam=wareTorches(); WARE.lit=beam||wareLitAt(PL.x,PL.z); wareLM(); if(FLOOR.sky){ FLOOR.sky.p[0]=PL.x; FLOOR.sky.p[2]=PL.z; }
   for(const k of ['hole','splat']){ const D=DEC[k]; if(D.ver!==D._sv){ const n=D.length; for(let i=D.length-1;i>=0;i--){ const d=D[i]; if(d.c[1]>RH-.15&&d.n[1]<-.5) D.splice(i,1); } if(D.length!==n) D.ver++; D._sv=D.ver; } }
@@ -4043,6 +4058,96 @@ function goWare(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P)
 function tunnelAscend(){ FLOOR.up=true; sfx('door',.5); const dead=enemies.filter(E=>E.dead).length,n=enemies.length;
   const line=`El túnel · ${dead} of ${n} dead${FLOOR.power===false?' · lights cut':''}`; if(XR.on) vrToast(line,4.5);
   setTimeout(()=>{ carryInto(goWare); $('floorTag').textContent=line; },700); }
+
+/* =====================================================================================================
+   THE FAR FIELD: stand-ins for everything past the near ring, so a big night level shows all the way out (rooflines, lit windows,
+   neon, the pools under the street lamps) instead of ending in a black wall of fog.
+   Built once from a level's merged static meshes (meshMerge, 16 m tiles):
+     - every surface is kept as plain flat-coloured triangles (big ones split so the lamp pools land where they should); its colour
+       is the average of its texture times its material, with the level's lights baked in (all of them, not just the nearest six)
+     - the whole level is one or two meshes, one texture: a texel per triangle, so a different bake (generator cut, thermal) is
+       just a new texture, never new geometry
+     - each triangle carries the sphere of the tile it came from (aRect). A real tile is drawn while that sphere is within swapD
+       of your head (culled() in 10-engine.js); its stand-ins show only past it (the vertex shader), so the two never overlap
+   Decals (tags, stains, shadows: cut-out and one-sided) and crumbs (under ~5 cm²) are left out: at that range they're a pixel.
+   ===================================================================================================== */
+const FAR_TILE_SPLIT=3.0; /* metres: longer edges get split so the baked light has somewhere to land */
+function texPx(t){ if(t._px) return t._px; const c=t.c,w=c.width,h=c.height; let d; try{ d=c.getContext('2d').getImageData(0,0,w,h).data; }catch(e){ d=null; } return t._px={w,h,d}; }
+/* the mean colour (rgb, alpha) of a texture over a uv rectangle, alpha-weighted. uv as the shader sees it (v up: the canvas is flipped on upload) */
+function texMeanRect(t,u0,v0,u1,v1){ const P=texPx(t); if(!P.d) return [1,1,1,1]; const k=[u0,v0,u1,v1].map(v=>v.toFixed(4)).join(','),C=t._mean||(t._mean=new Map()); if(C.has(k)) return C.get(k);
+  const x0=Math.max(0,Math.floor(u0*P.w)),x1=Math.min(P.w,Math.max(x0+1,Math.ceil(u1*P.w))),y0=Math.max(0,Math.floor((1-v1)*P.h)),y1=Math.min(P.h,Math.max(y0+1,Math.ceil((1-v0)*P.h)));
+  let r=0,g=0,b=0,a=0,n=0; const step=Math.max(1,Math.floor(Math.sqrt((x1-x0)*(y1-y0)/4096)));
+  for(let y=y0;y<y1;y+=step) for(let x=x0;x<x1;x+=step){ const i=(y*P.w+x)*4,al=P.d[i+3]/255; r+=P.d[i]*al; g+=P.d[i+1]*al; b+=P.d[i+2]*al; a+=al; n++; }
+  const out=a>0?[r/a/255,g/a/255,b/a/255,a/n]:[0,0,0,0]; C.set(k,out); return out; }
+function texAt(t,u,v){ const P=texPx(t); if(!P.d) return [1,1,1,1]; u=u-Math.floor(u); v=v-Math.floor(v); const x=Math.min(P.w-1,u*P.w|0),y=Math.min(P.h-1,(1-v)*P.h|0),i=(y*P.w+x)*4; return [P.d[i]/255,P.d[i+1]/255,P.d[i+2]/255,P.d[i+3]/255]; }
+
+/* build it: root is the level's merged static (its direct mesh kids carry tileKey), o.swapD where the stand-ins take over,
+   o.drawD how far anything else (doors, things lying about) is still drawn */
+function buildFarField(root,o={}){
+  updateWorld(world,null); for(const t of [ATLAS.t,PAL&&PAL.t]) if(t){ t._px=null; t._mean=null; } /* the atlas and the palette grow as levels load: read them fresh */
+  const metas=[],sph=new Map();
+  for(const n of root.kids){ const g=n.mesh&&n.mesh.geo; if(!g||g.tileKey==null||!g.I.length) continue; const W=n.world;
+    let s=sph.get(g.tileKey); if(!s) sph.set(g.tileKey,s={lo:[1e9,1e9,1e9],hi:[-1e9,-1e9,-1e9]});
+    for(let i=0;i<g.P.length;i+=3){ const x=W[0]*g.P[i]+W[4]*g.P[i+1]+W[8]*g.P[i+2]+W[12],y=W[1]*g.P[i]+W[5]*g.P[i+1]+W[9]*g.P[i+2]+W[13],z=W[2]*g.P[i]+W[6]*g.P[i+1]+W[10]*g.P[i+2]+W[14];
+      if(x<s.lo[0])s.lo[0]=x; if(y<s.lo[1])s.lo[1]=y; if(z<s.lo[2])s.lo[2]=z; if(x>s.hi[0])s.hi[0]=x; if(y>s.hi[1])s.hi[1]=y; if(z>s.hi[2])s.hi[2]=z; }
+    metas.push(n); }
+  for(const s of sph.values()){ s.c=[(s.lo[0]+s.hi[0])/2,(s.lo[1]+s.hi[1])/2,(s.lo[2]+s.hi[2])/2]; s.r=Math.hypot(s.hi[0]-s.lo[0],s.hi[1]-s.lo[1],s.hi[2]-s.lo[2])/2; }
+  /* every triangle: where, which way it faces, its own colour (unlit), whether it glows, and its tile */
+  const TP=[],TA=[],TF=[],TS=[]; /* positions (9 per tri), albedo rgb + normal xyz + flags per tri, tile sphere per tri */
+  const push=(a,b,c,col,nrm,fl,s)=>{ TP.push(a[0],a[1],a[2],b[0],b[1],b[2],c[0],c[1],c[2]); TA.push(col[0],col[1],col[2],nrm[0],nrm[1],nrm[2]); TF.push(fl); TS.push(s.c[0],s.c[1],s.c[2],s.r); };
+  const split=(a,b,c,col,nrm,fl,s,depth)=>{ const ab=Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]),bc=Math.hypot(b[0]-c[0],b[1]-c[1],b[2]-c[2]),ca=Math.hypot(c[0]-a[0],c[1]-a[1],c[2]-a[2]),L_=Math.max(ab,bc,ca);
+    if(L_<=FAR_TILE_SPLIT||depth>5){ push(a,b,c,col,nrm,fl,s); return; } const mid=(p,q)=>[(p[0]+q[0])/2,(p[1]+q[1])/2,(p[2]+q[2])/2];
+    if(L_===ab){ const m=mid(a,b); split(a,m,c,col,nrm,fl,s,depth+1); split(m,b,c,col,nrm,fl,s,depth+1); }
+    else if(L_===bc){ const m=mid(b,c); split(a,b,m,col,nrm,fl,s,depth+1); split(a,m,c,col,nrm,fl,s,depth+1); }
+    else { const m=mid(c,a); split(a,b,m,col,nrm,fl,s,depth+1); split(m,b,c,col,nrm,fl,s,depth+1); } };
+  for(const n of metas){ const g=n.mesh.geo,W=n.world,s=sph.get(g.tileKey),m=n.mesh.mats[0];
+    if(!m||m.nofog) continue; if(m.cut&&!m.dbl&&!m.unlit) continue; /* decals */
+    const fl=(m.unlit?1:0)|(n._keep?2:0)|(m.dbl?4:0), heat=n._heat;
+    const wp=v=>{ const x=g.P[v*3],y=g.P[v*3+1],z=g.P[v*3+2]; return [W[0]*x+W[4]*y+W[8]*z+W[12],W[1]*x+W[5]*y+W[9]*z+W[13],W[2]*x+W[6]*y+W[10]*z+W[14]]; };
+    for(let i=0;i<g.I.length;i+=3){ const ia=g.I[i],ib=g.I[i+1],ic=g.I[i+2],a=wp(ia),b=wp(ib),c=wp(ic);
+      const cr=v3.cross(v3.sub(b,a),v3.sub(c,a)),ar=Math.hypot(...cr)/2; if(ar<.0005) continue; const nrm=v3.sc(cr,1/(2*ar));
+      let tc=[1,1,1,1];
+      if(m.tex){ const R=g.R;
+        if(R&&R[ia*4+2]>0) tc=texMeanRect(m.tex,R[ia*4],R[ia*4+1],R[ia*4]+R[ia*4+2],R[ia*4+1]+R[ia*4+3]); /* a tiled texture in the atlas: its whole tile */
+        else { const T=g.T,us=[T[ia*2],T[ib*2],T[ic*2]],vs=[T[ia*2+1],T[ib*2+1],T[ic*2+1]];
+          if(Math.max(...us)-Math.min(...us)>1||Math.max(...vs)-Math.min(...vs)>1) tc=texMeanRect(m.tex,0,0,1,1); /* tiled in its own texture: its average */
+          else { const S=[[1/3,1/3,1/3],[1,0,0],[0,1,0],[0,0,1],[.5,.5,0],[0,.5,.5],[.5,0,.5]]; let r=0,gg=0,bb=0,al=0;
+            for(const w of S){ const q=texAt(m.tex,w[0]*us[0]+w[1]*us[1]+w[2]*us[2],w[0]*vs[0]+w[1]*vs[1]+w[2]*vs[2]); r+=q[0]*q[3]; gg+=q[1]*q[3]; bb+=q[2]*q[3]; al+=q[3]; }
+            tc=al>0?[r/al,gg/al,bb/al,al/S.length]:[0,0,0,0]; } } }
+      if(tc[3]<.3) continue; /* mostly see-through (a cut-out's empty part) */
+      const col=[tc[0]*m.color[0]+tc[0]*m.emis[0],tc[1]*m.color[1]+tc[1]*m.emis[1],tc[2]*m.color[2]+tc[2]*m.emis[2]];
+      split(a,b,c,heat!=null?[heat,heat,-1]:col,nrm,fl,s,0); } }
+  /* geometry: three corners of their own per triangle, every corner pointing at the triangle's texel */
+  const NT=TF.length,TW=1024,TH=Math.max(8,1<<Math.ceil(Math.log2(Math.max(1,Math.ceil(NT/TW))))),cv=document.createElement('canvas'); cv.width=TW; cv.height=TH;
+  const tex={c:cv,glt:null,f:-1,dyn:true}, mat=M(tex,{unlit:true}); mat.far=true;
+  const RW=root.world,node=N(root,-RW[12],-RW[13],-RW[14]); /* built in world space: undo the root's offset */ node._keep=true; node.live=true; /* live: never merged again, never swapped by the vision modes (it has its own bakes) */
+  const prev=GEO_TEMP; GEO_TEMP=true; const PER=21000;
+  for(let t0=0;t0<NT;t0+=PER){ const g=new Geo(),t1=Math.min(NT,t0+PER); g.R=[];
+    for(let t=t0;t<t1;t++){ const u=((t%TW)+.5)/TW,v=1-(((t/TW)|0)+.5)/TH;
+      for(let k=0;k<3;k++){ g.P.push(TP[t*9+k*3],TP[t*9+k*3+1],TP[t*9+k*3+2]); g.Nm.push(TA[t*6+3],TA[t*6+4],TA[t*6+5]); g.T.push(u,v); g.R.push(TS[t*4],TS[t*4+1],TS[t*4+2],TS[t*4+3]); g.I.push(g.P.length/3-1); } }
+    g.groups=[{start:0,count:g.I.length,mi:0}]; g.noDist=true; mk(g,mat,node); }
+  GEO_TEMP=prev;
+  /* the real tiles: drawn by the same sphere their stand-ins use */
+  for(const n of metas){ const s=sph.get(n.mesh.geo.tileKey); n.mesh.geo.dsph={c:s.c,r:s.r}; }
+  FLOOR.far={node,tex,TP,TA,TF,N:NT,lights:(LM.list||[]).filter(l=>l.pow!=='torch').slice(),swapD:o.swapD||22,drawD:o.drawD||34,key:null};
+  return {tris:NT,meshes:Math.ceil(NT/PER)}; }
+
+/* bake the colours for how things are right now: generator on or off, thermal or not. Only when that changes */
+function farTick(){ const F=FLOOR.far; if(!F||!inWorld(F.node)) return; const mode=visionMode(),key=mode+'|'+(FLOOR.power!==false)+'|'+L.amb.join();
+  if(F.key===key) return; F.key=key; farBake(F,mode); }
+function farBake(F,mode){ const on=FLOOR.power!==false,cut=mode==='cut',th=mode==='thermal',ls=F.lights.filter(l=>on||l.pow!=='gen'),dd=norm3(L.dirDir);
+  const g=F.tex.c.getContext('2d'),W=F.tex.c.width,H=F.tex.c.height,img=g.createImageData(W,H),D=img.data,TP=F.TP,TA=F.TA,TF=F.TF;
+  for(let t=0;t<F.N;t++){ const fl=TF[t],unlit=fl&1,keep=fl&2,dbl=fl&4,a=TA[t*6],b=TA[t*6+1],c=TA[t*6+2]; let r,gg,bb;
+    if(c<0){ /* heat-tagged (it runs warm): thermal shows its heat, otherwise a neutral grey */ const h=a; if(th){ r=gg=bb=h; } else { r=gg=bb=.06; } }
+    else if(th){ const v=unlit&&keep?.3:.27; r=a*v; gg=b*v; bb=c*v; } /* thermal: everything cold, lit or not */
+    else if(unlit&&!(cut&&!keep)){ r=a; gg=b; bb=c; } /* it glows: lit windows, neon, the TV, bulbs */
+    else { /* lit by the moon and every lamp in the level (the near ring only ever gets the six nearest) */
+      const k=unlit?.12:1,x=(TP[t*9]+TP[t*9+3]+TP[t*9+6])/3,y=(TP[t*9+1]+TP[t*9+4]+TP[t*9+7])/3,z=(TP[t*9+2]+TP[t*9+5]+TP[t*9+8])/3,nx=TA[t*6+3],ny=TA[t*6+4],nz=TA[t*6+5];
+      const ndl=nx*dd[0]+ny*dd[1]+nz*dd[2]; let lr=L.amb[0]+L.dirCol[0]*Math.max(dbl?Math.abs(ndl):ndl,0),lg=L.amb[1]+L.dirCol[1]*Math.max(dbl?Math.abs(ndl):ndl,0),lb=L.amb[2]+L.dirCol[2]*Math.max(dbl?Math.abs(ndl):ndl,0);
+      for(const l of ls){ const dx=l.p[0]-x,dy=l.p[1]-y,dz=l.p[2]-z,dist=Math.hypot(dx,dy,dz); if(dist>=l.d) continue; let at=1-dist/l.d; at*=at; let nd=(nx*dx+ny*dy+nz*dz)/Math.max(dist,1e-4); nd=dbl?Math.abs(nd):Math.max(nd,0); const q=at*nd; lr+=l.c[0]*q; lg+=l.c[1]*q; lb+=l.c[2]*q; }
+      r=a*k*lr; gg=b*k*lg; bb=c*k*lb; }
+    const i=(((t/W)|0)*W+(t%W))*4; D[i]=Math.min(255,r*255); D[i+1]=Math.min(255,gg*255); D[i+2]=Math.min(255,bb*255); D[i+3]=255; }
+  g.putImageData(img,0,0); if(F.tex.glt){ gl.deleteTexture(F.tex.glt); F.tex.glt=null; } }
 
 /* =====================================================================
    PROTOTYPE 01: physical people
@@ -5159,19 +5264,22 @@ function collidePlayer(){ const p=[PL.x,PL.z]; pushOutXZ(p,.3,'player'); PL.x=p[
 function renderWith(w,h,noUpd){
   if(!noUpd) updateWorld(world,null); gl.viewport(0,0,w,h); gl.clearColor(L.fog[0],L.fog[1],L.fog[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST); gl.useProgram(MAIN.p); curCull=null; curMat=null; curTex=null; gl.activeTexture(gl.TEXTURE0); const u=MAIN.loc;
-  { const v=view; setCull([-(v[0]*v[12]+v[1]*v[13]+v[2]*v[14]),-(v[4]*v[12]+v[5]*v[13]+v[6]*v[14]),-(v[8]*v[12]+v[9]*v[13]+v[10]*v[14])],L.fogFar+1.5); } /* skip what this eye can't see or the fog has swallowed */
+  const far=FLOOR.far&&inWorld(FLOOR.far.node)?FLOOR.far:null;
+  { const v=view; setCull([-(v[0]*v[12]+v[1]*v[13]+v[2]*v[14]),-(v[4]*v[12]+v[5]*v[13]+v[6]*v[14]),-(v[8]*v[12]+v[9]*v[13]+v[10]*v[14])],far?far.drawD:L.fogFar+1.5); } /* skip what this eye can't see or the fog has swallowed */
+  /* the far field: real tiles near the head, stand-ins past swapD (both eyes decide from the head, so they swap together) */
+  { const he=far?camBasis().eye:[0,0,0]; setSwap(he,far?far.swapD:1e9); gl.uniform3fv(u.uFarEye,he); gl.uniform1f(u.uFarSwap,far?far.swapD:1e9); }
   gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
   const wob=XR.on?0:2; gl.uniform1f(u.uSnap,wob===2?1:wob===1?2.5:0); gl.uniform1f(u.uAffine,wob===2?1:wob===1?.15:0); gl.uniform2f(u.uRes,w,h); /* in a headset there is no vertex wobble and no texture warp, ever: both swim between the eyes. The PS1 look in VR is the low-res textures, the dither and the palette */
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
   gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0);
   /* a level with a sky: draw the sky first, then everything else blends its last few metres of fog into it */
-  const sky=FLOOR.sky&&FLOOR.sky.vis&&sky_inWorld(FLOOR.sky)?FLOOR.sky:null;
-  if(sky){ gl.uniform1f(u.uSkyFade,0); drawTree(sky); sky.vis=false; gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ZERO,gl.ONE); gl.uniform1f(u.uSkyFade,1); }
+  const sky=FLOOR.sky&&inWorld(FLOOR.sky)?FLOOR.sky:null;
+  if(sky){ gl.uniform1f(u.uSkyFade,0); gl.depthMask(false); drawTree(sky); gl.depthMask(true); sky.vis=false; /* the sky writes no depth: the far field past it still draws */ gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ZERO,gl.ONE); gl.uniform1f(u.uSkyFade,1); }
   else gl.uniform1f(u.uSkyFade,0);
   drawTree(world); if(sky){ sky.vis=true; gl.disable(gl.BLEND); gl.uniform1f(u.uSkyFade,0); } gl.bindVertexArray(null); }
-/* the sky only counts while it's actually hanging in the drawn world (a level's floor node can be swapped out) */
-function sky_inWorld(n){ for(let p=n;p;p=p.par){ if(!p.vis) return false; if(p===world) return true; } return false; }
+/* a node only counts while it actually hangs in the drawn world: a level's floor is emptied by clearing its kids, which leaves stale parent links */
+function inWorld(n){ for(let p=n;p;p=p.par){ if(!p.vis) return false; if(p===world) return true; if(p.par&&!p.par.kids.includes(p)) return false; } return false; }
 const POST2=program(PVS,`#version 300 es
 precision highp float;
 uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash; uniform float uSmooth; uniform float uSlow;
