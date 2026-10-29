@@ -4063,10 +4063,29 @@ function showMsg(h,p){ $('msgH').textContent=h; $('msgP').textContent=p; $('msg'
 let AC=null,NOISE=null;
 function audio(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); const b=AC.createBuffer(1,AC.sampleRate,AC.sampleRate),d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; NOISE=b; }catch(e){ AC=null; } } if(AC&&AC.state==='suspended') AC.resume().catch(()=>{}); return AC; }
 let SUP12_SND='e';
-function sfx(type,vol=1){ const ac=audio(); if(!ac) return; const t=ac.currentTime,out=ac.createGain(); out.gain.value=vol*(GAME.slow?.8:1); out.connect(ac.destination);
+/* the mix every effect goes through: guns get a little saturation, a shared concrete-room reverb, and a limiter at the end so
+   a shot can be driven hard (loud and dense) without clipping. Built once per audio context. */
+function audioBus(ac){ if(ac.__bus) return ac.__bus;
+  const lim=ac.createDynamicsCompressor(); lim.threshold.value=-3; lim.knee.value=2; lim.ratio.value=20; lim.attack.value=.001; lim.release.value=.18; lim.connect(ac.destination);
+  const inp=ac.createGain(); inp.connect(lim);
+  const sh=ac.createWaveShaper(),cv=new Float32Array(1024); for(let i=0;i<1024;i++){ const x=i/511.5-1; cv[i]=Math.tanh(x*2.2)/Math.tanh(2.2); } sh.curve=cv; sh.connect(inp);
+  /* a concrete stairwell: early slaps at 9, 17, 29, 43 ms, then a ~1 s tail that darkens as it dies */
+  const sr=ac.sampleRate,n=Math.floor(sr*1.3),ir=ac.createBuffer(2,n,sr);
+  for(let c=0;c<2;c++){ const d=ir.getChannelData(c); let lp=0; for(let i=0;i<n;i++){ const tt=i/sr,k=Math.min(.92,.25+tt*.9); lp=lp*k+(Math.random()*2-1)*(1-k); d[i]=lp*3*Math.exp(-tt/.16); }
+    for(const [ms,a] of [[9,.6],[17,.45],[29,.35],[43,.25],[61,.15]]){ const i=Math.floor((ms+c*1.7)/1000*sr); d[i]+=a; d[i+1]-=a*.6; } }
+  const rev=ac.createConvolver(); rev.buffer=ir; const rg=ac.createGain(); rg.gain.value=.55; rev.connect(rg); rg.connect(inp);
+  return ac.__bus={inp,sh,rev}; }
+const GUN_SFX=new Set(['gun','revolver','shotgun','smg','supp','suppsg','suppsg_a','suppsg_b','suppsg_c','suppsg_d','suppsg_e']);
+const GUN_VOL={gun:3.2,revolver:1.8,shotgun:1.5,smg:3.4,supp:2.4}; /* the level each gun hits the limiter at: loud ones loud, the cans well under them */
+const ROOM_SEND={gun:.7,revolver:.65,shotgun:.75,smg:.4,supp:.18,suppsg_a:.25,suppsg_b:.25,suppsg_c:.25,suppsg_d:.25,suppsg_e:.25};
+function sfx(type,vol=1){ const ac=audio(); if(!ac) return; const t=ac.currentTime,out=ac.createGain(),bus=audioBus(ac); out.gain.value=vol*(GUN_VOL[type]||1)*(GAME.slow?.8:1); out.connect(GUN_SFX.has(type)?bus.sh:bus.inp);
+  if(ROOM_SEND[type]){ const sd=ac.createGain(); sd.gain.value=ROOM_SEND[type]; out.connect(sd); sd.connect(bus.rev); }
   const noise=(f0,f1,dur,g,q=.7,kind='lowpass',d=0,hold=0)=>{ const t0=t+d,s=ac.createBufferSource(); s.buffer=NOISE; s.playbackRate.value=GAME.slow?.6:1; const fl=ac.createBiquadFilter(); fl.type=kind; fl.Q.value=q; fl.frequency.setValueAtTime(f0,t0); fl.frequency.exponentialRampToValueAtTime(f1,t0+dur); const gg=ac.createGain(); gg.gain.setValueAtTime(g,t0); if(hold) gg.gain.setValueAtTime(g,t0+hold); gg.gain.exponentialRampToValueAtTime(.001,t0+dur); s.connect(fl); fl.connect(gg); gg.connect(out); s.start(t0,Math.random()*.5); s.stop(t0+dur+.02); };
   const tone=(f0,f1,dur,g,d=0,hold=0)=>{ const t0=t+d,o=ac.createOscillator(); o.frequency.setValueAtTime(f0*(GAME.slow?.6:1),t0); o.frequency.exponentialRampToValueAtTime(f1,t0+dur); const gg=ac.createGain(); gg.gain.setValueAtTime(g,t0); if(hold) gg.gain.setValueAtTime(g,t0+hold); gg.gain.exponentialRampToValueAtTime(.001,t0+dur); o.connect(gg); gg.connect(out); o.start(t0); o.stop(t0+dur+.02); };
-  if(type==='gun'){ noise(5000,280,.32,.9); tone(120,38,.18,.9); }
+  /* gunshots, built like the film can that Kenny matched: a hard crack, a held blast, a low thump, the action, then the room (the send above) */
+  if(type==='gun'){ noise(12000,6000,.02,2.2,.7,'highpass'); noise(4500,2500,.025,1.6,1,'bandpass');                       /* 9mm: crack */
+    noise(7000,500,.32,1.6,.7,'lowpass',.004,.045); tone(150,55,.22,1.3,.004,.035); noise(400,80,.28,1.4,.7,'lowpass',.004,.05);   /* blast, thump */
+    noise(3200,2800,.03,.35,4,'bandpass',.05); tone(2400,2100,.02,.12,.055); }                                              /* the slide slamming home */
   else if(type==='stab'){ noise(1400,200,.16,.7,3,'bandpass'); tone(110,50,.12,.6); }
   else if(type==='kick'){ tone(80,40,.16,.9); noise(600,120,.12,.6); }
   else if(type==='swish'){ noise(3000,900,.14,.25,2,'bandpass'); }
@@ -4076,7 +4095,7 @@ function sfx(type,vol=1){ const ac=audio(); if(!ac) return; const t=ac.currentTi
   else if(type==='slowout'){ tone(60,240,.35,.35); noise(150,1200,.3,.25); }
   else if(type==='heart'){ tone(58,40,.14,.55); setTimeout(()=>{ if(GAME.slow) tone2(); },180); function tone2(){ const a=audio(); if(!a) return; const o=a.createOscillator(),gg=a.createGain(),t2=a.currentTime; o.frequency.setValueAtTime(52,t2); o.frequency.exponentialRampToValueAtTime(36,t2+.12); gg.gain.setValueAtTime(.4,t2); gg.gain.exponentialRampToValueAtTime(.001,t2+.12); o.connect(gg); gg.connect(a.destination); o.start(t2); o.stop(t2+.14); } }
   else if(type==='supp'){ noise(2600,420,.11,.55,1.2,'bandpass'); tone(150,70,.07,.45); noise(700,160,.09,.35); setTimeout(()=>sfx('click',.8),30); setTimeout(()=>sfx('shellhit',.35),260); } /* a cough, the slide cycling, brass on the floor */
-  else if(type==='suppsg') sfx('suppsg_'+SUP12_SND,vol*({a:.45,b:.6,c:.43,d:.5,e:.5}[SUP12_SND]||.5)); /* evened out so none of the takes clips */
+  else if(type==='suppsg') sfx('suppsg_'+SUP12_SND,vol*({a:.45,b:.6,c:.43,d:.5,e:.5}[SUP12_SND]||.5)*.2); /* evened out so none of the takes clips */
   /* the 12-gauge can, three takes (SUP12_SND picks): a: an airy cough, a hard puff of gas with a short crack on the front and a dead room after it
      b: the same with more weight in the chest, less air   c: hissier, tighter, close to a pneumatic tool. No boom, no corridor echo. */
   /* e: matched to Kenny's second clip (two clean shots): crack with a short 9 kHz ping, a broadband blast with the thump under it,
@@ -4095,8 +4114,12 @@ function sfx(type,vol=1){ const ac=audio(); if(!ac) return; const t=ac.currentTi
   else if(type==='suppsg_b'){ noise(7000,2500,.02,.8,.7,'highpass'); noise(1800,400,.14,.9,.9,'bandpass'); noise(900,120,.17,1.35); tone(120,45,.14,.9); noise(500,90,.35,.3,.7,'lowpass',.03); }
   else if(type==='suppsg_c'){ noise(10000,4000,.02,1.1,.7,'highpass'); noise(4500,1500,.2,1,.8,'highpass'); noise(2400,1100,.12,.7,1.2,'bandpass'); tone(240,120,.04,.35); noise(900,200,.25,.15,.7,'lowpass',.02); }
   else if(type==='thread'){ for(let i=0;i<4;i++) setTimeout(()=>{ const a=audio(); if(a) sfx('click',.35); },i*55); tone(1900,1700,.04,.2); }
-  else if(type==='revolver'){ noise(4200,220,.4,1); tone(95,32,.24,1); }
-  else if(type==='shotgun'){ noise(3400,110,.75,1.4); tone(64,24,.55,1.5); tone(120,40,.2,1); noise(9000,2500,.06,.7,1,'highpass'); setTimeout(()=>sfx('echo',.55),85); setTimeout(()=>sfx('echo',.3),190); setTimeout(()=>sfx('echo',.14),330); }
+  else if(type==='revolver'){ noise(11000,5000,.025,2.4,.7,'highpass'); noise(3500,1800,.03,1.8,1,'bandpass');           /* .38: a bigger, rounder crack with the cylinder gap spitting */
+    noise(6000,350,.35,1.9,.7,'lowpass',.004,.04); tone(105,40,.3,1.6,.004,.04); noise(300,70,.32,1.6,.7,'lowpass',.004,.05); /* longer boom */
+    noise(8000,7000,.05,.4,.7,'highpass',.002); }                                                                         /* the gap's hiss */
+  else if(type==='shotgun'){ noise(10000,4000,.03,2.6,.7,'highpass'); noise(3000,1500,.04,2,1,'bandpass');              /* 12-gauge: the crack */
+    noise(5000,160,.6,2.4,.7,'lowpass',.004,.07); tone(62,24,.6,2.2,.004,.09); tone(125,48,.3,1.4,.004,.05); noise(260,50,.55,2,.7,'lowpass',.004,.1); /* a wall of air and a chest hit */
+    setTimeout(()=>sfx('echo',.4),110); setTimeout(()=>sfx('echo',.2),240); }
   else if(type==='echo'){ noise(1400,120,.45,.55); tone(55,30,.3,.35); } /* the corridor answers */
   else if(type==='pumpback'){ noise(2600,900,.07,.6,3,'bandpass'); tone(900,650,.045,.45); }
   else if(type==='pumpfwd'){ noise(1800,700,.08,.7,3,'bandpass'); tone(620,480,.05,.55); setTimeout(()=>sfx('click',.9),40); }
@@ -4107,7 +4130,8 @@ function sfx(type,vol=1){ const ac=audio(); if(!ac) return; const t=ac.currentTi
   else if(type==='bash'){ tone(78,34,.15,1); noise(1100,150,.13,.85); tone(430,260,.05,.35); }
   else if(type==='gore'){ tone(52,26,.4,1.2); noise(1300,130,.55,1.1,1); noise(420,70,.7,.9); setTimeout(()=>{ const a=audio(); if(a) sfx('splat',.7); },110); }
   else if(type==='splat'){ noise(800,120,.25,.8,1.2); }
-  else if(type==='smg'){ noise(6000,500,.12,.6); tone(150,60,.08,.5); }
+  else if(type==='smg'){ noise(12000,6000,.015,1.9,.7,'highpass'); noise(4500,2500,.02,1.3,1,'bandpass');               /* MP5: tight crack, short body so a burst stays a burst */
+    noise(6500,700,.11,1.4,.7,'lowpass',.003,.015); tone(165,70,.09,1.1,.003,.012); noise(400,100,.1,1.1,.7,'lowpass',.003,.015); tone(1900,1700,.015,.15,.04); }
   else if(type==='punch'){ tone(90,45,.1,.9); noise(500,140,.08,.7); }
   else if(type==='chop'){ noise(1100,160,.2,.9,2,'bandpass'); tone(85,40,.16,.8); }
   else if(type==='glass'){ noise(7000,2500,.3,.6,1.5,'highpass'); tone(2400,1900,.08,.2); }
