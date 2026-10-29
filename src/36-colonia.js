@@ -140,11 +140,13 @@ function solidBlock(B,x0,z0,x1,z1,o={}){ const G=B.g,h=o.h||2.9,t=S_(o.paint||tC
   for(const [a0,b0,a1,b1] of [[x0,z0,x1,z0],[x0,z1,x1,z1],[x0,z0,x0,z1],[x1,z0,x1,z1]]) wall(B,a0,b0,a1,b1,t,t,[],{h});
   addBox(x0,x1,z0,z1,0,h,'wall');
   mk(box(w+.08,.16,d+.08),mConc,G,(x0+x1)/2,h+.08,(z0+z1)/2);
+  if(o.frame!==false){ const ex=[]; if(w>6) for(let x=x0+3.2;x<x1-1.5;x+=3.2){ ex.push([x,z0],[x,z1]); } if(d>6) for(let z=z0+3.2;z<z1-1.5;z+=3.2){ ex.push([x0,z],[x1,z]); } frameBox(B,x0,z0,x1,z1,h,{extra:ex}); }
   if(o.parapet!==false){ for(const [cx,cz,len,ry] of [[(x0+x1)/2,z0,w,0],[(x0+x1)/2,z1,w,0],[x0,(z0+z1)/2,d,Math.PI/2],[x1,(z0+z1)/2,d,Math.PI/2]]) place(B,'parapet',cx,cz,ry,len,o.ph||.4);
     for(const [cx,cz] of [[x0,z0],[x1,z0],[x0,z1],[x1,z1]]) if(rng(cx*7+cz)()>.4) place(B,'rebarTuft',cx,cz,0,cx*3+cz).p[1]=h+.16; }
   const r=rng(Math.round(x0*31+z0*17));
   if(o.tinaco!==false&&w*d>12){ place(B,'tinaco',x0+w*(.2+r()*.6),z0+d*(.2+r()*.6)).p[1]=h+.16; }
   if(o.dish) place(B,'satdish',x0+.6,z1-.6,r()*6).p[1]=h+.16;
+  if(w*d>10) for(let i=0;i<Math.min(3,w*d/12|0);i++) place(B,'roofstuff',x0+.6+r()*(w-1.2),z0+.6+r()*(d-1.2),0,Math.round(x0*13+z0*7+i)).p[1]=h+.16;
   const face={n:[z0,Math.PI,'x'],s:[z1,0,'x'],w:[x0,-Math.PI/2,'z'],e:[x1,Math.PI/2,'z']};
   for(const k in (o.faces||{})){ const [c,ry,along]=face[k],out=k==='n'||k==='w'?-1:1;
     for(const [kind,at,ex] of o.faces[k]){ const x=along==='x'?at:c+out*.065,z=along==='x'?c+out*.065:at,n=N(G,x,0,z,0,ry,0);
@@ -187,3 +189,134 @@ function lmTick(){ const t=GAME.t,on=FLOOR.power!==false,ex=PL.x,ez=PL.z;
     else if(l.fl==='buzz') f=(Math.sin(t*1.7+l.p[0])>.985&&Math.sin(t*40)>0)?.25:1;
     L.plPos.set(l.p,i*3); L.plCol.set([l.c[0]*f,l.c[1]*f,l.c[2]*f],i*3); L.plDist[i]=l.d; } }
 function fireTick(t){ for(const f of FIRES){ if(!f.par) continue; const k=1+.18*Math.sin(t*14+f.p[0])+.1*Math.sin(t*31); f.s=[1,k,1]; f.r[1]+=.02; } }
+
+/* =====================================================================================================
+   CARS. A body lofted through cross-sections from the nose to the tail (bumper, hood rising to the cowl, doors, the deck),
+   a cabin lofted the same way (windshield, roof, back glass), and painted textures doing the rest: door seams and handles,
+   the rubber trim, dark wheel arches, the grille and lights, rust, a primer door, dust. Separate bumpers, mirrors, plates,
+   tires with hubcaps or bare steel rims. Kinds: an old 4-door compact (sedan), a pickup with its bed, an SUV.
+   Burnt: no glass, no tires, sitting on its rims, charred and rusted.
+   ===================================================================================================== */
+const CARS={
+  sedan:{L:4.2,W:1.66,ys:.24,nose:.7,belt:.88,deck:.86,tail:.7,wz:[1.3,-1.3],wr:.29,rw:.64,cab:[[.66,.88],[-.02,1.36],[-.98,1.36],[-1.38,.88]],posts:[[.47,.52],[.86,1]],doors:[.33,.55,.75]},
+  pickup:{L:4.9,W:1.76,ys:.34,nose:.86,belt:1.0,deck:1.0,tail:.98,wz:[1.6,-1.55],wr:.36,rw:.7,cab:[[1.22,1.0],[.72,1.7],[-.22,1.7],[-.3,1.0]],posts:[[.86,1]],doors:[.31,.53],bed:[-.4,-2.4]},
+  suv:{L:4.6,W:1.8,ys:.36,nose:.9,belt:1.02,deck:1.02,tail:1.0,wz:[1.45,-1.42],wr:.36,rw:.74,cab:[[1.02,1.02],[.46,1.78],[-2.02,1.78],[-2.2,1.02]],posts:[[.36,.4],[.68,.72],[.92,1]],doors:[.3,.5,.69],rack:true}};
+/* a loft through closed cross-sections (each a list of [x,y], counter-clockwise seen from the front) at zs[i], front to back.
+   mat(i,e) gives the material index of the face between section i and i+1 along edge e (-1: no face); uv(mi,[x,y,z]) its texture coordinates */
+function loftGeo(secs,zs,mat,uv,caps){ const g=new Geo(),G={},n=secs[0].length;
+  const quad=(mi,P)=>{ const [A,B,C,D]=P,n3=norm3(v3.cross(v3.sub(D,A),v3.sub(B,A))); const base=g.P.length/3; for(const p of P) g.v(p,n3,uv(mi,p)); (G[mi]||(G[mi]=[])).push(base,base+3,base+2,base,base+2,base+1); };
+  for(let i=0;i<secs.length-1;i++) for(let e=0;e<n;e++){ const mi=mat(i,e); if(mi<0) continue; const a=secs[i][e],b=secs[i][(e+1)%n],c=secs[i+1][(e+1)%n],d=secs[i+1][e];
+    const P=[[a[0],a[1],zs[i]],[b[0],b[1],zs[i]],[c[0],c[1],zs[i+1]],[d[0],d[1],zs[i+1]]]; if(Math.hypot(...v3.sub(P[0],P[1]))<1e-4&&Math.hypot(...v3.sub(P[2],P[3]))<1e-4) continue; quad(mi,P); }
+  for(const [si,mi,dir] of caps||[]){ const s=secs[si],z=zs[si],base=g.P.length/3,nz=[0,0,dir]; for(const p of s) g.v([p[0],p[1],z],nz,uv(mi,[p[0],p[1],z])); const L=G[mi]||(G[mi]=[]);
+    for(let k=1;k<n-1;k++) dir>0?L.push(base,base+k,base+k+1):L.push(base,base+k+1,base+k); }
+  for(const mi of Object.keys(G).map(Number).sort((a,b)=>a-b)){ const start=g.I.length; for(const i of G[mi]) g.I.push(i); g.groups.push({start,count:G[mi].length,mi}); }
+  return g; }
+const CARTEX=new Map();
+function carTex(kind,paint,o){ const key=kind+paint+(o.burnt?'b':'')+(o.door||'')+(o.plate||''); if(CARTEX.has(key)) return CARTEX.get(key); const S=CARS[kind],hp='#'+paint.toString(16).padStart(6,'0'),r=rng(paint%9973+kind.length);
+  const burnt=o.burnt,base=burnt?'#2a2420':hp,lite=burnt?'#3a2e26':mix(hp,'#ffffff',.22),dark=burnt?'#140f0c':mix(hp,'#000000',.35);
+  const rust=(g,n,y0,y1,w)=>{ for(let i=0;i<n;i++) ell(g,r()*w,y0+r()*(y1-y0),1+r()*2.5,1+r()*1.5,r()>.5?'#7a3a18':'#5a2a14'); };
+  const char=(g,w,h)=>{ if(!burnt) return; for(let i=0;i<40;i++) ell(g,r()*w,r()*h,2+r()*4,1+r()*3,['#4a2a18','#6a3a1a','#1a1410','#3a3a36'][r()*4|0]); };
+  const SW=128,SH=32,ys=S.ys,yt=S.belt+.04;
+  const side=P2(SW,SH,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,lite],[.25,base],[.75,base],[1,dark]]);
+    const px=z=>(S.L/2-z)/S.L*w, py=y=>(1-(y-ys)/(yt-ys))*h;
+    if(o.door&&!burnt){ R(g,'#'+o.door.toString(16).padStart(6,'0'),S.doors[0]*w|0,0,(S.doors[1]-S.doors[0])*w|0,h); } /* a door from another car */
+    R(g,'rgba(255,255,255,.18)',0,h*.32|0,w,1); R(g,'rgba(0,0,0,.25)',0,h*.32+1|0,w,1); /* the crease */
+    R(g,burnt?'#0e0c0a':'#141416',0,h*.55|0,w,2); /* rubber trim */
+    for(const u of S.doors) R(g,'rgba(0,0,0,.55)',u*w|0,2,1,h-6); R(g,'rgba(0,0,0,.45)',S.doors[0]*w|0,h-5,(S.doors[S.doors.length-1]-S.doors[0])*w|0,1);
+    for(let i=0;i<S.doors.length-1;i++) R(g,burnt?'#2a2622':'#1a1a1c',(S.doors[i+1]*w-6)|0,h*.42|0,4,1);
+    for(const wz of S.wz){ const cx=px(wz),cy=py(S.wr),rx=S.wr*1.22/S.L*w,ry=S.wr*1.22/(yt-ys)*h; ell(g,cx,cy,rx+1.5,ry+1.5,dark); ell(g,cx,cy,rx,ry,'#050506'); R(g,'#050506',cx-rx|0,cy|0,rx*2|0,h); }
+    vfill(g,0,h*.7,w,h*.3,[[0,'rgba(80,60,40,0)'],[1,'rgba(80,60,40,.6)']]); rust(g,burnt?30:5,h*.65,h,w); char(g,w,h); },3,paint%997+1);
+  const top=P2(64,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,base],[.5,lite],[1,base]]); const pz=z=>(S.L/2-z)/S.L*w;
+    R(g,'rgba(0,0,0,.4)',pz(S.cab[0][0]+.04)|0,0,1,h); if(!S.bed) R(g,'rgba(0,0,0,.4)',pz(S.cab[3][0]-.05)|0,0,1,h); for(const y of [3,h-4]) R(g,'rgba(0,0,0,.2)',0,y,pz(S.cab[0][0])|0,1);
+    for(let i=0;i<10;i++) ell(g,r()*w,r()*h,1+r()*2,1,'rgba(90,80,60,.35)'); rust(g,burnt?20:2,0,h,w); char(g,w,h); },3,paint%991+2);
+  const front=P2(64,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,lite],[1,base]]); const yN=S.nose;
+    R(g,burnt?'#1a1612':'#101012',w*.28|0,h*.28|0,w*.44|0,h*.3|0); for(let y=h*.32|0;y<h*.56;y+=3) R(g,burnt?'#2a2420':'#3a3a3e',w*.29|0,y,w*.42|0,1);
+    for(const x of [w*.05,w*.73]){ R(g,'#2a2a2e',x|0,h*.26|0,w*.22|0,h*.24|0); R(g,burnt?'#3a3530':'#c8ccc0',x+1|0,h*.28|0,w*.2|0,h*.2|0); R(g,'rgba(255,255,255,.5)',x+2|0,h*.3|0,3,2); R(g,burnt?'#3a2a1a':'#d8902a',x+1|0,h*.5|0,w*.07|0,2); }
+    R(g,burnt?'#1a1612':'#8a8a86',0,h*.7|0,w,h*.18|0); R(g,'#e8e2c8',w*.4|0,h*.74|0,w*.2|0,h*.12|0); char(g,w,h); },3,paint%983+3);
+  const rear=P2(64,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,lite],[1,base]]);
+    for(const x of [w*.04,w*.76]){ R(g,'#1a0a0a',x|0,h*.22|0,w*.2|0,h*.26|0); R(g,burnt?'#3a1a14':'#a8201a',x+1|0,h*.24|0,w*.18|0,h*.14|0); R(g,burnt?'#3a2a1a':'#d8902a',x+1|0,h*.38|0,w*.18|0,h*.06|0); }
+    if(S.bed) R(g,'rgba(0,0,0,.45)',0,3,w,1);
+    R(g,burnt?'#1a1612':'#8a8a86',0,h*.72|0,w,h*.16|0); R(g,'#e8e2c8',w*.36|0,h*.48|0,w*.28|0,h*.18|0); if(!burnt) text(g,o.plate||'CHH',w*.38|0,h*.5|0,'#1a3a6a'); R(g,'#2a2a2e',w*.47|0,h*.36|0,3,2); char(g,w,h); },3,paint%977+4);
+  const gside=P2(64,16,(g,w,h)=>{ vfill(g,0,0,w,h,burnt?[[0,'#0a0806'],[1,'#141008']]:[[0,'#3a4656'],[.5,'#1a2230'],[1,'#0e121a']]);
+    if(!burnt){ R(g,'rgba(200,210,230,.2)',w*.1|0,3,w*.3|0,1); R(g,'rgba(200,210,230,.12)',w*.55|0,5,w*.25|0,1); ell(g,w*.3,h*.7,3,3,'rgba(0,0,0,.4)'); ell(g,w*.62,h*.7,3,3,'rgba(0,0,0,.4)'); }
+    R(g,burnt?'#1a1410':dark,0,0,w,2); R(g,burnt?'#1a1410':'#121214',0,h-2,w,2); for(const [a,b] of S.posts) R(g,burnt?'#2a2420':base,a*w|0,0,Math.max(2,(b-a)*w|0),h); R(g,burnt?'#2a2420':base,0,0,3,h); },3,paint%971+5);
+  const roof=P2(32,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,base],[.5,lite],[1,base]]); for(const y of [1,h-2]) R(g,'rgba(0,0,0,.35)',0,y,w,1); for(let i=0;i<6;i++) ell(g,r()*w,r()*h,1+r()*2,1,'rgba(90,80,60,.3)'); char(g,w,h); },3,paint%967+6);
+  const bed=P2(32,32,(g,w,h)=>{ R(g,'#1c1c1e',0,0,w,h); for(let y=2;y<h;y+=4) R(g,'#2a2a2e',0,y,w,1); R(g,dark,0,0,w,3); R(g,dark,0,h-3,w,3); R(g,'rgba(0,0,0,.6)',0,3,w,2); R(g,'rgba(0,0,0,.6)',0,h-5,w,2); rust(g,6,0,h,w); },3,paint%961+7);
+  const T={side,top,front,rear,gside,roof,bed}; CARTEX.set(key,T); return T; }
+const tCarShadow=cutTex(16,32,(g,w,h,r)=>{ for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const d=Math.max(Math.abs(x-7.5)/8,Math.abs(y-15.5)/16); if(d<.8||(d<.93&&((x+y)&1))) R(g,'rgba(0,0,0,.85)',x,y,1,1); } },1710);
+const tWindGlass=P2(32,16,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#4a5868'],[.4,'#1e2836'],[1,'#0c1018']]); R(g,'rgba(220,230,240,.25)',4,4,10,1); R(g,'rgba(220,230,240,.15)',18,7,8,1); R(g,'#0a0a0c',4,h-2,10,1); R(g,'#0a0a0c',18,h-2,10,1); R(g,'#141416',0,0,w,1); },3,1711);
+const tGlassGone=P2(16,16,(g,w,h)=>{ R(g,'#0a0806',0,0,w,h); for(let i=0;i<10;i++) R(g,'#1a120c',i*3%w,i*7%h,2,1); },2,1712);
+const tTireSide=P2(16,16,(g,w,h)=>{ R(g,'#141416',0,0,w,h); ell(g,8,8,7,7,'#1c1c1e'); ell(g,8,8,4.6,4.6,'#101012'); },2,1713);
+const tHubcap=P2(16,16,(g,w,h)=>{ R(g,'#141416',0,0,w,h); ell(g,8,8,6,6,'#a8acb0'); ell(g,8,8,4,4,'#8a8e92'); for(let i=0;i<5;i++){ const a=i/5*Math.PI*2; ell(g,8+Math.cos(a)*3.6,8+Math.sin(a)*3.6,1,1,'#2a2a2e'); } ell(g,8,8,1.4,1.4,'#c8ccd0'); },2,1714);
+const tSteelRim=P2(16,16,(g,w,h)=>{ R(g,'#141416',0,0,w,h); ell(g,8,8,5.4,5.4,'#2a2a2c'); ell(g,8,8,3,3,'#3a3a3c'); for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; ell(g,8+Math.cos(a)*2.2,8+Math.sin(a)*2.2,.8,.8,'#101012'); } },2,1715);
+const tRimRust=P2(16,16,(g,w,h)=>{ R(g,'#2a1a10',0,0,w,h); ell(g,8,8,6,6,'#5a3018'); ell(g,8,8,3.4,3.4,'#3a2010'); for(let i=0;i<5;i++) ell(g,3+i*2.4,5+(i%3)*3,1,1,'#7a4020'); },2,1716);
+Object.assign(FX,{
+  /* paint: hex colour. o: {burnt, door (another colour for the front door), hub (true: hubcaps, false: bare rims), plate} */
+  auto(g,paint=0xd8d4cc,kind='sedan',o={}){ const S=CARS[kind],T=carTex(kind,paint,o),burnt=!!o.burnt,W=S.W,L=S.L,ys=S.ys,drop=burnt?.12:0;
+    const body=N(g,0,-drop,0,burnt?.02:0,0,burnt?-.025:0);
+    /* the body: nose, hood to the cowl, doors, the deck or the bed, the tail */
+    const A=S.cab[0][0],D=S.cab[S.cab.length-1][0];
+    const zs=[L/2,L/2-.1,A+.4,A,(D+A)/2,D,-L/2+.14,-L/2], tops=[S.nose-.05,S.nose,(S.nose+S.belt)/2+.02,S.belt,S.belt,S.deck,S.tail,S.tail-.05];
+    const sec=(i)=>{ const hb=W/2-(i===0||i===7?.06:.03),ht=W/2-(i===0||i===7?.07:.05),yb=ys+(i===0||i===7?.04:0),yt=tops[i]; return [[-hb,yb],[hb,yb],[ht,yt-.07],[ht-.05,yt],[-ht+.05,yt],[-ht,yt-.07]]; };
+    const SEC=zs.map((_,i)=>sec(i)),bedR=S.bed;
+    const uvB=(mi,p)=>{ const [x,y,z]=p,u=(L/2-z)/L;
+      if(mi===1) return [u,(y-ys)/(S.belt+.04-ys)]; if(mi===2||mi===9) return [mi===9?(bedR[0]-z)/(bedR[0]-bedR[1]):u,(x+W/2)/W];
+      if(mi===3) return [(x+W/2)/W,(y-ys)/(S.nose-ys)]; if(mi===4) return [(W/2-x)/W,(y-ys)/(S.tail-ys)]; return [u,0]; };
+    const matB=(i,e)=>e===0?0:(e===3?(bedR&&zs[i]<=bedR[0]+.01&&zs[i+1]>=bedR[1]-.2?9:2):1);
+    const gb=loftGeo(SEC,zs,matB,uvB,[[0,3,1],[7,4,-1]]);
+    mk(gb,[col(0x0a0a0c),MT(T.side),MT(T.top),MT(T.front),MT(T.rear),MT(T.side),MT(T.side),MT(T.side),MT(T.side),MT(T.bed)],body);
+    /* the cabin: windshield, roof, back glass, side glass with the pillars painted in */
+    const C=S.cab,hb=W/2-.07,hr=S.rw,belt=S.belt,top=C[1][1];
+    const csec=C.map(([z,y])=>[[-hb,belt],[hb,belt],[y>belt+.01?hr:hb,y],[y>belt+.01?-hr:-hb,y]]),czs=C.map(c=>c[0]);
+    const uvC=(mi,p)=>{ const [x,y,z]=p,v=(y-belt)/(top-belt); if(mi===5) return [(A-z)/(A-D),v]; if(mi===6) return [(x+W/2)/W,v]; if(mi===8) return [(W/2-x)/W,v]; return [(A-z)/(A-D),(x+W/2)/W]; };
+    const matC=(i,e)=>e===0?-1:e===2?[6,7,8][i]:5;
+    const gl_=burnt?MT(tGlassGone):MT(tWindGlass);
+    mk(loftGeo(csec,czs,matC,uvC,[]),[null,null,null,null,null,burnt?MT(tGlassGone):MT(T.gside),gl_,MT(T.roof),gl_],body);
+    /* bumpers, mirrors, plates */
+    const bm=burnt?col(0x2a2018):col(kind==='sedan'?0x8a8a86:0x2a2a2c);
+    mk(box(W+.04,.16,.14),bm,body,0,ys+.12,L/2-.02); mk(box(W+.04,.16,.14),bm,body,0,ys+.12,-L/2+.02);
+    for(const s of [-1,1]){ mk(box(.05,.1,.16),burnt?col(0x2a2018):col(paint),body,s*(W/2+.04),belt+.08,A-.12); mk(box(.06,.04,.04),col(0x141416),body,s*(W/2-.01),belt+.06,A-.06); }
+    if(S.rack&&!burnt) for(const s of [-1,1]) mk(box(.04,.05,2.0),col(0x2a2a2c),body,s*(hr-.06),top+.04,(C[1][0]+C[2][0])/2);
+    if(S.bed){ mk(box(W-.1,.04,bedR[0]-bedR[1]),col(0x141416),body,0,ys+.3,(bedR[0]+bedR[1])/2); for(const s of [-1,1]) mk(box(.06,.04,bedR[0]-bedR[1]),burnt?col(0x2a2018):col(paint),body,s*(W/2-.04),S.deck+.01,(bedR[0]+bedR[1])/2); }
+    if(kind!=='sedan'&&!burnt) for(const s of [-1,1]) mk(box(.3,.32,.02),col(0x101012),body,s*(W/2-.2),ys+.1,S.wz[1]-S.wr-.12); /* mud flaps */
+    /* wheels: tires with hubcaps or bare rims; burnt cars sit on rusted rims */
+    for(const wz of S.wz) for(const s of [-1,1]){ const w=N(g,s*(W/2-.13),S.wr-drop*1.2,wz,0,0,Math.PI/2);
+      if(burnt){ mk(cyl(S.wr*.68,S.wr*.68,.16,10),[MT(tRimRust),MT(tRimRust),MT(tRimRust)],w); continue; }
+      mk(cyl(S.wr,S.wr,.2,12),[col(0x111113),MT(tTireSide),MT(tTireSide)],w); mk(cyl(S.wr*.62,S.wr*.62,.03,10),[col(0x2a2a2c),MT(o.hub===false?tSteelRim:tHubcap),MT(o.hub===false?tSteelRim:tHubcap)],w,0,s*.1,0); }
+    /* a shadow under it */
+    mk(plane(W+.12,L+.12),MT(tCarShadow,{cut:true}),g,0,.008,0,-Math.PI/2); }
+});
+
+/* ---------- a notch more: castillos and dalas (the concrete frame of every block house), drums, litter, stains, trees, curtains ---------- */
+const tConcBandCo=P2(32,16,(g,w,h,r=rng(1721))=>{ vfill(g,0,0,w,h,[[0,'#9a968c'],[1,'#86827a']]); for(let x=0;x<w;x+=8) R(g,'rgba(0,0,0,.12)',x,0,1,h); for(let i=0;i<6;i++){ const x=r()*w|0; vfill(g,x,0,2,h,[[0,'rgba(50,40,30,.3)'],[1,'rgba(50,40,30,0)']]); } for(let i=0;i<20;i++) R(g,'rgba(255,255,255,.08)',r()*w|0,r()*h|0,1,1); },6,1721);
+const mBand=MT(tConcBandCo);
+/* corner columns and the band along the top, a little proud of the block wall */
+function frameBox(B,x0,z0,x1,z1,h,o={}){ const G=B.g,t=.07+WT/2,m=o.mat||mBand;
+  for(const [x,z] of [[x0,z0],[x1,z0],[x0,z1],[x1,z1],...(o.extra||[])]) mk(box(.22,h,.22),m,G,x,h/2,z);
+  if(o.band!==false){ const bh=.2; mk(box(x1-x0+.24,bh,WT+.1),m,G,(x0+x1)/2,h-bh/2,z0); mk(box(x1-x0+.24,bh,WT+.1),m,G,(x0+x1)/2,h-bh/2,z1);
+    mk(box(WT+.1,bh,z1-z0),m,G,x0,h-bh/2,(z0+z1)/2); mk(box(WT+.1,bh,z1-z0),m,G,x1,h-bh/2,(z0+z1)/2); }
+  if(o.rebar) for(const [x,z] of [[x0,z0],[x1,z0],[x0,z1],[x1,z1],...(o.extra||[])]) { const n=N(G,x,h,z); FX.rebar(n,4,Math.round(x*7+z)); } }
+const tTamboCo=P2(16,16,(g,w,h)=>{ R(g,'#2a5aa8',0,0,w,h); for(const y of [3,8,13]) { R(g,'#3a6ac0',0,y,w,1); R(g,'#1e4a8a',0,y+1,w,1); } vfill(g,0,h*.7,w,h*.3,[[0,'rgba(60,40,20,0)'],[1,'rgba(60,40,20,.4)']]); },3,1722);
+const tOilCo=cutTex(16,16,(g,w,h,r)=>{ for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const d=Math.hypot(x-7.5,(y-7.5)*1.3)/7+(r()-.5)*.3; if(d<1) R(g,d<.5?'rgba(10,10,12,.8)':'rgba(20,18,16,.55)',x,y,1,1); } },1723);
+const tCrackCo=cutTex(32,32,(g,w,h,r)=>{ g.strokeStyle='rgba(20,16,12,.85)'; g.lineWidth=1; for(let k=0;k<3;k++){ let x=16,y=16; g.beginPath(); g.moveTo(x,y); for(let i=0;i<10;i++){ x+=(r()-.5)*7; y+=(r()-.5)*7; g.lineTo(x,y); } g.stroke(); } },1724);
+const tTrackCo=cutTex(16,64,(g,w,h,r)=>{ for(let y=0;y<h;y++) for(const x0 of [2,10]) for(let x=x0;x<x0+4;x++) if(((y>>1)+x)%3&&r()<.75) R(g,'rgba(30,22,16,.45)',x,y,1,1); },1725);
+const tCurtain=(c1,c2,seed)=>cutTex(16,32,(g,w,h,r)=>{ for(let x=0;x<w;x++){ const k=.75+.25*Math.sin(x*1.3); const col=mix((x>>2)%2?c1:c2,'#000000',1-k); const bot=h-1-(r()*3|0); R(g,col,x,0,1,bot); } R(g,'rgba(0,0,0,.4)',0,0,w,2); },seed);
+const tCurtACo=tCurtain('#8a2a4a','#a8486a',1726), tCurtBCo=tCurtain('#2a6a8a','#3a8aa8',1727), tCurtCCo=tCurtain('#c8a040','#a88030',1728);
+const tLeavesCo=cutTex(16,16,(g,w,h,r)=>{ for(let i=0;i<60;i++){ const x=r()*w,y=r()*h; if(Math.hypot(x-8,y-8)<7.5) R(g,['#2a3a1a','#3a4a22','#1e2a14','#4a5a2a'][r()*4|0],x|0,y|0,2,1); } },1729);
+const tFrondCo=cutTex(32,8,(g,w,h,r)=>{ R(g,'#3a4a1e',0,3,w,2); for(let x=1;x<w-1;x+=2){ const l=3*(1-Math.abs(x-w*.45)/(w*.55)); R(g,r()>.5?'#4a5a24':'#2e3c18',x,4-l|0,1,l*2|0+1); } },1730);
+const tCalendarCo=P2(16,24,(g,w,h)=>{ R(g,'#f2ece0',0,0,w,h); vfill(g,1,1,w-2,10,[[0,'#e86a3a'],[1,'#3a8a9a']]); ell(g,8,6,3,3,'#f2c84a'); for(let y=13;y<23;y+=2) for(let x=1;x<w-1;x+=2) R(g,'#5a5a56',x,y,1,1); },4,1731);
+Object.assign(FX,{
+  tambo(g,c){ mk(lathe([[0,.27,.27],[.04,.29,.29],[.3,.28,.28],[.32,.3,.3],[.58,.28,.28],[.6,.3,.3],[.86,.28,.28],[.9,.25,.25]],10),MT(tTamboCo,{color:c||0xffffff}),g); mk(cyl(.2,.2,.02,10),col(0x1a3a6a),g,0,.91,0); },
+  litter(g,n=8,seed=1,sp=1.5){ const r=rng(seed); for(let i=0;i<n;i++){ const x=(r()-.5)*sp*2,z=(r()-.5)*sp*2,k=r();
+      if(k<.3) mk(cyl(.035,.03,.1,6),col([0xe8e2d4,0xc8302a,0x2a6ac8][i%3]),g,x,.035,z,Math.PI/2,r()*3,0);
+      else if(k<.55) mk(box(.18,.006,.12),col([0xe8e2d4,0xd8c890,0x9a9a92][i%3]),g,x,.006,z,0,r()*3,0);
+      else if(k<.75) mk(box(.22,.12,.18,{tw:.6,td:.6}),col([0x141416,0xe8e2d4,0x2a5a2a][i%3]),g,x,.06,z,0,r()*3,0);
+      else mk(cyl(.03,.03,.12,6),col(0x9aa0a4),g,x,.03,z,Math.PI/2,r()*3,0); } },
+  decal(g,t,w,d,ry=0){ mk(plane(w,d),MT(t,{cut:true}),g,0,.011+ry*.0001,0,-Math.PI/2,0,ry); },
+  mesquite(g,seed=1){ const r=rng(seed),bark=MT(tBark); let x=0,z=0,y=0; for(let i=0;i<3;i++){ const len=.7+r()*.4,a=(r()-.5)*.6,b=(r()-.5)*.6; mk(box(.16-i*.03,len,.16-i*.03,{at:[0,len/2,0]}),bark,g,x,y,z,a,0,b); x+=Math.sin(b)*-len*.5; z+=Math.sin(a)*len*.5; y+=len*.9; }
+    for(let i=0;i<9;i++){ const a=r()*6.28,d=.4+r()*1.4,h=y+(r()-.3)*.8; mk(plane(1.4+r(),1.0+r()*.6),MT(tLeavesCo,{cut:true,double:true}),g,x+Math.cos(a)*d,h,z+Math.sin(a)*d,(r()-.5)*.6,a,(r()-.5)*.3); } },
+  palm(g,h=6,seed=2){ const r=rng(seed),bark=MT(tBark); for(let i=0;i<6;i++){ const y=i*h/6; mk(cyl(.15-i*.01,.17-i*.01,h/6+.02,6),bark,g,Math.sin(i*.4)*.08*i,y+h/12,0); }
+    const top=N(g,Math.sin(2.4)*.4,h,0); for(let i=0;i<9;i++){ const a=i/9*6.28,f=N(top,0,0,0,0,a,0); mk(plane(2.2,.55),MT(tFrondCo,{cut:true,double:true}),f,1.05,-.25,0,0,0,-.35-r()*.3); } },
+  curtain(g,w=.95,h=1.9,t=tCurtACo){ mk(plane(w,h),MT(t,{cut:true,double:true}),g,0,2.05-h/2,0); mk(box(w+.1,.02,.02),mIron,g,0,2.06,0); },
+  roofstuff(g,seed=1){ const r=rng(seed),k=r(); if(k<.3) FX.gascyl(g); else if(k<.55) FX.pchair(N(g,0,0,0,0,r()*6,0)); else if(k<.8) FX.tambo(g); else { mk(box(.03,2.2,.03,{at:[0,1.1,0]}),mIron,g); for(let i=0;i<4;i++) mk(box(.6-i*.1,.02,.02),mIron,g,0,1.4+i*.22,0); } }
+});

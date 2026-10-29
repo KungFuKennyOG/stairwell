@@ -20,8 +20,9 @@ function wall(H,x0,z0,x1,z1,a,b,holes=[],o={}){
   const ma=MT(a.t,{color:a.color??0xffffff}), mb=MT(b.t,{color:b.color??0xffffff}), mats=F(mCap,ma,mb,mCap,mCap);
   const tw=1.2;
   const piece=(p0,p1,y0,y1)=>{ const len=p1-p0; if(len<.02||y1-y0<.02) return; const n=Math.max(1,Math.ceil(len/1.25));
-    for(let i=0;i<n;i++){ const q0=p0+len*i/n,q1=p0+len*(i+1)/n,m=(q0+q1)/2; const geo=wallPiece(q1-q0,y0,y1,alongX?q0:-q1,tw);
-      if(alongX) mk(geo,mats,H.g,m,(y0+y1)/2,c); else mk(geo,mats,H.g,c,(y0+y1)/2,m,0,Math.PI/2,0); } };
+    const rows=Math.max(1,Math.round((y1-y0)/.9)); /* rows too: lighting is per vertex, so a bulb's pool on a wall needs vertices to land on */
+    for(let i=0;i<n;i++) for(let j=0;j<rows;j++){ const q0=p0+len*i/n,q1=p0+len*(i+1)/n,m=(q0+q1)/2,r0=y0+(y1-y0)*j/rows,r1=y0+(y1-y0)*(j+1)/rows; const geo=wallPiece(q1-q0,r0,r1,alongX?q0:-q1,tw);
+      if(alongX) mk(geo,mats,H.g,m,(r0+r1)/2,c); else mk(geo,mats,H.g,c,(r0+r1)/2,m,0,Math.PI/2,0); } };
   const hs=holes.map(q=>Object.assign({y0:0,y1:2.1},q)).sort((p,q)=>p.at-q.at); let s=s0;
   for(const q of hs){ const p0=q.at-q.w/2,p1=q.at+q.w/2; piece(s,p0,0,h); if(q.y0>0) piece(p0,p1,0,q.y0); if(q.y1<h) piece(p0,p1,q.y1,h); s=p1;
     const cx=alongX?q.at:c, cz=alongX?c:q.at, ry=alongX?0:Math.PI/2;

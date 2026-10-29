@@ -93,7 +93,7 @@ function genStash(){
   /* ================= the crew house and its courtyard ================= */
   W(-5.2,-14,-5.2,-5.5,TQ,TQ,[gap(-10.6,2.8)],{h:2.2}); W(-5.2,-14,-1,-14,TQ,TQ,[],{h:2.4}); W(-5.2,-5.5,-1,-5.5,PK,TQ,[gap(-3.9,.9)],{h:2.0});
   { const gt=N(G,-5.2,0,-12.0,0,-1.3,0); mk(box(1.4,1.9,.04,{at:[.7,.95,0]}),MT(tCorrBlue,{repeat:[1.2,1]}),gt); const g2=N(G,-5.2,0,-9.2,0,1.25,0); mk(box(1.4,1.9,.04,{at:[-.7,.95,0]}),MT(tCorrBlue,{repeat:[1.2,1]}),g2); }
-  place(B,'car',-3.1,-11.4,0,0x2a2a30,'suv'); addBox(-4.05,-2.15,-13.75,-9.05,0,1.3,'furn');
+  place(B,'auto',-3.1,-11.4,0,0x26282e,'suv'); addBox(-4.0,-2.2,-13.7,-9.1,0,1.4,'furn');
   place(B,'strings',0,0,0,[[-5.1,-7],[-2.6,-8.6],[-1.1,-6.4],[-3.8,-12.8]]); place(B,'pchair',-4.4,-6.4,2.4); place(B,'pchair',-3.6,-6.1,3.4); place(B,'bucketplant',-1.4,-13.6,0,0x2e6a2e,1); place(B,'bucketplant',-1.8,-13.6,0,0x4a8a3a,2);
   place(B,'tires',-4.8,-13.6,0,3,4); addBox(-5.15,-4.45,-13.95,-13.25,0,.6,'furn');
   W(-1,-14,-1,-5.5,PEACH,VI,[win(-12.0,1.1),door(-7.0,.95,-1.3,{doorT:tSteelDoor})]); W(8,-14,8,-5.5,VI,IWHT,[win(-11.2,.9),door(-7.0,.95,1.3,{doorT:tSteelDoorR})]);
@@ -191,7 +191,7 @@ function genStash(){
 
   /* ================= the lot ================= */
   place(B,'chainlink',16.5,-15,0,13); addBox(10,23,-15.05,-14.95,0,1.5,'wall'); place(B,'chainlink',23,-2.75,Math.PI/2,23.5); place(B,'chainlink',23,11.75,Math.PI/2,4.5); addBox(22.95,23.05,-15,14,0,1.5,'wall');
-  place(B,'car',19.4,-11.2,.25,0x1a1612,'sedan'); addBox(18.2,20.6,-13.6,-8.8,0,1.2,'furn'); place(B,'car',13.0,-12.3,1.9,0x5a6a5a,'pickup'); addBox(10.6,15.4,-13.4,-11.2,0,1.3,'furn');
+  place(B,'auto',19.4,-11.2,.25,0x6a4a3a,'sedan',{burnt:true}); addBox(18.3,20.5,-13.4,-9.0,0,1.15,'furn'); place(B,'auto',13.0,-12.3,1.9,0x4a6a5a,'pickup',{hub:false,plate:'CHI'}); addBox(10.6,15.4,-13.4,-11.2,0,1.3,'furn');
   place(B,'barrelfire',16,-9); addBox(15.7,16.3,-9.3,-8.7,0,.9,'furn'); Lt([16,1.3,-9],[1.9,.85,.32],6.5,'city','fire');
   place(B,'tires',20.8,-6.0,0,4,3); addBox(20.45,21.15,-6.35,-5.65,0,.8,'furn'); place(B,'tires',12.3,-6.4,0,2,6); place(B,'kennel',21.6,-13.6,.3); addBox(20.8,22.4,-14.2,-13.0,0,1.05,'furn');
   place(B,'mattress',18.6,-6.2,.4); place(B,'trashbags',21.6,2.0,0,4,11); place(B,'trashbags',12,-14,0,3,12); place(B,'pallet',20.6,6.8,.4); place(B,'bottles',16.9,-7.9,0,6,17);
@@ -199,9 +199,9 @@ function genStash(){
   place(B,'pchair',15.1,-8.3,2.2);
 
   /* ================= the street: cars, the taco cart, the poles and lights, the shrine ================= */
-  place(B,'car',-9.0,-6.5,0,0xd8d4cc,'sedan'); addBox(-9.93,-8.07,-8.8,-4.2,0,1.25,'furn');
-  place(B,'car',4.6,11.6,Math.PI/2,0x8a3a2a,'pickup'); addBox(2.1,7.1,10.67,12.53,0,1.3,'furn');
-  place(B,'car',-15.5,12.6,-Math.PI/2,0x3a4a6a,'sedan'); addBox(-17.8,-13.2,11.67,13.53,0,1.25,'furn');
+  place(B,'auto',-9.0,-6.5,0,0xd8d4cc,'sedan',{door:0x9a2a24,plate:'EKT'}); addBox(-9.85,-8.15,-8.6,-4.4,0,1.3,'furn');
+  place(B,'auto',4.6,11.6,Math.PI/2,0x8a3a2a,'pickup',{hub:false}); addBox(2.15,7.05,10.7,12.5,0,1.4,'furn');
+  place(B,'auto',-15.5,12.6,-Math.PI/2,0x3a5a8a,'sedan',{plate:'DWR'}); addBox(-17.6,-13.4,11.75,13.45,0,1.3,'furn');
   place(B,'tacocart',-6.1,-11.0,Math.PI/2); addBox(-6.5,-5.7,-11.8,-10.2,0,1.0,'furn'); place(B,'pchair',-7.0,-11.6,.4); place(B,'pchair',-7.6,-12.4,1.4); Lt([-5.9,1.65,-11.3],[1.4,1.05,.55],4.5,'city');
   place(B,'pchair',-5.7,5.2,Math.PI*.9); place(B,'bins',-9.85,6.5,Math.PI/2,2); addBox(-10.2,-9.45,6.15,7.6,0,1.05,'furn'); place(B,'trashbags',-9.8,-13.6,0,4,2);
   for(const [x,z,ry] of [[-9.9,-8,0],[-9.9,6.5,0]]){ place(B,'sodium',x,z,ry,1.4); addBox(x-.12,x+.12,z-.12,z+.12,0,6,'furn'); Lt([x+1.4,5.85,z],[2.0,1.05,.38],12,'city','buzz'); }
@@ -212,6 +212,25 @@ function genStash(){
   place(B,'shrine',-22.55,11.8,Math.PI/2); addBox(-23,-22.3,11.3,12.3,0,1.85,'furn'); Lt([-22.2,1.0,11.8],[1.2,.7,.3],3.4,'city','candle');
   { const n=N(G,-6.4,0,-14.93,0,0,0); mk(plane(1.4,.36),MT(tSignNoTrash),n,0,1.6,.01); }
 
+  /* ================= dressing: the concrete frames, drums, trees, curtains, what's on the ground ================= */
+  frameBox(B,-1,-14,8,-5.5,WH+.2,{extra:[[3.5,-14],[3.5,-5.5],[-1,-9.75],[8,-9.75]]}); frameBox(B,-1,-5.5,8,4,WH+.2,{extra:[[3.5,4],[-1,-.75],[8,-.75]]});
+  frameBox(B,-5.2,5.6,2.5,9.5,WH+.2,{extra:[[-1.4,9.5]]}); frameBox(B,10,-4.5,17,4,2.6,{band:false,rebar:true,extra:[[13.5,-4.5],[13.5,4],[10,0],[17,0]]});
+  for(const [x,z] of [[-5.2,-14],[-5.2,-10.6+1.4],[-5.2,-10.6-1.4],[-5.2,1.8],[-5.2,4.2],[-5.2,-5.5],[-5.2,5.6]]) mk(box(.22,2.1,.22),mBand,G,x,1.05,z); /* gate posts and wall ends */
+  for(const [x,z,c] of [[-4.75,-2.0,0xffffff],[-4.75,-1.35,0xc8d8ff],[-1.6,-13.55,0xffffff],[9.55,3.2,0xffffff],[9.55,2.6,0xb8c8e8],[20.5,7.6,0xffffff],[-9.75,-12.3,0xffffff]]){ place(B,'tambo',x,z,0,c); addBox(x-.3,x+.3,z-.3,z+.3,0,.9,'furn'); }
+  place(B,'mesquite',20.6,-2.4,0,3); addBox(20.4,20.8,-2.6,-2.2,0,2,'furn'); place(B,'mesquite',12.4,8.0,0,5); place(B,'mesquite',-20.6,10.4,0,8); addBox(-20.8,-20.4,10.2,10.6,0,2,'furn');
+  place(B,'palm',-12.0,13.2,0,6.5,4); addBox(-12.2,-11.8,13.0,13.4,0,3,'furn'); place(B,'palm',16.6,13.3,0,5.5,6); addBox(16.4,16.8,13.1,13.5,0,3,'furn');
+  /* cloth curtains in the inside doorways */
+  for(const [x,z,ry,w,t] of [[1.2,-8.5,0,1.2,tCurtACo],[.3,.2,0,1.3,tCurtBCo],[3.4,2.4,Math.PI/2,.95,tCurtCCo],[6.0,-8.5,0,.9,tCurtBCo]]){ const n=N(G,x,0,z,0,ry,0); n.live=true; FX.curtain(n,w,1.75,t); }
+  for(const [x,z,ry,t] of [[-.93,-10.0,Math.PI/2,tCalendarCo],[3.32,-4.2,-Math.PI/2,tCalendarCo],[-4.0,9.43,Math.PI,tPosterVote]]) place(B,'poster',x,z,ry,t).p[1]=1.45;
+  /* on the ground */
+  for(const [x,z,s_,ry,t] of [[-7.8,-3.5,1.2,.4,tOilCo],[-8.8,4.6,1.0,1.4,tOilCo],[2.0,12.1,1.4,0,tOilCo],[-3.1,-11.4,1.3,.2,tOilCo],[13.4,-12.0,1.6,1.0,tOilCo],
+    [-7.2,-9,2.2,.3,tCrackCo],[-8.6,8,1.8,1.1,tCrackCo],[-14,11.2,2.4,.6,tCrackCo],[6,11,2,2.1,tCrackCo],[12,-1,1.6,.5,tCrackCo],[-3,1.2,1.4,1.3,tCrackCo]]) place(B,'decal',x,z,0,t,s_,s_,ry);
+  for(const [x,z,len,ry] of [[-7.7,-5,9,0],[-8.4,3,8,0],[-2,11.8,16,Math.PI/2],[14,11.6,10,Math.PI/2]]) place(B,'decal',x,z,0,tTrackCo,1.6,len,ry);
+  for(const [x,z,n,sd,sp] of [[-8,-12,10,1,1.6],[-7.8,6,8,2,1.4],[-17,11.8,10,3,2],[0,12.4,9,4,2],[9,-6,10,5,.8],[9,4,8,6,.8],[18,-8,14,7,3],[14,-12.5,10,8,2.5],[12,0,8,9,1.5],[20,4,10,10,2.5],[-12,-1,5,11,.9]])
+    place(B,'litter',x,z,0,n,sd,sp);
+  for(const [x0,x1,z] of [[-23,-13,10.2],[-4,2,10.2],[10,13,10.2]]){ const w=x1-x0; mk(box(w,.072,.05),col(0xc8a830),G,(x0+x1)/2,.036,z+.02); } /* painted curb */
+  place(B,'wire',0,0,0,[-9.9,6.5],[-10.2,4.0],5.4); place(B,'wire',0,0,0,[-9.9,-8],[-10.2,-11.4],5.4); place(B,'wire',0,0,0,[-9.9,-8],[-5.2,-10],5.2); place(B,'wire',0,0,0,[6,13.85],[3.8,9.5],5.0); place(B,'wire',0,0,0,[9.7,9.9],[11.6,9.5],4.8);
+  place(B,'wire',0,0,0,[-5.5,-13.6],[-1,-12],5.0); place(B,'wire',0,0,0,[-17,13.85],[-18.4,9.5],5.2); place(B,'wire',0,0,0,[-17,13.85],[-21,14],5.6);
   GEO_TEMP=false;
   /* ================= navigation ================= */
   const nav=new Uint8Array(NX*NZ).fill(1),space=new Int16Array(NX*NZ).fill(-9);
@@ -228,7 +247,7 @@ function genStash(){
   stashLights(); boxGridDirty=true; navDirty=true; GAME.vision=GAME.vision||'off'; visionApply(); }
 
 /* dark: no moon to speak of. Everything you see is lit by something: sodium lamps, bulbs, the TV, the fire, candles */
-const STASH_LIGHT={amb:[.016,.018,.028],dir:[.3,1,.2],dirCol:[.022,.026,.045],fog:[.006,.008,.016],fogNear:9,fogFar:42};
+const STASH_LIGHT={amb:[.017,.017,.024],dir:[.3,1,.2],dirCol:[.022,.024,.04],fog:[.016,.012,.013],fogNear:7,fogFar:40}; /* fog with a little sodium in it: the city's glow */
 function stashLights(){ setLights(Object.assign({},STASH_LIGHT,{pl:[]})); if(FLOOR.power===false) L.amb=[.01,.011,.018]; lmTick(); }
 function stashPower(on,quiet){ if(FLOOR.mode!=='stash'||FLOOR.power===on) return; FLOOR.power=on; stashLever();
   if(!on){ FLOOR.offT=GAME.t;
