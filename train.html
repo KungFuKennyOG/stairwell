@@ -561,7 +561,7 @@ const tAxeHandle=cl(8,16,'#c9a36a',10,177,g=>{ R(g,'#9a7a48',0,0,8,1); R(g,'#9a7
 
 /* ================= materials ================= */
 const hex3=h=>Array.isArray(h)?h:[((h>>16)&255)/255,((h>>8)&255)/255,(h&255)/255];
-function M(t=null,o={}){ return {tex:t,color:hex3(o.color??0xffffff),emis:hex3(o.emissive??0),unlit:o.unlit?1:0,rep:o.repeat||[1,1],cut:o.cut?1:0,dbl:!!o.double}; }
+function M(t=null,o={}){ return {tex:t,color:hex3(o.color??0xffffff),emis:hex3(o.emissive??0),unlit:o.unlit?1:0,rep:o.repeat||[1,1],cut:o.cut?1:0,dbl:!!o.double,nofog:o.nofog?1:0}; }
 const F=(side,front,back=side,top=side,bottom=side)=>[side,side,top,bottom,front,back];
 const mBlack=M(tBlack), mBlued=M(tBlued), mWood=M(tWood), mSteel=M(tSteel);
 
@@ -596,7 +596,7 @@ void main(){
 const FS=`#version 300 es
 precision highp float;
 uniform sampler2D map; uniform float uHasMap, uCut;
-uniform vec3 uColor, uEmissive, uFogCol; uniform vec2 uRepeat;
+uniform vec3 uColor, uEmissive, uFogCol; uniform vec2 uRepeat; uniform float uNoFog;
 in vec3 vAff; in vec3 vLight; in float vFog;
 out vec4 outColor;
 void main(){
@@ -604,7 +604,7 @@ void main(){
   vec4 t = uHasMap > 0.5 ? texture(map, uv) : vec4(1.0);
   if(uCut > 0.5 && t.a < 0.5) discard;
   vec3 c = t.rgb * uColor * vLight + t.rgb * uEmissive;
-  outColor = vec4(mix(c, uFogCol, vFog), 1.0);
+  outColor = vec4(mix(c, uFogCol, vFog*(1.0-uNoFog)), 1.0); /* uNoFog: the sky and things in it (a backdrop past the fog) */
 }`;
 const PVS=`#version 300 es
 out vec2 vUv;
@@ -672,7 +672,7 @@ function drawTree(n){ if(!n.vis) return;
     for(const run of runsOf(n.mesh)){ const m=run.m; const cull=!m.dbl; if(cull!==curCull){ cull?gl.enable(gl.CULL_FACE):gl.disable(gl.CULL_FACE); curCull=cull; }
       if(m!==curMat){ curMat=m; if(m.tex){ const t=glTex(m.tex); if(t!==curTex){ gl.bindTexture(gl.TEXTURE_2D,t); curTex=t; } }
         gl.uniform1f(MAIN.loc.uHasMap,m.tex?1:0); gl.uniform3fv(MAIN.loc.uColor,m.color); gl.uniform3fv(MAIN.loc.uEmissive,m.emis);
-        gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut); }
+        gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut); gl.uniform1f(MAIN.loc.uNoFog,m.nofog||0); }
       gl.drawElements(gl.TRIANGLES,run.count,gl.UNSIGNED_SHORT,run.start*2); } } }
   for(const k of n.kids) drawTree(k); }
 function renderScene(root,eye,target,w,h,snapRes){
