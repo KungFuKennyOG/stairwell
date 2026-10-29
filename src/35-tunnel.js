@@ -122,8 +122,9 @@ function genTunnel(){
   /* the cart, on the wide bend, pushed to one side so you can squeeze past */
   { const p=tunNear(-1,6.6,.3),ry=Math.atan2(p.tx,p.tz),nx=-p.tz,nz=p.tx,cx=p.x+nx*.5,cz=p.z+nz*.5; place(B,'cart',cx,cz,ry);
     const ex=.37*Math.abs(Math.cos(ry))+.57*Math.abs(Math.sin(ry)),ez=.37*Math.abs(Math.sin(ry))+.57*Math.abs(Math.cos(ry)); addBox(cx-ex,cx+ex,cz-ez,cz+ez,0,.92,'furn'); }
-  /* puddles */
-  for(const [x,z,w,d] of [[-8.6,-3.4,1.1,.7],[3.0,-2.4,1.3,.8],[.6,-1.4,.7,1.3],[3.6,4.4,1.4,.7],[8.0,4.5,.9,.6]]) mk(plane(w,d),MT(tWater,{color:0x4a5a5a}),G,x,.012,z,-Math.PI/2);
+  /* puddles: ragged dithered shapes of murky water, a few to a sheet so the bulbs can pick out their ripples */
+  [[-8.6,-3.4,1.4,1.0,0],[3.0,-2.4,1.6,1.1,1],[.6,-1.4,1.0,1.6,2],[3.6,4.4,1.7,1.0,1],[8.0,4.5,1.2,.9,0],[-3.9,-3.8,.9,.7,2]].forEach(([x,z,w,d,v],i)=>
+    mk(plane(w,d,3,3),M(tPuddle[v],{cut:true}),G,x,.012,z,-Math.PI/2,0,i*1.3));
   /* start dugout: the ladder up into the stash house, light falling down the shaft */
   { const l=N(G,-12.65,0,-3,0,-Math.PI/2,0); FX.ladder(l,TH+.3); mk(plane(.9,.9),M(null,{color:0x8a7454,unlit:true,double:true}),G,-12.45,TH-.01,-3,Math.PI/2); }
   place(B,'sandbags',-11.9,-4.3,0,6); place(B,'gascyl',-10.75,-4.25);
@@ -152,6 +153,15 @@ function genTunnel(){
   const units=[{id:0,side:1,x0:-6.2,x1:-3.0,z0:-1.1,z1:1.1,w:3.2,apt:'PUMP',door:-5.4,room:true,lit:true},{id:1,side:1,x0:10.3,x1:12.3,z0:2.75,z1:5.05,w:2.0,apt:'EXIT',door:10.3,room:true,lit:true}];
   Object.assign(FLOOR,{nav,space,units,party:[],bx:99,seats:[],beds:[],furn:[],stairUp:null,start:{x:-11.4,z:-3.0,yaw:-Math.PI/2},lights});
   tunnelLights(); boxGridDirty=true; navDirty=true; GAME.vision=GAME.vision||'off'; visionApply(); }
+/* puddles: a noisy blob with an ordered-dither edge (soft, but still a hard alpha cut), brown at the rim, dark green-grey water,
+   and pale ripple streaks that stay dull in the dark and only catch the eye under a bulb. Three variants. */
+const tPuddle=[0,1,2].map(v=>tex(64,64,null,g=>{ const B4=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5],id=g.createImageData(64,64),sd=4600+v*37;
+  for(let y=0;y<64;y++) for(let x=0;x<64;x++){ const nx=(x-31.5)/30,ny=(y-31.5)/30,d=Math.hypot(nx,ny)+.32*fbm(x*.07,y*.07,sd,3),edge=.78;
+    const a=(edge-d)/.12+.5; if(a<=B4[(y&3)*4+(x&3)]/16) continue; /* dithered rim */
+    const rim=Math.max(0,Math.min(1,(d-(edge-.2))/.2)),rip=Math.max(0,Math.sin((x*.35+y*.12)+fbm(x*.05,y*.05,sd+1,2)*6)-.82)*4.5,mott=.08*fbm(x*.15,y*.15,sd+2,2);
+    let c=[.11,.14,.13].map(k=>k*(1+mott)); c=c.map((k,j)=>k+([.3,.34,.33][j]-k)*Math.min(.6,rip*.6)); c=c.map((k,j)=>k+([.23,.17,.11][j]-k)*rim*.85);
+    const i=(y*64+x)*4; id.data[i]=c[0]*255; id.data[i+1]=c[1]*255; id.data[i+2]=c[2]*255; id.data[i+3]=255; }
+  g.putImageData(id,0,0); }));
 /* the rails, painted: two steel lines and sleepers on a transparent strip laid along the main tunnel */
 const tRailsPaint=tex(32,32,null,g=>{ for(let y=0;y<32;y+=32) { R(g,'#4a3420',2,y+3,28,6); R(g,'#5e4428',2,y+3,28,1); R(g,'#2e2014',2,y+8,28,1); }
   for(const x of [4,27]){ R(g,'#6a6e72',x,0,2,32); R(g,'#a8acb0',x,0,1,32); R(g,'#2a2c2e',x+2,0,1,32); } });
