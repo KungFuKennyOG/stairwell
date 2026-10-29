@@ -91,7 +91,7 @@ function drawMap(g){ mapFit(); const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.
   const tun=FLOOR.mode==='tunnel',sth=FLOOR.mode==='stash';
   if(tun){ for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const id=k*NX+i,sp=FLOOR.space[id]; if(sp===-9||sp>=0||FLOOR.nav[id]) continue; const x=cellX(i),z=cellZ(k); R(x-.27,z-.27,x+.27,z+.27,sp===-3||sp===-6||sp===-5?'#141619':W==='corridor'?'#7a5a20':'#1e2124'); } } /* the tunnel as dug, the old bore darker */
   else { R(-13,-2,-10,2,'#1b1a18'); if(!sth) R(10,-2,13,2,'#1b1a18'); }
-  if(sth) R(-10.2,-5.6,-6.4,5.6,W==='corridor'?'#7a5a20':'#1e2124','#3a3d40'); /* the street */
+  if(sth) for(const r of STASH_RECTS) if(r[4]<0||r[4]===7||r[4]===15) R(r[0],r[1],r[2],r[3],r[4]===-1&&W==='corridor'?'#7a5a20':'#1e2124'); /* streets, the back alley, the lot */
   if(FLOOR.mode!=='room'&&!tun&&!sth) R(-10,-1,10,1,W==='corridor'?'#7a5a20':'#1e2124','#3a3d40');
   for(const u of FLOOR.units){ const on=W===u.id||W==='any'; R(u.x0,u.z0??u.side*1,u.x1,u.z1??u.side*6,W===u.id?'#e2a33d':on?'#4a3a1c':'#2a2620','#55504a');
     if(u.win){ const a=toMap(u.win[0],u.win[1]-.7),b=toMap(u.win[0],u.win[1]+.7); g.fillStyle='#6fa8d0'; g.fillRect(a[0]-2,a[1],4,b[1]-a[1]); }
@@ -105,7 +105,7 @@ function drawMap(g){ mapFit(); const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.
   { const q=toMap(PL.x,PL.z),f=camBasis().f,a=Math.atan2(f[2],f[0]); g.fillStyle='#7ec27a'; g.beginPath(); g.moveTo(q[0]+Math.cos(a)*9,q[1]+Math.sin(a)*9); g.lineTo(q[0]+Math.cos(a+2.5)*6,q[1]+Math.sin(a+2.5)*6); g.lineTo(q[0]+Math.cos(a-2.5)*6,q[1]+Math.sin(a-2.5)*6); g.fill(); } }
 function uploadMap(){ if(mapTex.glt){ gl.bindTexture(gl.TEXTURE_2D,mapTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,mapTex.c); } }
 function mapPick(px,py){ if(py<MAP_HDR){ for(const b of MAP_BTN) if(px>=b.x&&px<=b.x+160) return b.w; return null; }
-  const x=(px-MX0)/MS-RX,z=(py-MY0)/MS-RZ; if(FLOOR.mode==='stash'&&x>-10.2&&x<-6.4&&Math.abs(z)<5.6) return 'corridor'; if(FLOOR.mode!=='room'&&FLOOR.mode!=='stash'&&Math.abs(x)<10&&Math.abs(z)<1) return 'corridor';
+  const x=(px-MX0)/MS-RX,z=(py-MY0)/MS-RZ; if(FLOOR.mode==='stash'&&STASH_RECTS.some(r=>r[4]===-1&&x>r[0]&&x<r[2]&&z>r[1]&&z<r[3])) return 'corridor'; if(FLOOR.mode!=='room'&&FLOOR.mode!=='stash'&&Math.abs(x)<10&&Math.abs(z)<1) return 'corridor';
   const u=FLOOR.units.find(u=>x>=u.x0&&x<u.x1&&(u.room?z>u.z0&&z<u.z1:Math.sign(z)===u.side&&Math.abs(z)>1&&Math.abs(z)<6)); return u?u.id:null; }
 function pickWhere(w){ if(w==null) return false; SPAWNOPT.where=w; sfx('click',.8); drawMap(mapTex.c.getContext('2d')); uploadMap(); if(window.__mapCv) drawMap(window.__mapCv.getContext('2d')); return true; }
 function pokeMap(p,h){ const inside=p[0]<MAP_X+.08&&p[0]>MAP_X-.05&&Math.abs(p[2])<MAP_M[0]/2&&Math.abs(p[1]-MAP_Y)<MAP_M[1]/2,k=h.side+'map';

@@ -101,6 +101,7 @@ function aiGoal(E,dt,t){
     E.goalT+=dt; return {x:E.wp[0],z:E.wp[1],sp:1}; }
   if(E.goHome&&E.home){ if(Math.hypot(E.pos[0]-E.home[0],E.pos[1]-E.home[1])<.6||stuck(E,dt)){ E.goHome=false; E.st='idle'; E.hd=E.homeHd??E.hd; return null; }
     return {x:E.home[0],z:E.home[1],sp:.9}; }
+  if(E.patrol&&typeof patrolGoal==='function') return patrolGoal(E,dt); /* a beat to walk (36-stash.js) */
   return null; }
 
 /* the player's feet: walk slowly and nobody hears you; push the stick all the way and the next room might */
