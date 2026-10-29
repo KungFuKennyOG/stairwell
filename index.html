@@ -4917,13 +4917,26 @@ const ENV={
   tunnel: {rt:2.2,flut:11,flutN:14,er:[[6,.5],[19,.35]],dark:.55,wet:.7,lo:3,hi:-1,amb:'tun'},
   chamber:{rt:1.0,er:[[5,.5],[11,.4],[18,.3]],dark:.65,wet:.55,lo:2,hi:-1.5,amb:'tun'}
 };
-/* which kind of space a point is in */
-const STASH_ENV={'-1':'out','-2':'alley','5':'yard','7':'alley','8':'yard','15':'out','13':'shell','14':'shell'};
+/* which kind of space a point is in.
+   The level's own names say what's open sky (streets are space -1; YARD, PATIO, LOT and the like are outside, OBRA is a roofless
+   concrete shell). How big or narrow an open space is comes from four rays to the nearest walls: two close walls and a long
+   run is an alley, walls all round a yard, anything wider the open street. Worked out once per nav cell, so a level that
+   grows or moves keeps working. */
+const OPEN_SKY=/YARD|COURT|LOT|ALLEY|PATIO|PARK|YONKE|JUNK|PLAZA|CANCH|STREET|CALLE|TALLER/,ROOFLESS=/OBRA/;
+const ENV_CACHE={space:null,m:new Map()};
+function openSpan(x,z){ const o=[x,1.4,z],f=d=>{ const h=rayBoxes(o,d,25,b=>b.kind==='wall'||b.kind==='door'||b.h>1.5); return h?h.t:25; };
+  return [f([1,0,0])+f([-1,0,0]),f([0,0,1])+f([0,0,-1])]; }
 function envAt(x,z){ const m=FLOOR.mode,c=FLOOR.space?navCell(x,z):-1,sp=c>=0?FLOOR.space[c]:-9;
-  if(m==='stash') return sp===-9?'out':STASH_ENV[sp]||'room';
   if(m==='tunnel') return sp===-3||sp===-9?'tunnel':'chamber';
   if(m==='room') return 'room';
-  return sp>=0?'room':'hall'; }
+  if(m!=='stash') return sp>=0?'room':'hall';
+  if(ENV_CACHE.space!==FLOOR.space){ ENV_CACHE.space=FLOOR.space; ENV_CACHE.m.clear(); }
+  const key=c>=0?c:'x'+Math.round(x)+','+Math.round(z); if(ENV_CACHE.m.has(key)) return ENV_CACHE.m.get(key);
+  const u=(FLOOR.units||[]).find(u=>u.id===sp),name=u?u.apt:'',[sx,sz]=openSpan(x,z),lo=Math.min(sx,sz),hi=Math.max(sx,sz); let k;
+  if(ROOFLESS.test(name)) k='shell';
+  else if(sp<0||OPEN_SKY.test(name)) k=lo<4.5&&hi>8?'alley':hi<14?'yard':'out';
+  else k=lo>7&&hi>9?'hall':'room';
+  ENV_CACHE.m.set(key,k); return k; }
 const isInside=k=>ENV[k].amb==='in'||k==='tunnel'||k==='chamber';
 
 /* ---------- impulse responses, generated once per place per audio context ---------- */
