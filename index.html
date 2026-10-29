@@ -2028,7 +2028,7 @@ function rayRoom(o,d){ let best={t:1e9,n:[0,1,0]};
 function sightClear(a,b){ const d=v3.sub(b,a),L=Math.hypot(...d); if(L<1e-3) return true; const h=rayBoxes(a,v3.sc(d,1/L),L,x=>x.kind==='wall'||x.kind==='door'||x.h>1.5); return !h; }
 
 /* ---------- navigation: one distance field from the player, shared by everyone hunting him ---------- */
-let navDirty=true,navT=0; const NAVD=new Int32Array(NX*NZ);
+let navDirty=true,navT=0,navGen=0; const NAVD=new Int32Array(NX*NZ);
 const navCell=(x,z)=>{ const i=Math.round((x+13)*2),k=Math.round((z+6)*2); return (i<0||k<0||i>=NX||k>=NZ)?-1:k*NX+i; };
 const NAVPEN=new Uint8Array(NX*NZ);
 /* Dijkstra on 8 neighbours (10 straight, 14 diagonal, no corner cutting) with a bucket queue; pen marks cells that cost extra */
@@ -2037,14 +2037,14 @@ function navField(F,src,pen){ const nav=FLOOR.nav; F.fill(1e9); const buckets=[[
     for(const c of q){ if(F[c]!==dd) continue; const ci=c%NX,ck=(c-ci)/NX;
       for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ if(!i&&!k) continue; const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const nc=nk*NX+ni; if(nav[nc]) continue;
         if(i&&k&&(nav[ck*NX+ni]||nav[nk*NX+ci])) continue; const nd=dd+(i&&k?14:10)+(pen&&pen[nc]?30:0); if(nd<F[nc]){ F[nc]=nd; (buckets[nd]||(buckets[nd]=[])).push(nc); } } } } }
-function navUpdate(dt,tx,tz){ navT-=dt; if(navT>0&&!navDirty) return; navT=.25; navDirty=false;
+function navUpdate(dt,tx,tz){ navT-=dt; if(navT>0&&!navDirty) return; navT=.25; if(navDirty) navGen++; navDirty=false;
   const nav=FLOOR.nav; NAVD.fill(1e9); let src=navCell(tx,tz); if(src<0) return;
   if(nav[src]){ /* standing against a wall: start from the nearest open cell */ let bd=1e9,bs=-1; for(let k=-2;k<=2;k++) for(let i=-2;i<=2;i++){ const c=src+k*NX+i; if(c>=0&&c<nav.length&&!nav[c]&&i*i+k*k<bd){ bd=i*i+k*k; bs=c; } } if(bs<0) return; src=bs; }
   navField(NAVD,src,null);
   /* spreading out: the hunter nearest you takes the shortest way; each one behind him treats the routes the men ahead are
      taking as in the way (+3 m per cell along them). When that sends a man a different way round, he commits to it: he picks a
      point on his new route (E.via) and walks there first, then hunts you from that side. One flank each, given up once he sees you. */
-  const H=enemies.filter(E=>!E.dead&&E.st==='alert'&&!E.grabbed).map(E=>{ const c=navCell(E.pos[0],E.pos[1]); return {E,c,d:c>=0?NAVD[c]:1e9}; }).filter(h=>h.c>=0&&h.d<1e9).sort((a,b)=>a.d-b.d);
+  const H=enemies.filter(E=>!E.dead&&E.st==='alert'&&E.aware&&!E.grabbed) /* hunters only: someone searching or coming to look isn't flanking anybody */.map(E=>{ const c=navCell(E.pos[0],E.pos[1]); return {E,c,d:c>=0?NAVD[c]:1e9}; }).filter(h=>h.c>=0&&h.d<1e9).sort((a,b)=>a.d-b.d);
   for(const E of enemies) E.navF=null;
   NAVPEN.fill(0);
   const trace=(F,c,fn)=>{ for(let step=0;step<240&&F[c]>0;step++){ const ci=c%NX,ck=(c-ci)/NX; let best=c,bd=F[c];
@@ -2061,6 +2061,18 @@ function navUpdate(dt,tx,tz){ navT-=dt; if(navT>0&&!navDirty) return; navT=.25; 
     if(E.via){ E.navFB=E.navFB||new Int32Array(NX*NZ); navField(E.navFB,navCell(E.via[0],E.via[1]),null); E.navF=E.navFB; trace(E.navF,c0,mark); continue; }
     if(n>0){ E.navFB=E.navFB||new Int32Array(NX*NZ); navField(E.navFB,src,NAVPEN); E.navF=F=E.navFB; }
     trace(F,c0,mark); } }
+/* fields to other spots (where he was last seen or heard, a search point, home), cached per cell; rebuilt only for a new floor */
+const NAVF=new Map();
+function fieldTo(tx,tz){ let c=navCell(tx,tz); if(c<0||!FLOOR.nav) return null; let e=NAVF.get(c);
+  if(e&&e.gen===navGen){ e.t=GAME.t; return e.F; }
+  if(!e){ if(NAVF.size>=16){ let ok=null,ot=1e9; for(const [k,v] of NAVF) if(v.t<ot){ ot=v.t; ok=k; } NAVF.delete(ok); } e={F:new Int32Array(NX*NZ)}; NAVF.set(c,e); }
+  e.gen=navGen; e.t=GAME.t; const nav=FLOOR.nav, key=c;
+  if(nav[c]){ let bd=1e9,bs=-1; for(let k=-2;k<=2;k++) for(let i=-2;i<=2;i++){ const q=key+k*NX+i; if(q>=0&&q<nav.length&&!nav[q]&&i*i+k*k<bd){ bd=i*i+k*k; bs=q; } } if(bs<0){ e.F.fill(1e9); return e.F; } c=bs; }
+  navField(e.F,c,null); return e.F; }
+function navTo(x,z,tx,tz){ return navDir(x,z,tx,tz,fieldTo(tx,tz)||NAVD); }
+/* a reachable open spot within r metres (by walking) of (cx,cz) */
+function navSpotNear(cx,cz,r){ const F=fieldTo(cx,cz); for(let n=0;n<40;n++){ const a=Math.random()*6.283,d=rnd(1.2,r),c=navCell(cx+Math.cos(a)*d,cz+Math.sin(a)*d);
+    if(c<0||FLOOR.nav[c]||(F&&F[c]>r*20*1.6)) continue; return [cellX(c%NX),cellZ((c-c%NX)/NX)]; } return null; }
 function lineClearNav(x0,z0,x1,z1){ const L=Math.hypot(x1-x0,z1-z0),n=Math.ceil(L/.2); for(let s=1;s<n;s++){ const c=navCell(x0+(x1-x0)*s/n,z0+(z1-z0)*s/n); if(c<0||FLOOR.nav[c]) return false; } return true; }
 /* which way to walk from (x,z) to reach the player: straight if nothing is in the way, otherwise down the distance field */
 function navDir(x,z,tx,tz,F=NAVD){
@@ -2236,7 +2248,7 @@ function genTunnel(){
 const TUN_LIGHT={amb:[.02,.017,.014],dir:[0,1,0],dirCol:[0,0,0],fog:[.003,.0025,.002],fogNear:1.5,fogFar:11};
 function tunnelLights(){ setLights(Object.assign({},TUN_LIGHT,FLOOR.power?{pl:FLOOR.lights}:{amb:[.003,.003,.003],pl:[]})); }
 function tunnelPower(on){ if(FLOOR.mode!=='tunnel'||FLOOR.power===on) return; FLOOR.power=on;
-  if(!on){ FLOOR.flick=null; sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Qué pasó?','What happened?'),es('¡Prendan la planta!','Start the generator!')]),2.4); } },200+Math.random()*700); } }
+  if(!on){ FLOOR.flick=null; sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Qué pasó?','What happened?'),es('¡Prendan la planta!','Start the generator!')]),2.4); } },200+Math.random()*700); } }
   tunnelLights(); visionApply(); }
 
 /* ---------- seeing in the dark ---------- */
@@ -2375,7 +2387,7 @@ function genStash(){
 const STASH_LIGHT={amb:[.075,.08,.11],dir:[.35,1,.25],dirCol:[.1,.11,.17],fog:[.012,.014,.024],fogNear:6,fogFar:24};
 function stashLights(){ setLights(Object.assign({},STASH_LIGHT,FLOOR.power?{pl:FLOOR.lights}:{amb:[.035,.038,.055],pl:FLOOR.lights.map((l,i)=>i===5?l:[[0,-50,0],[0,0,0],1])})); }
 function stashPower(on){ if(FLOOR.mode!=='stash'||FLOOR.power===on) return; FLOOR.power=on;
-  if(!on){ sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Quién apagó la planta?','Who shut off the generator?'),es('¡Memo! ¿Qué ves?','Memo! What do you see?')]),2.4); } },200+Math.random()*900); } }
+  if(!on){ sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Quién apagó la planta?','Who shut off the generator?'),es('¡Memo! ¿Qué ves?','Memo! What do you see?')]),2.4); } },200+Math.random()*900); } }
   stashLights(); visionApply(); }
 function stashReset(){ if(FLOOR.power===false){ FLOOR.power=null; stashPower(true); } FLOOR.down=false; stashCast(); visionApply(); }
 function goStash(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genStash(); buildRack(); buildBoard(); SPAWNOPT.where='any'; resetGame(); if(XR.on) vrRecenter(); }
@@ -2531,7 +2543,7 @@ function spawnEnemy(sp){
   const J=C.J; J.root.p=[0,0,0]; J.root.r=[0,0,0];
   const E={C,J,o:C.o,holder,name:sp.name,extra:sp.extra,kind:C.kind,st:'idle',aware:false,pos:[sp.x,sp.z],hd:sp.hd,hp:{legL:1,legR:1,armL:1,armR:1},
     blood:100,wounds:[],dead:false,headshot:false,stun:0,rise:1,knocked:false,lowT:0,downT:0,walkPh:0,walkAmt:0,atkT:-1,atkCd:rnd(1.2,2.2),
-    cut:{},sev:{armL:0,armR:0,legL:0,legR:0,head:0},sevP:new Uint8Array(NP),segOff:new Set(),Rcut:{},barkT:0,barkCd:0,face:'',wpnHeld:!!C.wpn,wpnHand:'R',heartPh:0,spurtT:0,deadT:0,t0:Math.random()*9,pools:[],lookYaw:0,silent:false,cons:1,downMode:'',hitT:0};
+    cut:{},sev:{armL:0,armR:0,legL:0,legR:0,head:0},sevP:new Uint8Array(NP),segOff:new Set(),Rcut:{},barkT:0,barkCd:0,face:'',wpnHeld:!!C.wpn,wpnHand:'R',heartPh:0,spurtT:0,deadT:0,t0:Math.random()*9,pools:[],lookYaw:0,silent:false,cons:1,downMode:'',hitT:0,mind:'calm',home:[sp.x,sp.z],homeHd:sp.hd,lkp:null,lostT:0};
   E.fightJ={}; for(const k of JOINTS) E.fightJ[k]=J[k].r.slice(); E.fightY=J.hips.p[1]; E.gunLow=lowW; E.gunUp=upW; E.aimK=0; E.carry='up';
   E.fightJL={}; for(const k of JOINTS){ const m=k.endsWith('L')?k.slice(0,-1)+'R':k.endsWith('R')?k.slice(0,-1)+'L':k,r=E.fightJ[m]; E.fightJL[k]=[r[0],-r[1],-r[2]]; }
   buildBody(E);
@@ -2883,10 +2895,12 @@ function rayEnemies(o,d,maxT,pad=0){ let best=null;
 
 /* damage */
 function bark(E,text,dur=2.6){ if(!text) return; E.barkEl.textContent=text; E.barkT=dur; E.barkCd=dur+rnd(.6,1.6); }
-function setAware(E,why){ if(E.dead||E.aware) return; E.aware=true; if(E.st==='idle') E.st='alert';
-  if(GAME.barkGlobal<=0&&E.barkCd<=0){ bark(E,pick(LINES.alert)); GAME.barkGlobal=1.2; if(why!=='hit') vox(E,'shout'); } }
+/* he knows you're here. at: [x,z] where he thinks you are (a noise, a friend's scream); direct contact (seen, hit, kicked, grabbed) means where you actually are */
+function setAware(E,why,at){ if(E.dead) return; const p=at||[PL.x,PL.z];
+  if(E.aware){ if(!E.canSee) E.lkp=p; return; }
+  E.aware=true; E.mind='hunt'; E.lkp=p; E.lostT=at?.7:0; E.goHome=false; E.spotT=0; freshGoal(E); if(E.st==='idle') E.st='alert';
+  if(GAME.barkGlobal<=0&&E.barkCd<=0){ bark(E,pick(LINES.alert)); GAME.barkGlobal=1.2; if(why!=='hit'){ vox(E,'shout'); noise([E.pos[0],0,E.pos[1]],8,{alarm:true,from:E}); } } }
 function faceHold(E,f,t){ if(!E.dead) E.faceHold={f,t}; }
-function alertAll(src){ for(const E of enemies) if(!E.dead&&!E.aware){ const d=src?Math.hypot(E.pos[0]-src[0],E.pos[1]-src[2]):0; setTimeout(()=>setAware(E,'noise'),180+d*90); } }
 /* fists and anything blunt: no wound to speak of, but it stuns, and enough to the head puts him out cold */
 const BLUNT={head:{stun:.75,daze:.42},neck:{stun:.85,daze:.22},chest:{stun:.4},belly:{stun:.62},thigh:{stun:.22},shin:{stun:.16},foot:{stun:.1},uarm:{stun:.15},farm:{stun:.12}};
 function hitBlunt(E,seg,point,dir,key,o){ const pw=o.power||1,B=BLUNT[key];
@@ -2897,7 +2911,7 @@ function hitBlunt(E,seg,point,dir,key,o){ const pw=o.power||1,B=BLUNT[key];
   E.daze=Math.min(1.5,(E.daze||0)+(B.daze||0)*pw); if(!E.dead){ vox(E,key==='belly'||key==='chest'?'oof':'grunt'); faceHold(E,'agony',.45+.3*pw); }
   if(E.daze>=1&&!E.dead&&E.st!=='down'){ E.daze=0; toDown(E,true); E.knocked=true; E.koT=rnd(5,9); }
   else if(E.barkCd<1.2&&!E.dead) bark(E,pick(['Hnf—','*grunts*','Agh— fuck—','Ow— OW—']),1.6);
-  setAware(E,'hit'); for(const O of enemies) if(O!==E&&!O.dead&&Math.hypot(O.pos[0]-E.pos[0],O.pos[1]-E.pos[1])<7) setAware(O,'friend'); }
+  setAware(E,'hit'); noise([E.pos[0],0,E.pos[1]],6,{alarm:true,from:E}); } /* the grunt and the scuffle: whoever's close comes over */
 function hitEnemy(E,seg,point,dir,weapon,o={}){
   const part=seg[3],key=part.replace(/[LR]$/,''),side=/[LR]$/.test(part)?part.slice(-1):'';
   if(weapon==='blunt'&&!(E.sevP[seg[0]]&&E.sevP[seg[1]])) return hitBlunt(E,seg,point,dir,key,o);
@@ -2949,7 +2963,7 @@ function hitEnemy(E,seg,point,dir,weapon,o={}){
     else { vox(E,weapon==='knife'?(o.chop?'scream':'stabbed'):legHit||Math.random()<.55?'scream':'grunt'); faceHold(E,'agony',weapon==='gun'?.9:1.4); } }
   if(behind){ E.silent=true; if(!E.aware){ E.aware=true; E.st='kneel'; dropWeapon(E); } }
   else setAware(E,'hit');
-  for(const O of enemies) if(O!==E&&!O.dead&&Math.hypot(O.pos[0]-E.pos[0],O.pos[1]-E.pos[1])<9&&!behind) setAware(O,'friend');
+  if(!behind){ const pel=X_(E.B,PI_.pelvis); noise([pel[0],0,pel[2]],9,{alarm:true,from:E}); } /* he screams; a knife from behind is silent */
 }
 /* blast: a close shotgun load doesn't cut a limb off, it destroys it. Nothing flies away; it's just gone, in pieces, over the wall */
 const PIN_AT={armL:'shL',armR:'shR',legL:'hipL',legR:'hipR',head:'neck'};
@@ -3026,9 +3040,7 @@ function think(E,dt,t){
   E.spurtT-=dt;
   if(E.dieT!=null) E.dieT-=dt;
   if(E.blood<=11||E.headshot||E.dieT!=null&&E.dieT<=0){ die(E); return; }
-  /* awareness by sight */
-  E.sightT=(E.sightT||0)-dt; if(E.sightT<=0){ E.sightT=.2; E.canSee=sightClear(X_(B,PI_.head),[PL.x,1.55,PL.z])&&seenInDark(E,dist); }
-  if(!E.aware&&GAME.started){ const fwd=[Math.sin(E.hd),Math.cos(E.hd)],facing=(toP[0]*fwd[0]+toP[1]*fwd[1])/(dist||1); if(E.canSee&&(dist<1.1&&facing>-.2||dist<.45||(dist<6&&facing>.45))) setAware(E,'see'); } /* you can get right behind someone */
+  senses(E,dt,dist,toP,B); /* eyes and ears: 52-senses.js */
   const legs=Math.min(E.hp.legL,E.hp.legR);
   /* state changes */
   if(E.st==='idle'||E.st==='alert'){
@@ -3047,23 +3059,34 @@ function think(E,dt,t){
     const k=Math.min(1,dt*(E.grabbed?6:E.st==='alert'?1:2.5)); E.pos[0]=lerp(E.pos[0],pel[0],k); E.pos[1]=lerp(E.pos[1],pel[2],k);
     if(E.st==='kneel'){ const want=Math.atan2(toP[0],toP[1]); let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; E.hd+=clamp(dh,-dt,dt); } }
   if(E.st==='alert'){
-    if(armed(E)&&!E.oneHand&&E.M){ /* line the gun up on you: blade the body and lean until the barrel, not the chest, points at you */
+    if(!(E.aware&&E.canSee)){ E.aimYaw=lerp(E.aimYaw||0,0,Math.min(1,dt*2)); E.aimPit=lerp(E.aimPit||0,0,Math.min(1,dt*2)); }
+    else if(armed(E)&&!E.oneHand&&E.M){ /* line the gun up on you: blade the body and lean until the barrel, not the chest, points at you */
       const g=gunRay(E),tp=norm3(v3.sub([PL.x,1.45,PL.z],g.mz)); let ye=Math.atan2(tp[0],tp[2])-Math.atan2(g.d[0],g.d[2]); ye=Math.atan2(Math.sin(ye),Math.cos(ye));
       const k=Math.min(1,dt*2.5); E.aimYaw=clamp((E.aimYaw||0)+ye*k,-.7,.7); E.aimPit=clamp((E.aimPit||0)+(Math.asin(tp[1])-Math.asin(g.d[1]))*k,-.35,.35); }
-    const want=FLOOR.power===false&&!E.canSee?E.hd+Math.sin(t*.6+E.t0)*.3:(!E.canSee&&E.moveDir&&dist>2?Math.atan2(E.moveDir[0],E.moveDir[2]):Math.atan2(toP[0],toP[1]))+(E.wpnHeld&&!E.oneHand&&E.canSee?E.aimYaw||0:0); let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; const tr=E.stun>.3?0:2*(1-E.stun); E.hd+=clamp(dh,-tr*dt,tr*dt);
+    const fighting=E.aware&&E.canSee,goal=fighting?null:aiGoal(E,dt,t);
+    const want=fighting?Math.atan2(toP[0],toP[1])+(E.wpnHeld&&!E.oneHand?E.aimYaw||0:0)
+      :goal&&E.moveDir?Math.atan2(E.moveDir[0],E.moveDir[2])
+      :E.mind==='search'&&E.pauseT>0?(E.scanHd??E.hd)+Math.sin((t+E.t0)*.9)*1.1 /* stands and looks around */
+      :FLOOR.power===false?E.hd+Math.sin(t*.6+E.t0)*.3:E.hd;
+    let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; const tr=E.stun>.3?0:2*(1-E.stun); E.hd+=clamp(dh,-tr*dt,tr*dt);
     const KS=KSTAT[E.kind]||{},keep=armed(E)?KS.keep:1.25;
-    if((dist>keep+.15||!E.canSee)&&E.atkT<0&&E.stun<.4&&!E.grabbed&&huntsInDark(E)){ const melee=!armed(E),sp=(melee?lerp(1.2,KS.run||2.6,clamp((dist-1.7)/2.2,0,1)):!E.canSee&&dist>6?1.6:.85)*(.55+.45*legs)*E.rise; /* blades charge at you; they ease off in the last couple of metres so they arrive swinging, not sliding */
-      E.runAmt=lerp(E.runAmt||0,clamp((sp-1.3)/1.6,0,1),Math.min(1,dt*5)); const dir=E.via?navDir(E.pos[0],E.pos[1],E.via[0],E.via[1],E.navF||NAVD):navDir(E.pos[0],E.pos[1],PL.x,PL.z,E.navF||NAVD); E.moveDir=dir; /* a flanker heads for his point on the other route first */
+    const chase=fighting&&dist>keep+.15&&huntsInDark(E),walk=chase||(goal&&(huntsInDark(E)||E.lkp||E.mind==='search'));
+    if(walk&&E.atkT<0&&E.stun<.4&&!E.grabbed){ const melee=!armed(E);
+      let sp=chase?(melee?lerp(1.2,KS.run||2.6,clamp((dist-1.7)/2.2,0,1)):.85):goal.sp; /* blades charge at you; they ease off in the last couple of metres so they arrive swinging, not sliding */
+      if(FLOOR.power===false&&!E.canSee) sp=Math.min(sp,.75); /* feeling his way in the dark */
+      sp*=(.55+.45*legs)*E.rise;
+      E.runAmt=lerp(E.runAmt||0,clamp((sp-1.3)/1.6,0,1),Math.min(1,dt*5)); const dir=chase?(E.via?navDir(E.pos[0],E.pos[1],E.via[0],E.via[1],E.navF||NAVD):navDir(E.pos[0],E.pos[1],PL.x,PL.z,E.navF||NAVD)):navTo(E.pos[0],E.pos[1],goal.x,goal.z); E.moveDir=dir; /* a flanker heads for his point on the other route first */
       { const D=doorNear(E.pos[0],E.pos[1],.9); if(D&&D.state==='closed'){ setDoor(D,'open'); sfx('door',.5); } } /* people who live here just open doors */
       E.pos[0]+=dir[0]*sp*dt; E.pos[1]+=dir[2]*sp*dt; E.walkAmt=lerp(E.walkAmt,1,Math.min(1,dt*8)); E.walkPh+=dt*(sp<1.3?sp*6.2:7.2+sp*.9); }
-    else E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6));
+    else { E.moveDir=null;
+      E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6)); }
     pushOutXZ(E.pos,.28,'walker');
     for(const O of enemies) if(O!==E){ const op=O.st==='alert'||O.st==='idle'?O.pos:[O.B.x[0],O.B.x[2]],R=O.st==='alert'||O.st==='idle'?.7:.95,dx=E.pos[0]-op[0],dz=E.pos[1]-op[1],d=Math.hypot(dx,dz); if(d<R&&d>1e-3){ E.pos[0]+=dx/d*(R-d)*.5; E.pos[1]+=dz/d*(R-d)*.5; } }
     /* attacks */
     E.atkCd-=dt;
     if(armed(E)){ if(E.burstN>0){ E.burstT-=dt; if(E.burstT<=0){ E.burstN--; E.burstT=.085; enemyShoot(E,true); } }
-      else if(E.canSee&&!E.grabbed&&E.atkCd<=0&&E.stun<.3&&dist<KS.range){ E.atkCd=rnd(KS.cd[0],KS.cd[1]); if(enemyShoot(E)===false) E.atkCd=.25; else if(KS.burst){ E.burstN=KS.burst-1; E.burstT=.085; } } }
-    else if(E.atkT<0&&E.atkCd<=0&&dist<keep+.35&&E.stun<.3){ E.atkT=0; }
+      else if(E.aware&&E.canSee&&!E.grabbed&&E.atkCd<=0&&E.stun<.3&&dist<KS.range){ E.atkCd=rnd(KS.cd[0],KS.cd[1]); if(enemyShoot(E)===false) E.atkCd=.25; else if(KS.burst){ E.burstN=KS.burst-1; E.burstT=.085; } } }
+    else if(E.aware&&E.atkT<0&&E.atkCd<=0&&dist<keep+.35&&E.stun<.3){ E.atkT=0; }
     if(E.atkT>=0){ const before=E.atkT; E.atkT+=dt; if(before<.44&&E.atkT>=.44){ const f=[Math.sin(E.hd),Math.cos(E.hd)]; if(dist<1.75&&(toP[0]*f[0]+toP[1]*f[1])/(dist||1)>.5) hurtPlayer(E.wpnHeld?(KSTAT[E.kind].melee||9):7); }
       if(E.atkT>.7){ E.atkT=-1; E.atkCd=rnd(1.4,2.4); } } }
   else E.atkT=-1;
@@ -3078,7 +3101,8 @@ function think(E,dt,t){
     if(prevMode&&E.downMode!==prevMode){ if(E.modeT>0) E.downMode=prevMode; else E.modeT=1.6; }
     if(E.downMode==='writhe'||E.downMode==='downbeg') E.crawlF=null; }
   /* looking at the player */
-  if(E.Rs&&(E.st==='alert'||E.st==='kneel'||E.st==='down')){ const l=mtv(E.Rs,norm3([toP[0],0,toP[1]])); E.lookYaw=lerp(E.lookYaw,clamp(Math.atan2(l[0],l[2]),-1,1),Math.min(1,dt*5)); }
+  if(E.Rs&&E.st==='alert'&&!(E.aware&&E.canSee)){ const sw=E.mind==='search'||E.mind==='investigate'?Math.sin((t+E.t0)*1.3)*.6:0; E.lookYaw=lerp(E.lookYaw,sw,Math.min(1,dt*3)); } /* doesn't know where you are: looks around, not at you */
+  else if(E.Rs&&(E.st==='alert'||E.st==='kneel'||E.st==='down')){ const l=mtv(E.Rs,norm3([toP[0],0,toP[1]])); E.lookYaw=lerp(E.lookYaw,clamp(Math.atan2(l[0],l[2]),-1,1),Math.min(1,dt*5)); }
   else E.lookYaw=lerp(E.lookYaw,0,Math.min(1,dt*3));
   /* talking */
   if(E.barkCd<=0&&GAME.barkGlobal<=0){
@@ -3087,7 +3111,7 @@ function think(E,dt,t){
     else if(E.cons<.4&&E.wounds.length) bark(E,pick(LINES.dying),3.2);
     else if((E.st==='kneel'||E.st==='down')&&E.wounds.some(w=>w.part==='neck'&&!w.piece)) bark(E,pick(LINES.neck));
     else if((E.st==='kneel'||E.st==='down')&&E.near) bark(E,Math.random()<.35?E.extra:pick(LINES.beg));
-    else if(E.st==='down'&&E.downMode!=='writhe'){ const f=enemies.filter(o=>o!==E); bark(E,Math.random()<.5&&f.length?pick(LINES.call(pick(f).name)):pick(LINES.crawl)); }
+    else if(E.st==='down'&&E.downMode!=='writhe'){ const f=enemies.filter(o=>o!==E); bark(E,Math.random()<.5&&f.length?pick(LINES.call(pick(f).name)):pick(LINES.crawl)); noise([pel[0],0,pel[2]],7,{from:E}); }
     if(E.barkT>0) GAME.barkGlobal=.8; }
   E.aimK=lerp(E.aimK||0,(E.st==='alert'?1:0)*(1-Math.min(E.stun,.8)*.7),Math.min(1,dt*3.5)); /* bring the long gun up when fighting, drop it when rocked */
   voiceTick(E,dt,dist);
@@ -3115,7 +3139,7 @@ function enemyShoot(E,inBurst){
   const g=gunRay(E),mz=g.mz,KS=KSTAT[E.kind],W=WPN[KIND_WPN[E.kind]];
   if(!inBurst&&v3.dot(g.d,norm3(v3.sub([PL.x,1.45,PL.z],mz)))<Math.cos(.6)) return false; /* not on target yet: hold fire instead of shooting the ceiling */
   if(!inBurst){ const blk=bodyInLine(mz,[PL.x,1.4,PL.z],E); if(blk&&!blk.E.dead&&Math.random()<.75){ if(E.barkCd<=0) bark(E,blk.E.grabbed?pick([`Let ${blk.E.name} go!`,'Let him go, man!','I can\'t get a shot—']):'Move!',1.6); return false; } } /* friends in the way: mostly hold fire */
-  GAME.eShots=(GAME.eShots||0)+1; muzzle(mz); sfx(W.snd||'gun',.5);
+  GAME.eShots=(GAME.eShots||0)+1; muzzle(mz); sfx(W.snd||'gun',.5); noise([E.pos[0],0,E.pos[1]],14,{alarm:true,from:E}); /* his friends come to the shooting */
   const toPl=Math.hypot(...v3.sub([PL.x,1.45,PL.z],mz)),n=KS.shotgun?6:1,hurtArm=Math.min(E.hp.armL,E.hp.armR)>=.45?1:.55;
   /* how likely a shot finds you: better close, worse far, worse with a hurt arm, worse while you're in bullet time? no: bullet time is yours */
   const pHit=clamp(KS.acc*hurtArm*(KS.shotgun?clamp(1.6-toPl/5,0,1.4):clamp(1.35-toPl/14,.4,1.2)),0,.95);
@@ -3256,7 +3280,7 @@ function update(dt,now){
   PL.kickCd-=dt; XR.flash=Math.max(0,XR.flash-dt);
   for(const h of [HANDS.L,HANDS.R]){ tickItem(h,dt); if(h.swingT>=0){ const hv=h.item&&WPN[h.item.key].heavy; h.swingT+=dt/(hv?.55:.34); if(!h.swingDone&&h.swingT>.42){ h.swingDone=true; flatSwingHit(h); } if(h.swingT>=1) h.swingT=-1; } }
   if(!XR.on&&KEYS.Mouse0&&document.pointerLockElement&&HANDS.R.item&&WPN[HANDS.R.item.key].auto) useRight();
-  updateGrabs(gdt);
+  updateGrabs(gdt); footsteps(dt);
   for(const E of enemies) think(E,gdt,GAME.t);
   /* a body that falls asleep inside this frame's physics already had its rig set to the pose (pose space, at the origin) by targetsFor,
      so it still has to be driven back onto its particles this frame, or its head, hands and shoes stay floating at the origin while it sleeps */
@@ -3433,6 +3457,117 @@ function xrFrame(t,xf){
 (async()=>{ if(navigator.xr&&navigator.xr.isSessionSupported){ try{ if(await navigator.xr.isSessionSupported('immersive-vr')){ for(const id of ['vrBtn','vrBtnT']) $(id).hidden=false; } }catch(_){} } })();
 $('vrBtn').addEventListener('click',enterVR); $('vrBtnT').addEventListener('click',enterVR);
 attachLabels();
+
+/* ---------- senses: what they see and hear, and what they do about it ----------
+   Nobody knows where you are unless they see you, hear you, or someone tells them.
+   Minds:  calm        at his post, normal eyes
+           investigate heard something small (a step, a thrown bottle): walks over to look, gun up, not hunting you yet
+           hunt        E.aware: knows you're here; goes for you if he sees you, otherwise for E.lkp (where you were last seen or heard)
+           search      lost you (or found a body): sweeps a few spots around where it happened, then gives up
+           nervous     gave up; walks back to his post with sharper eyes for the rest of the floor
+   Sound:  every noise has a radius; a wall or a closed door between you and him cuts it to under half.
+           Gunshots, kicked doors and screams are alarms: close enough and he hunts; far off he only comes to look. */
+
+const GUN_LOUD={revolver:17,pistol:16,smg:18,shotgun:22};
+Object.assign(LINES,{
+  lost:['Where\'d he go?','Shit— lost him.','He was right here—','Come out, man!'],
+  search:['I know you\'re here.','Come on out.','Where are you...','Check behind the couch—'],
+  giveup:['...Nothing.','Must\'ve been nothing.','Fuck this place.','He\'s gone. I think.'],
+  huh:['What was that?','Hello?','Who\'s there?','...the hell was that?'],
+  body:n=>[`${n}? ...oh shit. OH SHIT.`,`Somebody got ${n}!`,`${n}— no, no—`] });
+Object.assign(LINES_ES,{
+  lost:[es('¿A dónde se fue?','Where\'d he go?'),es('Lo perdí.','Lost him.'),es('Estaba aquí—','He was right here—'),es('¡Sal, cabrón!','Come out!')],
+  search:[es('Sé que estás aquí.','I know you\'re here.'),es('Sal de ahí.','Come out of there.'),es('¿Dónde estás...?','Where are you...?')],
+  giveup:[es('...Nada.','...Nothing.'),es('No era nada.','It was nothing.'),es('Ya se fue. Creo.','He\'s gone. I think.')],
+  huh:[es('¿Qué fue eso?','What was that?'),es('¿Quién anda ahí?','Who\'s there?'),es('¿Bueno?','Hello?')],
+  body:n=>[es(`¿${n}? ...no, no, no.`,`${n}? ...no, no, no.`),es(`¡Le dieron a ${n}!`,`Somebody got ${n}!`)] });
+
+const upright=E=>!E.dead&&(E.st==='idle'||E.st==='alert');
+const say=(E,lines,dur)=>{ if(E.barkCd<=0&&GAME.barkGlobal<=0){ bark(E,pick(lines),dur); GAME.barkGlobal=.9; return true; } return false; };
+
+/* a sound at src [x,y,z], heard out to rad metres. o.alarm: gunshot/scream/kick. o.from: the enemy making it (doesn't hear himself) */
+function noise(src,rad,o={}){ if(!rad||!GAME.started) return;
+  for(const E of enemies){ if(E===o.from||!upright(E)) continue;
+    const d=Math.hypot(E.pos[0]-src[0],E.pos[1]-src[2]); if(d>rad) continue;
+    const r=sightClear([E.pos[0],1.6,E.pos[1]],[src[0],1.2,src[2]])?rad:rad*(o.alarm?.6:.45); if(d>r) continue; /* through a wall: a gunshot still carries, a footstep doesn't */
+    setTimeout(()=>hear(E,src,d/r,o),120+d*45); } }
+function alertAll(src,rad=12){ noise(src,rad,{alarm:true}); } /* kicked doors */
+
+/* the nearest open floor to (x,z): a bottle that lands against a wall is looked for in front of the wall, not inside it */
+function navSnap(x,z){ const c=navCell(x,z); if(c<0) return [x,z]; if(!FLOOR.nav[c]) return [x,z]; const ci=c%NX,ck=(c-ci)/NX;
+  for(let r=1;r<=4;r++) for(let k=-r;k<=r;k++) for(let i=-r;i<=r;i++){ if(Math.max(Math.abs(i),Math.abs(k))!==r) continue; const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ||FLOOR.nav[nk*NX+ni]) continue; return [cellX(ni),cellZ(nk)]; }
+  return [x,z]; }
+/* walking somewhere but going nowhere (a corner, another body in the way): counts as arriving */
+function stuck(E,dt){ E.pgT=(E.pgT||0)+dt; if(E.pgT<1.5) return false; const m=E.pgP?Math.hypot(E.pos[0]-E.pgP[0],E.pos[1]-E.pgP[1]):1; E.pgP=E.pos.slice(); E.pgT=0; return m<.25; }
+const freshGoal=E=>{ E.pgT=0; E.pgP=null; };
+
+function hear(E,src,k,o){ if(!upright(E)) return; const at=navSnap(src[0],src[2]);
+  if(E.aware){ if(!E.canSee){ E.lkp=at; E.lostT=Math.max(E.lostT||0,.7); } return; }
+  if(o.alarm&&(k<.65||(E.mind&&E.mind!=='calm'))) setAware(E,'noise',at);
+  else investigate(E,at); }
+
+function investigate(E,at){ if(E.dead||E.aware) return;
+  if(E.mind==='search'){ E.srcC=at; E.wp=at; E.pauseT=0; E.searchT=Math.max(E.searchT,6); return; }
+  if(E.mind!=='investigate') say(E,LINES.huh,2);
+  E.mind='investigate'; E.lkp=at; E.goalT=0; freshGoal(E); if(E.st==='idle') E.st='alert'; }
+
+function startSearch(E,c,why){ E.aware=false; E.mind='search'; E.srcC=navSnap(c[0],c[1]); E.wp=null; E.pauseT=0; E.goalT=0; freshGoal(E);
+  E.searchT=why==='body'?rnd(14,18):why==='inv'?rnd(6,9):rnd(10,14); E.sayT=rnd(3,6);
+  if(why==='lost') say(E,LINES.lost,2.2); }
+
+function giveUp(E){ E.mind='nervous'; E.wp=null; E.lkp=null; E.goHome=true; freshGoal(E); say(E,LINES.giveup,2.4); }
+
+/* called from think() every frame for anyone alive: eyes, then what that means */
+function senses(E,dt,dist,toP,B){
+  E.sightT=(E.sightT||0)-dt; let tick=false;
+  if(E.sightT<=0){ E.sightT=.2; tick=true; E.canSee=sightClear(X_(B,PI_.head),[PL.x,1.55,PL.z])&&seenInDark(E,dist); }
+  if(!GAME.started||!upright(E)) return;
+  if(!E.aware){
+    const fwd=[Math.sin(E.hd),Math.cos(E.hd)],facing=(toP[0]*fwd[0]+toP[1]*fwd[1])/(dist||1),edgy=E.mind&&E.mind!=='calm',
+      range=edgy?8.5:6,cone=edgy?.2:.45,inView=E.canSee&&(dist<1.1&&facing>-.2||dist<.45||(dist<range&&facing>cone));
+    /* a beat before it registers: someone calm across the room takes up to half a second, someone already looking is quick. You can duck back out */
+    const need=edgy?.12:clamp((dist-1.5)*.12,0,.55);
+    E.spotT=inView?(E.spotT||0)+dt:Math.max(0,(E.spotT||0)-dt*.5);
+    if(inView&&E.spotT>=need){ E.spotT=0; setAware(E,'see'); }
+    /* bodies: a friend on the floor, dead or bleeding out */
+    else if(tick&&enemies.length>1){ for(const O of enemies){ if(O===E||!(O.dead||O.st==='down'||O.st==='kneel')||(E.seen&&E.seen.has(O))) continue;
+        const op=X_(O.B,PI_.pelvis),dx=op[0]-E.pos[0],dz=op[2]-E.pos[1],d=Math.hypot(dx,dz); if(d>8||(dx*fwd[0]+dz*fwd[1])/(d||1)<.1&&d>1.2) continue;
+        if(!sightClear(X_(B,PI_.head),[op[0],.45,op[2]])) continue;
+        (E.seen||(E.seen=new Set())).add(O); say(E,LINES.body(O.name),2.6); vox(E,'shout');
+        if(E.st==='idle') E.st='alert'; startSearch(E,[op[0],op[2]],'body'); noise([E.pos[0],0,E.pos[1]],9,{from:E}); break; } } }
+  if(E.aware){
+    if(E.canSee||E.tracks){ E.lkp=[PL.x,PL.z]; E.lostT=0; E.mind='hunt';
+      /* call it out: friends who are hunting but can't see you learn where you are */
+      E.callT=(E.callT||0)-dt; if(E.callT<=0&&E.canSee){ E.callT=1;
+        for(const O of enemies) if(O!==E&&O.aware&&upright(O)&&!O.canSee&&Math.hypot(O.pos[0]-E.pos[0],O.pos[1]-E.pos[1])<10){ O.lkp=[PL.x,PL.z]; } } }
+    else { E.lostT=(E.lostT||0)+dt; if(E.lostT<.6) E.lkp=[PL.x,PL.z]; /* he saw which way you went */
+      if(E.lkp&&Math.hypot(E.pos[0]-E.lkp[0],E.pos[1]-E.lkp[1])<1) startSearch(E,E.lkp,'lost');
+      else if(E.lostT>(E.lkp?20:7)) startSearch(E,E.lkp||E.pos.slice(),'lost'); } } }
+
+/* where he's walking this frame and how fast, when he isn't closing on you in plain sight. Null: stand still */
+function aiGoal(E,dt,t){
+  if(E.tracks&&E.aware) return {x:PL.x,z:PL.z,sp:1.6};
+  if(E.aware){ const sp=armed(E)?1.5:2.1;
+    if(E.via) return {x:E.via[0],z:E.via[1],sp}; /* sent round the other way by the flanking (30-floor.js): get to that side first */
+    if(!E.lkp) return null; if(stuck(E,dt)){ startSearch(E,E.pos.slice(),'lost'); return null; } return {x:E.lkp[0],z:E.lkp[1],sp}; }
+  if(E.mind==='investigate'){ E.goalT+=dt; const L=E.lkp;
+    if(!L||Math.hypot(E.pos[0]-L[0],E.pos[1]-L[1])<1||E.goalT>15||stuck(E,dt)){ startSearch(E,L||E.pos.slice(),'inv'); return null; } return {x:L[0],z:L[1],sp:1.1}; }
+  if(E.mind==='search'){ E.searchT-=dt; E.sayT-=dt; if(E.sayT<=0){ E.sayT=rnd(5,8); say(E,LINES.search,2.2); }
+    if(E.searchT<=0){ giveUp(E); return null; }
+    if(E.pauseT>0){ E.pauseT-=dt; freshGoal(E); return null; }
+    if(!E.wp||E.goalT>8||Math.hypot(E.pos[0]-E.wp[0],E.pos[1]-E.wp[1])<.7||stuck(E,dt)){
+      if(E.wp){ E.wp=null; E.pauseT=rnd(1.2,2.6); E.scanHd=E.hd; return null; } /* got there (or as close as he can): stand and look around */
+      E.wp=navSpotNear(E.srcC[0],E.srcC[1],4.5)||E.srcC; E.goalT=0; freshGoal(E); }
+    E.goalT+=dt; return {x:E.wp[0],z:E.wp[1],sp:1}; }
+  if(E.goHome&&E.home){ if(Math.hypot(E.pos[0]-E.home[0],E.pos[1]-E.home[1])<.6||stuck(E,dt)){ E.goHome=false; E.st='idle'; E.hd=E.homeHd??E.hd; return null; }
+    return {x:E.home[0],z:E.home[1],sp:.9}; }
+  return null; }
+
+/* the player's feet: walk slowly and nobody hears you; push the stick all the way and the next room might */
+function footsteps(dt){ if(!GAME.started||PL.dead) return;
+  const v=Math.hypot(PL.x-(PL.px??PL.x),PL.z-(PL.pz??PL.z))/Math.max(dt,1e-3); PL.px=PL.x; PL.pz=PL.z; if(v>6) return; /* teleports, resets */
+  PL.spdS=lerp(PL.spdS||0,v,Math.min(1,dt*6)); PL.stepT=(PL.stepT||0)-dt;
+  if(PL.spdS>1.5&&PL.stepT<=0){ PL.stepT=.45; noise([PL.x,0,PL.z],2.8+(PL.spdS-1.5)*2); } }
 
 /* =====================================================================
    VOICES. Every man in the building breathes, grunts, screams, sobs, chokes and rattles, from his own
@@ -3664,7 +3799,7 @@ function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye
   it.ammo--; it.cd=w.rof; h.rec=w.pump?1.8:w.cup&&h.support?.5:1; sfx(w.snd||'gun'); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
   if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }
   const Mi=itemM(h),mz=mulP(Mi,w.muzzle),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); muzzle(mz); GAME.shotT=GAME.t;
-  const o=aim?aim.o:mz,d0=aim?aim.d:bd; alertAll([PL.x,0,PL.z]);
+  const o=aim?aim.o:mz,d0=aim?aim.d:bd; noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true}); /* loud, but not floor-wide: a wall or a shut door halves it */
   const n=w.pellets||1,sp=w.spread||.006,tally=new Map();
   for(let i=0;i<n;i++){ const r=bullet(o,norm3(v3.add(d0,[rnd(-sp,sp),rnd(-sp,sp),rnd(-sp,sp)])),w,h); if(r) tally.set(r.E,{n:(tally.get(r.E)||{n:0}).n+1,t:r.t}); }
   if(w.pellets){ flash.t=.1; flash.big=true; for(let i=0;i<10;i++) emit(mz,v3.add(v3.sc(bd,rnd(.6,2.2)),[rnd(-.3,.3),rnd(-.1,.4),rnd(-.3,.3)]),rnd(.012,.03),'dust',.9); /* smoke */
@@ -3730,9 +3865,12 @@ function updatePickups(dt){ for(const P of LOOSE){ P.age+=dt; if(P.rest) continu
       if(P.item.key==='bottle'){ sfx('glass'); spray(p,v3.sc(dir,-1),12,1.5,.8,'dust',.008); removePickup(P); return updatePickups(0); }
       sfx(w.melee==='knife'?'stab':'punch'); hitMarker(); P.v=v3.sc(P.v,-.15); P.thrown=false; } } }
   const r=.04,q=[n.p[0],n.p[2]]; let floorY=r;
-  for(const b of boxesAt(n.p[0],n.p[2])){ if(n.p[0]>b.x0&&n.p[0]<b.x1&&n.p[2]>b.z0&&n.p[2]<b.z1){ if(old[1]>=b.h-.02&&b.kind!=='wall'&&b.kind!=='door') floorY=Math.max(floorY,b.h+r); else if(n.p[1]<b.h&&n.p[1]>b.y0){ n.p[0]=old[0]; n.p[2]=old[2]; P.v[0]*=-.3; P.v[2]*=-.3; P.thrown=false; } } }
+  for(const b of boxesAt(n.p[0],n.p[2])){ if(n.p[0]>b.x0&&n.p[0]<b.x1&&n.p[2]>b.z0&&n.p[2]<b.z1){ if(old[1]>=b.h-.02&&b.kind!=='wall'&&b.kind!=='door') floorY=Math.max(floorY,b.h+r); else if(n.p[1]<b.h&&n.p[1]>b.y0){ n.p[0]=old[0]; n.p[2]=old[2]; P.v[0]*=-.3; P.v[2]*=-.3; if(P.thrown) clatter(P); P.thrown=false; } } }
   n.p[0]=clamp(n.p[0],-RX+.05,RX-.05); n.p[2]=clamp(n.p[2],-RZ+.05,RZ-.05); n.p[1]=Math.min(n.p[1],RH-.05);
-  if(n.p[1]<floorY){ n.p[1]=floorY; if(Math.abs(P.v[1])<1.2){ P.rest=true; P.thrown=false; n.r=[0,n.r[1],Math.PI/2]; } else { P.v[1]*=-.25; P.v[0]*=.5; P.v[2]*=.5; P.thrown=false; if(P.item.key==='bottle'&&Math.hypot(...P.v)>2.5){ sfx('glass'); removePickup(P); return updatePickups(0); } } } } }
+  if(n.p[1]<floorY){ n.p[1]=floorY; if(Math.abs(P.v[1])<1.2){ P.rest=true; P.thrown=false; n.r=[0,n.r[1],Math.PI/2]; } else { P.v[1]*=-.25; P.v[0]*=.5; P.v[2]*=.5; if(P.thrown) clatter(P); P.thrown=false; if(P.item.key==='bottle'&&Math.hypot(...P.v)>2.5){ sfx('glass'); removePickup(P); return updatePickups(0); } } } } }
+
+/* a thrown thing hitting a wall or the floor: someone nearby comes to see what it was (a bottle smashing carries further) */
+function clatter(P){ const p=P.node.p; noise([p[0],0,p[2]],P.item.key==='bottle'?8:5.5); sfx('bump',.5); }
 
 /* ---------- the armory rack (test floor): every weapon on a hook, take as many as you like ---------- */
 const RACK=[]; let rackN=null;
@@ -3974,7 +4112,7 @@ function spawnKind(ki){
   const name=K.key==='landlord'?(tun?'Don Aurelio':'The Landlord'):tun?NAMES_ES[(nameI++)%NAMES_ES.length]:NAMES[(nameI++)%NAMES.length],det=DETAILS[(nameI*7)%DETAILS.length];
   const E=spawnEnemy({maker:tun?(h,g)=>cartelChar(CARTEL_OF[K.key],h,g):K.maker,name,x:spot.x,z:spot.z,hd,extra:K.key==='landlord'?(tun?es('¿Sabes quién soy?','Do you know who I am?'):'You know who owns this building?'):tun?pick(TUN_CAST).extra:pick(PERSONAL)});
   E.detail=det; enemies.push(E); attachLabels();
-  if(SPAWNOPT.aware){ E.aware=true; E.st='alert'; }
+  if(SPAWNOPT.aware){ E.aware=true; E.tracks=true; E.mind='hunt'; E.lkp=[PL.x,PL.z]; E.st='alert'; } /* test tool: these always know where you are */
   GAME.clear=false; return E; }
 function clearEnemies(){ meleeClear(); for(const G of GRABS.slice()) endGrab(G); for(const E of enemies){ disposeTree(E.holder); const i=world.kids.indexOf(E.holder); if(i>=0) world.kids.splice(i,1); E.barkEl.remove(); if(E.label){ const k=world.kids.indexOf(E.label); if(k>=0) world.kids.splice(k,1); } }
   enemies=[]; chars.length=0; GAME.clear=false; }
@@ -4050,7 +4188,7 @@ function drawMap(g){ const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.fillRect(0
   if(FLOOR.bx<20){ const a=toMap(FLOOR.bx-.6,-.9),b=toMap(FLOOR.bx+.6,.9); g.fillStyle='#7a1a14'; g.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]); }
   g.font='700 13px "IBM Plex Mono",monospace'; g.fillStyle='#8a857a'; if(!tun){ const a=toMap(-11.5,0),b=toMap(11.5,0); g.fillText('IN',a[0],a[1]); if(FLOOR.mode!=='room'&&!sth) g.fillText('UP',b[0],b[1]); }
   else { const a=toMap(-11.6,-3),b=toMap(3.6,4); g.fillText('IN',a[0],a[1]); g.fillStyle='#5a564e'; g.fillText('OLD BORE',b[0],b[1]); }
-  for(const E of enemies){ const q=toMap(E.B?E.B.x[0]:E.pos[0],E.B?E.B.x[2]:E.pos[1]); g.fillStyle=E.dead?'#5a5650':E.aware?'#ff3b30':'#e8e2cf'; g.beginPath(); g.arc(q[0],q[1],4,0,6.3); g.fill(); }
+  for(const E of enemies){ const q=toMap(E.B?E.B.x[0]:E.pos[0],E.B?E.B.x[2]:E.pos[1]); g.fillStyle=E.dead?'#5a5650':E.aware?'#ff3b30':E.mind==='search'||E.mind==='investigate'?'#f0a030':E.mind==='nervous'?'#e8d27a':'#e8e2cf'; g.beginPath(); g.arc(q[0],q[1],4,0,6.3); g.fill(); }
   { const q=toMap(PL.x,PL.z),f=camBasis().f,a=Math.atan2(f[2],f[0]); g.fillStyle='#7ec27a'; g.beginPath(); g.moveTo(q[0]+Math.cos(a)*9,q[1]+Math.sin(a)*9); g.lineTo(q[0]+Math.cos(a+2.5)*6,q[1]+Math.sin(a+2.5)*6); g.lineTo(q[0]+Math.cos(a-2.5)*6,q[1]+Math.sin(a-2.5)*6); g.fill(); } }
 function uploadMap(){ if(mapTex.glt){ gl.bindTexture(gl.TEXTURE_2D,mapTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,mapTex.c); } }
 function mapPick(px,py){ if(py<MAP_HDR){ for(const b of MAP_BTN) if(px>=b.x&&px<=b.x+160) return b.w; return null; }

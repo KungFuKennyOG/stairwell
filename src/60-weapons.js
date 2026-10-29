@@ -131,7 +131,7 @@ function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye
   it.ammo--; it.cd=w.rof; h.rec=w.pump?1.8:w.cup&&h.support?.5:1; sfx(w.snd||'gun'); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
   if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }
   const Mi=itemM(h),mz=mulP(Mi,w.muzzle),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); muzzle(mz); GAME.shotT=GAME.t;
-  const o=aim?aim.o:mz,d0=aim?aim.d:bd; alertAll([PL.x,0,PL.z]);
+  const o=aim?aim.o:mz,d0=aim?aim.d:bd; noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true}); /* loud, but not floor-wide: a wall or a shut door halves it */
   const n=w.pellets||1,sp=w.spread||.006,tally=new Map();
   for(let i=0;i<n;i++){ const r=bullet(o,norm3(v3.add(d0,[rnd(-sp,sp),rnd(-sp,sp),rnd(-sp,sp)])),w,h); if(r) tally.set(r.E,{n:(tally.get(r.E)||{n:0}).n+1,t:r.t}); }
   if(w.pellets){ flash.t=.1; flash.big=true; for(let i=0;i<10;i++) emit(mz,v3.add(v3.sc(bd,rnd(.6,2.2)),[rnd(-.3,.3),rnd(-.1,.4),rnd(-.3,.3)]),rnd(.012,.03),'dust',.9); /* smoke */
@@ -197,9 +197,12 @@ function updatePickups(dt){ for(const P of LOOSE){ P.age+=dt; if(P.rest) continu
       if(P.item.key==='bottle'){ sfx('glass'); spray(p,v3.sc(dir,-1),12,1.5,.8,'dust',.008); removePickup(P); return updatePickups(0); }
       sfx(w.melee==='knife'?'stab':'punch'); hitMarker(); P.v=v3.sc(P.v,-.15); P.thrown=false; } } }
   const r=.04,q=[n.p[0],n.p[2]]; let floorY=r;
-  for(const b of boxesAt(n.p[0],n.p[2])){ if(n.p[0]>b.x0&&n.p[0]<b.x1&&n.p[2]>b.z0&&n.p[2]<b.z1){ if(old[1]>=b.h-.02&&b.kind!=='wall'&&b.kind!=='door') floorY=Math.max(floorY,b.h+r); else if(n.p[1]<b.h&&n.p[1]>b.y0){ n.p[0]=old[0]; n.p[2]=old[2]; P.v[0]*=-.3; P.v[2]*=-.3; P.thrown=false; } } }
+  for(const b of boxesAt(n.p[0],n.p[2])){ if(n.p[0]>b.x0&&n.p[0]<b.x1&&n.p[2]>b.z0&&n.p[2]<b.z1){ if(old[1]>=b.h-.02&&b.kind!=='wall'&&b.kind!=='door') floorY=Math.max(floorY,b.h+r); else if(n.p[1]<b.h&&n.p[1]>b.y0){ n.p[0]=old[0]; n.p[2]=old[2]; P.v[0]*=-.3; P.v[2]*=-.3; if(P.thrown) clatter(P); P.thrown=false; } } }
   n.p[0]=clamp(n.p[0],-RX+.05,RX-.05); n.p[2]=clamp(n.p[2],-RZ+.05,RZ-.05); n.p[1]=Math.min(n.p[1],RH-.05);
-  if(n.p[1]<floorY){ n.p[1]=floorY; if(Math.abs(P.v[1])<1.2){ P.rest=true; P.thrown=false; n.r=[0,n.r[1],Math.PI/2]; } else { P.v[1]*=-.25; P.v[0]*=.5; P.v[2]*=.5; P.thrown=false; if(P.item.key==='bottle'&&Math.hypot(...P.v)>2.5){ sfx('glass'); removePickup(P); return updatePickups(0); } } } } }
+  if(n.p[1]<floorY){ n.p[1]=floorY; if(Math.abs(P.v[1])<1.2){ P.rest=true; P.thrown=false; n.r=[0,n.r[1],Math.PI/2]; } else { P.v[1]*=-.25; P.v[0]*=.5; P.v[2]*=.5; if(P.thrown) clatter(P); P.thrown=false; if(P.item.key==='bottle'&&Math.hypot(...P.v)>2.5){ sfx('glass'); removePickup(P); return updatePickups(0); } } } } }
+
+/* a thrown thing hitting a wall or the floor: someone nearby comes to see what it was (a bottle smashing carries further) */
+function clatter(P){ const p=P.node.p; noise([p[0],0,p[2]],P.item.key==='bottle'?8:5.5); sfx('bump',.5); }
 
 /* ---------- the armory rack (test floor): every weapon on a hook, take as many as you like ---------- */
 const RACK=[]; let rackN=null;

@@ -23,7 +23,7 @@ function spawnKind(ki){
   const name=K.key==='landlord'?(tun?'Don Aurelio':'The Landlord'):tun?NAMES_ES[(nameI++)%NAMES_ES.length]:NAMES[(nameI++)%NAMES.length],det=DETAILS[(nameI*7)%DETAILS.length];
   const E=spawnEnemy({maker:tun?(h,g)=>cartelChar(CARTEL_OF[K.key],h,g):K.maker,name,x:spot.x,z:spot.z,hd,extra:K.key==='landlord'?(tun?es('¿Sabes quién soy?','Do you know who I am?'):'You know who owns this building?'):tun?pick(TUN_CAST).extra:pick(PERSONAL)});
   E.detail=det; enemies.push(E); attachLabels();
-  if(SPAWNOPT.aware){ E.aware=true; E.st='alert'; }
+  if(SPAWNOPT.aware){ E.aware=true; E.tracks=true; E.mind='hunt'; E.lkp=[PL.x,PL.z]; E.st='alert'; } /* test tool: these always know where you are */
   GAME.clear=false; return E; }
 function clearEnemies(){ meleeClear(); for(const G of GRABS.slice()) endGrab(G); for(const E of enemies){ disposeTree(E.holder); const i=world.kids.indexOf(E.holder); if(i>=0) world.kids.splice(i,1); E.barkEl.remove(); if(E.label){ const k=world.kids.indexOf(E.label); if(k>=0) world.kids.splice(k,1); } }
   enemies=[]; chars.length=0; GAME.clear=false; }
@@ -99,7 +99,7 @@ function drawMap(g){ const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.fillRect(0
   if(FLOOR.bx<20){ const a=toMap(FLOOR.bx-.6,-.9),b=toMap(FLOOR.bx+.6,.9); g.fillStyle='#7a1a14'; g.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]); }
   g.font='700 13px "IBM Plex Mono",monospace'; g.fillStyle='#8a857a'; if(!tun){ const a=toMap(-11.5,0),b=toMap(11.5,0); g.fillText('IN',a[0],a[1]); if(FLOOR.mode!=='room'&&!sth) g.fillText('UP',b[0],b[1]); }
   else { const a=toMap(-11.6,-3),b=toMap(3.6,4); g.fillText('IN',a[0],a[1]); g.fillStyle='#5a564e'; g.fillText('OLD BORE',b[0],b[1]); }
-  for(const E of enemies){ const q=toMap(E.B?E.B.x[0]:E.pos[0],E.B?E.B.x[2]:E.pos[1]); g.fillStyle=E.dead?'#5a5650':E.aware?'#ff3b30':'#e8e2cf'; g.beginPath(); g.arc(q[0],q[1],4,0,6.3); g.fill(); }
+  for(const E of enemies){ const q=toMap(E.B?E.B.x[0]:E.pos[0],E.B?E.B.x[2]:E.pos[1]); g.fillStyle=E.dead?'#5a5650':E.aware?'#ff3b30':E.mind==='search'||E.mind==='investigate'?'#f0a030':E.mind==='nervous'?'#e8d27a':'#e8e2cf'; g.beginPath(); g.arc(q[0],q[1],4,0,6.3); g.fill(); }
   { const q=toMap(PL.x,PL.z),f=camBasis().f,a=Math.atan2(f[2],f[0]); g.fillStyle='#7ec27a'; g.beginPath(); g.moveTo(q[0]+Math.cos(a)*9,q[1]+Math.sin(a)*9); g.lineTo(q[0]+Math.cos(a+2.5)*6,q[1]+Math.sin(a+2.5)*6); g.lineTo(q[0]+Math.cos(a-2.5)*6,q[1]+Math.sin(a-2.5)*6); g.fill(); } }
 function uploadMap(){ if(mapTex.glt){ gl.bindTexture(gl.TEXTURE_2D,mapTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,mapTex.c); } }
 function mapPick(px,py){ if(py<MAP_HDR){ for(const b of MAP_BTN) if(px>=b.x&&px<=b.x+160) return b.w; return null; }

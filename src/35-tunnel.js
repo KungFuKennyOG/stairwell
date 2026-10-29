@@ -114,7 +114,7 @@ function genTunnel(){
 const TUN_LIGHT={amb:[.02,.017,.014],dir:[0,1,0],dirCol:[0,0,0],fog:[.003,.0025,.002],fogNear:1.5,fogFar:11};
 function tunnelLights(){ setLights(Object.assign({},TUN_LIGHT,FLOOR.power?{pl:FLOOR.lights}:{amb:[.003,.003,.003],pl:[]})); }
 function tunnelPower(on){ if(FLOOR.mode!=='tunnel'||FLOOR.power===on) return; FLOOR.power=on;
-  if(!on){ FLOOR.flick=null; sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Qué pasó?','What happened?'),es('¡Prendan la planta!','Start the generator!')]),2.4); } },200+Math.random()*700); } }
+  if(!on){ FLOOR.flick=null; sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Qué pasó?','What happened?'),es('¡Prendan la planta!','Start the generator!')]),2.4); } },200+Math.random()*700); } }
   tunnelLights(); visionApply(); }
 
 /* ---------- seeing in the dark ---------- */

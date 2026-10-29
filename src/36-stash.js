@@ -109,7 +109,7 @@ function genStash(){
 const STASH_LIGHT={amb:[.075,.08,.11],dir:[.35,1,.25],dirCol:[.1,.11,.17],fog:[.012,.014,.024],fogNear:6,fogFar:24};
 function stashLights(){ setLights(Object.assign({},STASH_LIGHT,FLOOR.power?{pl:FLOOR.lights}:{amb:[.035,.038,.055],pl:FLOOR.lights.map((l,i)=>i===5?l:[[0,-50,0],[0,0,0],1])})); }
 function stashPower(on){ if(FLOOR.mode!=='stash'||FLOOR.power===on) return; FLOOR.power=on;
-  if(!on){ sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Quién apagó la planta?','Who shut off the generator?'),es('¡Memo! ¿Qué ves?','Memo! What do you see?')]),2.4); } },200+Math.random()*900); } }
+  if(!on){ sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Quién apagó la planta?','Who shut off the generator?'),es('¡Memo! ¿Qué ves?','Memo! What do you see?')]),2.4); } },200+Math.random()*900); } }
   stashLights(); visionApply(); }
 function stashReset(){ if(FLOOR.power===false){ FLOOR.power=null; stashPower(true); } FLOOR.down=false; stashCast(); visionApply(); }
 function goStash(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genStash(); buildRack(); buildBoard(); SPAWNOPT.where='any'; resetGame(); if(XR.on) vrRecenter(); }
