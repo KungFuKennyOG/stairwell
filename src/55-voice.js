@@ -45,7 +45,7 @@ function vox(E,type,vol=1){ const ac=AC; if(!ac||!E||!E.B) return; const D=VOX[t
   const V=voiceOf(E),slow=GAME.slow?.62:1,fm=GAME.slow?.82:1,reps=D.rep?Math.round(rnd(D.rep[0],D.rep[1])):1;
   const pan=ac.createPanner(); pan.panningModel='HRTF'; pan.distanceModel='inverse'; pan.refDistance=1; pan.rolloffFactor=1.1; pan.maxDistance=30;
   if(pan.positionX){ pan.positionX.value=hp[0]; pan.positionY.value=hp[1]+.08; pan.positionZ.value=hp[2]; } else pan.setPosition(hp[0],hp[1]+.08,hp[2]);
-  const master=ac.createGain(); master.gain.value=vol*D.vol*(.35+.65*clamp(E.cons??1,0,1))*(E.silent&&type!=='rattle'?.4:1)*1.6; master.connect(pan); pan.connect(ac.destination);
+  const master=ac.createGain(); master.gain.value=vol*D.vol*(.35+.65*clamp(E.cons??1,0,1))*(E.silent&&type!=='rattle'?.4:1)*1.6; master.connect(pan); pan.connect(voiceDest(ac,hp)); /* the room, the wall muffle, the limiter */
   const nodes=[]; let t=now+.005,end=t;
   for(let r=0;r<reps;r++){ const dur=rnd(D.dur[0],D.dur[1])/slow; utter(ac,D,V,t,dur,master,nodes,slow,fm); end=t+dur; t=end+(D.gap||0)*rnd(.7,1.3)/slow+(D.rep?rnd(.0,.05):0); }
   VOXN++; E.voxEnd=end; E.voxPri=D.pri; E.voxBusy=true;

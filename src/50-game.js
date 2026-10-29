@@ -443,7 +443,7 @@ function updateBlood(dt){
       else if(pz<=bx.z0) hit={c:[b.x[0],b.x[1],bx.z0-.006],n:[0,0,-1]}; else hit={c:[b.x[0],b.x[1],bx.z1+.006],n:[0,0,1]};
       break; } }
     if(hit&&b.k==='spark'){ BP.splice(i,1); continue; }
-    if(hit&&b.k==='brass'){ if(b.v[1]<-.9&&GAME.t-(GAME.tinkT||0)>.04&&Math.hypot(b.x[0]-PL.x,b.x[2]-PL.z)<9){ GAME.tinkT=GAME.t; sfx('shellhit',clamp(-b.v[1]*.12,.12,.4)); }
+    if(hit&&b.k==='brass'){ if(b.v[1]<-.9&&GAME.t-(GAME.tinkT||0)>.04&&Math.hypot(b.x[0]-PL.x,b.x[2]-PL.z)<9){ GAME.tinkT=GAME.t; const sf=SURF[envAt(b.x[0],b.x[2])]; sfx(sf==='hard'?'shellhit':'brass_dirt',clamp(-b.v[1]*.12,.12,.4)*(sf==='hard'?1:1.6),b.x.slice()); } /* rings on concrete, ticks on dirt and mud */
       if(hit.n[1]>.9&&Math.abs(b.v[1])<1.1){ b.rest=true; b.x=[hit.c[0],hit.c[1]+b.s,hit.c[2]]; b.life=15; }
       else { const vn=v3.dot(b.v,hit.n); b.v=v3.sc(v3.sub(b.v,v3.sc(hit.n,1.5*vn)),.45); b.x=v3.add(hit.c,v3.sc(hit.n,b.s+.004)); } continue; } /* brass rings off the floor two or three times, then lies there */
     if(hit&&(b.k==='gib'||b.k==='bone')){ /* chunks: smear, bounce, then lie there */
@@ -754,7 +754,7 @@ function think(E,dt,t){
       if(FLOOR.power===false&&!E.canSee) sp=Math.min(sp,.75); /* feeling his way in the dark */
       sp*=(.55+.45*legs)*E.rise;
       E.runAmt=lerp(E.runAmt||0,clamp((sp-1.3)/1.6,0,1),Math.min(1,dt*5)); const dir=chase?(E.via?navDir(E.pos[0],E.pos[1],E.via[0],E.via[1],E.navF||NAVD):navDir(E.pos[0],E.pos[1],PL.x,PL.z,E.navF||NAVD)):navTo(E.pos[0],E.pos[1],goal.x,goal.z); E.moveDir=dir; /* a flanker heads for his point on the other route first */
-      { const D=doorNear(E.pos[0],E.pos[1],.9); if(D&&D.state==='closed'){ setDoor(D,'open'); sfx('door',.5); } } /* people who live here just open doors */
+      { const D=doorNear(E.pos[0],E.pos[1],.9); if(D&&D.state==='closed'){ setDoor(D,'open'); sfx('door',.5,[D.x,1.2,D.side]); } } /* people who live here just open doors */
       E.pos[0]+=dir[0]*sp*dt; E.pos[1]+=dir[2]*sp*dt; E.walkAmt=lerp(E.walkAmt,1,Math.min(1,dt*8)); E.walkPh+=dt*(sp<1.3?sp*6.2:7.2+sp*.9); }
     else { E.moveDir=null;
       E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6)); }
@@ -817,16 +817,18 @@ function enemyShoot(E,inBurst){
   const g=gunRay(E),mz=g.mz,KS=KSTAT[E.kind],W=WPN[KIND_WPN[E.kind]];
   if(!inBurst&&v3.dot(g.d,norm3(v3.sub([PL.x,1.45,PL.z],mz)))<Math.cos(.6)) return false; /* not on target yet: hold fire instead of shooting the ceiling */
   if(!inBurst){ const blk=bodyInLine(mz,[PL.x,1.4,PL.z],E); if(blk&&!blk.E.dead&&Math.random()<.75){ if(E.barkCd<=0) bark(E,blk.E.grabbed?pick([`Let ${blk.E.name} go!`,'Let him go, man!','I can\'t get a shot—']):'Move!',1.6); return false; } } /* friends in the way: mostly hold fire */
-  GAME.eShots=(GAME.eShots||0)+1; muzzle(mz,g.d,!!KS.shotgun); muzzleSmoke(mz,g.d,!!KS.shotgun,false); sfx(W.snd||'gun',.5); noise([E.pos[0],0,E.pos[1]],14,{alarm:true,from:E}); /* his friends come to the shooting */
+  GAME.eShots=(GAME.eShots||0)+1; muzzle(mz,g.d,!!KS.shotgun); muzzleSmoke(mz,g.d,!!KS.shotgun,false); sfx(W.snd||'gun',.8,mz); noise([E.pos[0],0,E.pos[1]],14,{alarm:true,from:E}); /* his friends come to the shooting */
   const toPl=Math.hypot(...v3.sub([PL.x,1.45,PL.z],mz)),n=KS.shotgun?6:1,hurtArm=Math.min(E.hp.armL,E.hp.armR)>=.45?1:.55;
   /* how likely a shot finds you: better close, worse far, worse with a hurt arm, worse while you're in bullet time? no: bullet time is yours */
   const pHit=clamp(KS.acc*hurtArm*(KS.shotgun?clamp(1.6-toPl/5,0,1.4):clamp(1.35-toPl/14,.4,1.2)),0,.95);
   let dmg=0;
   for(let k=0;k<n;k++){ const tgt=[PL.x+rnd(-.35,.35),1.45+rnd(-.3,.25),PL.z+rnd(-.35,.35)],d=norm3(v3.add(norm3(v3.sub(tgt,mz)),KS.shotgun?[rnd(-.06,.06),rnd(-.05,.05),rnd(-.06,.06)]:[0,0,0]));
-    const bl=rayBoxes(mz,d,toPl); if(bl){ const hp=v3.add(v3.add(mz,v3.sc(d,bl.t)),v3.sc(bl.n,.004)); addDecal(DEC.hole,hp,bl.n,.025,140); impactFx(hp,bl.n,!!KS.shotgun); continue; }
+    const bl=rayBoxes(mz,d,toPl); if(bl){ const hp=v3.add(v3.add(mz,v3.sc(d,bl.t)),v3.sc(bl.n,.004)); addDecal(DEC.hole,hp,bl.n,.025,140); impactFx(hp,bl.n,!!KS.shotgun); if(k<2) sfx('ric',.7,hp); continue; } /* your cover takes it */
     const bb=bodyInLine(mz,v3.add(mz,v3.sc(d,toPl)),E); if(bb){ hitEnemy(bb.E,bb.seg,bb.p,bb.dir,'gun',{bleed:KS.shotgun?.5:1,sever:KS.shotgun?.7:1,pellet:!!KS.shotgun}); continue; } /* the body in front takes it */
     if(Math.random()<pHit) dmg+=KS.shotgun?KS.dmg/n*clamp(1.4-toPl/7,.25,1.4):KS.dmg;
-    else { const r=rayRoom(mz,d); addDecal(DEC.hole,v3.add(v3.add(mz,v3.sc(d,r.t)),v3.sc(r.n,.004)),r.n,.025,140); } }
+    else { const r=rayRoom(mz,d),hp=v3.add(v3.add(mz,v3.sc(d,r.t)),v3.sc(r.n,.004)); addDecal(DEC.hole,hp,r.n,.025,140);
+      const e=camBasis().eye,tc=clamp(v3.dot(v3.sub(e,mz),d),0,r.t),cp=v3.add(mz,v3.sc(d,tc)); if(k<2&&Math.hypot(...v3.sub(cp,e))<1.6&&tc>1) sfx('whiz',.9,cp); /* it went past your head */
+      if(k<2) sfx(Math.random()<.12?'ricw':'ric',.6,hp); } }
   if(dmg>0) hurtPlayer(Math.round(dmg));
   return true; }
 let flash={t:0,pos:[0,0,0]};
@@ -862,20 +864,24 @@ let SUP12_SND='e';
 /* the mix every effect goes through: guns get a little saturation, a shared concrete-room reverb, and a limiter at the end so
    a shot can be driven hard (loud and dense) without clipping. Built once per audio context. */
 function audioBus(ac){ if(ac.__bus) return ac.__bus;
-  const lim=ac.createDynamicsCompressor(); lim.threshold.value=-3; lim.knee.value=2; lim.ratio.value=20; lim.attack.value=.001; lim.release.value=.18; lim.connect(ac.destination);
-  const inp=ac.createGain(); inp.connect(lim);
-  const sh=ac.createWaveShaper(),cv=new Float32Array(1024); for(let i=0;i<1024;i++){ const x=i/511.5-1; cv[i]=Math.tanh(x*2.2)/Math.tanh(2.2); } sh.curve=cv; sh.connect(inp);
-  /* a concrete stairwell: early slaps at 9, 17, 29, 43 ms, then a ~1 s tail that darkens as it dies */
-  const sr=ac.sampleRate,n=Math.floor(sr*1.3),ir=ac.createBuffer(2,n,sr);
-  for(let c=0;c<2;c++){ const d=ir.getChannelData(c); let lp=0; for(let i=0;i<n;i++){ const tt=i/sr,k=Math.min(.92,.25+tt*.9); lp=lp*k+(Math.random()*2-1)*(1-k); d[i]=lp*3*Math.exp(-tt/.16); }
-    for(const [ms,a] of [[9,.6],[17,.45],[29,.35],[43,.25],[61,.15]]){ const i=Math.floor((ms+c*1.7)/1000*sr); d[i]+=a; d[i+1]-=a*.6; } }
-  const rev=ac.createConvolver(); rev.buffer=ir; const rg=ac.createGain(); rg.gain.value=.55; rev.connect(rg); rg.connect(inp);
-  return ac.__bus={inp,sh,rev}; }
+  const lim=ac.createDynamicsCompressor(); lim.threshold.value=-3; lim.knee.value=2; lim.ratio.value=20; lim.attack.value=.001; lim.release.value=.18; const outG=ac.createGain(); outG.gain.value=.82; lim.connect(outG); outG.connect(ac.destination); /* headroom: the limiter lets the first millisecond of a shot through */
+  const slowLP=ac.createBiquadFilter(); slowLP.type='lowpass'; slowLP.frequency.value=20000; slowLP.Q.value=.5; slowLP.connect(lim); /* bullet time dulls the world (57-acoustics) */
+  const inp=ac.createGain(); inp.connect(slowLP);
+  /* guns: a little saturation, then the place's tone (more low end in a room, more crack outside) */
+  const lo=ac.createBiquadFilter(); lo.type='lowshelf'; lo.frequency.value=160; const hi=ac.createBiquadFilter(); hi.type='highshelf'; hi.frequency.value=3200; lo.connect(hi); hi.connect(inp);
+  const sh=ac.createWaveShaper(),cv=new Float32Array(1024); for(let i=0;i<1024;i++){ const x=i/511.5-1; cv[i]=Math.tanh(x*2.2)/Math.tanh(2.2); } sh.curve=cv; sh.connect(lo);
+  /* the place's reverb: everything sends into revIn, the current place's convolver feeds wet (57-acoustics.js setEnv) */
+  const revIn=ac.createGain(),wet=ac.createGain(); wet.gain.value=.5; wet.connect(inp);
+  ac.__bus={lim,slowLP,inp,lo,hi,sh,revIn,wet,env:null,conv:null}; setEnv(ac,'room',true); return ac.__bus; }
+const UI_SFX=new Set(['click','slowin','slowout','heart']); /* straight to the ears: no room, no bullet-time muffle */
 const GUN_SFX=new Set(['gun','revolver','shotgun','smg','supp','suppsg','suppsg_a','suppsg_b','suppsg_c','suppsg_d','suppsg_e']);
 const GUN_VOL={gun:3.2,revolver:1.8,shotgun:1.5,smg:3.4,supp:2.4}; /* the level each gun hits the limiter at: loud ones loud, the cans well under them */
-const ROOM_SEND={gun:.7,revolver:.65,shotgun:.75,smg:.4,supp:.18,suppsg_a:.25,suppsg_b:.25,suppsg_c:.25,suppsg_d:.25,suppsg_e:.25};
-function sfx(type,vol=1){ const ac=audio(); if(!ac) return; const t=ac.currentTime,out=ac.createGain(),bus=audioBus(ac); out.gain.value=vol*(GUN_VOL[type]||1)*(GAME.slow?.8:1); out.connect(GUN_SFX.has(type)?bus.sh:bus.inp);
-  if(ROOM_SEND[type]){ const sd=ac.createGain(); sd.gain.value=ROOM_SEND[type]; out.connect(sd); sd.connect(bus.rev); }
+const ROOM_SEND={gun:.7,revolver:.65,shotgun:.75,smg:.4,supp:.18,drip:1.1,dog:.8,cricket:.3,ric:.5,ricw:.5,whiz:.15,step_hard:.3,step_grit:.15,step_mud:.35,doorkick:.6,door:.35,glass:.45,suppsg_a:.25,suppsg_b:.25,suppsg_c:.25,suppsg_d:.25,suppsg_e:.25};
+function sfx(type,vol=1,pos){ const ac=audio(); if(!ac) return; const t=ac.currentTime,out=ac.createGain(),bus=audioBus(ac); out.gain.value=vol*(GUN_VOL[type]||1)*(GAME.slow?.8:1);
+  /* pos [x,y,z]: it comes from there (57-acoustics.js spatial: distance, a wall in the way); without one it's right on you */
+  const ui=UI_SFX.has(type),dry=ui?bus.lim:GUN_SFX.has(type)?bus.sh:bus.inp; let rs=ui?0:ROOM_SEND[type]??.22;
+  if(pos&&GAME.started){ const S=spatial(ac,pos,dry); out.connect(S.input); rs*=(S.occ?1.8:1)*1.5/(1.5+S.d*.22); } else out.connect(dry);
+  if(rs>0){ const sd=ac.createGain(); sd.gain.value=rs; out.connect(sd); sd.connect(bus.revIn); }
   const noise=(f0,f1,dur,g,q=.7,kind='lowpass',d=0,hold=0)=>{ const t0=t+d,s=ac.createBufferSource(); s.buffer=NOISE; s.playbackRate.value=GAME.slow?.6:1; const fl=ac.createBiquadFilter(); fl.type=kind; fl.Q.value=q; fl.frequency.setValueAtTime(f0,t0); fl.frequency.exponentialRampToValueAtTime(f1,t0+dur); const gg=ac.createGain(); gg.gain.setValueAtTime(g,t0); if(hold) gg.gain.setValueAtTime(g,t0+hold); gg.gain.exponentialRampToValueAtTime(.001,t0+dur); s.connect(fl); fl.connect(gg); gg.connect(out); s.start(t0,Math.random()*.5); s.stop(t0+dur+.02); };
   const tone=(f0,f1,dur,g,d=0,hold=0)=>{ const t0=t+d,o=ac.createOscillator(); o.frequency.setValueAtTime(f0*(GAME.slow?.6:1),t0); o.frequency.exponentialRampToValueAtTime(f1,t0+dur); const gg=ac.createGain(); gg.gain.setValueAtTime(g,t0); if(hold) gg.gain.setValueAtTime(g,t0+hold); gg.gain.exponentialRampToValueAtTime(.001,t0+dur); o.connect(gg); gg.connect(out); o.start(t0); o.stop(t0+dur+.02); };
   /* gunshots, built like the film can that Kenny matched: a hard crack, a held blast, a low thump, the action, then the room (the send above) */
@@ -914,8 +920,20 @@ function sfx(type,vol=1){ const ac=audio(); if(!ac) return; const t=ac.currentTi
     noise(6000,350,.35,1.9,.7,'lowpass',.004,.04); tone(105,40,.3,1.6,.004,.04); noise(300,70,.32,1.6,.7,'lowpass',.004,.05); /* longer boom */
     noise(8000,7000,.05,.4,.7,'highpass',.002); }                                                                         /* the gap's hiss */
   else if(type==='shotgun'){ noise(10000,4000,.03,2.6,.7,'highpass'); noise(3000,1500,.04,2,1,'bandpass');              /* 12-gauge: the crack */
-    noise(5000,160,.6,2.4,.7,'lowpass',.004,.07); tone(62,24,.6,2.2,.004,.09); tone(125,48,.3,1.4,.004,.05); noise(260,50,.55,2,.7,'lowpass',.004,.1); /* a wall of air and a chest hit */
-    setTimeout(()=>sfx('echo',.4),110); setTimeout(()=>sfx('echo',.2),240); }
+    noise(5000,160,.6,2.4,.7,'lowpass',.004,.07); tone(62,24,.6,2.2,.004,.09); tone(125,48,.3,1.4,.004,.05); noise(260,50,.55,2,.7,'lowpass',.004,.1); /* a wall of air and a chest hit */ }
+  /* the world (57-acoustics.js) */
+  else if(type==='cricket'){ for(const d of [0,.045,.09]) tone(4650,4600,.018,.22,d); }
+  else if(type==='dog'){ const n=Math.random()<.4?3:2; for(let i=0;i<n;i++){ const d=i*rnd(.28,.38),f=rnd(380,460); noise(900,600,.1,.9,3,'bandpass',d); tone(f,f*.75,.11,.5,d); tone(f*2.1,f*1.6,.08,.15,d); } }
+  else if(type==='drip'){ const f=rnd(900,1700); tone(f,f*1.7,.045,.5); tone(f*2.4,f*3,.02,.12); }
+  else if(type==='step_hard'){ noise(5000,1800,.03,.5,.7,'highpass'); tone(95,60,.05,.45); noise(3500,3000,.02,.18,1.5,'bandpass',.035); }
+  else if(type==='step_grit'){ noise(2400,1600,.08,.55,.8,'bandpass'); noise(900,500,.06,.35,.8,'bandpass'); for(const d of [.012,.027,.044]) noise(7000,5000,.012,.25*Math.random()+.05,.7,'highpass',d); }
+  else if(type==='step_mud'){ noise(900,280,.09,.6); noise(520,420,.07,.3,2,'bandpass',.02); tone(70,50,.05,.3); }
+  else if(type==='ric'||type==='ricw'){ noise(3400,2400,.04,.9,1.2,'bandpass'); noise(9000,6000,.02,.5,.7,'highpass'); tone(1900,1450,.02,.2);   /* a round chipping the wall */
+    if(type==='ricw'){ const f=rnd(2600,3500); tone(f,f*rnd(.32,.45),rnd(.3,.45),.16,.01); } }                                     /* and sometimes the whine of it going off somewhere */
+  else if(type==='flesh'){ tone(115,52,.08,.9); noise(1200,280,.09,.8); noise(700,600,.12,.3,2,'bandpass',.02); }
+  else if(type==='whiz'){ noise(5200,1700,.14,.7,2,'bandpass'); tone(2700,1250,.12,.07); }
+  else if(type==='brass'){ for(const [d,a] of [[0,.3],[.09,.16],[.155,.08]]){ tone(4100,4050,.035,a,d); tone(5950,5900,.025,a*.6,d); } }
+  else if(type==='brass_dirt'){ noise(1600,1200,.02,.3,1.5,'bandpass'); tone(2200,2100,.015,.08); }
   else if(type==='echo'){ noise(1400,120,.45,.55); tone(55,30,.3,.35); } /* the corridor answers */
   else if(type==='pumpback'){ noise(2600,900,.07,.6,3,'bandpass'); tone(900,650,.045,.45); }
   else if(type==='pumpfwd'){ noise(1800,700,.08,.7,3,'bandpass'); tone(620,480,.05,.55); setTimeout(()=>sfx('click',.9),40); }
@@ -1020,7 +1038,7 @@ function update(dt,now){
   if(!FLOOR.test&&!GAME.clear&&enemies.length&&enemies.every(E=>E.dead)){ GAME.clear=true; setTimeout(()=>{ if(GAME.clear){ showMsg('FLOOR 01 CLEAR','Three people lived here. Take the stairs, or reset and do it differently.'); if(XR.on) XR.clearT=6; } },2600); }
   if(FLOOR.flick){ const on=(Math.sin(GAME.t*23)+Math.sin(GAME.t*7.3)>-.7)||Math.sin(GAME.t*1.3)>.1,fk=on?1:.15,c=FLOOR.lights[0][1]; L.plCol.set([c[0]*fk,c[1]*fk,c[2]*fk],0); FLOOR.flick.mat.color=on?[1,1,1]:[.3,.3,.32]; }
   flash.t-=dt; if(flash.t>0){ L.plPos.set(flash.pos,21); L.plCol.set(flash.big?[5.5,3.6,1.6]:[2.6,1.8,.9],21); L.plDist[7]=flash.big?9:6; } else { L.plCol.set([0,0,0],21); }
-  updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt); tickStash(dt);
+  updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt); tickStash(dt); acousticsTick(dt);
   if(GAME.slow){ GAME.beatT=(GAME.beatT||0)-dt; if(GAME.beatT<=0){ GAME.beatT=1.05; sfx('heart'); } } else GAME.beatT=0;
   /* the flight up: walk onto it and you climb to the next floor (saved on the stairs) */
   if(GAME.started&&!PL.dead&&!GAME.climbing){ const S=FLOOR.stairUp; if(S&&PL.x>S.x0+.6&&PL.z>S.z0&&PL.z<S.z1) climb(); }

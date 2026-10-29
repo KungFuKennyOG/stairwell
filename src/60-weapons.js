@@ -183,7 +183,7 @@ function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye
   const it=h.item; if(!it||!GAME.started||PL.dead) return false; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.cd>0) return false;
   if(it.ammo<=0){ sfx('click'); it.cd=.25; if(!XR.on) reloadHand(h); return false; }
   if(w.pump&&!it.chambered){ sfx('click'); it.cd=.2; if(XR.on) buzz(h.hand,.2,15); return false; } /* nothing in the chamber: rack it */
-  it.ammo--; it.cd=w.rof; h.rec=(w.pump?1.8:w.cup&&h.support?.5:1)*(it.sup?.8:1); sfx(it.sup?(w.pump?'suppsg':'supp'):w.snd||'gun',it.sup&&w.auto?.8:1); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
+  it.ammo--; it.cd=w.rof; h.rec=(w.pump?1.8:w.cup&&h.support?.5:1)*(it.sup?.8:1); sfx(it.sup?(w.pump?'suppsg':'supp'):w.snd||'gun',it.sup&&w.auto?.8:1); earShot(it.key,it.sup); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
   if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }
   const Mi=itemM(h),mz=mulP(Mi,canMuzzle(w,it)),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); if(!it.sup) muzzle(mz,bd,!!w.pellets); muzzleSmoke(mz,bd,!!w.pellets,!!it.sup); if(!w.loadOne) ejectBrass(h,Mi,w); GAME.shotT=GAME.t;
   const o=aim?aim.o:mz,d0=aim?aim.d:bd; if(it.sup) noise([PL.x,0,PL.z],GUN_SUP[it.key]||4); else noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true}); /* loud, but not floor-wide: a wall or a shut door halves it */
@@ -197,8 +197,8 @@ function bullet(o,d,w,h){
   const wall=rayRoom(o,d),hit=rayEnemiesExact(o,d,wall.t);
   if(hit){ const p=hit.p; hitEnemy(hit.E,hit.seg,p,d,'gun',{bleed:w.bleed||1,sever:w.sever||1,push:w.push||1,pellet:!!w.pellets,dist:hit.t}); hitMist(p,d,!!w.pellets);
     const back=rayRoom(v3.add(p,v3.sc(d,.25)),d); if(back.t<2.6){ const wp=v3.add(v3.add(p,v3.sc(d,.25+back.t)),v3.sc(back.n,.004)); addDecal(DEC.splat,wp,back.n,rnd(.16,.3),260,back.n[1]===0?rnd(.25,.45):undefined); }
-    if(hit.t<1.3) screenBlood(w.pellets?1:3); hitMarker(); if(XR.on) buzz(h.hand,.4,40); return {E:hit.E,t:hit.t}; }
-  else { const p=v3.add(v3.add(o,v3.sc(d,wall.t)),v3.sc(wall.n,.004)); if(wall.b&&wall.b.onHit) wall.b.onHit(p); addDecal(DEC.hole,p,wall.n,.028,140); if(h&&h.item&&h.item.sup) noise(p,3); impactFx(p,wall.n,!!w.pellets); } }
+    sfx('flesh',w.pellets?.45:.8,p); if(hit.t<1.3) screenBlood(w.pellets?1:3); hitMarker(); if(XR.on) buzz(h.hand,.4,40); return {E:hit.E,t:hit.t}; }
+  else { const p=v3.add(v3.add(o,v3.sc(d,wall.t)),v3.sc(wall.n,.004)); if(wall.b&&wall.b.onHit) wall.b.onHit(p); addDecal(DEC.hole,p,wall.n,.028,140); if(!w.pellets||Math.random()<.3) sfx(Math.random()<.1?'ricw':'ric',w.pellets?.4:.6,p); if(h&&h.item&&h.item.sup) noise(p,3); impactFx(p,wall.n,!!w.pellets); } }
 function reloadHand(h){ const it=h.item; if(!it) return; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.ammo>=w.mag) return;
   it.reload=w.loadOne?.42:1.35; sfx(w.loadOne?'shell':'reload'); }
 function tickItem(h,dt){ const it=h.item; h.rec=Math.max(0,h.rec-dt*7); h.cd-=dt; if(!it) return; it.cd-=dt;
@@ -249,7 +249,7 @@ function updatePickups(dt){ for(const P of LOOSE){ P.age+=dt; if(P.rest) continu
       const pointFirst=w.melee==='knife'&&Math.random()<.65;
       if(pointFirst) hitEnemy(hit.E,seg,p,dir,'knife',{bleed:w.bleed||1,sever:(w.sever||1)*.6,stun:1.2,push:.8,power:clamp(sp/5,.6,1.4)}); else hitEnemy(hit.E,seg,p,dir,'blunt',{power:clamp(sp/5,.5,1.4)});
       if(pointFirst&&STICKS[P.item.key]&&ex&&sp>4&&enemies.includes(hit.E)&&!hit.E.segOff.has(SEGS.indexOf(seg))&&embedThrown(P,hit.E,ex.bone,seg,p,dir)){ sfx('stick'); hitMarker(); return updatePickups(0); } /* it sticks in him */
-      if(P.item.key==='bottle'){ sfx('glass'); spray(p,v3.sc(dir,-1),12,1.5,.8,'dust',.008); removePickup(P); return updatePickups(0); }
+      if(P.item.key==='bottle'){ sfx('glass',1,p); spray(p,v3.sc(dir,-1),12,1.5,.8,'dust',.008); removePickup(P); return updatePickups(0); }
       sfx(w.melee==='knife'?'stab':'punch'); hitMarker(); P.v=v3.sc(P.v,-.15); P.thrown=false; } } }
   const r=.04,q=[n.p[0],n.p[2]]; let floorY=r;
   for(const b of boxesAt(n.p[0],n.p[2])){ if(n.p[0]>b.x0&&n.p[0]<b.x1&&n.p[2]>b.z0&&n.p[2]<b.z1){ if(old[1]>=b.h-.02&&b.kind!=='wall'&&b.kind!=='door') floorY=Math.max(floorY,b.h+r); else if(n.p[1]<b.h&&n.p[1]>b.y0){ n.p[0]=old[0]; n.p[2]=old[2]; P.v[0]*=-.3; P.v[2]*=-.3; if(P.thrown) clatter(P); P.thrown=false; } } }
@@ -257,7 +257,7 @@ function updatePickups(dt){ for(const P of LOOSE){ P.age+=dt; if(P.rest) continu
   if(n.p[1]<floorY){ n.p[1]=floorY; if(Math.abs(P.v[1])<1.2){ P.rest=true; P.thrown=false; n.r=[0,n.r[1],Math.PI/2]; } else { P.v[1]*=-.25; P.v[0]*=.5; P.v[2]*=.5; if(P.thrown) clatter(P); P.thrown=false; if(P.item.key==='bottle'&&Math.hypot(...P.v)>2.5){ sfx('glass'); removePickup(P); return updatePickups(0); } } } } }
 
 /* a thrown thing hitting a wall or the floor: someone nearby comes to see what it was (a bottle smashing carries further) */
-function clatter(P){ const p=P.node.p; noise([p[0],0,p[2]],P.item.key==='bottle'?8:5.5); sfx('bump',.5); }
+function clatter(P){ const p=P.node.p; noise([p[0],0,p[2]],P.item.key==='bottle'?8:5.5); sfx('bump',.5,p.slice()); }
 
 /* ---------- the armory rack (test floor): every weapon on a hook, take as many as you like ---------- */
 const RACK=[]; let rackN=null;
@@ -293,7 +293,7 @@ function grabOrDrop(h){
 function tickRack(dt){ for(const R of RACK) if(R.taken>0){ R.taken-=dt; if(R.taken<=0) R.node.vis=true; } }
 
 /* doors: kick one in (loud), or a heavy weapon breaks through */
-function kickDoor(D){ D.loud=true; setDoor(D,'open'); sfx('doorkick'); alertAll([D.x,0,D.side]); }
+function kickDoor(D){ D.loud=true; setDoor(D,'open'); sfx('doorkick',1,[D.x,1.2,D.side]); alertAll([D.x,0,D.side]); }
 
 /* ---------- shot effects: flash, smoke, brass, sparks, blood mist ----------
    All of it goes into the shared particle meshes (one draw per kind), nothing gets a node of its own. */
