@@ -8,11 +8,13 @@
      north       a side passage from the yard to the back strip; the kitchen side door opens onto it
      east  (+x)  the back strip behind the house: the back door into the shaft room, the bedroom window
    Five men. The generator runs every bulb in the house and yard: shoot it and the house goes dark (the streetlight
-   is city power and stays on). Climb into the shaft in the back room and you're in the tunnel.
+   is city power and stays on), and everyone knows something's wrong. Or flip its kill switch by hand, quietly: the lights die,
+   the nearest two walk out to check the generator, the rest look around where they are. Nobody knows you're here yet. Climb into the shaft in the back room and you're in the tunnel.
    ===================================================================================================== */
 const STASH_RECTS=[[-13,-2,-10.2,2,-2],[-10.2,-5.6,-6.4,5.6,-1],[-6.4,-5,-2,5.6,5],[-2,3.9,7,5.6,6],[7,-5,8.6,5.6,7],
   [-2,-5,2.4,.4,0],[-2,.4,2.4,3.9,1],[2.4,-5,7,-.6,2],[2.4,-.6,7,3.9,3]];
 const STASH_SHAFT=[5.4,-3.6];
+const STASH_SW=[-3.62,.76,-4.235]; /* the generator's kill switch, on the front of its engine housing */
 const STASH_CAST=[
   {id:'halcon',name:'Memo',x:-7.25,z:2.4,hd:0,extra:es('Nomás vigilo la calle, güey—','I just watch the street, man—'),detail:'watches the street'},
   {id:'pistolero',name:'Paco',x:-.05,z:-3.0,hd:Math.PI/2,extra:es('Es dinero, llévatelo—','It\'s money, take it—'),detail:'counts the money'},
@@ -72,6 +74,9 @@ function genStash(){
   place(B,'mattress',-12.2,1.45,0); place(B,'bins',-12.6,-1.5,0,1);
   /* ---------- the yard ---------- */
   const gen=powered(place(B,'generator',-3.5,-4.45,0),.75,25); const gb=addBox(-3.95,-3.05,-4.73,-4.17,0,1.0,'generator'); gb.onHit=()=>stashPower(false);
+  /* the kill switch on the engine housing, facing the yard: a black plate, a red lever (up: running, down: off) */
+  { const x=STASH_SW[0],y=STASH_SW[1],z=STASH_SW[2]; mk(box(.13,.15,.025),M(null,{color:0x161618}),G,x,y,z-.012); mk(box(.08,.02,.01),M(null,{color:0xd8d4cc}),G,x,y+.095,z-.002);
+    const lv=N(G,x,y-.02,z+.012); mk(box(.022,.085,.022,{at:[0,.042,0]}),M(null,{color:0xb81a14}),lv); mk(box(.03,.03,.03),M(null,{color:0xb81a14}),lv,0,.085,0); FLOOR.lever=lv; stashLever(); }
   place(B,'gascyl',-2.35,-4.6); place(B,'laundry',-4.4,1.0,Math.PI/2,4.0); place(B,'pchair',-3.0,4.7,2.6); place(B,'bricksPile',-5.6,4.9,0,10,11);
   /* ---------- the count (front room) ---------- */
   place(B,'counttable',.6,-3.0,Math.PI/2); addBox(.12,1.08,-3.92,-2.08,0,.8,'furn');
@@ -108,10 +113,23 @@ function genStash(){
 
 const STASH_LIGHT={amb:[.075,.08,.11],dir:[.35,1,.25],dirCol:[.1,.11,.17],fog:[.012,.014,.024],fogNear:6,fogFar:24};
 function stashLights(){ setLights(Object.assign({},STASH_LIGHT,FLOOR.power?{pl:FLOOR.lights}:{amb:[.035,.038,.055],pl:FLOOR.lights.map((l,i)=>i===5?l:[[0,-50,0],[0,0,0],1])})); }
-function stashPower(on){ if(FLOOR.mode!=='stash'||FLOOR.power===on) return; FLOOR.power=on;
-  if(!on){ FLOOR.offT=GAME.t; sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Quién apagó la planta?','Who shut off the generator?'),es('¡Memo! ¿Qué ves?','Memo! What do you see?')]),2.4); } },200+Math.random()*900); } }
+function stashPower(on,quiet){ if(FLOOR.mode!=='stash'||FLOOR.power===on) return; FLOOR.power=on; stashLever();
+  if(!on){ FLOOR.offT=GAME.t;
+    if(quiet){ /* the engine coughs and dies: they know the power's gone, not that you're here. The nearest two go and look */
+      sfx('click',.9); sfx('slowout',.45); const g=navSnap(STASH_SW[0],STASH_SW[2]+.9),gd=E=>Math.hypot(E.pos[0]-g[0],E.pos[1]-g[1]);
+      const up=enemies.filter(E=>upright(E)&&!E.aware).sort((a,b)=>gd(a)-gd(b));
+      up.forEach((E,i)=>setTimeout(()=>{ if(!upright(E)||E.aware) return; if(i<2){ investigate(E,g); if(i===0) say(E,[es('¿Quién apagó la planta?','Who shut off the generator?'),es('Ahorita la prendo.','I\'ll get it going.')],2.4); }
+        else { if(E.st==='idle') E.st='alert'; startSearch(E,E.pos.slice(),'inv'); if(i===2) say(E,[es('¡Se fue la luz!','The lights went out!'),es('¡Memo! ¿Qué ves?','Memo! What do you see?')],2.4); } },300+i*350+Math.random()*400)); }
+    else { sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Quién apagó la planta?','Who shut off the generator?'),es('¡Memo! ¿Qué ves?','Memo! What do you see?')]),2.4); } },200+Math.random()*900); } } }
+  else { sfx('click',.9); sfx('slowin',.35); }
   stashLights(); visionApply(); }
-function stashReset(){ if(FLOOR.power===false){ FLOOR.power=null; stashPower(true); } FLOOR.down=false; stashCast(); visionApply(); }
+function stashLever(){ if(FLOOR.lever) FLOOR.lever.r=[FLOOR.power===false?2.2:-.3,0,0]; }
+/* flip the kill switch: poke it with a fingertip in VR, or stand by it and press G at a desk. Flips back on too */
+function stashPoke(p,h){ if(FLOOR.mode!=='stash'||!FLOOR.lever||PL.dead) return; const k=h.side+'sw',near=Math.hypot(p[0]-STASH_SW[0],p[1]-STASH_SW[1],p[2]-STASH_SW[2]-.03)<.09;
+  if(near&&!stashPoke.held[k]){ stashPoke.held[k]=true; stashPower(FLOOR.power===false,true); buzz(h.hand,.7,40); } else if(!near) stashPoke.held[k]=false; }
+stashPoke.held={};
+addEventListener('keydown',e=>{ if(e.code!=='KeyG'||!GAME.started||FLOOR.mode!=='stash'||PL.dead) return; if(Math.hypot(PL.x-STASH_SW[0],PL.z-STASH_SW[2])<1.3) stashPower(FLOOR.power===false,true); });
+function stashReset(){ if(FLOOR.power===false){ FLOOR.power=true; FLOOR.offT=null; stashLever(); stashLights(); } FLOOR.down=false; stashCast(); visionApply(); }
 function goStash(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genStash(); buildRack(); buildBoard(); SPAWNOPT.where='any'; resetGame(); if(XR.on) vrRecenter(); }
 /* down the shaft: into the tunnel with whatever is in your hands */
 function stashDescend(){ FLOOR.down=true; sfx('door',.5); if(XR.on) vrToast('El pozo · the tunnel',2.5);

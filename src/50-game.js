@@ -1025,7 +1025,7 @@ function xrFrame(t,xf){
     else { const sx=ax[2]||0; if(Math.abs(sx)>.7&&!XR.snapHeld){ XR.snapHeld=true; const a=-Math.sign(sx)*Math.PI/6,c=Math.cos(a),s=Math.sin(a),dx=XR.origin[0]-eye[0],dz=XR.origin[2]-eye[2];
         XR.origin[0]=eye[0]+dx*c+dz*s; XR.origin[2]=eye[2]-dx*s+dz*c; XR.yaw+=a; } else if(Math.abs(sx)<.3) XR.snapHeld=false;
       if(stickC){ const L=[720,1080,1440],i=(L.indexOf(XR.res)+1)%L.length; XR.res=L[i]; vrToast(['Sharpness: low (more PS1)','Sharpness: medium','Sharpness: high'][i],1.6); } }
-    meleeTick(h,dt); if(!h.supportOf) vrMelee(h,dt); else h.prevPts=null; pokeBoard(fp,h,dt); updateAmmoLabel(h); }
+    meleeTick(h,dt); if(!h.supportOf) vrMelee(h,dt); else h.prevPts=null; pokeBoard(fp,h,dt); stashPoke(fp,h); updateAmmoLabel(h); }
   applySupport(HANDS.R); applySupport(HANDS.L); updateArms(f,u,eye); updateSights(eye);
   /* keep the head out of walls and furniture by sliding the play space */
   { const bx=PL.x,bz=PL.z; collidePlayer(); XR.origin[0]+=PL.x-bx; XR.origin[2]+=PL.z-bz; }
