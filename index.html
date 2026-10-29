@@ -4344,30 +4344,46 @@ function limitBody(E,hard){ /* knees and elbows only bend one way, the head stay
   const Rh=frameFrom(P(PI_.hipL),P(PI_.hipR),P(PI_.pelvis),P(PI_.chest)),Rs=frameFrom(P(PI_.shL),P(PI_.shR),P(PI_.chest),P(PI_.neck));
   for(const s of ['L','R']){
     const hip=P(PI_['hip'+s]),kn=P(PI_['kn'+s]),an=P(PI_['an'+s]),t=norm3(v3.sub(kn,hip)),f=norm3(v3.sub(Rh[2],v3.sc(t,v3.dot(t,Rh[2])))),e=v3.dot(v3.sub(an,kn),f);
-    if(e>.01&&!E.cut['leg'+s]){ nudge(PI_['an'+s],v3.sc(f,-(e-.01)*(hard?.75:.8))); nudge(PI_['kn'+s],v3.sc(f,(e-.01)*(hard?.25:.2))); }
-    const sh=P(PI_['sh'+s]),el=P(PI_['el'+s]),hd=P(PI_['hd'+s]),u=norm3(v3.sub(el,sh)),fa=norm3(v3.sub(Rs[2],v3.sc(u,v3.dot(u,Rs[2])))),ea=v3.dot(v3.sub(hd,el),fa);
-    if(ea<-.01&&!E.cut['arm'+s]){ nudge(PI_['hd'+s],v3.sc(fa,(-ea-.01)*.8)); if(hard) nudge(PI_['el'+s],v3.sc(fa,(ea+.01)*.2)); } }
+    if(e>.01&&!E.cut['leg'+s]&&!hard){ nudge(PI_['an'+s],v3.sc(f,-(e-.01)*.8)); nudge(PI_['kn'+s],v3.sc(f,(e-.01)*.2)); }
+    const sh=P(PI_['sh'+s]),el=P(PI_['el'+s]),hd=P(PI_['hd'+s]),u=norm3(v3.sub(el,sh)),fa0=v3.sub(Rs[2],v3.sc(u,v3.dot(u,Rs[2]))),fa=norm3(fa0),ea=v3.dot(v3.sub(hd,el),fa);
+    if(ea<-.01&&!E.cut['arm'+s]&&Math.hypot(...fa0)>.5){ /* only judged while the upper arm isn't pointing along the chest's forward axis, where 'forward' stops meaning anything */ nudge(PI_['hd'+s],v3.sc(fa,(-ea-.01)*.8)); if(hard) nudge(PI_['el'+s],v3.sc(fa,(ea+.01)*.2)); } }
   const nk=P(PI_.neck),hd=P(PI_.head),d=v3.sub(hd,nk),L=Math.hypot(...d),dn=v3.sc(d,1/(L||1));
-  if(!E.cut.head&&v3.dot(dn,Rs[1])<.5){ const tg=v3.add(nk,v3.sc(norm3(v3.add(dn,v3.sc(Rs[1],.6))),L)); nudge(PI_.head,v3.sc(v3.sub(tg,hd),.3)); }
+  if(!E.cut.head){ const c=v3.dot(dn,Rs[1]);
+    if(!hard){ if(c<.5){ const tg=v3.add(nk,v3.sc(norm3(v3.add(dn,v3.sc(Rs[1],.6))),L)); nudge(PI_.head,v3.sc(v3.sub(tg,hd),.3)); } }
+    else if(c<.42){ /* limp: the head can tip about 63 degrees off the spine; past that it is put back to the edge of that range, not beyond it */
+      const pp=v3.sub(dn,v3.sc(Rs[1],c)),pl=Math.hypot(...pp); if(pl>1e-5){ const tgd=v3.add(v3.sc(Rs[1],.45),v3.sc(pp,.893/pl)),tg=v3.add(nk,v3.sc(tgd,L)); nudge(PI_.head,v3.sc(v3.sub(tg,hd),.8)); } } }
   /* the rest of the skeleton's range: a limp body can only fold the ways a real one does. Each limit is a cone around a bone:
      if the bone leans further than mx along axis ax (in its parent's frame), the end of the bone is eased back. */
   if(!hard) return; /* standing: the muscles already hold a real pose; only limp or downed bodies need the full range checks */
-  const lim=(a,b,ax,mx,also)=>{ const pa=P(a),pb=P(b),v=v3.sub(pb,pa),l=Math.hypot(...v); if(l<1e-6) return; const e=v3.dot(v,ax)/l-mx; if(e<=0) return;
-    const c=v3.sc(ax,-e*l*.8); nudge(b,c); nudge(a,v3.sc(c,-.2)); if(also) nudge(also,v3.sc(c,.6)); };
+  const SL=.035; /* slop: a pose within a hair of a limit is left alone, or a body lying still would be corrected against the floor forever and creep */
+  const lim=(a,b,ax,mx,also,k=.8)=>{ const pa=P(a),pb=P(b),v=v3.sub(pb,pa),l=Math.hypot(...v); if(l<1e-6) return; const e=v3.dot(v,ax)/l-mx-SL; if(e<=0) return;
+    const c=v3.sc(ax,-e*l*k); nudge(b,c); nudge(a,v3.sc(c,-.2)); if(also) nudge(also,v3.sc(c,.6)); };
   const neg=v=>v3.sc(v,-1);
   for(const s of ['L','R']){ const sg=s==='L'?1:-1,out=v3.sc(Rh[0],sg),outS=v3.sc(Rs[0],sg);
     if(!E.cut['leg'+s]){ const hp=PI_['hip'+s],kn=PI_['kn'+s];
       lim(hp,kn,neg(Rh[2]),.42); /* thigh back: ~25 degrees */
       lim(hp,kn,out,.72); lim(hp,kn,neg(out),.38); /* legs spread ~45, cross ~20 */
-      const t=norm3(v3.sub(P(kn),P(hp))),f=norm3(v3.sub(Rh[2],v3.sc(t,v3.dot(t,Rh[2])))),side=norm3(v3.cross(t,f));
-      lim(kn,PI_['an'+s],side,.3); lim(kn,PI_['an'+s],neg(side),.3); /* the knee is a hinge: the shin can't swing sideways */
+      /* the knee is a hinge whose axis is the hips' sideways axis (give or take the hip's own turn), whichever way the thigh points:
+         the shin folds back from it, never forward and never far sideways */
+      const t=norm3(v3.sub(P(kn),P(hp))),hx0=v3.sub(Rh[0],v3.sc(t,v3.dot(Rh[0],t))),hl=Math.hypot(...hx0),hx=hl>1e-4?v3.sc(hx0,1/hl):Rh[0],bk=v3.cross(hx,t);
+      lim(kn,PI_['an'+s],neg(bk),.04);
+      { const an=PI_['an'+s],v=v3.sub(P(an),P(kn)),l=Math.hypot(...v); if(l>1e-5){ const lat=v3.dot(v,hx)/l,ok=.06+.38*Math.max(0,v3.dot(v,bk)/l); /* sideways give grows with the bend: a slightly bent knee can't bend sideways */
+        if(Math.abs(lat)>ok+SL){ const c=v3.sc(hx,-Math.sign(lat)*(Math.abs(lat)-ok-SL)*l*.8); nudge(an,c); nudge(kn,v3.sc(c,-.25)); } } }
       if(!E.sevP[PI_['toe'+s]]){ const an=PI_['an'+s],sh=norm3(v3.sub(P(an),P(kn))),pp=v=>v3.sub(v,v3.sc(sh,v3.dot(v,sh))),
-        fs=norm3(v3.add(v3.sc(pp(t),2),v3.sc(pp(Rh[2]),.5))),fside=norm3(v3.cross(sh,fs));
-        lim(an,PI_['toe'+s],neg(fs),-.3); lim(an,PI_['toe'+s],fside,.45); lim(an,PI_['toe'+s],neg(fside),.45); } } /* the ankle: the foot points out the front of the shin, never backwards or sideways */
+        fs0=v3.add(v3.sc(pp(t),2),v3.sc(pp(Rh[2]),.5)),fs=norm3(fs0),fside=norm3(v3.cross(sh,fs));
+        const fk=.8*clamp((Math.hypot(...fs0)-.25)/.4,0,1); /* how sure we are which way the front of the shin faces */
+        if(fk>0){ const to=PI_['toe'+s]; lim(an,to,neg(fs),.05,0,fk); lim(an,to,neg(sh),.42,0,fk); lim(an,to,fside,.45,0,fk); lim(an,to,neg(fside),.45,0,fk); } } }
+        /* ankle range: toes can point right down the line of the shin (lying face down, the foot lies flat back along the floor),
+           only about 25 degrees up toward the shin, and not far sideways */ /* the ankle: the foot points out the front of the shin, never backwards or sideways */
     if(!E.cut['arm'+s]){ const sh=PI_['sh'+s],el=PI_['el'+s];
       lim(sh,el,neg(Rs[2]),.75); lim(sh,el,v3.sc(outS,-1),.72); } } /* arms don't go far behind the back or through the chest */
   /* the spine: folds well forward, little back or sideways, and only twists so far */
   lim(PI_.pelvis,PI_.neck,neg(Rh[2]),.4,PI_.chest); lim(PI_.pelvis,PI_.neck,Rh[0],.45,PI_.chest); lim(PI_.pelvis,PI_.neck,neg(Rh[0]),.45,PI_.chest);
+  /* how far a knee or elbow can fold: a knee to about 150 degrees (heel near the backside), an elbow to about 145 */
+  if(!B.flexMin){ const bl=(i,j)=>Math.hypot(...v3.sub(B.bind[i],B.bind[j])),m=(a,b,c,deg)=>{ const p=bl(a,b),q=bl(b,c),g=(180-deg)*Math.PI/180; return Math.sqrt(p*p+q*q-2*p*q*Math.cos(g)); };
+    B.flexMin={}; for(const s of ['L','R']){ B.flexMin['leg'+s]=m(PI_['hip'+s],PI_['kn'+s],PI_['an'+s],150); B.flexMin['arm'+s]=m(PI_['sh'+s],PI_['el'+s],PI_['hd'+s],145); } }
+  for(const s of ['L','R']) for(const [lb,a,b] of [['leg'+s,PI_['hip'+s],PI_['an'+s]],['arm'+s,PI_['sh'+s],PI_['hd'+s]]]){ if(E.cut[lb]) continue;
+    const v=v3.sub(P(b),P(a)),l=Math.hypot(...v),mn=B.flexMin[lb]-.01; if(l<mn&&l>1e-5){ const c=v3.sc(v,(mn-l)/l); nudge(b,v3.sc(c,.75)); nudge(a,v3.sc(c,-.25)); } }
   const tw=v3.dot(v3.cross(Rh[0],Rs[0]),Rh[1]);
   if(Math.abs(tw)>.6){ const k=(Math.abs(tw)-.6)*.05*Math.sign(tw); nudge(PI_.shL,v3.sc(Rh[2],k)); nudge(PI_.shR,v3.sc(Rh[2],-k)); }
 }
@@ -4388,9 +4404,11 @@ function selfCollide(E){ const x=E.B.x,sv=E.sevP,cp=[0,0,0],cq=[0,0,0];
     if(a<1e-9){ t=e<1e-9?0:clamp(f/e,0,1); } else { const c=d1x*rx+d1y*ry+d1z*rz; if(e<1e-9){ s=clamp(-c/a,0,1); } else { const b=d1x*d2x+d1y*d2y+d1z*d2z,den=a*e-b*b; s=den>1e-9?clamp((b*f-c*e)/den,0,1):0; t=(b*s+f)/e; if(t<0){ t=0; s=clamp(-c/a,0,1); } else if(t>1){ t=1; s=clamp((b-c)/a,0,1); } } }
     if(s<skip) continue;
     for(let k=0;k<3;k++){ cp[k]=x[a0+k]+(k===0?d1x:k===1?d1y:d1z)*s; cq[k]=x[b0+k]+(k===0?d2x:k===1?d2y:d2z)*t; }
-    let nx=cp[0]-cq[0],ny=cp[1]-cq[1],nz=cp[2]-cq[2],d=Math.hypot(nx,ny,nz); const pen=A[2]+Bs[2]-d; if(pen<=0) continue;
+    let nx=cp[0]-cq[0],ny=cp[1]-cq[1],nz=cp[2]-cq[2],d=Math.hypot(nx,ny,nz); const pen=A[2]+Bs[2]-d-.008; if(pen<=0) continue; /* a few mm of slop, same reason */
     if(d<1e-5){ nx=0; ny=1; nz=0; d=1; } const m=Math.min(pen,.02)*.5/d; nx*=m; ny*=m; nz*=m;
-    const wa=a<1e-9?[1,0]:[1-s,s],wb=e<1e-9?[1,0]:[1-t,t],na=wa[0]*wa[0]+wa[1]*wa[1],nb=wb[0]*wb[0]+wb[1]*wb[1];
+    /* pairs that meet at a joint (thigh against belly or the other thigh, upper arm against the trunk) push the far end of the limb only:
+       the hip and shoulder points are locked to the trunk, and pushing them just makes the two fight */
+    const wa=a<1e-9?[1,0]:skip?[0,1]:[1-s,s],wb=e<1e-9?[1,0]:(skip&&Bs[0]!==PI_.pelvis&&Bs[0]!==PI_.chest)?[0,1]:[1-t,t],na=wa[0]*wa[0]+wa[1]*wa[1],nb=wb[0]*wb[0]+wb[1]*wb[1];
     if(wa[0]) fixP(E.B,A[0],nx*wa[0]/na,ny*wa[0]/na,nz*wa[0]/na); if(wa[1]&&A[0]!==A[1]) fixP(E.B,A[1],nx*wa[1]/na,ny*wa[1]/na,nz*wa[1]/na);
     if(wb[0]) fixP(E.B,Bs[0],-nx*wb[0]/nb,-ny*wb[0]/nb,-nz*wb[0]/nb); if(wb[1]&&Bs[0]!==Bs[1]) fixP(E.B,Bs[1],-nx*wb[1]/nb,-ny*wb[1]/nb,-nz*wb[1]/nb); } }
 function collideBody(E){
@@ -4428,11 +4446,27 @@ function physics(h){
   for(const E of live) E.limp=E.dead||E.sup<.9;
   for(let it=0;it<5;it++){ for(const E of live){ solveBody(E); if(E.limp){ if(it===3) selfCollide(E); else if(it===4) limitBody(E,true); } else if(it===4) limitBody(E); } if(it===2) applyGrabs(h); }
   for(const E of live) collideBody(E);
-  for(const E of live){ E.B.wake=0; if(!E.dead||E.deadT<2.5){ E.calm=0; continue; } let mv=0; const x=E.B.x,p=E.B.p; for(let i=0;i<NP*3;i++) mv=Math.max(mv,Math.abs(x[i]-p[i])); E.calm=mv<.0003?(E.calm||0)+h:0; if(E.calm>1) E.asleep=true; }
+  /* a corpse that has been left alone and is nearly still goes to sleep (no physics) until something touches it. Its joint stops and
+     self-contact would otherwise keep nudging it against the floor forever, and it would creep or bob. Twitching or just-hit bodies stay awake. */
+  for(const E of live){ E.B.wake=0; if(!E.dead||E.deadT<2.2||E.spasm||E.fence||E.grabbed||(E.hitT||0)<1.5){ E.calm=0; continue; } let mv=0,mx=0; const x=E.B.x,p=E.B.p; for(let i=0;i<NP*3;i++){ const d=Math.abs(x[i]-p[i]); mv+=d; if(d>mx) mx=d; } mv/=NP*3; /* average motion: one buzzing foot shouldn't keep the whole body awake */
+    E.calm=mv<.0004&&mx<.01?(E.calm||0)+h:0; if(E.calm>.35||E.deadT>6.5&&(E.hitT||0)>3&&mv<.0025) E.asleep=true; } /* and nothing dead keeps fidgeting past a few seconds of being left alone */
   for(const E of live) if(E.pins) for(const q of E.pins){ const a=q.a*3,i=q.i*3; for(let c=0;c<3;c++){ E.B.x[i+c]=E.B.x[a+c]+q.off[c]; E.B.p[i+c]=E.B.x[i+c]; } } /* a limb that no longer exists */
   for(let i=0;i<live.length;i++) for(let j=i+1;j<live.length;j++) collidePair(live[i],live[j]);
 }
 /* skeleton from particles */
+/* a limb's upper bone (thigh, upper arm) frame for the mesh. The particles say where the bone points but not how it's twisted, and the
+   shortest rotation from rest guesses the twist, so a bent knee or elbow could be drawn bending sideways or backwards even when the points
+   are a proper hinge. Here the bone's sideways axis (its local X, the knee and elbow hinge at rest) is taken from the real bend plane
+   (upper bone x lower bone) once the joint is bent, and from the shortest rotation only while the limb is near straight. */
+function hingeFrame(Rp,bd,dir,low,armSide){ const Rsw=swing(Rp,bd,dir); let xs=Rsw[0];
+  if(!armSide){ const xp=v3.sub(Rp[0],v3.sc(dir,v3.dot(Rp[0],dir))),l=Math.hypot(...xp); if(l>.3) xs=v3.sc(xp,1/l); } /* a knee faces roughly where the hips face */
+  let cr=armSide?v3.cross(low,dir):v3.cross(dir,low); const sn=Math.hypot(...cr); const w=clamp((sn-.06)/.3,0,1);
+  if(w<=0&&xs===Rsw[0]) return Rsw;
+  let h=xs; if(w>0){ cr=v3.sc(cr,1/sn); if(armSide&&v3.dot(cr,xs)<0) xs=v3.sc(xs,-1); h=v3.dot(cr,xs)<-.3?(w>.5?cr:xs):norm3(v3.add(v3.sc(xs,1-w),v3.sc(cr,w))); }
+  const b1=dir,b2=norm3(v3.sub(h,v3.sc(b1,v3.dot(h,b1)))),b3=v3.cross(b1,b2);
+  const a1=norm3(bd),a2=norm3(v3.sub([1,0,0],v3.sc(a1,a1[0]))),a3=v3.cross(a1,a2);
+  const col=k=>[b1[0]*a1[k]+b2[0]*a2[k]+b3[0]*a3[k],b1[1]*a1[k]+b2[1]*a2[k]+b3[1]*a3[k],b1[2]*a1[k]+b2[2]*a2[k]+b3[2]*a3[k]];
+  return [col(0),col(1),col(2)]; }
 function driveRig(E){
   const J=E.J,B=E.B,P=i=>X_(B,PI_[i]),bd=B.bdir;
   const pel=P('pelvis'),Rh=frameFrom(P('hipL'),P('hipR'),pel,P('chest'));
@@ -4455,14 +4489,14 @@ function driveRig(E){
   }
   for(const s of ['L','R']){
     if(!E.cut['arm'+s]){
-    const Ra=swing(Rs,bd['arm'+s],norm3(v3.sub(P('el'+s),P('sh'+s)))); J['arm'+s].r=eul(mtm(Rs,Ra));
+    const Ra=hingeFrame(Rs,bd['arm'+s],norm3(v3.sub(P('el'+s),P('sh'+s))),norm3(v3.sub(P('hd'+s),P('el'+s))),true); J['arm'+s].r=eul(mtm(Rs,Ra));
     const Re=swing(Ra,bd['fore'+s],norm3(v3.sub(P('hd'+s),P('el'+s)))); J['elbow'+s].r=eul(mtm(Ra,Re)); J['hand'+s].r=!E.dead&&E.handRot&&E.wpnHand==='R'&&!E.oneHand&&(s==='R'?E.wpnHeld:true)&&E.st==='alert'?E.handRot[s]:[0,0,0];
     if(!E.dead&&E.oneHand&&E.wpnHeld&&s===E.wpnHand&&E.st==='alert'&&RANGED[E.kind]){ /* wrist turns the gun onto you; it lags and wobbles because the arm is hurt */
       const hp=P('hd'+s),t=GAME.t+E.t0,tp=[PL.x+Math.sin(t*1.7)*.25,1.42+Math.sin(t*2.3)*.15,PL.z+Math.cos(t*1.3)*.25],Z=norm3(v3.sub(tp,hp)),X=norm3(v3.cross([0,1,0],Z)),Y=v3.cross(Z,X);
       const tmp=m4.make(); m4.compose(tmp,[0,0,0],E.C.wpn.r,[1,1,1]); const G=rotOf(tmp),Gt=[[G[0][0],G[1][0],G[2][0]],[G[0][1],G[1][1],G[2][1]],[G[0][2],G[1][2],G[2][2]]];
       J['hand'+s].r=eul(mtm(Re,mm([X,Y,Z],Gt))); } }
     if(!E.cut['leg'+s]){
-    const Rt=swing(Rh,bd['thigh'+s],norm3(v3.sub(P('kn'+s),P('hip'+s)))); J['thigh'+s].r=eul(mtm(Rh,Rt));
+    const Rt=hingeFrame(Rh,bd['thigh'+s],norm3(v3.sub(P('kn'+s),P('hip'+s))),norm3(v3.sub(P('an'+s),P('kn'+s))),false); J['thigh'+s].r=eul(mtm(Rh,Rt));
     const Rk=swing(Rt,bd['shin'+s],norm3(v3.sub(P('an'+s),P('kn'+s)))); J['knee'+s].r=eul(mtm(Rt,Rk));
     const Rf=swing(Rk,bd['foot'+s],norm3(v3.sub(P('toe'+s),P('an'+s)))); J['ankle'+s].r=eul(mtm(Rk,Rf)); } }
   if(E.gunUp&&E.wpnHeld&&!E.oneHand&&!E.dead&&!E.cut.armL&&!E.cut.armR&&(E.st==='alert'||E.st==='idle')){ setCarry(E,E.st==='alert'?'up':'hang'); if(E.carry==='up') holdLongGun(E); }
