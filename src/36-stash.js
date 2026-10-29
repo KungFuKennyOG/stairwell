@@ -73,10 +73,12 @@ function genStash(){
     const bulb=(x,y,z)=>{ mk(cyl(.004,.004,WH-y-.06,3,{at:[0,(WH-y)/2,0]}),mBlack,G,x,y,z); const n=mk(box(.08,.1,.08),M(null,{color:0xffd8a0,unlit:true}),G,x,y,z); n._keep=true; };
     const roofSlab=(x0,z0,x1,z1,h=WH)=>{ mk(box(x1-x0+.2,.2,z1-z0+.2),MT(tCbRaw),G,(x0+x1)/2,h+.1,(z0+z1)/2); addBox(x0,x1,z0,z1,h,h+.2,'ceil'); };
     /* --- the sky past the fog, and the moon --- */
-    /* the sky is a box that rides with the player, 70 m out, so the hills and the city lights never come close */
-    { const sky=N(G,0,0,0); sky.live=true; sky._keep=true; FLOOR.sky=sky;
-      for(const [x,z,ry] of [[0,-70,0],[0,70,Math.PI],[-70,0,Math.PI/2],[70,0,-Math.PI/2]]){ const n=mk(plane(140,80),MT(tSkyCo,{unlit:true,double:true,nofog:true,repeat:[2,1]}),sky,x,28,z,0,ry,0); n.mesh.geo.noCull=true; n._keep=true; }
-      const n=mk(plane(11,11),MT(tMoonCo,{unlit:true,cut:true,double:true,nofog:true,color:0xf0ecd8}),sky,22,34,-68,0,0,0); n.mesh.geo.noCull=true; n._keep=true; }
+    /* the sky is a box that rides with the player, 40 m out (inside the headset's 60 m depth range), with a starry lid, so the hills
+       and the city lights never come close and there is no black hole overhead */
+    { const sky=N(G,0,0,0); sky.live=true; sky._keep=true; FLOOR.sky=sky; const R_=40;
+      for(const [x,z,ry] of [[0,-R_,0],[0,R_,Math.PI],[-R_,0,Math.PI/2],[R_,0,-Math.PI/2]]){ const n=mk(plane(R_*2+.4,46),MT(tSkyCo,{unlit:true,double:true,nofog:true,repeat:[2,1]}),sky,x,16,z,0,ry,0); n.mesh.geo.noCull=true; n._keep=true; }
+      { const n=mk(plane(R_*2+.4,R_*2+.4),MT(tStarsCo,{unlit:true,double:true,nofog:true,repeat:[3,3]}),sky,0,38.9,0,Math.PI/2,0,0); n.mesh.geo.noCull=true; n._keep=true; }
+      const n=mk(plane(6.3,6.3),MT(tMoonCo,{unlit:true,cut:true,double:true,nofog:true,color:0xf0ecd8}),sky,12.6,19.4,-38.6,0,0,0); n.mesh.geo.noCull=true; n._keep=true; }
 
     /* --- ground --- */
     floor(B,-13,-2,-10.2,2,tDust,{tile:2,color:0x8a8070});

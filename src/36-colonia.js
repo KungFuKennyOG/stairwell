@@ -386,6 +386,7 @@ const tChurchIn=P2(32,48,(g,w,h)=>{ const r=rng(1749); vfill(g,0,0,w,h,[[0,'#120
   for(let i=0;i<9;i++){ const x=10+r()*12|0; R(g,'#ffe6a8',x,22,1,1); R(g,'rgba(255,200,120,.5)',x,21,1,1); }
   for(let k=0;k<5;k++){ const y=29+k*3.6|0,inset=Math.max(0,5-k*1.2)|0; R(g,'#0e0806',1+inset,y,13-inset,2); R(g,'#0e0806',18,y,13-inset,2); R(g,'rgba(120,70,36,.5)',1+inset,y,13-inset,1); R(g,'rgba(120,70,36,.5)',18,y,13-inset,1); }
   R(g,'#2a1a10',15,26,2,h-26); },0,1749);
+const tStarsCo=P2(64,64,(g,w,h)=>{ const r=rng(1751); R(g,'#03040a',0,0,w,h); for(let i=0;i<40;i++) R(g,`rgba(220,224,240,${(.2+r()*.55).toFixed(2)})`,r()*w|0,r()*h|0,1,1); },0,1751);
 const tMoonCo=cutTex(32,32,(g,w,h,r)=>{ for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const d=Math.hypot(x-15.5,y-15.5); if(d<10) R(g,d<9?(r()<.12?'#b8b4a4':'#e8e2cc'):'#c8c2ac',x,y,1,1); else if(d<15&&r()<(15-d)/12*.5) R(g,'rgba(120,120,130,.35)',x,y,1,1); } },1742);
 /* packed dirt street: ruts down the middle, gravel, the odd stone, less noise than the first pass */
 const tRoad2Co=P2(64,64,(g,w,h)=>{ const r=rng(1743); vfill(g,0,0,w,h,[[0,'#6c5c48'],[1,'#665644']]);
