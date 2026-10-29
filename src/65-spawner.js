@@ -76,18 +76,20 @@ function pokeBoard(p,h,dt){ if(!boardN) return; if(FLOOR.mode!=='tunnel') pokeMa
 pokeBoard.held={};
 
 /* ---------- the map ---------- */
-const MAPW=512,MAPH=272,MAP_HDR=40,MS=19.2,MX0=(MAPW-26*MS)/2,MY0=MAP_HDR+(MAPH-MAP_HDR-12*MS)/2;
+const MAPW=512,MAPH=272,MAP_HDR=40; let MS=19.2,MX0=(MAPW-26*MS)/2,MY0=MAP_HDR+(MAPH-MAP_HDR-12*MS)/2;
+/* the plan view is scaled to fit whatever size the level's world is (the tower and stash house keep their old scale) */
+function mapFit(){ MS=RX===13&&RZ===6?19.2:Math.min((MAPW-16)/(2*RX),(MAPH-MAP_HDR-10)/(2*RZ)); MX0=(MAPW-2*RX*MS)/2; MY0=MAP_HDR+(MAPH-MAP_HDR-2*RZ*MS)/2; }
 const MAP_M=[2.2,2.2*MAPH/MAPW],MAP_X=-12.915,MAP_Y=1.32;
 const mapTex={c:(()=>{ const c=document.createElement('canvas'); c.width=MAPW; c.height=MAPH; return c; })(),glt:null,f:-1,text:''};
 const MAP_BTN=[{w:'near',x:8,l:'NEAR ME'},{w:'corridor',x:176,l:'HALLWAY'},{w:'any',x:344,l:'ANY ROOM'}];
 /* plan view: west (where you start) on the left, east (the stairs up) on the right, the south row (-z) on top */
-const toMap=(x,z)=>[MX0+(x+13)*MS,MY0+(z+6)*MS];
-function drawMap(g){ const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.fillRect(0,0,MAPW,MAPH); g.fillStyle='#e2a33d'; g.fillRect(0,0,MAPW,3);
+const toMap=(x,z)=>[MX0+(x+RX)*MS,MY0+(z+RZ)*MS];
+function drawMap(g){ mapFit(); const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.fillRect(0,0,MAPW,MAPH); g.fillStyle='#e2a33d'; g.fillRect(0,0,MAPW,3);
   g.textAlign='center'; g.textBaseline='middle';
   for(const b of MAP_BTN){ const on=W===b.w; g.fillStyle=on?'#e2a33d':'#23262a'; g.fillRect(b.x,7,160,28); g.fillStyle=on?'#0a0a0a':'#f2ede2'; g.font='800 18px "Big Shoulders Display","Arial Narrow",sans-serif'; g.fillText(b.l,b.x+80,22,150); }
   const R=(x0,z0,x1,z1,fill,stroke)=>{ const a=toMap(Math.min(x0,x1),Math.min(z0,z1)),b=toMap(Math.max(x0,x1),Math.max(z0,z1)); g.fillStyle=fill; g.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]); if(stroke){ g.strokeStyle=stroke; g.lineWidth=2; g.strokeRect(a[0]+1,a[1]+1,b[0]-a[0]-2,b[1]-a[1]-2); } };
   const tun=FLOOR.mode==='tunnel',sth=FLOOR.mode==='stash';
-  if(tun){ for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const id=k*NX+i,sp=FLOOR.space[id]; if(sp===-9||sp>=0||FLOOR.nav[id]) continue; const x=cellX(i),z=cellZ(k); R(x-.27,z-.27,x+.27,z+.27,sp===-3?'#141619':W==='corridor'?'#7a5a20':'#1e2124'); } } /* the tunnel as dug, the old bore darker */
+  if(tun){ for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const id=k*NX+i,sp=FLOOR.space[id]; if(sp===-9||sp>=0||FLOOR.nav[id]) continue; const x=cellX(i),z=cellZ(k); R(x-.27,z-.27,x+.27,z+.27,sp===-3||sp===-6||sp===-5?'#141619':W==='corridor'?'#7a5a20':'#1e2124'); } } /* the tunnel as dug, the old bore darker */
   else { R(-13,-2,-10,2,'#1b1a18'); if(!sth) R(10,-2,13,2,'#1b1a18'); }
   if(sth) R(-10.2,-5.6,-6.4,5.6,W==='corridor'?'#7a5a20':'#1e2124','#3a3d40'); /* the street */
   if(FLOOR.mode!=='room'&&!tun&&!sth) R(-10,-1,10,1,W==='corridor'?'#7a5a20':'#1e2124','#3a3d40');
@@ -98,12 +100,12 @@ function drawMap(g){ const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.fillRect(0
     const c=toMap((u.x0+u.x1)/2,tun||sth?(u.z0+u.z1)/2:u.side*3.5); g.fillStyle=W===u.id?'#0a0a0a':'#c4bfb3'; g.font='700 15px "IBM Plex Mono",monospace'; g.fillText(u.apt,c[0],c[1]); }
   if(FLOOR.bx<20){ const a=toMap(FLOOR.bx-.6,-.9),b=toMap(FLOOR.bx+.6,.9); g.fillStyle='#7a1a14'; g.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]); }
   g.font='700 13px "IBM Plex Mono",monospace'; g.fillStyle='#8a857a'; if(!tun){ const a=toMap(-11.5,0),b=toMap(11.5,0); g.fillText('IN',a[0],a[1]); if(FLOOR.mode!=='room'&&!sth) g.fillText('UP',b[0],b[1]); }
-  else { const a=toMap(-11.6,-3),b=toMap(3.6,4); g.fillText('IN',a[0],a[1]); g.fillStyle='#5a564e'; g.fillText('OLD BORE',b[0],b[1]); }
+  else { const a=toMap(-11.6,-3),b=toMap(3.6,4); g.fillText('IN',a[0],a[1]); }
   for(const E of enemies){ const q=toMap(E.B?E.B.x[0]:E.pos[0],E.B?E.B.x[2]:E.pos[1]); g.fillStyle=E.dead?'#5a5650':E.aware?'#ff3b30':E.mind==='search'||E.mind==='investigate'?'#f0a030':E.mind==='nervous'?'#e8d27a':'#e8e2cf'; g.beginPath(); g.arc(q[0],q[1],4,0,6.3); g.fill(); }
   { const q=toMap(PL.x,PL.z),f=camBasis().f,a=Math.atan2(f[2],f[0]); g.fillStyle='#7ec27a'; g.beginPath(); g.moveTo(q[0]+Math.cos(a)*9,q[1]+Math.sin(a)*9); g.lineTo(q[0]+Math.cos(a+2.5)*6,q[1]+Math.sin(a+2.5)*6); g.lineTo(q[0]+Math.cos(a-2.5)*6,q[1]+Math.sin(a-2.5)*6); g.fill(); } }
 function uploadMap(){ if(mapTex.glt){ gl.bindTexture(gl.TEXTURE_2D,mapTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,mapTex.c); } }
 function mapPick(px,py){ if(py<MAP_HDR){ for(const b of MAP_BTN) if(px>=b.x&&px<=b.x+160) return b.w; return null; }
-  const x=(px-MX0)/MS-13,z=(py-MY0)/MS-6; if(FLOOR.mode==='stash'&&x>-10.2&&x<-6.4&&Math.abs(z)<5.6) return 'corridor'; if(FLOOR.mode!=='room'&&FLOOR.mode!=='stash'&&Math.abs(x)<10&&Math.abs(z)<1) return 'corridor';
+  const x=(px-MX0)/MS-RX,z=(py-MY0)/MS-RZ; if(FLOOR.mode==='stash'&&x>-10.2&&x<-6.4&&Math.abs(z)<5.6) return 'corridor'; if(FLOOR.mode!=='room'&&FLOOR.mode!=='stash'&&Math.abs(x)<10&&Math.abs(z)<1) return 'corridor';
   const u=FLOOR.units.find(u=>x>=u.x0&&x<u.x1&&(u.room?z>u.z0&&z<u.z1:Math.sign(z)===u.side&&Math.abs(z)>1&&Math.abs(z)<6)); return u?u.id:null; }
 function pickWhere(w){ if(w==null) return false; SPAWNOPT.where=w; sfx('click',.8); drawMap(mapTex.c.getContext('2d')); uploadMap(); if(window.__mapCv) drawMap(window.__mapCv.getContext('2d')); return true; }
 function pokeMap(p,h){ const inside=p[0]<MAP_X+.08&&p[0]>MAP_X-.05&&Math.abs(p[2])<MAP_M[0]/2&&Math.abs(p[1]-MAP_Y)<MAP_M[1]/2,k=h.side+'map';

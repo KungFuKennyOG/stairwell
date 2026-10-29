@@ -5,7 +5,7 @@
    people who live there, doors that open, and lights.
    West stairwell (-x) is where you come in; on the test floor it is the armory landing. East (+x) goes up.
    ===================================================================== */
-const RX=13,RZ=6,RH=2.8;
+let RX=13,RZ=6; const RH=2.8; /* the world: x in ±RX, z in ±RZ. 26 x 12 m for the tower and the stash house; the tunnel is bigger */
 const BOXES=[];                       /* {x0,x1,z0,z1,y0,h,kind} axis-aligned, y from y0 to h */
 const floorN=N(world);
 const FLOOR={n:1,seed:1,test:true,nav:null,space:null,units:[],doors:[],lights:[],start:{x:-11.3,z:0,yaw:-Math.PI/2},flick:null,bx:0,party:[]};
@@ -14,7 +14,7 @@ function addBox(x0,x1,z0,z1,y0,h,kind){ const b={x0:Math.min(x0,x1),x1:Math.max(
 function removeBox(b){ const i=BOXES.indexOf(b); if(i>=0) BOXES.splice(i,1); boxGridDirty=true; }
 
 /* boxes bucketed on a 1 m grid so a body, a blood drop or the player only tests the few boxes around it */
-const BG_W=RX*2,BG_H=RZ*2; let boxGrid=null,boxGridDirty=true;
+let BG_W=RX*2,BG_H=RZ*2,boxGrid=null,boxGridDirty=true;
 function buildBoxGrid(){ boxGrid=Array.from({length:BG_W*BG_H},()=>[]);
   for(const b of BOXES){ const i0=Math.max(0,Math.floor(b.x0-.3+RX)),i1=Math.min(BG_W-1,Math.floor(b.x1+.3+RX)),k0=Math.max(0,Math.floor(b.z0-.3+RZ)),k1=Math.min(BG_H-1,Math.floor(b.z1+.3+RZ));
     for(let k=k0;k<=k1;k++) for(let i=i0;i<=i1;i++) boxGrid[k*BG_W+i].push(b); }
@@ -24,7 +24,7 @@ function boxesAt(x,z){ if(boxGridDirty) buildBoxGrid(); const i=Math.floor(x+RX)
 
 /* ---------- generation ---------- */
 const FURN_H={mattress:.27,bed:.5,couch:.9,tv:.92,table:.77,counter:.92,fridge:1.7,crates:1.1,trash:.35,wardrobe:1.9,desk:.78,filing:1.3,bucket:.3};
-function genFloor(n,seed,test=true){
+function genFloor(n,seed,test=true){ setWorld(13,6);
   disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
   FLOOR.n=n; FLOOR.seed=seed; FLOOR.test=test; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.mode='tower'; FLOOR.power=true; setLang(false); FLOOR.start={x:-11.3,z:0,yaw:-Math.PI/2};
   const G=floorN; GEO_TEMP=true;
@@ -197,9 +197,12 @@ function rayRoom(o,d){ let best={t:1e9,n:[0,1,0]};
 function sightClear(a,b){ const d=v3.sub(b,a),L=Math.hypot(...d); if(L<1e-3) return true; const h=rayBoxes(a,v3.sc(d,1/L),L,x=>x.kind==='wall'||x.kind==='door'||x.h>1.5); return !h; }
 
 /* ---------- navigation: one distance field from the player, shared by everyone hunting him ---------- */
-let navDirty=true,navT=0,navGen=0; const NAVD=new Int32Array(NX*NZ);
-const navCell=(x,z)=>{ const i=Math.round((x+13)*2),k=Math.round((z+6)*2); return (i<0||k<0||i>=NX||k>=NZ)?-1:k*NX+i; };
-const NAVPEN=new Uint8Array(NX*NZ);
+let navDirty=true,navT=0,navGen=0,NAVD=new Int32Array(NX*NZ);
+const navCell=(x,z)=>{ const i=Math.round((x+RX)*2),k=Math.round((z+RZ)*2); return (i<0||k<0||i>=NX||k>=NZ)?-1:k*NX+i; };
+let NAVPEN=new Uint8Array(NX*NZ);
+/* size the world for a level: everything that clamps to it, the box buckets, the nav grid and its cached fields */
+function setWorld(rx,rz){ if(RX===rx&&RZ===rz) return; RX=rx; RZ=rz; BG_W=RX*2; BG_H=RZ*2; boxGrid=null; boxGridDirty=true;
+  NX=RX*4+1; NZ=RZ*4+1; NAVD=new Int32Array(NX*NZ); NAVPEN=new Uint8Array(NX*NZ); NAVF.clear(); navGen++; navDirty=true; }
 /* Dijkstra on 8 neighbours (10 straight, 14 diagonal, no corner cutting) with a bucket queue; pen marks cells that cost extra */
 function navField(F,src,pen){ const nav=FLOOR.nav; F.fill(1e9); const buckets=[[src]]; F[src]=0;
   for(let dd=0;dd<buckets.length;dd++){ const q=buckets[dd]; if(!q) continue;
@@ -222,13 +225,13 @@ function navUpdate(dt,tx,tz){ navT-=dt; if(navT>0&&!navDirty) return; navT=.25; 
   const mark=c=>{ const ci=c%NX,ck=(c-ci)/NX; for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni>=0&&nk>=0&&ni<NX&&nk<NZ) NAVPEN[nk*NX+ni]=1; } };
   for(let n=0;n<H.length&&n<6;n++){ const E=H[n].E,c0=H[n].c; let F=NAVD;
     if(E.via&&(E.canSee||Math.hypot(E.pos[0]-E.via[0],E.pos[1]-E.via[1])<1.0||GAME.t-E.viaT>20)){ E.via=null; E.viaDone=true; }
-    if(n>0&&!E.via&&!E.viaDone){ E.navFB=E.navFB||new Int32Array(NX*NZ); navField(E.navFB,src,NAVPEN);
+    if(n>0&&!E.via&&!E.viaDone){ E.navFB=E.navFB&&E.navFB.length===NX*NZ?E.navFB:new Int32Array(NX*NZ); navField(E.navFB,src,NAVPEN);
       /* how far does his new route stray from the plain shortest one? if it goes a genuinely different way, commit to its far point */
       const plain=[]; trace(NAVD,c0,c=>plain.push(c)); let far=-1,fd=0;
       trace(E.navFB,c0,c=>{ const x=cellX(c%NX),z=cellZ((c-c%NX)/NX); let m=1e9; for(const q of plain){ const d=Math.hypot(x-cellX(q%NX),z-cellZ((q-q%NX)/NX)); if(d<m) m=d; } if(m>fd){ fd=m; far=c; } });
       if(far>=0&&fd>2.5){ E.via=[cellX(far%NX),cellZ((far-far%NX)/NX)]; E.viaT=GAME.t; } }
-    if(E.via){ E.navFB=E.navFB||new Int32Array(NX*NZ); navField(E.navFB,navCell(E.via[0],E.via[1]),null); E.navF=E.navFB; trace(E.navF,c0,mark); continue; }
-    if(n>0){ E.navFB=E.navFB||new Int32Array(NX*NZ); navField(E.navFB,src,NAVPEN); E.navF=F=E.navFB; }
+    if(E.via){ E.navFB=E.navFB&&E.navFB.length===NX*NZ?E.navFB:new Int32Array(NX*NZ); navField(E.navFB,navCell(E.via[0],E.via[1]),null); E.navF=E.navFB; trace(E.navF,c0,mark); continue; }
+    if(n>0){ E.navFB=E.navFB&&E.navFB.length===NX*NZ?E.navFB:new Int32Array(NX*NZ); navField(E.navFB,src,NAVPEN); E.navF=F=E.navFB; }
     trace(F,c0,mark); } }
 /* fields to other spots (where he was last seen or heard, a search point, home), cached per cell; rebuilt only for a new floor */
 const NAVF=new Map();
@@ -261,7 +264,7 @@ function freeSpot(pred,minD=4){ for(let tries=0;tries<400;tries++){ const i=Math
 /* ---------- the first room (test): the one-apartment level from prototype 01, rebuilt next to the armory landing ----------
    The landing (rack, spawn board, map) is the same; walk east through the doorway into the apartment. Dani, Marco and Teo live here. */
 const ROOM_DX=-6; /* the old room was centred on 0; here it sits between x -10 and -2 */
-function genRoom(n){
+function genRoom(n){ setWorld(13,6);
   disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
   FLOOR.n=n; FLOOR.test=true; FLOOR.mode='room'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; setLang(false); FLOOR.start={x:-11.3,z:0,yaw:-Math.PI/2};
   const G=floorN,T=.14,H_=RH; GEO_TEMP=true;

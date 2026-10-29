@@ -107,4 +107,6 @@ function aiGoal(E,dt,t){
 function footsteps(dt){ if(!GAME.started||PL.dead) return;
   const v=Math.hypot(PL.x-(PL.px??PL.x),PL.z-(PL.pz??PL.z))/Math.max(dt,1e-3); PL.px=PL.x; PL.pz=PL.z; if(v>6) return; /* teleports, resets */
   PL.spdS=lerp(PL.spdS||0,v,Math.min(1,dt*6)); PL.stepT=(PL.stepT||0)-dt;
+  if(typeof tunWet==='function'&&tunWet(PL.x,PL.z)){ /* wading: every step splashes, and it carries */
+    if(PL.spdS>.45&&PL.stepT<=0){ PL.stepT=.55; sfx('splat',.22+.1*Math.min(1,PL.spdS/2)); noise([PL.x,0,PL.z],5+PL.spdS*1.5); } return; }
   if(PL.spdS>1.5&&PL.stepT<=0){ PL.stepT=.45; noise([PL.x,0,PL.z],2.8+(PL.spdS-1.5)*2); } }

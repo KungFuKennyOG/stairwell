@@ -313,7 +313,7 @@ function collidePair(A,Bd){
 function wakeBody(E){ E.asleep=false; E.calm=0; E.B.wake=0; }
 function physics(h){
   for(const E of enemies) if(E.asleep){ const q=E.B.x; if(E.B.wake||E.grabbed||Math.hypot(q[0]-PL.x,q[2]-PL.z)<.7||enemies.some(O=>O!==E&&!O.asleep&&Math.hypot(O.B.x[0]-q[0],O.B.x[2]-q[2])<1.1)) wakeBody(E); }
-  const live=enemies.filter(E=>!E.asleep);
+  const live=enemies.filter(E=>!E.asleep&&!E.dormant);
   for(const E of live) stepBody(E,h);
   applyGrabs(h);
   for(let it=0;it<5;it++){ for(const E of live){ solveBody(E); if(it===4) limitBody(E); } if(it===2) applyGrabs(h); }
@@ -880,9 +880,14 @@ function update(dt,now){
   for(const E of enemies) think(E,gdt,GAME.t);
   /* a body that falls asleep inside this frame's physics already had its rig set to the pose (pose space, at the origin) by targetsFor,
      so it still has to be driven back onto its particles this frame, or its head, hands and shoes stay floating at the origin while it sleeps */
-  for(const E of enemies){ E.posed=!E.asleep; if(E.posed) targetsFor(E,GAME.t,gdt); }
+  /* dormant: someone calm at his post, unhurt, far from you. His body stands frozen in its last pose (no physics, no skinning) until you
+     come within 14 m or anything happens to him. A long level can hold a dozen people and still only pay for the few near you. */
+  for(const E of enemies){ E.liveT=(E.liveT||0)+gdt;
+    const far=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)>(E.dormant?14:16),calm=!E.dead&&!E.aware&&(!E.mind||E.mind==='calm')&&E.st==='idle'&&!E.wounds.length&&!E.grabbed&&E.stun<.01&&!E.B.wake;
+    E.dormant=calm&&far&&E.liveT>1.5; }
+  for(const E of enemies){ E.posed=!E.asleep&&!E.dormant; if(E.posed) targetsFor(E,GAME.t,gdt); }
   GAME.acc+=gdt; let n=0; while(GAME.acc>=H&&n<14){ physics(H); GAME.acc-=H; n++; } if(n>=14) GAME.acc=0;
-  for(const E of enemies){ if(!E.asleep||E.posed){ driveRig(E); skinUpdate(E.C); } bleedFx(E,gdt); poolFx(E,gdt); }
+  for(const E of enemies){ if(!E.dormant&&(!E.asleep||E.posed)){ driveRig(E); skinUpdate(E.C); } bleedFx(E,gdt); poolFx(E,gdt); }
   updateBlood(gdt); updatePickups(gdt); updateEmbedded(); updateShells(gdt); tickRack(gdt); tickMap(dt); buildBloodMeshes(); voiceListener();
   if(!FLOOR.test&&!GAME.clear&&enemies.length&&enemies.every(E=>E.dead)){ GAME.clear=true; setTimeout(()=>{ if(GAME.clear){ showMsg('FLOOR 01 CLEAR','Three people lived here. Take the stairs, or reset and do it differently.'); if(XR.on) XR.clearT=6; } },2600); }
   if(FLOOR.flick){ const on=(Math.sin(GAME.t*23)+Math.sin(GAME.t*7.3)>-.7)||Math.sin(GAME.t*1.3)>.1,fk=on?1:.15,c=FLOOR.lights[0][1]; L.plCol.set([c[0]*fk,c[1]*fk,c[2]*fk],0); FLOOR.flick.mat.color=on?[1,1,1]:[.3,.3,.32]; }

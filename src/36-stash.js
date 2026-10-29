@@ -23,7 +23,7 @@ const STASH_CAST=[
   {id:'comando',name:'Gera',x:4.3,z:-2.4,hd:-Math.PI/2,extra:es('Yo no sé nada del túnel—','I don\'t know anything about the tunnel—'),detail:'guards the shaft'}];
 function stashCast(){ for(const sp of STASH_CAST){ const E=spawnEnemy(Object.assign({},sp,{maker:(h,g)=>cartelChar(sp.id,h,g)})); E.detail=sp.detail; enemies.push(E); } attachLabels(); }
 
-function genStash(){
+function genStash(){ setWorld(13,6);
   disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
   FLOOR.n=3; FLOOR.test=true; FLOOR.mode='stash'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; FLOOR.down=false; setLang(true);
   const G=floorN, B={g:G}; GEO_TEMP=true;
