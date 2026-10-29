@@ -185,20 +185,20 @@ function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye
   if(w.pump&&!it.chambered){ sfx('click'); it.cd=.2; if(XR.on) buzz(h.hand,.2,15); return false; } /* nothing in the chamber: rack it */
   it.ammo--; it.cd=w.rof; h.rec=(w.pump?1.8:w.cup&&h.support?.5:1)*(it.sup?.8:1); sfx(it.sup?(w.pump?'suppsg':'supp'):w.snd||'gun',it.sup&&w.auto?.8:1); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
   if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }
-  const Mi=itemM(h),mz=mulP(Mi,canMuzzle(w,it)),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); if(!it.sup) muzzle(mz); GAME.shotT=GAME.t;
+  const Mi=itemM(h),mz=mulP(Mi,canMuzzle(w,it)),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); if(!it.sup) muzzle(mz,bd,!!w.pellets); muzzleSmoke(mz,bd,!!w.pellets,!!it.sup); if(!w.loadOne) ejectBrass(h,Mi,w); GAME.shotT=GAME.t;
   const o=aim?aim.o:mz,d0=aim?aim.d:bd; if(it.sup) noise([PL.x,0,PL.z],GUN_SUP[it.key]||4); else noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true}); /* loud, but not floor-wide: a wall or a shut door halves it */
   const n=w.pellets||1,sp=w.spread||.006,tally=new Map();
   for(let i=0;i<n;i++){ const r=bullet(o,norm3(v3.add(d0,[rnd(-sp,sp),rnd(-sp,sp),rnd(-sp,sp)])),w,h); if(r) tally.set(r.E,{n:(tally.get(r.E)||{n:0}).n+1,t:r.t}); }
-  if(w.pellets){ if(!it.sup){ flash.t=.1; flash.big=true; } for(let i=0;i<(it.sup?5:10);i++) emit(mz,v3.add(v3.sc(bd,rnd(.6,2.2)),[rnd(-.3,.3),rnd(-.1,.4),rnd(-.3,.3)]),rnd(.012,.03),'dust',.9); /* smoke */
+  if(w.pellets){
     for(const [E,r] of tally) shotgunShove(E,d0,r.n,r.t); }
   if(it.ammo===0&&!XR.on) setTimeout(()=>reloadHand(h),250);
   return true; }
 function bullet(o,d,w,h){
   const wall=rayRoom(o,d),hit=rayEnemiesExact(o,d,wall.t);
-  if(hit){ const p=hit.p; hitEnemy(hit.E,hit.seg,p,d,'gun',{bleed:w.bleed||1,sever:w.sever||1,push:w.push||1,pellet:!!w.pellets,dist:hit.t});
+  if(hit){ const p=hit.p; hitEnemy(hit.E,hit.seg,p,d,'gun',{bleed:w.bleed||1,sever:w.sever||1,push:w.push||1,pellet:!!w.pellets,dist:hit.t}); hitMist(p,d,!!w.pellets);
     const back=rayRoom(v3.add(p,v3.sc(d,.25)),d); if(back.t<2.6){ const wp=v3.add(v3.add(p,v3.sc(d,.25+back.t)),v3.sc(back.n,.004)); addDecal(DEC.splat,wp,back.n,rnd(.16,.3),260,back.n[1]===0?rnd(.25,.45):undefined); }
     if(hit.t<1.3) screenBlood(w.pellets?1:3); hitMarker(); if(XR.on) buzz(h.hand,.4,40); return {E:hit.E,t:hit.t}; }
-  else { const p=v3.add(v3.add(o,v3.sc(d,wall.t)),v3.sc(wall.n,.004)); if(wall.b&&wall.b.onHit) wall.b.onHit(p); addDecal(DEC.hole,p,wall.n,.028,140); if(h&&h.item&&h.item.sup) noise(p,3); for(let i=0;i<(w.pellets?2:8);i++) emit(p,v3.add(v3.sc(wall.n,rnd(.6,1.6)),[rnd(-.5,.5),rnd(0,.8),rnd(-.5,.5)]),rnd(.006,.012),'dust',.8); } }
+  else { const p=v3.add(v3.add(o,v3.sc(d,wall.t)),v3.sc(wall.n,.004)); if(wall.b&&wall.b.onHit) wall.b.onHit(p); addDecal(DEC.hole,p,wall.n,.028,140); if(h&&h.item&&h.item.sup) noise(p,3); impactFx(p,wall.n,!!w.pellets); } }
 function reloadHand(h){ const it=h.item; if(!it) return; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.ammo>=w.mag) return;
   it.reload=w.loadOne?.42:1.35; sfx(w.loadOne?'shell':'reload'); }
 function tickItem(h,dt){ const it=h.item; h.rec=Math.max(0,h.rec-dt*7); h.cd-=dt; if(!it) return; it.cd-=dt;
@@ -294,3 +294,47 @@ function tickRack(dt){ for(const R of RACK) if(R.taken>0){ R.taken-=dt; if(R.tak
 
 /* doors: kick one in (loud), or a heavy weapon breaks through */
 function kickDoor(D){ D.loud=true; setDoor(D,'open'); sfx('doorkick'); alertAll([D.x,0,D.side]); }
+
+/* ---------- shot effects: flash, smoke, brass, sparks, blood mist ----------
+   All of it goes into the shared particle meshes (one draw per kind), nothing gets a node of its own. */
+const MF=[]; /* live muzzle flames: {p,d,big,t,roll,k} */
+/* one atlas: left half a star seen down the barrel, right half the flame seen from the side (base at the muzzle) */
+const tMuzzle=blobTex(32,16,904,(g,r)=>{
+  for(let y=0;y<16;y++) for(let x=0;x<16;x++){ const dx=x+.5-8,dy=y+.5-8,d=Math.hypot(dx,dy),a=Math.atan2(dy,dx),ray=Math.pow(Math.abs(Math.cos(a*2.5+.4)),5),lim=2.4+ray*5.4*(.75+.5*r());
+    if(d<lim) R(g,d<1.7?'#fffcec':d<3.1?'#ffe490':d<lim-1?'#ffb040':'#f07a1e',x,y,1,1); }
+  for(let y=0;y<16;y++) for(let x=16;x<32;x++){ const u=(x-16+.5)/16,half=Math.sin(Math.PI*Math.pow(u,.6))*6.6*(.7+.6*r())+(u<.15?1.2:0),dy=Math.abs(y+.5-8);
+    if(dy<half) R(g,dy<half*.38&&u<.6?'#fffcec':dy<half*.7&&u<.75?'#ffd474':'#f5862a',x,y,1,1); } });
+/* a dithered puff, pale so the material colour tints it (grey smoke, red mist) */
+const tPuff=blobTex(16,16,905,(g,r)=>{ const B=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+  for(let y=0;y<16;y++) for(let x=0;x<16;x++){ const d=Math.hypot(x+.5-8,y+.5-8)/7.6*(.85+.3*r()),p=1-Math.pow(d,1.6); if(p*16>B[(y&3)*4+(x&3)]+.5) R(g,r()<.5?'#efebe4':'#d2cdc4',x,y,1,1); } });
+function quadAx(A,c,X,Y,uv){ const b=A.P.length/3,n=norm3(v3.cross(X,Y));
+  for(const [u,v] of [[-1,-1],[1,-1],[1,1],[-1,1]]){ const q=v3.add(c,v3.add(v3.sc(X,u),v3.sc(Y,v))); A.P.push(q[0],q[1],q[2]); A.Nm.push(n[0],n[1],n[2]); A.T.push(uv[0]+(u+1)/2*(uv[2]-uv[0]),uv[1]+(v+1)/2*(uv[3]-uv[1])); }
+  A.I.push(b,b+1,b+2,b,b+2,b+3); }
+/* a spark is a short streak along its flight, facing you */
+function streak(A,b,nf){ const sp=Math.hypot(...b.v)||1,dir=v3.sc(b.v,1/sp); let X=v3.sub(dir,v3.sc(nf,v3.dot(dir,nf))); const xl=Math.hypot(...X);
+  if(xl<.2){ quad(A,b.x,nf,b.s); return; } X=v3.sc(X,1/xl); const Y=v3.cross(nf,X),len=Math.min(.09,sp*.011)+b.s;
+  quadAx(A,v3.sub(b.x,v3.sc(X,len*.5)),v3.sc(X,len*.5),v3.sc(Y,b.s),[0,0,1,1]); }
+/* the flame: a star facing you at the muzzle, and two crossed blades along the bore so it reads from the side too */
+function buildFlashes(nf){ const A=newA();
+  for(const f of MF){ const L=(f.big?.36:.15)*f.k,W=(f.big?.12:.05)*f.k,S=(f.big?.13:.06)*f.k;
+    let X=Math.abs(nf[1])>.95?[1,0,0]:norm3(v3.cross([0,1,0],nf)); let Y=v3.cross(nf,X); const c=Math.cos(f.roll),s=Math.sin(f.roll),X2=v3.add(v3.sc(X,c),v3.sc(Y,s)),Y2=v3.sub(v3.sc(Y,c),v3.sc(X,s));
+    quadAx(A,v3.add(f.p,v3.sc(f.d,S*.3)),v3.sc(X2,S),v3.sc(Y2,S),[0,0,.5,1]);
+    const bx=Math.abs(f.d[1])>.95?[1,0,0]:norm3(v3.cross([0,1,0],f.d)),by=v3.cross(f.d,bx),cc=v3.add(f.p,v3.sc(f.d,L*.5));
+    for(const a of [f.roll,f.roll+1.5708]){ const P=v3.add(v3.sc(bx,Math.cos(a)),v3.sc(by,Math.sin(a))); quadAx(A,cc,v3.sc(f.d,L*.5),v3.sc(P,W),[.5,0,1,1]); } }
+  dynSet('mflash',A); }
+/* smoke out of the barrel: a few puffs for a handgun, a cloud for the shotgun, a wisp through a can */
+function muzzleSmoke(mz,d,big,sup){ const n=sup?2:big?9:4,sz=big?.03:sup?.012:.018;
+  for(let i=0;i<n;i++){ const p=v3.add(mz,v3.sc(d,rnd(0,big?.25:.06)));
+    emit(p,v3.add(v3.sc(d,rnd(.3,big?2.6:1.2)),[rnd(-.15,.15),rnd(0,.25),rnd(-.15,.15)]),sz*rnd(.7,1.3),'smoke',rnd(.7,1.4)*(big?1.4:1),{drag:3.2,lift:.35,grow:big?2.6:2.2}); } }
+/* a bullet into a wall: a few sparks, chips that fall, and a puff of dust that hangs a moment */
+function impactFx(p,n,pellet){
+  for(let i=0;i<(pellet?2:5);i++) emit(p,v3.add(v3.sc(n,rnd(1.2,3.8)),[rnd(-2,2),rnd(-.6,2),rnd(-2,2)]),.0035,'spark',rnd(.08,.26));
+  for(let i=0;i<(pellet?2:7);i++) emit(p,v3.add(v3.sc(n,rnd(.8,2.2)),[rnd(-.7,.7),rnd(0,1),rnd(-.7,.7)]),rnd(.005,.011),'dust',.8);
+  for(let i=0;i<(pellet?1:3);i++) emit(v3.add(p,v3.sc(n,.02)),v3.add(v3.sc(n,rnd(.3,1)),[rnd(-.2,.2),rnd(0,.2),rnd(-.2,.2)]),rnd(.02,.035),'smoke',rnd(.6,1.1),{drag:4,lift:.15,grow:3}); }
+/* a bullet into a man: a red puff where it went in and a bigger one out the back, on top of the blood he already sprays */
+function hitMist(p,d,pellet){
+  for(let i=0;i<(pellet?1:2);i++) emit(p,v3.add(v3.sc(d,-rnd(.2,.7)),[rnd(-.2,.2),rnd(-.1,.2),rnd(-.2,.2)]),rnd(.018,.028),'mist',rnd(.18,.3),{drag:6,lift:-.5,grow:5});
+  for(let i=0;i<(pellet?1:3);i++) emit(v3.add(p,v3.sc(d,.12)),v3.add(v3.sc(d,rnd(.8,2.4)),[rnd(-.3,.3),rnd(-.1,.3),rnd(-.3,.3)]),rnd(.022,.035),'mist',rnd(.22,.38),{drag:5,lift:-.6,grow:6}); }
+/* brass out of the right side of the 9mm and the MP5, up and over, ringing when it lands */
+function ejectBrass(h,Mi,w){ const p=mulP(Mi,[.014,w.axisY+.006,w.muzzle[2]*.3]),X=colOf(Mi,0),Y=colOf(Mi,1),Z=colOf(Mi,2);
+  emit(p,v3.add(v3.add(v3.add(v3.sc(norm3(X),rnd(1.3,2.1)),v3.sc(norm3(Y),rnd(1.1,1.8))),v3.sc(norm3(Z),rnd(-.5,.05))),h.vel?v3.sc(h.vel,.5):[0,0,0]),.0055,'brass',15); }

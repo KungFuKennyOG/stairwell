@@ -420,11 +420,15 @@ function quad(A,c,n,s,rot=0,sy){ let X=Math.abs(n[1])>.9?[1,0,0]:norm3(v3.cross(
   for(const [u,v] of [[-1,-1],[1,-1],[1,1],[-1,1]]){ const q=v3.add(c,v3.add(v3.sc(X2,u*s),v3.sc(Y2,v*syy))); A.P.push(q[0],q[1],q[2]); A.Nm.push(n[0],n[1],n[2]); A.T.push((u+1)/2,(v+1)/2); }
   A.I.push(b,b+1,b+2,b,b+2,b+3); }
 function cube(A,c,s){ for(const n of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]) quad(A,v3.add(c,v3.sc(n,s)),n,s); }
-function emit(pos,vel,size,kind,life=3){ if(BP.length>820) BP.splice(0,40); BP.push({x:pos.slice(),v:vel.slice(),s:size,k:kind,life}); }
+function emit(pos,vel,size,kind,life=3,o){ if(BP.length>820) BP.splice(0,40); const b={x:pos.slice(),v:vel.slice(),s:size,k:kind,life}; if(o) Object.assign(b,o,{s0:size,age:0,L0:life}); BP.push(b); }
 function spray(pos,dir,n,speed,spread,kind='dark',size=.012){ for(let i=0;i<n;i++){ const v=v3.add(v3.sc(norm3(v3.add(dir,[rnd(-spread,spread),rnd(-spread,spread),rnd(-spread,spread)])),speed*rnd(.4,1.15)),[0,rnd(0,.6),0]); emit(pos,v,size*rnd(.6,1.6),kind); } }
 function addDecal(list,c,n,s,max=220,sy){ if(list.length>max) list.shift(); list.push({c,n,s,rot:Math.random()*6.28,sy}); list.ver=(list.ver||0)+1; }
 function updateBlood(dt){
-  for(let i=BP.length-1;i>=0;i--){ const b=BP[i]; if(b.rest){ b.life-=dt; if(b.life<=0) BP.splice(i,1); continue; } b.v[1]-=9.8*dt; const dr=1-1.2*dt; b.v[0]*=dr; b.v[2]*=dr;
+  for(let i=MF.length-1;i>=0;i--){ MF[i].t-=dt; if(MF[i].t<=0) MF.splice(i,1); } /* muzzle flames run on game time: in bullet time you watch them bloom */
+  for(let i=BP.length-1;i>=0;i--){ const b=BP[i];
+    if(b.k==='smoke'||b.k==='mist'){ b.life-=dt; b.age+=dt; if(b.life<=0){ BP.splice(i,1); continue; } const dr=Math.max(0,1-b.drag*dt); b.v[0]*=dr; b.v[1]=b.v[1]*dr+b.lift*dt; b.v[2]*=dr;
+      b.x[0]+=b.v[0]*dt; b.x[1]+=b.v[1]*dt; b.x[2]+=b.v[2]*dt; const f=b.life/b.L0; b.s=b.s0*(1+b.age*b.grow)*(f<.35?f/.35:1); continue; } /* swells, then thins away */
+    if(b.rest){ b.life-=dt; if(b.life<=0) BP.splice(i,1); continue; } b.v[1]-=9.8*dt; const dr=1-1.2*dt; b.v[0]*=dr; b.v[2]*=dr;
     b.x[0]+=b.v[0]*dt; b.x[1]+=b.v[1]*dt; b.x[2]+=b.v[2]*dt; b.life-=dt;
     let hit=null;
     if(b.x[1]<=.002) hit={c:[b.x[0],.003+Math.random()*.001,b.x[2]],n:[0,1,0]};
@@ -438,6 +442,10 @@ function updateBlood(dt){
       else if(px<=bx.x0) hit={c:[bx.x0-.006,b.x[1],b.x[2]],n:[-1,0,0]}; else if(px>=bx.x1) hit={c:[bx.x1+.006,b.x[1],b.x[2]],n:[1,0,0]};
       else if(pz<=bx.z0) hit={c:[b.x[0],b.x[1],bx.z0-.006],n:[0,0,-1]}; else hit={c:[b.x[0],b.x[1],bx.z1+.006],n:[0,0,1]};
       break; } }
+    if(hit&&b.k==='spark'){ BP.splice(i,1); continue; }
+    if(hit&&b.k==='brass'){ if(b.v[1]<-.9&&GAME.t-(GAME.tinkT||0)>.04&&Math.hypot(b.x[0]-PL.x,b.x[2]-PL.z)<9){ GAME.tinkT=GAME.t; sfx('shellhit',clamp(-b.v[1]*.12,.12,.4)); }
+      if(hit.n[1]>.9&&Math.abs(b.v[1])<1.1){ b.rest=true; b.x=[hit.c[0],hit.c[1]+b.s,hit.c[2]]; b.life=15; }
+      else { const vn=v3.dot(b.v,hit.n); b.v=v3.sc(v3.sub(b.v,v3.sc(hit.n,1.5*vn)),.45); b.x=v3.add(hit.c,v3.sc(hit.n,b.s+.004)); } continue; } /* brass rings off the floor two or three times, then lies there */
     if(hit&&(b.k==='gib'||b.k==='bone')){ /* chunks: smear, bounce, then lie there */
       if(b.k==='gib'&&Math.random()<.8) addDecal(DEC.splat,hit.c,hit.n,b.s*rnd(2,3.5),260,hit.n[1]===0?b.s*rnd(3,6):undefined);
       if(hit.n[1]>.9){ b.rest=true; b.x=[hit.c[0],hit.c[1]+b.s*.6,hit.c[2]]; b.life=Math.max(b.life,20); }
@@ -447,9 +455,9 @@ function updateBlood(dt){
 }
 function buildBloodMeshes(){
   /* drops are single squares facing you (a sixth of the vertices of cubes); decals are only rebuilt when they change */
-  const A={bright:newA(),dark:newA(),dust:newA(),gib:newA(),bone:newA()},nf=v3.sc(camBasis().f,-1);
-  for(const b of BP) quad(A[b.k],b.x,nf,b.s*1.25);
-  for(const k in A) dynSet(k,A[k]);
+  const A={bright:newA(),dark:newA(),dust:newA(),gib:newA(),bone:newA(),spark:newA(),smoke:newA(),mist:newA(),brass:newA()},nf=v3.sc(camBasis().f,-1);
+  for(const b of BP){ if(b.k==='spark') streak(A.spark,b,nf); else if(b.k==='brass') cube(A.brass,b.x,b.s); else quad(A[b.k],b.x,nf,b.s*1.25,b.rot||0); }
+  for(const k in A) dynSet(k,A[k]); buildFlashes(nf);
   const now=performance.now(); buildBloodMeshes.at=buildBloodMeshes.at||{};
   for(const key of ['splat','pool','hole']){ const L_=DEC[key],v=L_.ver||0,at=buildBloodMeshes.at; if(at[key]&&at[key].v===v) continue; if(key==='pool'&&at[key]&&now-at[key].t<200) continue; at[key]={v,t:now};
     const Q=newA(); DEC[key].forEach((d,i)=>{ const c=d.n[1]>.9?[d.c[0],d.c[1]+i*.00003,d.c[2]]:d.c; quad(Q,c,d.n,d.s,d.n[1]===0?0:d.rot,d.sy); }); dynSet(key,Q); }
@@ -809,20 +817,20 @@ function enemyShoot(E,inBurst){
   const g=gunRay(E),mz=g.mz,KS=KSTAT[E.kind],W=WPN[KIND_WPN[E.kind]];
   if(!inBurst&&v3.dot(g.d,norm3(v3.sub([PL.x,1.45,PL.z],mz)))<Math.cos(.6)) return false; /* not on target yet: hold fire instead of shooting the ceiling */
   if(!inBurst){ const blk=bodyInLine(mz,[PL.x,1.4,PL.z],E); if(blk&&!blk.E.dead&&Math.random()<.75){ if(E.barkCd<=0) bark(E,blk.E.grabbed?pick([`Let ${blk.E.name} go!`,'Let him go, man!','I can\'t get a shot—']):'Move!',1.6); return false; } } /* friends in the way: mostly hold fire */
-  GAME.eShots=(GAME.eShots||0)+1; muzzle(mz); sfx(W.snd||'gun',.5); noise([E.pos[0],0,E.pos[1]],14,{alarm:true,from:E}); /* his friends come to the shooting */
+  GAME.eShots=(GAME.eShots||0)+1; muzzle(mz,g.d,!!KS.shotgun); muzzleSmoke(mz,g.d,!!KS.shotgun,false); sfx(W.snd||'gun',.5); noise([E.pos[0],0,E.pos[1]],14,{alarm:true,from:E}); /* his friends come to the shooting */
   const toPl=Math.hypot(...v3.sub([PL.x,1.45,PL.z],mz)),n=KS.shotgun?6:1,hurtArm=Math.min(E.hp.armL,E.hp.armR)>=.45?1:.55;
   /* how likely a shot finds you: better close, worse far, worse with a hurt arm, worse while you're in bullet time? no: bullet time is yours */
   const pHit=clamp(KS.acc*hurtArm*(KS.shotgun?clamp(1.6-toPl/5,0,1.4):clamp(1.35-toPl/14,.4,1.2)),0,.95);
   let dmg=0;
   for(let k=0;k<n;k++){ const tgt=[PL.x+rnd(-.35,.35),1.45+rnd(-.3,.25),PL.z+rnd(-.35,.35)],d=norm3(v3.add(norm3(v3.sub(tgt,mz)),KS.shotgun?[rnd(-.06,.06),rnd(-.05,.05),rnd(-.06,.06)]:[0,0,0]));
-    const bl=rayBoxes(mz,d,toPl); if(bl){ addDecal(DEC.hole,v3.add(v3.add(mz,v3.sc(d,bl.t)),v3.sc(bl.n,.004)),bl.n,.025,140); continue; }
+    const bl=rayBoxes(mz,d,toPl); if(bl){ const hp=v3.add(v3.add(mz,v3.sc(d,bl.t)),v3.sc(bl.n,.004)); addDecal(DEC.hole,hp,bl.n,.025,140); impactFx(hp,bl.n,!!KS.shotgun); continue; }
     const bb=bodyInLine(mz,v3.add(mz,v3.sc(d,toPl)),E); if(bb){ hitEnemy(bb.E,bb.seg,bb.p,bb.dir,'gun',{bleed:KS.shotgun?.5:1,sever:KS.shotgun?.7:1,pellet:!!KS.shotgun}); continue; } /* the body in front takes it */
     if(Math.random()<pHit) dmg+=KS.shotgun?KS.dmg/n*clamp(1.4-toPl/7,.25,1.4):KS.dmg;
     else { const r=rayRoom(mz,d); addDecal(DEC.hole,v3.add(v3.add(mz,v3.sc(d,r.t)),v3.sc(r.n,.004)),r.n,.025,140); } }
   if(dmg>0) hurtPlayer(Math.round(dmg));
   return true; }
 let flash={t:0,pos:[0,0,0]};
-function muzzle(p){ flash={t:.06,pos:p,big:false}; }
+function muzzle(p,d,big){ flash={t:big?.1:.06,pos:p,big:!!big}; if(d) MF.push({p,d,big:!!big,t:big?.05:.034,roll:Math.random()*6.28,k:rnd(.8,1.25)}); }
 /* a close load hits like a car: he's driven back off his feet, straight back (no spin, no hop) */
 function shotgunShove(E,d,n,t){ if(n<3||t>5.5) return; const fl=norm3([d[0],0,d[2]]),k=clamp((5.5-t)/3.5,0,1.2)*(.9+.22*n);
   for(let i=0;i<NP;i++){ const nm=PD[i][0],w=/^(toe|an)/.test(nm)?.25:/^kn/.test(nm)?.6:1; kickV(E.B,i,v3.sc(fl,k*w*1.5),H); }
@@ -882,7 +890,7 @@ function sfx(type,vol=1){ const ac=audio(); if(!ac) return; const t=ac.currentTi
   else if(type==='slowin'){ tone(220,55,.7,.5); noise(900,90,.7,.35); }
   else if(type==='slowout'){ tone(60,240,.35,.35); noise(150,1200,.3,.25); }
   else if(type==='heart'){ tone(58,40,.14,.55); setTimeout(()=>{ if(GAME.slow) tone2(); },180); function tone2(){ const a=audio(); if(!a) return; const o=a.createOscillator(),gg=a.createGain(),t2=a.currentTime; o.frequency.setValueAtTime(52,t2); o.frequency.exponentialRampToValueAtTime(36,t2+.12); gg.gain.setValueAtTime(.4,t2); gg.gain.exponentialRampToValueAtTime(.001,t2+.12); o.connect(gg); gg.connect(a.destination); o.start(t2); o.stop(t2+.14); } }
-  else if(type==='supp'){ noise(2600,420,.11,.55,1.2,'bandpass'); tone(150,70,.07,.45); noise(700,160,.09,.35); setTimeout(()=>sfx('click',.8),30); setTimeout(()=>sfx('shellhit',.35),260); } /* a cough, the slide cycling, brass on the floor */
+  else if(type==='supp'){ noise(2600,420,.11,.55,1.2,'bandpass'); tone(150,70,.07,.45); noise(700,160,.09,.35); setTimeout(()=>sfx('click',.8),30); } /* a cough and the slide cycling; the brass makes its own sound when it lands */
   else if(type==='suppsg') sfx('suppsg_'+SUP12_SND,vol*({a:.45,b:.6,c:.43,d:.5,e:.5}[SUP12_SND]||.5)*.2); /* evened out so none of the takes clips */
   /* the 12-gauge can, three takes (SUP12_SND picks): a: an airy cough, a hard puff of gas with a short crack on the front and a dead room after it
      b: the same with more weight in the chest, less air   c: hissier, tighter, close to a pneumatic tool. No boom, no corridor echo. */
@@ -941,7 +949,7 @@ function climb(){ GAME.climbing=true; const n=Math.min(30,FLOOR.n+1); sfx('door'
     $('floorTag').textContent='Floor '+String(n).padStart(2,'0')+' · test'; GAME.climbing=false; },350); }
 function resetGame(){
   clearEnemies(); for(const P of LOOSE.slice()) removePickup(P);
-  BP.length=0; DEC.splat.length=0; DEC.pool.length=0; DEC.hole.length=0; for(const k in DEC) DEC[k].ver=(DEC[k].ver||0)+1;
+  BP.length=0; MF.length=0; DEC.splat.length=0; DEC.pool.length=0; DEC.hole.length=0; for(const k in DEC) DEC[k].ver=(DEC[k].ver||0)+1;
   Object.assign(PL,{x:FLOOR.start.x,z:FLOOR.start.z,yaw:FLOOR.start.yaw,pitch:0,hp:100,hurtT:9,kickCd:0,dead:false});
   for(const D of FLOOR.doors) if(D.state==='open'&&D.u.doorState==='closed') setDoor(D,'closed',true);
   /* desk testing starts armed; in VR you start with your fists and walk to the rack */
