@@ -172,17 +172,17 @@ const mUp=col(0x23468a), mBeamO=col(0xd4661c), mDeck=col(0x5a5c60), mPal=col(0x8
 Object.assign(FX,{
   /* a load on a pallet: cardboard, wrapped, drums, or bricks of product */
   wLoad(g,kind,seed){ const r=rng(seed); mk(box(1.1,.14,1.0,{at:[0,.07,0]}),mPal,g);
-    if(kind===0){ const hh=.5+r()*.8; mk(box(1.02,hh,.94,{at:[0,hh/2,0]}),MT(tCard),g,0,.14,0); }
-    else if(kind===1){ const hh=.7+r()*.7; mk(box(1.04,hh,.96,{at:[0,hh/2,0]}),MT(tWrapL),g,0,.14,0); }
-    else if(kind===2){ for(let i=0;i<4;i++) mk(cyl(.27,.27,.86,8,{at:[0,.43,0]}),col([0x2a4a8a,0x2a4a8a,0x3a3a3c][i%3]),g,(i%2-.5)*.56,.14,((i>>1)-.5)*.5); }
-    else { mk(box(1.0,.55,.9,{at:[0,.275,0]}),MT(tCard),g,0,.14,0); for(let i=0;i<6;i++) mk(box(.3,.12,.22),col(0xe8e4dc),g,-.32+(i%3)*.32,.76,-.15+(i/3|0)*.3); } },
+    if(kind===0){ const hh=.5+r()*.8; mk(box(1.02,hh,.94,{at:[0,hh/2,0]}),MT(tCard),g,0,.14,0); return .14+hh; }
+    if(kind===1){ const hh=.7+r()*.7; mk(box(1.04,hh,.96,{at:[0,hh/2,0]}),MT(tWrapL),g,0,.14,0); return .14+hh; }
+    if(kind===2){ for(let i=0;i<4;i++) mk(cyl(.27,.27,.86,8,{at:[0,.43,0]}),col([0x2a4a8a,0x2a4a8a,0x3a3a3c][i%3]),g,(i%2-.5)*.56,.14,((i>>1)-.5)*.5); return 1.0; }
+    mk(box(1.0,.55,.9,{at:[0,.275,0]}),MT(tCard),g,0,.14,0); for(let i=0;i<6;i++) mk(box(.3,.12,.22),col(0xe8e4dc),g,-.32+(i%3)*.32,.76,-.15+(i/3|0)*.3); return .82; },
   /* a run of pallet racking along local x: blue uprights, orange beams, wire decks, three loaded levels */
-  wRack(g,len,seed){ const r=rng(seed),H=5.0,D=1.1,bays=Math.max(1,Math.round(len/2.7)),bw=len/bays;
+  wRack(g,len,seed,hit){ const r=rng(seed),H=5.0,D=1.1,bays=Math.max(1,Math.round(len/2.7)),bw=len/bays;
     for(let i=0;i<=bays;i++){ const x=-len/2+i*bw; for(const s of [-1,1]){ mk(box(.08,H,.08,{at:[0,H/2,0]}),mUp,g,x,0,s*D/2); mk(box(.16,.02,.16),mUp,g,x,.01,s*D/2); }
       for(let y=.5;y<H-.3;y+=1.1) mk(box(.03,.03,D),mUp,g,x,y,0); }
     for(let i=0;i<bays;i++){ const cx=-len/2+(i+.5)*bw;
       for(const y of [1.7,3.4,4.92]) { for(const s of [-1,1]) mk(box(bw-.08,.12,.05),mBeamO,g,cx,y,s*(D/2-.02)); if(y<4.9) mk(box(bw-.1,.02,D-.06),mDeck,g,cx,y+.07,0); }
-      for(const y of [0,1.78,3.48]) for(const k of (bw>2.2?[-1,1]:[0])){ if(r()<.14) continue; const n=N(g,cx+k*bw/4,y,0,0,(r()-.5)*.06,0); FX.wLoad(n,r()<.45?0:r()<.7?1:r()<.85?2:3,seed*31+i*7+y*3+k); } } },
+      for(const y of [0,1.78,3.48]) for(const k of (bw>2.2?[-1,1]:[0])){ if(r()<.24) continue; const n=N(g,cx+k*bw/4,y,0,0,(r()-.5)*.06,0),h=FX.wLoad(n,r()<.45?0:r()<.7?1:r()<.85?2:3,seed*31+i*7+y*3+k); if(hit) hit(cx+k*bw/4,y,h); } } }, /* about a quarter of the slots empty: you can see and shoot through them */
   /* a forklift, forks toward local +z */
   wForklift(g){ const y=col(0xd8a820),dk=col(0x1c1c1e); mk(box(1.0,.7,1.5,{at:[0,.35,0]}),y,g,0,.22,-.1); mk(box(1.0,.5,.45,{at:[0,.25,0]}),dk,g,0,.4,-.82); mk(box(.5,.12,.45),dk,g,0,1.0,-.25);
     mk(box(.45,.5,.08),dk,g,0,1.3,-.48); for(const sx of [-1,1]) for(const sz of [-1,1]) mk(box(.05,1.25,.05,{at:[0,.62,0]}),dk,g,sx*.45,.92,sz>0?.45:-.6); mk(box(.95,.05,1.1),dk,g,0,2.17,-.08);
@@ -319,21 +319,21 @@ function genWare(){
   { const n=N(G,-20.56,1.45,-14.3,0,-Math.PI/2,0); mk(plane(1.6,.85),MT(tWhiteB),n); }
   { const l=N(G,WARE_LOG[0],WARE_LOG[1]-.035,WARE_LOG[2],0,.25,0); l.live=true; FX.ledger(l); FLOOR.ledgerN=l; }
   { const n=N(G,-23.5,.78,-15.5); powered(n,.6,6); mk(cyl(.02,.06,.04,6),col(0x1a1a1c),n); mk(box(.012,.3,.012,{at:[0,.15,0]}),col(0x1a1a1c),n,0,0,0,0,0,-.3); mk(cyl(.05,.08,.1,8,{open:true}),M(null,{color:0x2a5a3a,double:true}),n,.09,.3,0); }
-  Lt([-23.4,1.0,-15.5],[1.3,1.0,.55],3.2); tube(-23.2,-14.2); Lt([-23.2,2.45,-14.2],[1.0,1.08,1.05],4.6);
+  Lt([-23.4,1.0,-15.5],[1.3,1.0,.55],3.2); tube(-23.2,-14.2); Lt([-23.2,2.45,-14.2],[1.6,1.68,1.64],7.1);
   loot('bigcan',-22.2,.84,-15.4,-.3);
   /* dispatch: the console and its screens, the radio rack, a coffee */
   place(B,'monitors',-18,-16.5,0); addBox(-19.0,-17.0,-16.9,-15.9,0,1.0,'furn'); place(B,'chair',-18,-15.5,Math.PI,0x1a1a1c);
   { const n=N(G,-20.0,0,-16.5); mk(box(.6,1.8,.5,{at:[0,.9,0]}),col(0x2a2c2e),n); for(let y=.4;y<1.7;y+=.22) mk(box(.5,.12,.02),col(0x111113),n,0,y,.26); for(let i=0;i<5;i++) mk(box(.02,.02,.01),M(null,{color:i%2?0x7cf06a:0xe8a82a,unlit:true}),n,-.15+i*.07,1.6,.27); addBox(-20.35,-19.65,-16.8,-16.2,0,1.8,'furn'); }
-  tube(-18,-14.2); Lt([-18,2.45,-14.2],[1.0,1.08,1.05],4.4); Lt([-18,1.3,-15.9],[.4,.7,.55],3.2,'gen','tv');
+  tube(-18,-14.2); Lt([-18,2.45,-14.2],[1.6,1.68,1.64],6.9); Lt([-18,1.3,-15.9],[.4,.7,.55],3.2,'gen','tv');
   /* the lobby: the counter behind the pass window, chairs along the wall, the memorial on the board, the front doors */
   place(B,'counter',-15.1,-14.3,Math.PI/2,2.4,tCabinetW,tCounterTop,{upper:false}); addBox(-15.45,-14.8,-15.5,-13.1,0,.92,'furn');
   for(let i=0;i<4;i++){ place(B,'pchair',-10.75,-16.2+i*.62,-Math.PI/2); } addBox(-11.1,-10.27,-16.5,-13.6,0,.8,'furn');
   { const n=N(G,-10.27,1.5,-12.6,0,-Math.PI/2,0); mk(box(1.4,.9,.03),col(0x8a6a42),n); mk(plane(.4,.6),MT(tMemorial),n,-.3,0,.02); mk(plane(.35,.5),MT(tPosterMissing),n,.32,.08,.02); }
   { const n=N(G,-13,0,-17,0,0,0); for(const s of [-1,1]){ const d=N(n,s*.8,0,0,0,s*1.3,0); mk(box(.78,2.15,.04,{at:[-s*.39,1.075,0]}),F(col(0x2a2a2c),MT(tGlassCut,{cut:true,double:true})),d); } }
   { const n=N(G,-13,2.35,-11.6,0,0,0); mk(plane(1.0,.3),MT(tNoEntry),n,0,0,.07); }
-  tube(-13,-14.3); Lt([-13,2.45,-14.3],[1.0,1.08,1.05],4.6); exitAt(-13,2.45,-16.9,0);
+  tube(-13,-14.3); Lt([-13,2.45,-14.3],[1.6,1.68,1.64],7.1); exitAt(-13,2.45,-16.9,0);
   /* the corridor: two tubes, an extinguisher, a drinking fountain; the back door west */
-  tube(-22,-10.7); tube(-15,-10.7); Lt([-22,2.45,-10.7],[1.0,1.08,1.05],4.2); Lt([-15,2.45,-10.7],[1.0,1.08,1.05],4.2);
+  tube(-22,-10.7); tube(-15,-10.7); Lt([-22,2.45,-10.7],[1.6,1.68,1.64],6.7); Lt([-15,2.45,-10.7],[1.6,1.68,1.64],6.7);
   mk(cyl(.08,.08,.5,8),col(0xa81e1a),G,-20.9,.95,-11.48); mk(box(.4,.35,.3),col(0xc8ccd0),G,-24.6,.85,-9.95); exitAt(-25.9,2.35,-10.5,Math.PI/2);
   /* the break room: kitchenette, fridge, vending machine, two tables, a couch and the TV, the memorial again on the fridge door */
   place(B,'counter',-25.6,-7.4,Math.PI/2,3.0,tCabinetW,tCounterTop,{sink:.6}); addBox(-25.93,-25.28,-8.9,-5.9,0,.92,'furn');
@@ -344,13 +344,13 @@ function genWare(){
   place(B,'sofa',-20.0,.9,Math.PI,0x4a4038,2.0); addBox(-21.05,-18.95,.45,1.4,0,.9,'furn');
   { const tv=place(B,'flatTV',-20.0,-.2,Math.PI*0,1.1,.65,1.25); powered(tv,.5,10); addBox(-20.5,-19.5,-.45,0,0,.4,'furn'); } Lt([-20.0,1.2,.2],[.45,.6,1.2],3.6,'gen','tv');
   { const n=N(G,-24.0,1.45,-9.73,0,0,0); mk(box(1.2,.8,.03),col(0x8a6a42),n); mk(plane(.4,.6),MT(tMemorial),n,-.3,0,.02); mk(plane(.4,.55),MT(tCalendarCo),n,.25,0,.02); }
-  tube(-22.5,-6); tube(-22.5,-1.0); Lt([-22.5,2.45,-6],[1.0,1.08,1.05],4.6); Lt([-22.5,2.45,-1],[1.0,1.08,1.05],4.6);
+  tube(-22.5,-6); tube(-22.5,-1.0); Lt([-22.5,2.45,-6],[1.6,1.68,1.64],7.1); Lt([-22.5,2.45,-1],[1.6,1.68,1.64],7.1);
   loot('bottle',-24.2,.95,-6.9,0);
   /* lockers: two banks, a bench, a gun bag left open on it */
   { const n=place(B,'wLockers',-16,-5.48,Math.PI,12); addBox(-18.5,-13.5,-5.75,-5.2,0,1.95,'furn'); }
   { const n=place(B,'wLockers',-18.7,-7.6,Math.PI/2,5); addBox(-19,-18.45,-8.65,-6.55,0,1.95,'furn'); }
   place(B,'bench',-15.6,-7.4,0,2.6); addBox(-16.9,-14.3,-7.7,-7.1,0,.92,'furn'); mk(box(.9,.25,.3),col(0x1a1a1c),G,-16.3,1.05,-7.4);
-  tube(-16,-7.5); Lt([-16,2.45,-7.5],[1.0,1.08,1.05],4.4); loot('shotgun',-15.6,.95,-7.2,.1);
+  tube(-16,-7.5); Lt([-16,2.45,-7.5],[1.6,1.68,1.64],6.9); loot('shotgun',-15.6,.95,-7.2,.1);
   /* the electrical room: switchgear along the north wall, the main breaker on the west wall (pull it or shoot the panel), a bare bulb */
   place(B,'wSwitchgear',-16.6,-4.9,0,3); addBox(-18.0,-15.2,-5.2,-4.5,0,2.1,'furn');
   { mk(box(.2,1.3,.8),col(0x7a7e80),G,-18.9,1.25,-1.0); mk(plane(.7,1.1),MT(tPanelW),G,-18.79,1.25,-1.0,0,Math.PI/2,0); const pb=addBox(-19,-18.7,-1.45,-.55,.5,2.0,'generator'); pb.onHit=()=>warePower(false);
@@ -361,7 +361,7 @@ function genWare(){
   /* the back hall: a janitor's sink and cart, stacked chairs */
   mk(box(.6,.8,.5,{at:[0,.4,0]}),col(0xd8d4cc),G,-12.6,0,-9.2); addBox(-12.93,-12.3,-9.5,-8.9,0,.8,'furn');
   { const n=N(G,-12.5,0,-7.6); mk(box(.5,.7,.9,{at:[0,.35,0]}),col(0xe8c83a),n); mk(cyl(.15,.15,.3,8),col(0x2a5aa8),n,0,.85,.2); addBox(-12.8,-12.2,-8.1,-7.1,0,.9,'furn'); }
-  tube(-11.6,-6,SH-.04,Math.PI/2); Lt([-11.6,2.45,-6],[1.0,1.08,1.05],4.0); exitAt(-10.35,2.35,-6,-Math.PI/2);
+  tube(-11.6,-6,SH-.04,Math.PI/2); Lt([-11.6,2.45,-6],[1.6,1.68,1.64],6.5); exitAt(-10.35,2.35,-6,-Math.PI/2);
   /* the drain room: where the tunnel comes up. The hatch, pipes, a sump, a caged bulb */
   { const h=N(G,-12.3,0,-.4); mk(box(.84,.02,.84),col(0x0a0a0a),h,0,.006,0); for(const s of [-1,1]){ mk(box(.06,.05,.9),col(0x2a2a2c),h,s*.45,.025,0); mk(box(.9,.05,.06),col(0x2a2a2c),h,0,.025,s*.45); }
     for(const s of [-1,1]) mk(box(.05,.5,.05,{at:[0,.25,0]}),M(tBeam),h,s*.22,0,.42); mk(box(.5,.03,.04),M(tBeam),h,0,.4,.42);
@@ -378,7 +378,7 @@ function genWare(){
   place(B,'table',-22.8,4.6,0,1.6,.8,0x7a7c80); addBox(-23.65,-21.95,4.15,5.05,0,.78,'furn'); place(B,'stash',-21.0,5.9,0); addBox(-21.5,-20.5,5.6,6.2,0,1.3,'furn');
   place(B,'bricksPile',-22.4,4.4,0,8,41).p[1]=.78;
   place(B,'desk',-18.2,7.6,0,true,0x5a5e62); addBox(-18.9,-17.4,7.25,7.95,0,.78,'furn');
-  tube(-22.5,4.6); tube(-18.5,5.5,SH-.04,Math.PI/2); Lt([-22.5,2.45,4.6],[1.0,1.08,1.05],4.6); Lt([-18.5,2.45,5.5],[1.0,1.08,1.05],3.6);
+  tube(-22.5,4.6); tube(-18.5,5.5,SH-.04,Math.PI/2); Lt([-22.5,2.45,4.6],[1.6,1.68,1.64],7.1); Lt([-18.5,2.45,5.5],[1.6,1.68,1.64],6.1);
   loot('can',-23.3,.84,4.5,.4); loot('machete',-22.6,.82,4.75,1.2);
   /* the cold room: the count. Product on pallets, the money table, cash bags, plastic strips in the doors */
   for(const [x,z,k] of [[-16.2,3.0,3],[-16.2,4.4,3],[-12.6,3.0,0],[-11.2,3.0,3]]){ const n=N(G,x,0,z); FX.wLoad(n,k,2300+x*7|0); addBox(x-.6,x+.6,z-.55,z+.55,0,1.4,'furn'); }
@@ -392,11 +392,13 @@ function genWare(){
   { const n=N(G,-14.0,0,12.6,0,-Math.PI/2,0); FX.auto(n,0x8a8a86,'pickup',{hub:false,plate:'TX4'}); addBox(-16.5,-11.5,11.7,13.5,0,1.5,'furn'); }
   for(const [x,z] of [[-25.3,9.2],[-24.5,9.2]]){ place(B,'wChest',x,z,0); addBox(x-.36,x+.36,z-.24,z+.24,0,1.05,'furn'); }
   place(B,'workbench',-25.4,12.6,Math.PI/2,2.4); addBox(-25.9,-25.1,11.4,13.8,0,1.0,'furn'); place(B,'tires',-11.0,9.2,0,4,7); addBox(-11.35,-10.6,8.85,9.55,0,.8,'furn');
-  tube(-21,11.5,SH-.04,Math.PI/2); tube(-14,11.5,SH-.04,Math.PI/2); Lt([-21,2.45,11.5],[1.0,1.08,1.05],5.2); Lt([-14,2.45,11.5],[1.0,1.08,1.05],5.2);
+  tube(-21,11.5,SH-.04,Math.PI/2); tube(-14,11.5,SH-.04,Math.PI/2); Lt([-21,2.45,11.5],[1.6,1.68,1.64],7.7); Lt([-14,2.45,11.5],[1.6,1.68,1.64],7.7);
   { mk(box(3.8,.5,.4),col(0x5a5c60),G,-20,2.65,15.15); } exitAt(-20,2.5,14.9,Math.PI);
 
   /* ================= the warehouse floor ================= */
-  WARE_RACKS.forEach(([x0,x1,runs],ri)=>{ for(const [z0,z1] of runs){ const n=N(G,(x0+x1)/2,0,(z0+z1)/2,0,Math.PI/2,0); FX.wRack(n,z1-z0,2400+ri*13+(z0*7|0)); addBox(x0,x1,z0,z1,0,5.0,'wall');
+  WARE_RACKS.forEach(([x0,x1,runs],ri)=>{ for(const [z0,z1] of runs){ const mx=(x0+x1)/2,mz=(z0+z1)/2,n=N(G,mx,0,mz,0,Math.PI/2,0);
+      /* the rack is open: a low footprint keeps people out of it, and each load is its own box, so you see and shoot through the empty slots and over the beams */
+      FX.wRack(n,z1-z0,2400+ri*13+(z0*7|0),(lx,y,h)=>addBox(mx-.52,mx+.52,mz-lx-.5,mz-lx+.5,y,y+h,'load')); addBox(x0,x1,z0,z1,0,.5,'rack'); for(const [a,b] of [[1.5,1.82],[3.2,3.52],[4.85,5.0]]) addBox(x0,x1,z0,z1,a,b,'load'); /* the beams and decks: a band you can't see or shoot through */
       for(const z of [z0,z1]){ mk(box(1.25,.45,.12),mYel,G,(x0+x1)/2,.22,z+(z===z0?-.08:.08)); const sg=N(G,(x0+x1)/2,4.4,z+(z===z0?-.07:.07),0,z===z0?Math.PI:0,0); mk(plane(.4,.4),MT(tAisleN[ri]),sg); } } });
   /* two aisles blocked: a load that came down in B, empty pallets stacked across D */
   { const n=N(G,-4.9,0,9.9); const r=rng(2501); for(let i=0;i<11;i++) mk(box(.5+r()*.3,.35+r()*.2,.4+r()*.3),MT(tCard),n,(r()-.5)*2.2,.15+(i>7?.4:0),(r()-.5)*1.0,r()*.4,r()*3,r()*.4); mk(box(1.1,.14,1.0),mPal,n,.3,.4,.2,.0,.5,.35); addBox(-6.1,-3.7,9.2,10.6,0,1.35,'furn'); }
@@ -414,11 +416,13 @@ function genWare(){
   { const x0=14.6,z0=11.6,x1=17.9,z1=14.9; W(x0,z0,x1,z0,OFF,OFF,[win(16.2,1.8,1.0,2.1)],{h:2.5}); W(x0,z0,x0,z1,OFF,OFF,[gap(13,1.3,2.1),win(14.2,.9,1.0,2.1)],{h:2.5});
     mk(box(x1-x0+.1,.1,z1-z0+.1),col(0x5a5c60),G,(x0+x1)/2,2.55,(z0+z1)/2); addBox(x0,x1,z0,z1,2.5,2.6,'ceil');
     place(B,'desk',16.8,14.3,Math.PI,true,0x5a5e62); addBox(16.1,17.5,13.95,14.65,0,.78,'furn'); place(B,'chair',16.8,13.6,0,0x1a1a1c); for(const z of [12.2,12.8]){ const n=N(G,17.55,0,z,0,-Math.PI/2,0); FURN.filing(n); } addBox(17.3,17.85,11.9,13.1,0,1.3,'furn');
-    tube(16.2,13.2,2.48); Lt([16.2,2.4,13.2],[1.0,1.08,1.05],4.0); }
+    tube(16.2,13.2,2.48); Lt([16.2,2.4,13.2],[1.6,1.68,1.64],6.5); }
   exitAt(17.9,2.4,10,-Math.PI/2); exitAt(4,2.4,-16.9,0); exitAt(6,2.4,14.9,Math.PI);
   /* the high bays: some aisles lit, long dark stretches between them */
-  for(const [x,z] of [[-8.8,-10.0],[-8.8,7.5],[-4.9,-2.0],[-1.1,6.5],[2.7,-7.5],[6.5,3.2],[-2.0,-15.6],[5.0,13.7],[12.8,-12.5],[13.4,-2.5],[12.8,8.6]]){
-    const n=N(G,x,BH-1.0,z); powered(FX.wHighbay(n),.85,6); Lt([x,BH-1.2,z],[1.35,1.15,.85],9.5); }
+  /* high bays over every aisle, about every 7 m: the six nearest you are lit. The lamps aren't 'powered' (that would keep each one out of the merge);
+     the lights-out swap still darkens them */
+  for(const x of [-8.8,-4.9,-1.1,2.7,6.5,11.8,15.4]) for(const z of [-13.6,-6.6,.4,7.4,13.6]){ if(x>14&&z>11) continue;
+    const n=N(G,x,BH-1.0,z); FX.wHighbay(n); Lt([x,BH-2.2,z],[1.5,1.36,1.1],12); }
 
   /* ================= outside: the lot, the lane, the passage, the yard ================= */
   /* perimeter: block wall and wire round three sides, chain-link and the gate on the east */
@@ -488,8 +492,8 @@ function genWare(){
   wareLights(); boxGridDirty=true; navDirty=true; GAME.vision=GAME.vision||'off'; visionApply(); }
 
 /* night: a little moon, the city's glow in the fog. Inside, what's lit is lit by something */
-const WARE_LIGHT={amb:[.016,.017,.024],dir:[.25,1,-.3],dirCol:[.02,.024,.042],fog:[.012,.012,.017],fogNear:6,fogFar:24};
-function wareLights(){ setLights(Object.assign({},WARE_LIGHT,{pl:[]})); if(FLOOR.power===false) L.amb=[.008,.009,.014]; wareLM(); }
+const WARE_LIGHT={amb:[.05,.051,.06],dir:[.25,1,-.3],dirCol:[.03,.035,.06],fog:[.026,.027,.034],fogNear:12,fogFar:26};
+function wareLights(){ setLights(Object.assign({},WARE_LIGHT,{pl:[]})); if(FLOOR.power===false) L.amb=[.014,.015,.022]; wareLM(); }
 /* the six lights nearest you: the fixed ones plus any flashlight that's on */
 function wareLM(){ const tl=[]; for(const E of enemies) if(E.tl&&E.torchOn) tl.push(E.tl); LM.list=tl.length?WARE.lights.concat(tl):WARE.lights; lmTick(); }
 function warePower(on,quiet){ if(FLOOR.mode!=='ware'||FLOOR.power===on) return; FLOOR.power=on; wareLever();
@@ -527,7 +531,7 @@ function copSetup(E,sp){ E.detail=sp.detail||'works the warehouse'; E.radio=!!sp
   mergeTree(E.C.wpn); mergeTree(E.C.dropped); mergeChar(E.C); atlasBody(E.C); }
 
 /* ---------- seeing: under a light, in a flashlight's beam, up close, or by your muzzle flash ---------- */
-function wareLitAt(x,z){ const on=FLOOR.power!==false; for(const l of WARE.lights){ if(l.pow==='gen'&&!on) continue; if(l.d<3) continue; if(Math.hypot(l.p[0]-x,l.p[2]-z)<l.d*.5) return true; } return false; }
+function wareLitAt(x,z){ const on=FLOOR.power!==false; for(const l of WARE.lights){ if(l.pow==='gen'&&!on) continue; if(l.d<3) continue; if(Math.hypot(l.p[0]-x,l.p[2]-z)<l.d*.4) return true; } return false; }
 function wareSeen(E,dist){ if(GAME.t-(GAME.shotT??-99)<1.4&&dist<18) return true; if(WARE.lit) return true; return dist<(FLOOR.power!==false?2.6:1.8); }
 function wareTorches(){ const eye=[PL.x,1.4,PL.z]; let lit=false;
   for(const E of enemies){ if(!E.tl) continue;
