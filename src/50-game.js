@@ -815,7 +815,7 @@ function resetGame(){
   for(const D of FLOOR.doors) if(D.state==='open'&&D.u.doorState==='closed') setDoor(D,'closed',true);
   /* desk testing starts armed; in VR you start with your fists and walk to the rack */
   equip(HANDS.R,XR.on?null:newItem('pistol')); equip(HANDS.L,XR.on?null:newItem('knife'));
-  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } } /* the first room always starts with its three tenants */
+  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); } /* the first room always starts with its three tenants */
 /* ---------- input ---------- */
 const isTouch=matchMedia('(pointer: coarse)').matches;
 document.body.classList.toggle('touch',isTouch);
@@ -875,7 +875,7 @@ function update(dt,now){
   if(!FLOOR.test&&!GAME.clear&&enemies.length&&enemies.every(E=>E.dead)){ GAME.clear=true; setTimeout(()=>{ if(GAME.clear){ showMsg('FLOOR 01 CLEAR','Three people lived here. Take the stairs, or reset and do it differently.'); if(XR.on) XR.clearT=6; } },2600); }
   if(FLOOR.flick){ const on=(Math.sin(GAME.t*23)+Math.sin(GAME.t*7.3)>-.7)||Math.sin(GAME.t*1.3)>.1,fk=on?1:.15,c=FLOOR.lights[0][1]; L.plCol.set([c[0]*fk,c[1]*fk,c[2]*fk],0); FLOOR.flick.mat.color=on?[1,1,1]:[.3,.3,.32]; }
   flash.t-=dt; if(flash.t>0){ L.plPos.set(flash.pos,21); L.plCol.set(flash.big?[5.5,3.6,1.6]:[2.6,1.8,.9],21); L.plDist[7]=flash.big?9:6; } else { L.plCol.set([0,0,0],21); }
-  updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt);
+  updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt); tickStash(dt);
   if(GAME.slow){ GAME.beatT=(GAME.beatT||0)-dt; if(GAME.beatT<=0){ GAME.beatT=1.05; sfx('heart'); } } else GAME.beatT=0;
   /* the flight up: walk onto it and you climb to the next floor (saved on the stairs) */
   if(GAME.started&&!PL.dead&&!GAME.climbing){ const S=FLOOR.stairUp; if(S&&PL.x>S.x0+.6&&PL.z>S.z0&&PL.z<S.z1) climb(); }

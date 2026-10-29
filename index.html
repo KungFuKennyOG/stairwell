@@ -110,9 +110,9 @@ body.touch #testPanel .tp-keys{display:none}
 </div>
 <section id="intro" aria-label="Start">
   <div class="card">
-    <p class="kick">Puerto Seco · proof of concept · the tunnel</p>
+    <p class="kick">Puerto Seco · level 3 · the stash house</p>
     <h1>Stair<span>well</span></h1>
-    <p>A smuggling tunnel under the border, eleven metres down. Five cartel men are between you and the ladder at the far end. The generator in the pump room runs every bulb: shoot it and the tunnel goes black, and they only see you up close or by your muzzle flash. You have night vision and thermal. The armoury rack and spawn board are in the dugout where you start; the TUNNEL / TOWER FLOOR button on the board switches to the old test floor.</p>
+    <p>Colonia Tierra Blanca, 02:40. A pink cinderblock house with a lookout at the gate, money on the front table and a hole in the back-room floor that goes down to the tunnel. Five men. Front gate, the broken corner of the yard wall, or the side passage to the back door. The generator in the yard runs every bulb in the house: shoot it and it goes dark, and they only see you up close or by your muzzle flash. You have night vision and thermal. Climb into the shaft to go down into the tunnel. The armoury rack and spawn board are in the alley where you start; the level button on the board cycles stash house, tunnel, tower floor.</p>
     <dl class="keys deskonly"><dt>WASD · mouse</dt><dd>Move · look (click to capture)</dd><dt>1-8</dt><dd>Fists, bottle, knife, machete, .38, 9mm, shotgun, MP5</dd><dt>Click</dt><dd>Fire or swing (hold for the MP5)</dd><dt>F · E · Q</dt><dd>Knife in the left hand · kick (opens doors too) · throw what you hold</dd><dt>R · T · N</dt><dd>Reload · bullet time · goggles (up, night vision, thermal)</dd></dl>
     <dl class="keys touchonly"><dt>Left thumb</dt><dd>Move</dd><dt>Right side drag</dt><dd>Look</dd><dt>Buttons</dt><dd>Shoot, stab, kick, reload, slow-mo</dd></dl>
     <div class="startrow"><button id="start" type="button">Start</button><button id="vrBtn" type="button" hidden>Play in VR</button></div>
@@ -2264,6 +2264,132 @@ function visionProgram(){ return GAME.vision==='nv'?NVP2:GAME.vision==='thermal'
 function tickTunnel(dt){ visionTick(dt); if(FLOOR.mode!=='tunnel'||!GAME.started||PL.dead||GAME.clear) return;
   if(PL.x>11.0&&Math.abs(PL.z-4)<1.15){ GAME.clear=true; showMsg('EL OTRO LADO','You made it to the other side. Reset to run it again: quiet, loud, or in the dark.'); if(XR.on) XR.clearT=6; } }
 
+/* =====================================================================================================
+   THE STASH HOUSE: Puerto Seco, level 3. Colonia Tierra Blanca, 02:40. Dale gave Ray the address.
+   Small and dense, one colonia lot, built in world coordinates for the 26 x 12 m test grid:
+     west  (-x)  the alley you start in (armoury rack, spawn board, map), opening onto a dirt street
+     street      a parked car, a streetlight, the lookout on his plastic chair by the gate, facing up the street
+     yard        behind a 1.9 m cinderblock wall: the gate, a broken gap at the south corner, the generator
+     house       the count (front room), kitchen, back room with the shaft, a dark bedroom
+     north       a side passage from the yard to the back strip; the kitchen side door opens onto it
+     east  (+x)  the back strip behind the house: the back door into the shaft room, the bedroom window
+   Five men. The generator runs every bulb in the house and yard: shoot it and the house goes dark (the streetlight
+   is city power and stays on). Climb into the shaft in the back room and you're in the tunnel.
+   ===================================================================================================== */
+const STASH_RECTS=[[-13,-2,-10.2,2,-2],[-10.2,-5.6,-6.4,5.6,-1],[-6.4,-5,-2,5.6,5],[-2,3.9,7,5.6,6],[7,-5,8.6,5.6,7],
+  [-2,-5,2.4,.4,0],[-2,.4,2.4,3.9,1],[2.4,-5,7,-.6,2],[2.4,-.6,7,3.9,3]];
+const STASH_SHAFT=[5.4,-3.6];
+const STASH_CAST=[
+  {id:'halcon',name:'Memo',x:-7.25,z:2.4,hd:0,extra:es('Nomás vigilo la calle, güey—','I just watch the street, man—'),detail:'watches the street'},
+  {id:'pistolero',name:'Paco',x:-.05,z:-3.0,hd:Math.PI/2,extra:es('Es dinero, llévatelo—','It\'s money, take it—'),detail:'counts the money'},
+  {id:'machetero',name:'Chava',x:-1.25,z:-3.9,hd:-Math.PI/2,extra:es('Tengo una niña de tres años—','I have a three-year-old girl—'),detail:'watches the yard'},
+  {id:'escolta',name:'Rubén',x:1.3,z:1.4,hd:-Math.PI/2,extra:es('Mi esposa está embarazada—','My wife is pregnant—'),detail:'eats in the kitchen'},
+  {id:'comando',name:'Gera',x:4.3,z:-2.4,hd:-Math.PI/2,extra:es('Yo no sé nada del túnel—','I don\'t know anything about the tunnel—'),detail:'guards the shaft'}];
+function stashCast(){ for(const sp of STASH_CAST){ const E=spawnEnemy(Object.assign({},sp,{maker:(h,g)=>cartelChar(sp.id,h,g)})); E.detail=sp.detail; enemies.push(E); } attachLabels(); }
+
+function genStash(){
+  disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
+  FLOOR.n=3; FLOOR.test=true; FLOOR.mode='stash'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.flick=null; FLOOR.down=false; setLang(true);
+  const G=floorN, B={g:G}; GEO_TEMP=true;
+  /* a wall as drawn by the house builder, plus its collision: doors and gaps are open, windows are solid to 1.4 m
+     (you can't climb through, but people see and shoot over the sill) */
+  const W=(x0,z0,x1,z1,a,b,holes=[],o={})=>{ wall(B,x0,z0,x1,z1,a,b,holes,o);
+    const ax=Math.abs(x1-x0)>Math.abs(z1-z0),s0=ax?Math.min(x0,x1):Math.min(z0,z1),s1=ax?Math.max(x0,x1):Math.max(z0,z1),c=ax?z0:x0,h=o.h||WH,t=WT/2+.01;
+    const solid=(p0,p1,y0,y1,kind)=>{ if(p1-p0<.01) return; if(ax) addBox(p0,p1,c-t,c+t,y0,y1,kind); else addBox(c-t,c+t,p0,p1,y0,y1,kind); };
+    let s=s0; for(const q of holes.slice().sort((p,q)=>p.at-q.at)){ const p0=q.at-q.w/2,p1=q.at+q.w/2; solid(s,p0,0,h,'wall');
+      if(q.win) solid(p0,p1,0,1.4,'win'); if((q.y1??2.1)<h) solid(p0,p1,q.y1??2.1,h,'wall'); s=p1; }
+    solid(s,s1,0,h,'wall'); };
+  const P=S_(tPlaster),PY=S_(tPlasterY),PP=S_(tPlasterPink),EX=S_(tCinPink),RAW=S_(tCinRaw),TQ=S_(tCinTurq),OC=S_(tCinOchre),BL=S_(tCinBlue),MU=S_(tMural);
+  /* ---------- ground ---------- */
+  floor(B,-13,-2,-10.2,2,tDust,{tile:2,color:0x8a8070}); floor(B,-10.2,-5.6,-6.4,5.6,tDust,{tile:2,color:0x9a9080});
+  floor(B,-6.4,-5,-2,5.6,tFlConc,{tile:2,color:0xa8a49a}); floor(B,-2,3.9,8.6,5.6,tDust,{tile:2,color:0x8a8070}); floor(B,7,-5,8.6,3.9,tDust,{tile:2,color:0x8a8070});
+  floor(B,-2,-5,2.4,.4,tFlTerra,{tile:.8}); floor(B,-2,.4,2.4,3.9,tFlTerra,{tile:.8,color:0xc8a898});
+  floorHole(B,2.4,-5,7,-.6,STASH_SHAFT[0]-.55,STASH_SHAFT[1]-.55,STASH_SHAFT[0]+.55,STASH_SHAFT[1]+.55,tFlConc,{tile:2}); floor(B,2.4,-.6,7,3.9,tFlTerra,{tile:.8,color:0xb89888});
+  /* ---------- the house: pink cinderblock, plaster inside ---------- */
+  W(-2,-5,-2,3.9,P,EX,[win(-4,1.1),door(-2,.95,-1.5,{doorT:tCorrug}),win(2.2,1.0)]);
+  W(7,-5,7,3.9,EX,PP,[door(-2,.95,1.2,{doorT:tCorrug}),win(1.5,1.0)]);
+  W(-2,-5,7,-5,P,EX); W(-2,3.9,7,3.9,EX,PY,[door(1,.95,1.25)]);
+  W(-2,.4,2.4,.4,PY,P,[gap(-.5,1.3)]); W(2.4,-5,2.4,3.9,RAW,P,[door(-1.5,.95,-1.3),gap(2.5,.95)]); W(2.4,-.6,7,-.6,PP,RAW,[door(6,.95,1.3)]);
+  for(const [x,z] of [[-2,-4],[-2,2.2]]) place(B,'bars',x-.02,z,-Math.PI/2,1.1); place(B,'bars',7.02,1.5,Math.PI/2,1.0);
+  mk(box(9.3,.2,9.2),M(tCinRaw,{color:0x9a948a}),G,2.5,WH+.1,-.55); addBox(-2,7,-5,3.9,WH,WH+.2,'ceil');
+  /* ---------- yard wall (gate, broken corner), the neighbours, the street, the alley ---------- */
+  W(-6.4,-5.6,-6.4,5.6,RAW,TQ,[gap(-4,1.0),gap(2.2,2.4)],{h:1.9});
+  { const gt=N(G,-6.4,0,3.4,0,Math.PI/2+1.1,0); mk(box(2.3,1.8,.05,{at:[1.15,.9,0]}),MT(tCorrug,{repeat:[2,1]}),gt); } /* the gate, swung open into the yard */
+  { const r=rng(31); for(let i=0;i<7;i++) mk(box(.3+r()*.2,.12+r()*.1,.2),M(tCinRaw),G,-6.4+(r()-.5)*.9,.06+r()*.05,-4+(r()-.5)*1.2,r()*.3,r()*3,0); } /* rubble in the gap */
+  W(-6.4,5.6,8.6,5.6,OC,TQ,[],{h:2.4}); W(8.6,-5,8.6,5.6,OC,OC,[],{h:2.6}); W(-6.4,-5,-2,-5,TQ,OC,[],{h:2.2}); W(7,-5,8.6,-5,TQ,OC,[],{h:2.2});
+  W(-10.2,-5.6,-6.4,-5.6,BL,BL,[],{h:2.4}); W(-10.2,5.6,-6.4,5.6,OC,OC,[],{h:2.4});
+  W(-10.2,-5.6,-10.2,-2,BL,BL,[door(-4.2,1.0,0,{doorT:tCorrug}),win(-3.0,.9)],{h:2.8}); W(-10.2,2,-10.2,5.6,MU,MU,[win(3.0,.9),door(4.6,1.0,0,{doorT:tCorrug})],{h:2.8});
+  W(-13,-2,-10.2,-2,OC,OC,[],{h:2.9}); W(-13,2,-10.2,2,OC,OC,[],{h:2.9}); W(-13,-2,-13,2,OC,OC,[],{h:2.9});
+  for(const [x,z] of [[-10.2,-3],[-10.2,3]]) place(B,'bars',x+.02,z,Math.PI/2,.9);
+  /* rooftops beyond the walls, so the skyline isn't open */
+  const slab=(x0,z0,x1,z1,y)=>mk(box(x1-x0,.2,z1-z0),M(tCinRaw,{color:0x6a665e}),G,(x0+x1)/2,y+.1,(z0+z1)/2);
+  slab(-16,-7,-10.1,-1.9,2.8); slab(-16,1.9,-10.1,7,2.8); slab(-16,-1.9,-12.95,1.9,2.9); slab(-6.5,5.5,9,9,2.4); slab(8.5,-6,12,5.7,2.6); slab(-6.5,-8,9,-4.9,2.2); slab(-10.3,-8,-6.3,-5.5,2.4); slab(-10.3,5.5,-6.3,9,2.4);
+  for(const [x,z,y] of [[-14,-4,2.9],[-14.2,4.5,2.9],[10.4,-2.5,2.8],[2,7.4,2.6]]) place(B,'tinaco',x,z).p[1]=y;
+  for(const [x,z,y] of [[-11,-6.4,2.8],[9,4.8,2.8],[-3,-6.2,2.4],[5,6.8,2.6]]) place(B,'rebar',x,z,0,4,x*7+z).p[1]=y;
+  /* ---------- the street ---------- */
+  place(B,'car',-9.15,-3.65,0,0xd8d4cc,'sedan'); addBox(-10.08,-8.22,-5.95,-1.35,0,1.25,'furn');
+  place(B,'bins',-9.85,3.5,Math.PI/2,2); addBox(-10.2,-9.45,3.15,4.6,0,1.05,'furn');
+  place(B,'pole',-6.75,-.4,0,7); place(B,'pole',-9.9,5.2,0,7);
+  place(B,'wire',0,0,0,[-6.75,-.4],[-9.9,5.2],6.6); place(B,'wire',0,0,0,[-6.75,-.4],[-2,-3],6.5); place(B,'wire',0,0,0,[-9.9,5.2],[-14,7],6.6); place(B,'wire',0,0,0,[-6.75,-.4],[-14,-5],6.6);
+  addBox(-6.88,-6.62,-.53,-.27,0,6,'furn');
+  { const arm=N(G,-6.75,0,-.4); mk(box(1.1,.08,.08),mBlackPipe,arm,-.55,5.45,0); const lamp=N(arm,-1.05,5.36,0); mk(box(.5,.1,.36),M(null,{color:0xffa040,unlit:true}),lamp); lamp._keep=true; }
+  place(B,'pchair',-7.35,1.7,Math.PI); place(B,'pchair',-8.9,4.6,2.2); /* the lookout's chair, and one across the street */
+  /* the alley: where you start. a dumped mattress, trash */
+  place(B,'mattress',-12.2,1.45,0); place(B,'bins',-12.6,-1.5,0,1);
+  /* ---------- the yard ---------- */
+  const gen=place(B,'generator',-3.5,-4.45,0); heatTag(gen,.75); const gb=addBox(-3.95,-3.05,-4.73,-4.17,0,1.0,'generator'); gb.onHit=()=>stashPower(false);
+  place(B,'gascyl',-2.35,-4.6); place(B,'laundry',-4.4,1.0,Math.PI/2,4.0); place(B,'pchair',-3.0,4.7,2.6); place(B,'bricksPile',-5.6,4.9,0,10,11);
+  /* ---------- the count (front room) ---------- */
+  place(B,'counttable',.6,-3.0,Math.PI/2); addBox(.12,1.08,-3.92,-2.08,0,.8,'furn');
+  for(const [x,z,ry] of [[-.05,-3.0,Math.PI/2],[1.35,-3.4,-Math.PI/2]]) place(B,'pchair',x,z,ry);
+  const crt=place(B,'crt',1.75,.05,Math.PI); heatTag(crt,.5); addBox(1.38,2.12,-.22,.36,0,1.0,'furn');
+  place(B,'mattress',-.85,-4.45,0); place(B,'bricksPile',1.75,-4.5,0,16,5); addBox(1.2,2.3,-4.8,-4.15,0,.5,'furn');
+  /* kitchen */
+  place(B,'counter',-.9,3.56,Math.PI,1.9,tCabinetW,tCounterTop,{sink:.5,stove:-.5,upper:false}); addBox(-1.86,.06,3.24,3.88,0,.92,'furn');
+  place(B,'fridge',2.0,3.46,Math.PI); addBox(1.63,2.37,3.1,3.86,0,1.8,'furn'); place(B,'gascyl',-1.75,.85);
+  place(B,'table',.4,1.9,0,1.0,.7,0xd8d4cc); addBox(-.12,.92,1.53,2.27,0,.77,'furn'); place(B,'pchair',.4,1.25,0); place(B,'pchair',.4,2.6,Math.PI);
+  /* the back room: the shaft, the product */
+  place(B,'shaft',STASH_SHAFT[0],STASH_SHAFT[1]); place(B,'sandbags',6.6,-4.3,Math.PI/2,6); place(B,'crates',3.0,-4.5,0); addBox(2.55,3.6,-4.95,-4.05,0,1.1,'furn');
+  place(B,'bricksPile',3.3,-1.2,0,12,7); addBox(2.7,4.0,-1.45,-.75,0,.4,'furn');
+  /* the bedroom: dark, two mattresses */
+  place(B,'mattress',3.7,3.25,0); place(B,'mattress',5.75,3.25,0); place(B,'gascyl',6.6,.2);
+  /* the back strip: a water drum, bins */
+  place(B,'bins',8.0,-4.2,Math.PI/2,1); addBox(7.6,8.4,-4.6,-3.85,0,1.05,'furn');
+  /* ---------- lights: four bulbs and the TV run off the generator, the streetlight is city power ---------- */
+  const bulb=(x,y,z)=>{ mk(cyl(.004,.004,WH-y-.06,3,{at:[0,(WH-y)/2,0]}),mBlack,G,x,y,z); mk(box(.08,.1,.08),M(null,{color:0xffd8a0,unlit:true}),G,x,y,z); };
+  bulb(.6,2.2,-3.0); bulb(4.7,2.15,-2.6); mk(box(1.2,.05,.16),M(null,{color:0xe8f0ff,unlit:true}),G,.4,WH-.04,2.0);
+  mk(box(.08,.1,.08),M(null,{color:0xffd8a0,unlit:true}),G,-2.2,2.3,-2.0);
+  const lights=[[[.6,2.15,-3.0],[1.45,1.05,.6],5.5],[[1.75,1.0,-.5],[.5,.65,1.3],4.5],[[.4,2.45,2.0],[1.0,1.1,1.05],5],[[4.7,2.1,-2.6],[1.4,1.0,.55],4.5],
+    [[-2.3,2.25,-2.0],[1.4,.95,.5],5.2],[[-7.8,5.2,-.4],[1.7,.9,.38],13]];
+  GEO_TEMP=false;
+  /* ---------- navigation ---------- */
+  const nav=new Uint8Array(NX*NZ).fill(1),space=new Int16Array(NX*NZ).fill(-9);
+  for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i; const R_=STASH_RECTS.find(r=>x>=r[0]&&x<=r[2]&&z>=r[1]&&z<=r[3]); if(!R_) continue;
+    space[id]=STASH_RECTS.find(r=>x>r[0]&&x<r[2]&&z>r[1]&&z<r[3])?.[4]??R_[4];
+    let bl=Math.hypot(x-STASH_SHAFT[0],z-STASH_SHAFT[1])<.9; if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.4) continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; break; } } nav[id]=bl?1:0; }
+  const U=(id,apt,x0,z0,x1,z1,win)=>({id,side:z0<0?-1:1,x0,x1,z0,z1,w:x1-x0,apt,door:x0,room:true,lit:true,win});
+  const units=[U(0,'COUNT',-2,-5,2.4,.4,[-2,-4]),U(1,'KITCHEN',-2,.4,2.4,3.9,[-2,2.2]),U(2,'SHAFT',2.4,-5,7,-.6,[7,-2]),U(3,'BEDROOM',2.4,-.6,7,3.9,[7,1.5]),U(5,'YARD',-6.4,-5,-2,5.6,[-6.4,2.2])];
+  Object.assign(FLOOR,{nav,space,units,party:[],bx:99,seats:[],beds:[],furn:[],stairUp:null,start:{x:-11.6,z:0,yaw:-Math.PI/2},lights});
+  stashLights(); boxGridDirty=true; navDirty=true; GAME.vision=GAME.vision||'off'; visionApply(); }
+
+const STASH_LIGHT={amb:[.075,.08,.11],dir:[.35,1,.25],dirCol:[.1,.11,.17],fog:[.012,.014,.024],fogNear:6,fogFar:24};
+function stashLights(){ setLights(Object.assign({},STASH_LIGHT,FLOOR.power?{pl:FLOOR.lights}:{amb:[.035,.038,.055],pl:FLOOR.lights.map((l,i)=>i===5?l:[[0,-50,0],[0,0,0],1])})); }
+function stashPower(on){ if(FLOOR.mode!=='stash'||FLOOR.power===on) return; FLOOR.power=on;
+  if(!on){ sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Quién apagó la planta?','Who shut off the generator?'),es('¡Memo! ¿Qué ves?','Memo! What do you see?')]),2.4); } },200+Math.random()*900); } }
+  stashLights(); visionApply(); }
+function stashReset(){ if(FLOOR.power===false){ FLOOR.power=null; stashPower(true); } FLOOR.down=false; stashCast(); visionApply(); }
+function goStash(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genStash(); buildRack(); buildBoard(); SPAWNOPT.where='any'; resetGame(); if(XR.on) vrRecenter(); }
+/* down the shaft: into the tunnel with whatever is in your hands */
+function stashDescend(){ FLOOR.down=true; sfx('door',.5); if(XR.on) vrToast('El pozo · the tunnel',2.5);
+  setTimeout(()=>{ const keepR=HANDS.R.item,keepL=HANDS.L.item; goTunnel(); equip(HANDS.R,keepR); equip(HANDS.L,keepL); },700); }
+function tickStash(dt){ if(FLOOR.mode!=='stash') return;
+  if(GAME.vision!=='nv') L.plCol.set([0,0,0],18); /* the goggles' torch is off when they're up */
+  if(FLOOR.power){ const t=GAME.t,f=.55+.25*Math.sin(t*9.1)+.2*Math.sin(t*23.7+1.3)*(Math.sin(t*.7)>.2?1:.3),c=FLOOR.lights[1][1]; L.plCol.set([c[0]*f,c[1]*f,c[2]*f],3); }
+  /* a shot into the open sky hits the grid's lid: no bullet holes hanging in the air */
+  for(const k of ['hole','splat']){ const D=DEC[k]; if(D.ver!==D._sv){ const n=D.length; for(let i=D.length-1;i>=0;i--){ const d=D[i]; if(d.c[1]>RH-.15&&d.n[1]<-.5) D.splice(i,1); } if(D.length!==n) D.ver++; D._sv=D.ver; } }
+  if(!GAME.started||PL.dead||FLOOR.down) return;
+  if(Math.hypot(PL.x-STASH_SHAFT[0],PL.z-STASH_SHAFT[1])<.55) stashDescend(); }
+
 /* =====================================================================
    PROTOTYPE 01: physical people
    Every enemy is a particle ragdoll (verlet, 18 points, distance + hinge limits) driven by muscles that pull
@@ -3081,7 +3207,7 @@ function resetGame(){
   for(const D of FLOOR.doors) if(D.state==='open'&&D.u.doorState==='closed') setDoor(D,'closed',true);
   /* desk testing starts armed; in VR you start with your fists and walk to the rack */
   equip(HANDS.R,XR.on?null:newItem('pistol')); equip(HANDS.L,XR.on?null:newItem('knife'));
-  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } } /* the first room always starts with its three tenants */
+  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); } /* the first room always starts with its three tenants */
 /* ---------- input ---------- */
 const isTouch=matchMedia('(pointer: coarse)').matches;
 document.body.classList.toggle('touch',isTouch);
@@ -3141,7 +3267,7 @@ function update(dt,now){
   if(!FLOOR.test&&!GAME.clear&&enemies.length&&enemies.every(E=>E.dead)){ GAME.clear=true; setTimeout(()=>{ if(GAME.clear){ showMsg('FLOOR 01 CLEAR','Three people lived here. Take the stairs, or reset and do it differently.'); if(XR.on) XR.clearT=6; } },2600); }
   if(FLOOR.flick){ const on=(Math.sin(GAME.t*23)+Math.sin(GAME.t*7.3)>-.7)||Math.sin(GAME.t*1.3)>.1,fk=on?1:.15,c=FLOOR.lights[0][1]; L.plCol.set([c[0]*fk,c[1]*fk,c[2]*fk],0); FLOOR.flick.mat.color=on?[1,1,1]:[.3,.3,.32]; }
   flash.t-=dt; if(flash.t>0){ L.plPos.set(flash.pos,21); L.plCol.set(flash.big?[5.5,3.6,1.6]:[2.6,1.8,.9],21); L.plDist[7]=flash.big?9:6; } else { L.plCol.set([0,0,0],21); }
-  updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt);
+  updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt); tickStash(dt);
   if(GAME.slow){ GAME.beatT=(GAME.beatT||0)-dt; if(GAME.beatT<=0){ GAME.beatT=1.05; sfx('heart'); } } else GAME.beatT=0;
   /* the flight up: walk onto it and you climb to the next floor (saved on the stairs) */
   if(GAME.started&&!PL.dead&&!GAME.climbing){ const S=FLOOR.stairUp; if(S&&PL.x>S.x0+.6&&PL.z>S.z0&&PL.z<S.z1) climb(); }
@@ -3838,7 +3964,7 @@ const PERSONAL=['I got a daughter—','I owe him money, that\'s all—','I just 
 function windowHeading(x,z){ const c=navCell(x,z),id=c>=0?FLOOR.space[c]:-1,u=FLOOR.units.find(u=>u.id===id); if(!u) return rnd(0,6.28);
   const w=u.win||[(u.x0+u.x1)/2,u.side*6]; return Math.atan2(w[0]-x,w[1]-z); }
 function spawnKind(ki){
-  const K=KINDS[ki],W=SPAWNOPT.where,tun=FLOOR.mode==='tunnel'; let spot=null,hd=null;
+  const K=KINDS[ki],W=SPAWNOPT.where,tun=FLOOR.mode==='tunnel'||FLOOR.mode==='stash'; let spot=null,hd=null;
   if(W==='near'){ /* in the corridor a few metres ahead of the landing, or near wherever you are */
     for(let t=0;t<30&&!spot;t++){ const x=clamp(PL.x+rnd(3.5,6.5),-9.5,9.5),z=rnd(-.6,.6),c=navCell(x,z); if(c>=0&&!FLOOR.nav[c]&&!enemies.some(E=>Math.hypot(E.pos[0]-x,E.pos[1]-z)<.9)&&Math.abs(x-FLOOR.bx)>1.2) spot={x,z}; }
     if(!spot) spot=freeSpot((x,z,sp)=>sp===-1,3); if(spot) hd=Math.atan2(PL.x-spot.x,PL.z-spot.z); }
@@ -3873,9 +3999,9 @@ const BTN=[
   {label:()=>'BLADE TILT: '+MELEE_TILT_LBL[MEL.tilt],col:0,row:5,act:()=>{ MEL.tilt=(MEL.tilt+1)%MELEE_TILT.length; reequipMelee(); }},
   {label:()=>'HANDS: '+HAND_YAW_LBL[MEL.yaw],col:1,row:5,act:()=>{ MEL.yaw=(MEL.yaw+1)%HAND_YAW.length; }},
   {label:()=>FLOOR.mode==='room'?'BACK TO TOWER':'FIRST ROOM',col:2,row:5,act:()=>setTimeout(FLOOR.mode==='room'?newFloor:firstRoom,0)},
-  {label:()=>FLOOR.mode==='tunnel'?'TOWER FLOOR':'TUNNEL',col:0,row:6,act:()=>setTimeout(FLOOR.mode==='tunnel'?newFloor:goTunnel,0)},
+  {label:()=>FLOOR.mode==='stash'?'TUNNEL':FLOOR.mode==='tunnel'?'TOWER FLOOR':'STASH HOUSE',col:0,row:6,act:()=>setTimeout(FLOOR.mode==='stash'?goTunnel:FLOOR.mode==='tunnel'?newFloor:goStash,0)},
   {label:()=>'GOGGLES: '+({off:'UP',nv:'NIGHT',thermal:'THERMAL'}[GAME.vision||'off']),col:1,row:6,act:()=>cycleVision()},
-  {label:()=>FLOOR.mode!=='tunnel'?'—':FLOOR.power===false?'POWER: OFF':'POWER: ON',col:2,row:6,act:()=>{ if(FLOOR.mode==='tunnel') tunnelPower(FLOOR.power===false); }}];
+  {label:()=>FLOOR.mode!=='tunnel'&&FLOOR.mode!=='stash'?'—':FLOOR.power===false?'POWER: OFF':'POWER: ON',col:2,row:6,act:()=>{ if(FLOOR.mode==='tunnel') tunnelPower(FLOOR.power===false); else if(FLOOR.mode==='stash') stashPower(FLOOR.power===false); }}];
 function whereLabel(){ const W=SPAWNOPT.where; if(W==='near') return 'NEAR ME'; if(W==='corridor') return 'HALL'; if(W==='any') return 'ANY ROOM'; const u=FLOOR.units.find(u=>u.id===W); return u?'APT '+u.apt:'ANY ROOM'; }
 const BW=.72,BH=.2,BX0=-12.62,BY0=1.62; let BZ=-1.93; /* buttons on the south wall of the landing, facing north */
 function drawBoard(){ const g=boardTex.c.getContext('2d'),key=BTN.map(b=>typeof b.label==='function'?b.label():b.label).join('|')+BTN.map(b=>b.lit>0?1:0).join(''); if(boardTex.text===key) return; boardTex.text=key;
@@ -3911,23 +4037,24 @@ function drawMap(g){ const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.fillRect(0
   g.textAlign='center'; g.textBaseline='middle';
   for(const b of MAP_BTN){ const on=W===b.w; g.fillStyle=on?'#e2a33d':'#23262a'; g.fillRect(b.x,7,160,28); g.fillStyle=on?'#0a0a0a':'#f2ede2'; g.font='800 18px "Big Shoulders Display","Arial Narrow",sans-serif'; g.fillText(b.l,b.x+80,22,150); }
   const R=(x0,z0,x1,z1,fill,stroke)=>{ const a=toMap(Math.min(x0,x1),Math.min(z0,z1)),b=toMap(Math.max(x0,x1),Math.max(z0,z1)); g.fillStyle=fill; g.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]); if(stroke){ g.strokeStyle=stroke; g.lineWidth=2; g.strokeRect(a[0]+1,a[1]+1,b[0]-a[0]-2,b[1]-a[1]-2); } };
-  const tun=FLOOR.mode==='tunnel';
+  const tun=FLOOR.mode==='tunnel',sth=FLOOR.mode==='stash';
   if(tun){ for(const r of TUN_RECTS) if(r[4]<0) R(r[0],r[1],r[2],r[3],r[4]===-3?'#141619':W==='corridor'?'#7a5a20':'#1e2124'); } /* the tunnel as dug, the old bore darker */
-  else { R(-13,-2,-10,2,'#1b1a18'); R(10,-2,13,2,'#1b1a18'); }
-  if(FLOOR.mode!=='room'&&!tun) R(-10,-1,10,1,W==='corridor'?'#7a5a20':'#1e2124','#3a3d40');
+  else { R(-13,-2,-10,2,'#1b1a18'); if(!sth) R(10,-2,13,2,'#1b1a18'); }
+  if(sth) R(-10.2,-5.6,-6.4,5.6,W==='corridor'?'#7a5a20':'#1e2124','#3a3d40'); /* the street */
+  if(FLOOR.mode!=='room'&&!tun&&!sth) R(-10,-1,10,1,W==='corridor'?'#7a5a20':'#1e2124','#3a3d40');
   for(const u of FLOOR.units){ const on=W===u.id||W==='any'; R(u.x0,u.z0??u.side*1,u.x1,u.z1??u.side*6,W===u.id?'#e2a33d':on?'#4a3a1c':'#2a2620','#55504a');
     if(u.win){ const a=toMap(u.win[0],u.win[1]-.7),b=toMap(u.win[0],u.win[1]+.7); g.fillStyle='#6fa8d0'; g.fillRect(a[0]-2,a[1],4,b[1]-a[1]); }
     else if(u.w>=3.6){ const a=toMap((u.x0+u.x1)/2-.7,u.side*6),b=toMap((u.x0+u.x1)/2+.7,u.side*6); g.fillStyle='#6fa8d0'; g.fillRect(a[0],a[1]-2,b[0]-a[0],4); } /* window */
     if(!u.room){ const d=toMap(u.door,u.side); g.fillStyle='#0d0d0e'; g.fillRect(d[0]-9,d[1]-3,18,6); }
-    const c=toMap((u.x0+u.x1)/2,tun?(u.z0+u.z1)/2:u.side*3.5); g.fillStyle=W===u.id?'#0a0a0a':'#c4bfb3'; g.font='700 15px "IBM Plex Mono",monospace'; g.fillText(u.apt,c[0],c[1]); }
+    const c=toMap((u.x0+u.x1)/2,tun||sth?(u.z0+u.z1)/2:u.side*3.5); g.fillStyle=W===u.id?'#0a0a0a':'#c4bfb3'; g.font='700 15px "IBM Plex Mono",monospace'; g.fillText(u.apt,c[0],c[1]); }
   if(FLOOR.bx<20){ const a=toMap(FLOOR.bx-.6,-.9),b=toMap(FLOOR.bx+.6,.9); g.fillStyle='#7a1a14'; g.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]); }
-  g.font='700 13px "IBM Plex Mono",monospace'; g.fillStyle='#8a857a'; if(!tun){ const a=toMap(-11.5,0),b=toMap(11.5,0); g.fillText('IN',a[0],a[1]); if(FLOOR.mode!=='room') g.fillText('UP',b[0],b[1]); }
+  g.font='700 13px "IBM Plex Mono",monospace'; g.fillStyle='#8a857a'; if(!tun){ const a=toMap(-11.5,0),b=toMap(11.5,0); g.fillText('IN',a[0],a[1]); if(FLOOR.mode!=='room'&&!sth) g.fillText('UP',b[0],b[1]); }
   else { const a=toMap(-11.6,-3),b=toMap(3.6,4); g.fillText('IN',a[0],a[1]); g.fillStyle='#5a564e'; g.fillText('OLD BORE',b[0],b[1]); }
   for(const E of enemies){ const q=toMap(E.B?E.B.x[0]:E.pos[0],E.B?E.B.x[2]:E.pos[1]); g.fillStyle=E.dead?'#5a5650':E.aware?'#ff3b30':'#e8e2cf'; g.beginPath(); g.arc(q[0],q[1],4,0,6.3); g.fill(); }
   { const q=toMap(PL.x,PL.z),f=camBasis().f,a=Math.atan2(f[2],f[0]); g.fillStyle='#7ec27a'; g.beginPath(); g.moveTo(q[0]+Math.cos(a)*9,q[1]+Math.sin(a)*9); g.lineTo(q[0]+Math.cos(a+2.5)*6,q[1]+Math.sin(a+2.5)*6); g.lineTo(q[0]+Math.cos(a-2.5)*6,q[1]+Math.sin(a-2.5)*6); g.fill(); } }
 function uploadMap(){ if(mapTex.glt){ gl.bindTexture(gl.TEXTURE_2D,mapTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,mapTex.c); } }
 function mapPick(px,py){ if(py<MAP_HDR){ for(const b of MAP_BTN) if(px>=b.x&&px<=b.x+160) return b.w; return null; }
-  const x=(px-MX0)/MS-13,z=(py-MY0)/MS-6; if(FLOOR.mode!=='room'&&Math.abs(x)<10&&Math.abs(z)<1) return 'corridor';
+  const x=(px-MX0)/MS-13,z=(py-MY0)/MS-6; if(FLOOR.mode==='stash'&&x>-10.2&&x<-6.4&&Math.abs(z)<5.6) return 'corridor'; if(FLOOR.mode!=='room'&&FLOOR.mode!=='stash'&&Math.abs(x)<10&&Math.abs(z)<1) return 'corridor';
   const u=FLOOR.units.find(u=>x>=u.x0&&x<u.x1&&(u.room?z>u.z0&&z<u.z1:Math.sign(z)===u.side&&Math.abs(z)>1&&Math.abs(z)<6)); return u?u.id:null; }
 function pickWhere(w){ if(w==null) return false; SPAWNOPT.where=w; sfx('click',.8); drawMap(mapTex.c.getContext('2d')); uploadMap(); if(window.__mapCv) drawMap(window.__mapCv.getContext('2d')); return true; }
 function pokeMap(p,h){ const inside=p[0]<MAP_X+.08&&p[0]>MAP_X-.05&&Math.abs(p[2])<MAP_M[0]/2&&Math.abs(p[1]-MAP_Y)<MAP_M[1]/2,k=h.side+'map';
@@ -3951,8 +4078,9 @@ let mapT=0; function tickMap(dt){ if(!FLOOR.test) return; mapT-=dt; if(mapT>0) r
   $('tpClear').addEventListener('click',clearEnemies); $('tpRoom').addEventListener('click',firstRoom); $('tpFloor').addEventListener('click',newFloor); })();
 
 /* ---------- boot ---------- */
-/* the build starts in the Puerto Seco tunnel (proof of concept); the TUNNEL / TOWER FLOOR button on the board switches */
-genTunnel(); buildRack(); buildBoard();
+/* the build starts in the Puerto Seco stash house; the shaft in its back room drops you into the tunnel, and the level button on the board cycles
+   stash house → tunnel → tower floor */
+genStash(); buildRack(); buildBoard();
 for(const k of ['bright','dark','dust']) dynNode(k,M(null,{color:k==='bright'?0x8e0c0c:k==='dark'?0x4c0606:0x7a7570,double:true})); dynNode('gib',M(null,{color:0x6a1414,double:true})); dynNode('bone',M(null,{color:0xd6cdb4,double:true}));
 dynNode('pool',M(tPoolB,{cut:true,double:true})); dynNode('splat',M(tSplat,{cut:true,double:true})); dynNode('hole',M(tHole,{cut:true,double:true}));
 resetGame();
