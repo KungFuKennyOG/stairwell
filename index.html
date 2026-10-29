@@ -4062,7 +4062,7 @@ function hitMarker(){ const x=$('xhair'); x.classList.remove('hit'); void x.offs
 function showMsg(h,p){ $('msgH').textContent=h; $('msgP').textContent=p; $('msg').hidden=false; }
 let AC=null,NOISE=null;
 function audio(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); const b=AC.createBuffer(1,AC.sampleRate,AC.sampleRate),d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; NOISE=b; }catch(e){ AC=null; } } if(AC&&AC.state==='suspended') AC.resume().catch(()=>{}); return AC; }
-let SUP12_SND='d';
+let SUP12_SND='e';
 function sfx(type,vol=1){ const ac=audio(); if(!ac) return; const t=ac.currentTime,out=ac.createGain(); out.gain.value=vol*(GAME.slow?.8:1); out.connect(ac.destination);
   const noise=(f0,f1,dur,g,q=.7,kind='lowpass',d=0,hold=0)=>{ const t0=t+d,s=ac.createBufferSource(); s.buffer=NOISE; s.playbackRate.value=GAME.slow?.6:1; const fl=ac.createBiquadFilter(); fl.type=kind; fl.Q.value=q; fl.frequency.setValueAtTime(f0,t0); fl.frequency.exponentialRampToValueAtTime(f1,t0+dur); const gg=ac.createGain(); gg.gain.setValueAtTime(g,t0); if(hold) gg.gain.setValueAtTime(g,t0+hold); gg.gain.exponentialRampToValueAtTime(.001,t0+dur); s.connect(fl); fl.connect(gg); gg.connect(out); s.start(t0,Math.random()*.5); s.stop(t0+dur+.02); };
   const tone=(f0,f1,dur,g,d=0,hold=0)=>{ const t0=t+d,o=ac.createOscillator(); o.frequency.setValueAtTime(f0*(GAME.slow?.6:1),t0); o.frequency.exponentialRampToValueAtTime(f1,t0+dur); const gg=ac.createGain(); gg.gain.setValueAtTime(g,t0); if(hold) gg.gain.setValueAtTime(g,t0+hold); gg.gain.exponentialRampToValueAtTime(.001,t0+dur); o.connect(gg); gg.connect(out); o.start(t0); o.stop(t0+dur+.02); };
@@ -4076,9 +4076,15 @@ function sfx(type,vol=1){ const ac=audio(); if(!ac) return; const t=ac.currentTi
   else if(type==='slowout'){ tone(60,240,.35,.35); noise(150,1200,.3,.25); }
   else if(type==='heart'){ tone(58,40,.14,.55); setTimeout(()=>{ if(GAME.slow) tone2(); },180); function tone2(){ const a=audio(); if(!a) return; const o=a.createOscillator(),gg=a.createGain(),t2=a.currentTime; o.frequency.setValueAtTime(52,t2); o.frequency.exponentialRampToValueAtTime(36,t2+.12); gg.gain.setValueAtTime(.4,t2); gg.gain.exponentialRampToValueAtTime(.001,t2+.12); o.connect(gg); gg.connect(a.destination); o.start(t2); o.stop(t2+.14); } }
   else if(type==='supp'){ noise(2600,420,.11,.55,1.2,'bandpass'); tone(150,70,.07,.45); noise(700,160,.09,.35); setTimeout(()=>sfx('click',.8),30); setTimeout(()=>sfx('shellhit',.35),260); } /* a cough, the slide cycling, brass on the floor */
-  else if(type==='suppsg') sfx('suppsg_'+SUP12_SND,vol*({a:.45,b:.6,c:.43,d:.5}[SUP12_SND]||.5)); /* evened out so none of the takes clips */
+  else if(type==='suppsg') sfx('suppsg_'+SUP12_SND,vol*({a:.45,b:.6,c:.43,d:.5,e:.5}[SUP12_SND]||.5)); /* evened out so none of the takes clips */
   /* the 12-gauge can, three takes (SUP12_SND picks): a: an airy cough, a hard puff of gas with a short crack on the front and a dead room after it
      b: the same with more weight in the chest, less air   c: hissier, tighter, close to a pneumatic tool. No boom, no corridor echo. */
+  /* e: matched to Kenny's second clip (two clean shots): crack with a short 9 kHz ping, a broadband blast with the thump under it,
+     then the signature: four or five rising whistles sweeping ~3 kHz up past 10 kHz, one every ~40 ms, over a high hiss and a low ~180 Hz hum */
+  else if(type==='suppsg_e'){ noise(9000,5000,.03,2.6,.7,'highpass'); noise(3500,2500,.03,1.6,1,'bandpass'); noise(9000,8800,.08,.8,8,'bandpass',.005); /* the crack and its ping */
+    noise(7000,1800,.1,1.6,.7,'lowpass',.035); noise(4000,3000,.09,.9,.7,'highpass',.035); tone(105,58,.2,.9,.035,.06); tone(230,165,.14,.75,.035,.05); noise(600,170,.25,1.4,.7,'lowpass',.035,.06); tone(200,170,.38,.14,.04,.2); /* the blast, the thump, the low hum */
+    for(let k=0;k<7;k++){ const d=.11+k*.031+rnd(-.006,.006),g=[.5,.8,1,1.05,.95,.75,.45][k]*rnd(.8,1.15),f0=rnd(4600,5800),f1=rnd(11500,13500); tone(f0,f1,.08,g*.45,d,.06); noise(f0,f1,.08,g*.8,14,'bandpass',d,.06); /* never quite the same twice */ } /* the rising whistles */
+    noise(6500,6000,.4,.22,.7,'highpass',.05,.24); noise(7000,900,.5,.5,.6,'lowpass',.1,.26); }                                         /* hiss and room */
   /* d: matched to the film (Kenny's clip, measured band by band): a hard high crack, then a deep thump under 300 Hz for ~100 ms with
      the mids scooped out, a long high gas hiss for ~250 ms, and a second small crackle ~140 ms in */
   else if(type==='suppsg_d'){ noise(9000,4500,.035,2.4,.7,'highpass'); noise(4000,3200,.035,1.6,.7,'highpass'); noise(2200,1500,.035,1.5,1,'bandpass'); /* the crack */
