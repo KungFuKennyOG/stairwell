@@ -14,43 +14,54 @@ const WPN={
   revolver:{label:'.38 revolver',build:pRevolver,grip:[0,-.035,-.015],gun:true,cup:true,bash:{pts:[[0,.036,.14],[0,-.07,-.03]],power:.8},mag:6,rof:.3,muzzle:[0,.036,.15],axisY:.036,push:1.3,loadOne:true,snd:'revolver'},
   pistol:  {label:'9mm pistol',build:pPistol,grip:[0,-.035,-.005],gun:true,cup:true,bash:{pts:[[0,.045,.15],[0,-.08,-.02]],power:.75},mag:12,rof:.11,muzzle:[0,.045,.17],axisY:.045},
   shotgun: {label:'Pump shotgun',build:pShotgun,grip:[0,-.04,-.08],fore:[0,-.02,.24],gun:true,pump:true,bash:{pts:[[0,.02,.58],[0,-.07,-.31],[0,-.02,-.2]],power:1.35},mag:5,rof:.8,muzzle:[0,.02,.6],axisY:.02,pellets:9,spread:.05,bleed:.5,sever:.7,push:.5,loadOne:true,snd:'shotgun'},
-  can:     {label:'Suppressor',build:pCan,grip:[0,0,0],melee:'blunt',fwd:true,reach:1.05,pts:[[0,0,.08],[0,0,-.08]],speed:1.7},
+  can:     {label:'Suppressor',build:g=>pCan(g,CAN_SPEC.pistol),grip:[0,0,0],melee:'blunt',fwd:true,reach:1.05,pts:[[0,0,.08],[0,0,-.08]],speed:1.7},
+  bigcan:  {label:'Shotgun suppressor',build:g=>pCan(g,CAN_SPEC.shotgun),grip:[0,0,0],melee:'blunt',fwd:true,reach:1.1,pts:[[0,0,.2],[0,0,-.2]],speed:1.9},
   smg:     {label:'MP5',build:pSMG,grip:[0,-.07,-.07],fore:[0,-.03,.12],gun:true,bash:{pts:[[0,.012,.28],[0,-.01,-.32]],power:.95},mag:30,rof:.075,auto:true,muzzle:[0,.012,.29],axisY:.012,spread:.014,snd:'smg'}
 };
-const WPN_KEYS=['fists','bottle','knife','machete','revolver','pistol','shotgun','smg','can'];
+const WPN_KEYS=['fists','bottle','knife','machete','revolver','pistol','shotgun','smg','can','bigcan'];
 const KIND_WPN={corner:'bottle',cutter:'machete',gunman:'pistol',doorman:'shotgun',enforcer:'smg',landlord:'revolver'};
-function newItem(key,ammo,sup){ const w=WPN[key],a=w.gun?(ammo??w.mag):0; return {key,ammo:a,reload:0,uses:w.uses||0,cd:0,chambered:!w.pump||a>0,spent:false,pumpSt:'in',rev:false,sup:!!(sup&&CAN_FIT[key])}; }
+function newItem(key,ammo,sup){ const w=WPN[key],a=w.gun?(ammo??w.mag):0; return {key,ammo:a,reload:0,uses:w.uses||0,cd:0,chambered:!w.pump||a>0,spent:false,pumpSt:'in',rev:false,sup:!!(sup&&CAN_SPEC[key])}; }
 
 /* ---------- suppressors ----------
-   One 9mm can fits the pistol and the MP5 (not the revolver: the cylinder gap leaks; not the pump).
+   One 9mm can fits the pistol and the MP5 (not the revolver: the cylinder gap leaks). The pump takes its own: a fat 12-gauge can
+   clamped on with two hose clamps, hung low off the barrel so the bead still shows over it (No Country for Old Men).
    VR: hold the can in one hand and the gun in the other, push the can onto the muzzle and it threads on. Grip the can on the gun
    with your empty hand to unscrew it. Flat screen: V puts one on (or takes it off) the gun in your right hand.
    Suppressed: a cough instead of a bang, no flash, a little less kick. Only someone a few metres away hears it, and only as
    "what was that?", not an alarm. A round that misses still cracks into the wall where it lands, and someone near that wall comes to look. */
-const CAN_L=.16,CAN_R=.0175,CAN_FIT={pistol:1,smg:1},GUN_SUP={pistol:3.5,smg:5};
+/* L long, R radius, cy: how far the can's centre sits below the bore (the shotgun can hangs low so the bead clears it), item: what you hold */
+const CAN9={item:'can',L:.16,R:.0175,cy:0},CAN12={item:'bigcan',L:.42,R:.034,cy:-.024,clamps:true};
+const CAN_SPEC={pistol:CAN9,smg:CAN9,shotgun:CAN12},GUN_SUP={pistol:3.5,smg:5,shotgun:7};
 const tSupCan=tex(16,32,'#1b1c1e',g=>{ R(g,'#2b2d30',0,0,16,32); R(g,'#1b1c1e',3,0,10,32); R(g,'#3c3f43',6,0,2,32); R(g,'#2f3135',8,0,1,32); /* a soft sheen running down the tube */
   for(const y0 of [1,27]) for(let y=y0;y<y0+4;y++) for(let x=0;x<16;x++) if((x+y)&1) R(g,'#121314',x,y,1,1); /* knurled grip bands at both ends */
   R(g,'#0e0f10',0,6,16,1); R(g,'#0e0f10',0,25,16,1); grain(g,7,761); });
 const mCan=M(tSupCan);
 /* centred on its own middle, running along +z (the front, with the bore, at +z) */
-function pCan(g){ mk(cyl(CAN_R,CAN_R,CAN_L-.02,10),mCan,g,0,0,-.004,Math.PI/2);
-  mk(cyl(CAN_R-.0015,CAN_R,.014,10),mBlack,g,0,0,CAN_L/2-.011,Math.PI/2);                 /* front cap, chamfered */
-  mk(cyl(.0055,.0055,.004,8),M(null,{color:0x060606,double:true}),g,0,0,CAN_L/2-.002,Math.PI/2); /* bore */
-  mk(cyl(.0125,.0125,.012,8),mBlack,g,0,0,-CAN_L/2+.004,Math.PI/2);                     /* booster where it threads on */
+function pCan(g,S){ const L=S.L,Rr=S.R,by=-S.cy; /* by: the bore, above the can's centre on the big one */
+  mk(cyl(Rr,Rr,L-.02,S.clamps?12:10),mCan,g,0,0,-.004,Math.PI/2);
+  mk(cyl(Rr-.0015,Rr,.014,S.clamps?12:10),mBlack,g,0,0,L/2-.011,Math.PI/2);                       /* front cap, chamfered */
+  mk(cyl(S.clamps?.0115:.0055,S.clamps?.0115:.0055,.004,8),M(null,{color:0x060606,double:true}),g,0,by,L/2-.002,Math.PI/2); /* bore */
+  if(S.clamps){ mk(cyl(Rr*.9,Rr,.014,12),mBlack,g,0,0,-L/2+.005,Math.PI/2);                       /* rear cap round the barrel */
+    mk(cyl(.0135,.0135,.05,8),M(tBlued,{double:true}),g,0,by,-L/2-.012,Math.PI/2);                  /* the barrel sleeve it slides over */
+    for(const z of [-L/2+.05,-L/2+.15]){ mk(cyl(Rr+.002,Rr+.002,.012,12,{open:true}),M(tSteel,{double:true}),g,0,0,z,Math.PI/2); mk(box(.012,.01,.016),mSteel,g,Rr*.72,Rr*.72,z,0,0,-.785); } } /* hose clamps with their screw housings */
+  else mk(cyl(.0125,.0125,.012,8),mBlack,g,0,0,-L/2+.004,Math.PI/2);                            /* booster where it threads on */
   return g; }
-const canMuzzle=(w,it)=>it&&it.sup?[w.muzzle[0],w.muzzle[1],w.muzzle[2]+CAN_L]:w.muzzle;
-function addCan(g,key){ const w=WPN[key]; GEO_TEMP=true; const c=N(g,0,w.axisY,w.muzzle[2]+CAN_L/2); pCan(c); GEO_TEMP=false; g.can=c; return c; }
+const canMuzzle=(w,it)=>it&&it.sup?[w.muzzle[0],w.muzzle[1],w.muzzle[2]+CAN_SPEC[it.key].L]:w.muzzle;
+function addCan(g,key){ const w=WPN[key],S=CAN_SPEC[key]; GEO_TEMP=true; const c=N(g,0,w.axisY+S.cy,w.muzzle[2]+S.L/2); pCan(c,S); GEO_TEMP=false; g.can=c; return c; }
 function removeCan(g){ if(!g||!g.can) return; disposeTree(g.can); const i=g.kids.indexOf(g.can); if(i>=0) g.kids.splice(i,1); g.can=null; }
 /* builds a gun (or anything) with its sights, and its can if it has one */
 function buildItem(g,item){ WPN[item.key].build(g); if(WPN[item.key].gun) addSights(g,item.key); if(item.sup) addCan(g,item.key); }
 function screwOn(gh,ch){ const it=gh.item; it.sup=true; if(gh.itemNode) addCan(gh.itemNode,it.key); equip(ch,null); sfx('thread'); buzz(gh.hand,.5,50); buzz(ch.hand,.6,60); }
-function unscrew(h,gh){ const it=gh.item; it.sup=false; removeCan(gh.itemNode); equip(h,newItem('can')); h.canArm=false; sfx('thread',.8); buzz(h.hand,.5,50); buzz(gh.hand,.4,40); }
+function unscrew(h,gh){ const it=gh.item; it.sup=false; removeCan(gh.itemNode); equip(h,newItem(CAN_SPEC[it.key].item)); h.canArm=false; sfx('thread',.8); buzz(h.hand,.5,50); buzz(gh.hand,.4,40); }
 /* where the can sits once it's on, in the world */
-const canSeat=gh=>{ const w=WPN[gh.item.key]; return mulP(itemM(gh),[0,w.axisY,w.muzzle[2]+CAN_L/2]); };
+const canSeat=gh=>{ const w=WPN[gh.item.key],S=CAN_SPEC[gh.item.key]; return mulP(itemM(gh),[0,w.axisY+S.cy,w.muzzle[2]+S.L/2]); };
+/* how far a point is from the can on a gun (anywhere along it, not just its middle) */
+function canDist(gh,p){ const w=WPN[gh.item.key],S=CAN_SPEC[gh.item.key],Mi=itemM(gh),a=mulP(Mi,[0,w.axisY+S.cy,w.muzzle[2]]),b=mulP(Mi,[0,w.axisY+S.cy,w.muzzle[2]+S.L]),ab=v3.sub(b,a),t=clamp(v3.dot(v3.sub(p,a),ab)/v3.dot(ab,ab),0,1);
+  return Math.hypot(...v3.sub(p,v3.add(a,v3.sc(ab,t))))-S.R; }
 /* VR, every frame: a can held near the muzzle of the gun in your other hand threads on (after you've first moved it away from the gun) */
-function tickCan(h){ if(!h.item||h.item.key!=='can'||!h.itemNode) return; const o=otherHand(h),it=o.item; if(!it||!CAN_FIT[it.key]||it.sup||!o.itemNode) { h.canArm=true; return; }
-  const d=Math.hypot(...v3.sub(mulP(itemM(h),[0,0,0]),canSeat(o))); if(d>.18) h.canArm=true; else if(h.canArm!==false&&d<.065) screwOn(o,h); }
-function flatToggleCan(){ const h=HANDS.R,it=h.item; if(!it||!CAN_FIT[it.key]) return; it.sup=!it.sup; if(it.sup) addCan(h.itemNode,it.key); else removeCan(h.itemNode); sfx('thread'); }
+function tickCan(h){ if(!h.item||!WPN[h.item.key].fwd||!h.itemNode) return; const o=otherHand(h),it=o.item,S=it&&CAN_SPEC[it.key]; if(!S||S.item!==h.item.key||it.sup||!o.itemNode) { h.canArm=true; return; }
+  const d=Math.hypot(...v3.sub(mulP(itemM(h),[0,0,0]),canSeat(o))); const big=S.L>.3; if(d>(big?.26:.18)) h.canArm=true; else if(h.canArm!==false&&d<(big?.09:.065)) screwOn(o,h); }
+function flatToggleCan(){ const h=HANDS.R,it=h.item; if(!it||!CAN_SPEC[it.key]) return; it.sup=!it.sup; if(it.sup) addCan(h.itemNode,it.key); else removeCan(h.itemNode); sfx('thread'); }
 
 /* ---------- hands ---------- */
 function ammoTexNew(){ return tex(16,8,'#0a0b0d'); }
@@ -160,13 +171,13 @@ function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye
   const it=h.item; if(!it||!GAME.started||PL.dead) return false; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.cd>0) return false;
   if(it.ammo<=0){ sfx('click'); it.cd=.25; if(!XR.on) reloadHand(h); return false; }
   if(w.pump&&!it.chambered){ sfx('click'); it.cd=.2; if(XR.on) buzz(h.hand,.2,15); return false; } /* nothing in the chamber: rack it */
-  it.ammo--; it.cd=w.rof; h.rec=(w.pump?1.8:w.cup&&h.support?.5:1)*(it.sup?.8:1); sfx(it.sup?'supp':w.snd||'gun',it.sup&&w.auto?.8:1); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
+  it.ammo--; it.cd=w.rof; h.rec=(w.pump?1.8:w.cup&&h.support?.5:1)*(it.sup?.8:1); sfx(it.sup?(w.pump?'suppsg':'supp'):w.snd||'gun',it.sup&&w.auto?.8:1); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
   if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }
   const Mi=itemM(h),mz=mulP(Mi,canMuzzle(w,it)),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); if(!it.sup) muzzle(mz); GAME.shotT=GAME.t;
   const o=aim?aim.o:mz,d0=aim?aim.d:bd; if(it.sup) noise([PL.x,0,PL.z],GUN_SUP[it.key]||4); else noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true}); /* loud, but not floor-wide: a wall or a shut door halves it */
   const n=w.pellets||1,sp=w.spread||.006,tally=new Map();
   for(let i=0;i<n;i++){ const r=bullet(o,norm3(v3.add(d0,[rnd(-sp,sp),rnd(-sp,sp),rnd(-sp,sp)])),w,h); if(r) tally.set(r.E,{n:(tally.get(r.E)||{n:0}).n+1,t:r.t}); }
-  if(w.pellets){ flash.t=.1; flash.big=true; for(let i=0;i<10;i++) emit(mz,v3.add(v3.sc(bd,rnd(.6,2.2)),[rnd(-.3,.3),rnd(-.1,.4),rnd(-.3,.3)]),rnd(.012,.03),'dust',.9); /* smoke */
+  if(w.pellets){ if(!it.sup){ flash.t=.1; flash.big=true; } for(let i=0;i<(it.sup?5:10);i++) emit(mz,v3.add(v3.sc(bd,rnd(.6,2.2)),[rnd(-.3,.3),rnd(-.1,.4),rnd(-.3,.3)]),rnd(.012,.03),'dust',.9); /* smoke */
     for(const [E,r] of tally) shotgunShove(E,d0,r.n,r.t); }
   if(it.ammo===0&&!XR.on) setTimeout(()=>reloadHand(h),250);
   return true; }
@@ -239,12 +250,12 @@ function clatter(P){ const p=P.node.p; noise([p[0],0,p[2]],P.item.key==='bottle'
 /* ---------- the armory rack (test floor): every weapon on a hook, take as many as you like ---------- */
 const RACK=[]; let rackN=null;
 function buildRack(){ if(rackN){ disposeTree(rackN); const i=world.kids.indexOf(rackN); if(i>=0) world.kids.splice(i,1); } RACK.length=0; if(!FLOOR.test) { rackN=null; return; }
-  rackN=N(world); const z=1.9+(FLOOR.mode==='tunnel'?-3.33:0),y=1.25; GEO_TEMP=true;
-  mk(box(2.7,.9,.04),M(tCrate),rackN,-11.5,y,z+.04); mk(box(2.7,.05,.06),mSteel,rackN,-11.5,y+.47,z+.02);
-  const lab=tex(256,16,null,g=>{ WPN_KEYS.forEach((k,i)=>{ const s=['FIST','BOTL','KNIF','MACH','.38','9MM','PUMP','MP5','CAN'][i]; text(g,s,i*28+14-(textW(s)>>1),4,'#e8e2cf'); }); });
-  mk(plane(2.52,.16),M(lab,{unlit:true,cut:true}),rackN,-11.5,y-.36,z+.005,0,Math.PI,0);
-  WPN_KEYS.forEach((k,i)=>{ const x=-11.5+1.26-(i+.5)*.28; const hook=N(rackN,x,y+.05,z-.06,-Math.PI/2,Math.PI,0);
-    if(WPN[k].build){ const gn=N(hook,0,0,k==='shotgun'?-.22:-.08); WPN[k].build(gn); addSights(gn,k); } else mk(box(.08,.09,.09),M(tTape),hook);
+  rackN=N(world); const n=WPN_KEYS.length,z=1.9+(FLOOR.mode==='tunnel'?-3.33:0),y=1.25; GEO_TEMP=true;
+  mk(box(n*.28+.2,.9,.04),M(tCrate),rackN,-11.5,y,z+.04); mk(box(n*.28+.2,.05,.06),mSteel,rackN,-11.5,y+.47,z+.02);
+  const lab=tex(n*28,16,null,g=>{ WPN_KEYS.forEach((k,i)=>{ const s=['FIST','BOTL','KNIF','MACH','.38','9MM','PUMP','MP5','SUP9','SUP12'][i]; text(g,s,i*28+14-(textW(s)>>1),4,'#e8e2cf'); }); });
+  mk(plane(n*.28,.16),M(lab,{unlit:true,cut:true}),rackN,-11.5,y-.36,z+.005,0,Math.PI,0);
+  WPN_KEYS.forEach((k,i)=>{ const x=-11.5+(n/2-(i+.5))*.28; const hook=N(rackN,x,y+.05,z-.06,-Math.PI/2,Math.PI,0);
+    if(WPN[k].build){ const gn=N(hook,0,0,k==='shotgun'||k==='bigcan'?-.22:-.08); WPN[k].build(gn); addSights(gn,k); } else mk(box(.08,.09,.09),M(tTape),hook);
     RACK.push({key:k,node:hook,x,y:y+.02,z:z-.08,taken:0}); });
   GEO_TEMP=false; }
 function nearestGrabbable(p,maxD){ let best=null,bd=maxD;
@@ -256,7 +267,7 @@ function grabOrDrop(h){
   if(h.stuck){ leaveEmbedded(h); return; } /* let go of a blade that's in him: it stays in him */
   if(h.grab){ endGrab(h.grab,Math.hypot(...h.vel)>1.5?v3.sc(h.vel,1.1):null); return; } /* let go of him, or throw him */
   if(h.supportOf){ releaseSupport(h); sfx('click',.4); return; }
-  if(!h.item){ const o=otherHand(h); if(o.item&&o.item.sup&&o.itemNode&&Math.hypot(...v3.sub(mulP(h.M,FIST),canSeat(o)))<.07){ unscrew(h,o); return; } } /* take the can off */
+  if(!h.item){ const o=otherHand(h); if(o.item&&o.item.sup&&o.itemNode&&canDist(o,mulP(h.M,FIST))<.05){ unscrew(h,o); return; } } /* take the can off */
   if(!h.item&&trySupport(h)) return;
   if(!h.item&&tryGrabBody(h)) return;
   if(h.item){ /* let go: it falls, or flies if the hand was moving */
