@@ -1,6 +1,6 @@
 /* ---------- boot ---------- */
-/* the build starts in the Puerto Seco stash house; the shaft in its back room drops you into the tunnel, and the level button on the board cycles
-   stash house → tunnel → tower floor */
+/* the build starts in the Puerto Seco stash house; the shaft in its back room drops you into the tunnel, the tunnel's exit ladder comes up in the
+   warehouse, and the level button on the board cycles stash house → tunnel → warehouse → tower floor */
 genStash(); buildRack(); buildBoard();
 for(const k of ['bright','dark','dust']) dynNode(k,M(null,{color:k==='bright'?0x8e0c0c:k==='dark'?0x4c0606:0x7a7570,double:true})); dynNode('gib',M(null,{color:0x6a1414,double:true})); dynNode('bone',M(null,{color:0xd6cdb4,double:true}));
 dynNode('spark',M(null,{color:0xffc464,unlit:true,double:true})); dynNode('smoke',M(tPuff,{color:0x8c8780,cut:true,double:true})); dynNode('mist',M(tPuff,{color:0x9a1212,cut:true,double:true}));

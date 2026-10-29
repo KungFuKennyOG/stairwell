@@ -13,13 +13,16 @@ const PERSONAL=['I got a daughter—','I owe him money, that\'s all—','I just 
 function windowHeading(x,z){ const c=navCell(x,z),id=c>=0?FLOOR.space[c]:-1,u=FLOOR.units.find(u=>u.id===id); if(!u) return rnd(0,6.28);
   const w=u.win||[(u.x0+u.x1)/2,u.side*6]; return Math.atan2(w[0]-x,w[1]-z); }
 function spawnKind(ki){
-  const K=KINDS[ki],W=SPAWNOPT.where,tun=FLOOR.mode==='tunnel'||FLOOR.mode==='stash'; let spot=null,hd=null;
+  const K=KINDS[ki],W=SPAWNOPT.where,tun=FLOOR.mode==='tunnel'||FLOOR.mode==='stash',ware=FLOOR.mode==='ware'; let spot=null,hd=null;
   if(W==='near'){ /* in the corridor a few metres ahead of the landing, or near wherever you are */
     for(let t=0;t<30&&!spot;t++){ const x=clamp(PL.x+rnd(3.5,6.5),-9.5,9.5),z=rnd(-.6,.6),c=navCell(x,z); if(c>=0&&!FLOOR.nav[c]&&!enemies.some(E=>Math.hypot(E.pos[0]-x,E.pos[1]-z)<.9)&&Math.abs(x-FLOOR.bx)>1.2) spot={x,z}; }
     if(!spot) spot=freeSpot((x,z,sp)=>sp===-1,3); if(spot) hd=Math.atan2(PL.x-spot.x,PL.z-spot.z); }
   else if(W==='corridor'){ spot=freeSpot((x,z,sp)=>sp===-1,3)||freeSpot((x,z,sp)=>sp===-1,0); if(spot) hd=rnd(0,6.28); }
   else { const pred=W==='any'?(x,z,sp)=>sp>=0:(x,z,sp)=>sp===W; spot=freeSpot(pred,W==='any'?4:0); if(spot) hd=windowHeading(spot.x,spot.z); }
   if(!spot){ spot=freeSpot((x,z,sp)=>sp>=0,4); if(!spot) return null; hd=windowHeading(spot.x,spot.z); }
+  if(ware){ const sp={id:COP_OF[K.key],name:K.key==='landlord'?'Sgt. Doyle':COP_NAMES[(nameI++)%COP_NAMES.length],x:spot.x,z:spot.z,hd,extra:pick(WARE_CAST).extra,torch:K.key==='corner'||K.key==='landlord'?0:1};
+    const E=spawnEnemy(Object.assign({},sp,{maker:(h,g)=>copChar(sp.id,h,g)})); copSetup(E,sp); enemies.push(E); attachLabels();
+    if(SPAWNOPT.aware){ E.aware=true; E.tracks=true; E.mind='hunt'; E.lkp=[PL.x,PL.z]; E.st='alert'; } GAME.clear=false; return E; }
   const name=K.key==='landlord'?(tun?'Don Aurelio':'The Landlord'):tun?NAMES_ES[(nameI++)%NAMES_ES.length]:NAMES[(nameI++)%NAMES.length],det=DETAILS[(nameI*7)%DETAILS.length];
   const E=spawnEnemy({maker:tun?(h,g)=>cartelChar(CARTEL_OF[K.key],h,g):K.maker,name,x:spot.x,z:spot.z,hd,extra:K.key==='landlord'?(tun?es('¿Sabes quién soy?','Do you know who I am?'):'You know who owns this building?'):tun?pick(TUN_CAST).extra:pick(PERSONAL)});
   E.detail=det; enemies.push(E); attachLabels();
@@ -48,9 +51,9 @@ const BTN=[
   {label:()=>'BLADE TILT: '+MELEE_TILT_LBL[MEL.tilt],col:0,row:5,act:()=>{ MEL.tilt=(MEL.tilt+1)%MELEE_TILT.length; reequipMelee(); }},
   {label:()=>'HANDS: '+HAND_YAW_LBL[MEL.yaw],col:1,row:5,act:()=>{ MEL.yaw=(MEL.yaw+1)%HAND_YAW.length; }},
   {label:()=>FLOOR.mode==='room'?'BACK TO TOWER':'FIRST ROOM',col:2,row:5,act:()=>setTimeout(FLOOR.mode==='room'?newFloor:firstRoom,0)},
-  {label:()=>FLOOR.mode==='stash'?'TUNNEL':FLOOR.mode==='tunnel'?'TOWER FLOOR':'STASH HOUSE',col:0,row:6,act:()=>setTimeout(FLOOR.mode==='stash'?goTunnel:FLOOR.mode==='tunnel'?newFloor:goStash,0)},
+  {label:()=>({stash:'TUNNEL',tunnel:'WAREHOUSE',ware:'TOWER FLOOR'})[FLOOR.mode]||'STASH HOUSE',col:0,row:6,act:()=>{ GAME.kit=null; setTimeout(({stash:goTunnel,tunnel:goWare,ware:newFloor})[FLOOR.mode]||goStash,0); }}, /* the level button: stash house → tunnel → warehouse → tower floor */
   {label:()=>'GOGGLES: '+({off:'UP',nv:'NIGHT',thermal:'THERMAL'}[GAME.vision||'off']),col:1,row:6,act:()=>cycleVision()},
-  {label:()=>FLOOR.mode!=='tunnel'&&FLOOR.mode!=='stash'?'—':FLOOR.power===false?'POWER: OFF':'POWER: ON',col:2,row:6,act:()=>{ if(FLOOR.mode==='tunnel') tunnelPower(FLOOR.power===false); else if(FLOOR.mode==='stash') stashPower(FLOOR.power===false); }}];
+  {label:()=>FLOOR.mode!=='tunnel'&&FLOOR.mode!=='stash'&&FLOOR.mode!=='ware'?'—':FLOOR.power===false?'POWER: OFF':'POWER: ON',col:2,row:6,act:()=>{ if(FLOOR.mode==='tunnel') tunnelPower(FLOOR.power===false); else if(FLOOR.mode==='stash') stashPower(FLOOR.power===false); else if(FLOOR.mode==='ware') warePower(FLOOR.power===false); }}];
 function whereLabel(){ const W=SPAWNOPT.where; if(W==='near') return 'NEAR ME'; if(W==='corridor') return 'HALL'; if(W==='any') return 'ANY ROOM'; const u=FLOOR.units.find(u=>u.id===W); return u?'APT '+u.apt:'ANY ROOM'; }
 const BW=.72,BH=.2,BX0=-12.62,BY0=1.62; let BZ=-1.93; /* buttons on the south wall of the landing, facing north */
 function drawBoard(){ const g=boardTex.c.getContext('2d'),key=BTN.map(b=>typeof b.label==='function'?b.label():b.label).join('|')+BTN.map(b=>b.lit>0?1:0).join(''); if(boardTex.text===key) return; boardTex.text=key;
@@ -88,7 +91,7 @@ function drawMap(g){ mapFit(); const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.
   g.textAlign='center'; g.textBaseline='middle';
   for(const b of MAP_BTN){ const on=W===b.w; g.fillStyle=on?'#e2a33d':'#23262a'; g.fillRect(b.x,7,160,28); g.fillStyle=on?'#0a0a0a':'#f2ede2'; g.font='800 18px "Big Shoulders Display","Arial Narrow",sans-serif'; g.fillText(b.l,b.x+80,22,150); }
   const R=(x0,z0,x1,z1,fill,stroke)=>{ const a=toMap(Math.min(x0,x1),Math.min(z0,z1)),b=toMap(Math.max(x0,x1),Math.max(z0,z1)); g.fillStyle=fill; g.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]); if(stroke){ g.strokeStyle=stroke; g.lineWidth=2; g.strokeRect(a[0]+1,a[1]+1,b[0]-a[0]-2,b[1]-a[1]-2); } };
-  const tun=FLOOR.mode==='tunnel',sth=FLOOR.mode==='stash';
+  const tun=FLOOR.mode==='tunnel',sth=FLOOR.mode==='stash'||FLOOR.mode==='ware',RECTS=FLOOR.mode==='ware'?WARE_RECTS:STASH_RECTS;
   if(tun){ /* the tunnel as dug (the unlit digs darker): thousands of cells, so drawn once per level and kept */
     if(!drawMap.bg||drawMap.bg.nav!==FLOOR.nav||drawMap.bg.W!==W){ const c=document.createElement('canvas'); c.width=MAPW; c.height=MAPH; const g2=c.getContext('2d');
       for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const id=k*NX+i,sp=FLOOR.space[id]; if(sp===-9||sp>=0||FLOOR.nav[id]) continue; const a=toMap(cellX(i)-.27,cellZ(k)-.27),b=toMap(cellX(i)+.27,cellZ(k)+.27);
@@ -96,7 +99,7 @@ function drawMap(g){ mapFit(); const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.
       drawMap.bg={nav:FLOOR.nav,W,c}; }
     g.drawImage(drawMap.bg.c,0,0); }
   else { R(-13,-2,-10,2,'#1b1a18'); if(!sth) R(10,-2,13,2,'#1b1a18'); }
-  if(sth) for(const r of STASH_RECTS) if(r[4]<0||r[4]===7||r[4]===15) R(r[0],r[1],r[2],r[3],r[4]===-1&&W==='corridor'?'#7a5a20':'#1e2124'); /* streets, the back alley, the lot */
+  if(sth) for(const r of RECTS) if(r[4]<0||(FLOOR.mode==='stash'&&(r[4]===7||r[4]===15))) R(r[0],r[1],r[2],r[3],r[4]===-1&&W==='corridor'?'#7a5a20':'#1e2124'); /* streets, the back alley, the lot (warehouse: corridors and outside) */
   if(FLOOR.mode!=='room'&&!tun&&!sth) R(-10,-1,10,1,W==='corridor'?'#7a5a20':'#1e2124','#3a3d40');
   for(const u of FLOOR.units){ const on=W===u.id||W==='any'; R(u.x0,u.z0??u.side*1,u.x1,u.z1??u.side*6,W===u.id?'#e2a33d':on?'#4a3a1c':'#2a2620','#55504a');
     if(u.win){ const a=toMap(u.win[0],u.win[1]-.7),b=toMap(u.win[0],u.win[1]+.7); g.fillStyle='#6fa8d0'; g.fillRect(a[0]-2,a[1],4,b[1]-a[1]); }
@@ -110,7 +113,7 @@ function drawMap(g){ mapFit(); const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.
   { const q=toMap(PL.x,PL.z),f=camBasis().f,a=Math.atan2(f[2],f[0]); g.fillStyle='#7ec27a'; g.beginPath(); g.moveTo(q[0]+Math.cos(a)*9,q[1]+Math.sin(a)*9); g.lineTo(q[0]+Math.cos(a+2.5)*6,q[1]+Math.sin(a+2.5)*6); g.lineTo(q[0]+Math.cos(a-2.5)*6,q[1]+Math.sin(a-2.5)*6); g.fill(); } }
 function uploadMap(){ if(mapTex.glt){ gl.bindTexture(gl.TEXTURE_2D,mapTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,mapTex.c); } }
 function mapPick(px,py){ if(py<MAP_HDR){ for(const b of MAP_BTN) if(px>=b.x&&px<=b.x+160) return b.w; return null; }
-  const x=(px-MX0)/MS-RX,z=(py-MY0)/MS-RZ; if(FLOOR.mode==='stash'&&STASH_RECTS.some(r=>r[4]===-1&&x>r[0]&&x<r[2]&&z>r[1]&&z<r[3])) return 'corridor'; if(FLOOR.mode!=='room'&&FLOOR.mode!=='stash'&&Math.abs(x)<10&&Math.abs(z)<1) return 'corridor';
+  const x=(px-MX0)/MS-RX,z=(py-MY0)/MS-RZ; if((FLOOR.mode==='stash'?STASH_RECTS:FLOOR.mode==='ware'?WARE_RECTS:[]).some(r=>r[4]===-1&&x>r[0]&&x<r[2]&&z>r[1]&&z<r[3])) return 'corridor'; if(FLOOR.mode!=='room'&&FLOOR.mode!=='stash'&&FLOOR.mode!=='ware'&&Math.abs(x)<10&&Math.abs(z)<1) return 'corridor';
   const u=FLOOR.units.find(u=>x>=u.x0&&x<u.x1&&(u.room?z>u.z0&&z<u.z1:Math.sign(z)===u.side&&Math.abs(z)>1&&Math.abs(z)<6)); return u?u.id:null; }
 function pickWhere(w){ if(w==null) return false; SPAWNOPT.where=w; sfx('click',.8); drawMap(mapTex.c.getContext('2d')); uploadMap(); if(window.__mapCv) drawMap(window.__mapCv.getContext('2d')); return true; }
 function pokeMap(p,h){ const inside=p[0]<MAP_X+.08&&p[0]>MAP_X-.05&&Math.abs(p[2])<MAP_M[0]/2&&Math.abs(p[1]-MAP_Y)<MAP_M[1]/2,k=h.side+'map';

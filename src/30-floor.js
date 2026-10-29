@@ -5,7 +5,7 @@
    people who live there, doors that open, and lights.
    West stairwell (-x) is where you come in; on the test floor it is the armory landing. East (+x) goes up.
    ===================================================================== */
-let RX=13,RZ=6; const RH=2.8; /* the world: x in ±RX, z in ±RZ. 26 x 12 m for the tower and the stash house; the tunnel is bigger */
+let RX=13,RZ=6,RH=2.8; /* the world: x in ±RX, z in ±RZ, up to RH. 26 x 12 m for the tower; the tunnel and the warehouse are bigger (the warehouse is 7 m tall) */
 const BOXES=[];                       /* {x0,x1,z0,z1,y0,h,kind} axis-aligned, y from y0 to h */
 const floorN=N(world);
 const FLOOR={n:1,seed:1,test:true,nav:null,space:null,units:[],doors:[],lights:[],start:{x:-11.3,z:0,yaw:-Math.PI/2},flick:null,bx:0,party:[]};
@@ -202,7 +202,7 @@ let navDirty=true,navT=0,navGen=0,NAVD=new Int32Array(NX*NZ);
 const navCell=(x,z)=>{ const i=Math.round((x+RX)*2),k=Math.round((z+RZ)*2); return (i<0||k<0||i>=NX||k>=NZ)?-1:k*NX+i; };
 let NAVPEN=new Uint8Array(NX*NZ);
 /* size the world for a level: everything that clamps to it, the box buckets, the nav grid and its cached fields */
-function setWorld(rx,rz){ if(RX===rx&&RZ===rz) return; RX=rx; RZ=rz; BG_W=RX*2; BG_H=RZ*2; boxGrid=null; boxGridDirty=true;
+function setWorld(rx,rz,rh=2.8){ if(RX===rx&&RZ===rz&&RH===rh) return; RX=rx; RZ=rz; RH=rh; BG_W=RX*2; BG_H=RZ*2; boxGrid=null; boxGridDirty=true;
   NX=RX*4+1; NZ=RZ*4+1; NAVD=new Int32Array(NX*NZ); NAVPEN=new Uint8Array(NX*NZ); NAVF.clear(); navGen++; navDirty=true; }
 /* Dijkstra on 8 neighbours (10 straight, 14 diagonal, no corner cutting) with a bucket queue; pen marks cells that cost extra */
 function navField(F,src,pen,lim=1e9){ const nav=FLOOR.nav; F.fill(1e9); const buckets=[[src]]; F[src]=0;

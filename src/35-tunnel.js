@@ -345,7 +345,7 @@ function tunnelPower(on){ if(FLOOR.mode!=='tunnel'||FLOOR.power===on) return; FL
 /* ---------- seeing in the dark ---------- */
 /* in a dark tunnel they see you up close, or by your muzzle flash for a moment after you fire */
 function inBore(x,z){ if(FLOOR.mode!=='tunnel'||!FLOOR.space) return false; const c=navCell(x,z); return c>=0&&FLOOR.space[c]===-3; }
-function seenInDark(E,dist){ const flash=GAME.t-(GAME.shotT??-99)<1.4&&dist<16;
+function seenInDark(E,dist){ if(FLOOR.mode==='ware') return wareSeen(E,dist); const flash=GAME.t-(GAME.shotT??-99)<1.4&&dist<16;
   if(FLOOR.mode!=='tunnel') return FLOOR.power!==false||dist<1.8||flash;
   /* in the tunnel: lit by a bulb, they see you; in the black between bulbs (or with the power cut), only up close or by your muzzle flash */
   if(litAt(PL.x,PL.z)) return true; return dist<(FLOOR.power!==false?2.6:1.8)||flash; }
@@ -375,4 +375,4 @@ function tunnelTag(){ if(FLOOR.mode!=='tunnel') return; const dead=enemies.filte
 function tickTunnel(dt){ visionTick(dt); tunnelPickLights(); if(FLOOR.mode==='tunnel'&&FLOOR.fan){ FLOOR.fan.spin=lerp(FLOOR.fan.spin||0,FLOOR.power===false?0:14,Math.min(1,dt*(FLOOR.power===false?.4:2))); FLOOR.fan.r[2]+=FLOOR.fan.spin*dt; }
   if(FLOOR.mode==='tunnel'){ tunnelTag.t=(tunnelTag.t||0)-dt; if(tunnelTag.t<=0){ tunnelTag.t=.5; tunnelTag(); } }
   if(FLOOR.mode!=='tunnel'||!GAME.started||PL.dead||GAME.clear) return;
-  if(Math.hypot(PL.x-TUN_EXIT[0],PL.z-TUN_EXIT[1])<.9){ GAME.clear=true; showMsg('EL OTRO LADO','You made it to the other side. Reset to run it again: quiet, loud, or in the dark.'); if(XR.on) XR.clearT=6; } }
+  if(Math.hypot(PL.x-TUN_EXIT[0],PL.z-TUN_EXIT[1])<.9){ GAME.clear=true; tunnelAscend(); } } /* up the ladder: the warehouse on the other side (37-warehouse.js) */

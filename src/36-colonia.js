@@ -259,7 +259,7 @@ function loftGeo(secs,zs,mat,uv,caps){ const g=new Geo(),G={},n=secs[0].length;
   for(const mi of Object.keys(G).map(Number).sort((a,b)=>a-b)){ const start=g.I.length; for(const i of G[mi]) g.I.push(i); g.groups.push({start,count:G[mi].length,mi}); }
   return g; }
 const CARTEX=new Map();
-function carTex(kind,paint,o){ const key=kind+paint+(o.burnt?'b':'')+(o.door||'')+(o.plate||''); if(CARTEX.has(key)) return CARTEX.get(key); const S=CARS[kind],hp='#'+paint.toString(16).padStart(6,'0'),r=rng(paint%9973+kind.length);
+function carTex(kind,paint,o){ const key=kind+paint+(o.burnt?'b':'')+(o.bw?'w':'')+(o.door||'')+(o.plate||''); if(CARTEX.has(key)) return CARTEX.get(key); const S=CARS[kind],hp='#'+paint.toString(16).padStart(6,'0'),r=rng(paint%9973+kind.length);
   const burnt=o.burnt,base=burnt?'#2a2420':hp,lite=burnt?'#3a2e26':mix(hp,'#ffffff',.22),dark=burnt?'#140f0c':mix(hp,'#000000',.35);
   const rust=(g,n,y0,y1,w)=>{ for(let i=0;i<n;i++) ell(g,r()*w,y0+r()*(y1-y0),1+r()*2.5,1+r()*1.5,r()>.5?'#7a3a18':'#5a2a14'); };
   const char=(g,w,h)=>{ if(!burnt) return; for(let i=0;i<40;i++) ell(g,r()*w,r()*h,2+r()*4,1+r()*3,['#4a2a18','#6a3a1a','#1a1410','#3a3a36'][r()*4|0]); };
@@ -267,6 +267,7 @@ function carTex(kind,paint,o){ const key=kind+paint+(o.burnt?'b':'')+(o.door||''
   const side=P2(SW,SH,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,lite],[.25,base],[.75,base],[1,dark]]);
     const px=z=>(S.L/2-z)/S.L*w, py=y=>(1-(y-ys)/(yt-ys))*h;
     if(o.door&&!burnt){ R(g,'#'+o.door.toString(16).padStart(6,'0'),S.doors[0]*w|0,0,(S.doors[1]-S.doors[0])*w|0,h); } /* a door from another car */
+    if(o.bw&&!burnt){ R(g,'#e6e4dc',S.doors[0]*w|0,0,(S.doors[S.doors.length-1]-S.doors[0])*w|0,h*.62|0); ell(g,(S.doors[0]+S.doors[1])/2*w,h*.36,3.4,3.4,'#c8a040'); } /* a black-and-white: white doors, a star on the front ones */
     R(g,'rgba(255,255,255,.18)',0,h*.32|0,w,1); R(g,'rgba(0,0,0,.25)',0,h*.32+1|0,w,1); /* the crease */
     R(g,burnt?'#0e0c0a':'#141416',0,h*.55|0,w,2); /* rubber trim */
     for(const u of S.doors) R(g,'rgba(0,0,0,.55)',u*w|0,2,1,h-6); R(g,'rgba(0,0,0,.45)',S.doors[0]*w|0,h-5,(S.doors[S.doors.length-1]-S.doors[0])*w|0,1);

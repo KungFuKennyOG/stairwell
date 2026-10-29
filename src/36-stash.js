@@ -441,7 +441,7 @@ function goStash(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P
 /* down the shaft: into the tunnel with whatever is in your hands */
 function stashDescend(){ FLOOR.down=true; sfx('door',.5); const dead=enemies.filter(E=>E.dead).length,n=enemies.length,g=FLOOR.goals||{};
   const line=`El pozo · ${dead} of ${n} dead${g.ledger?' · ledger taken':''}${g.radio?' · they radioed it in':' · nobody radioed'}`; if(XR.on) vrToast(line,4.5);
-  setTimeout(()=>{ const keepR=HANDS.R.item,keepL=HANDS.L.item; goTunnel(); equip(HANDS.R,keepR); equip(HANDS.L,keepL); $('floorTag').textContent=line; },700); }
+  setTimeout(()=>{ carryInto(goTunnel); $('floorTag').textContent=line; },700); }
 /* a beat to walk: there and back, a few seconds' look at each end */
 function patrolGoal(E,dt){ const P=E.patrol; if(P.wait>0){ P.wait-=dt; return null; } const q=P.pts[P.i];
   if(Math.hypot(E.pos[0]-q[0],E.pos[1]-q[1])<.7||stuck(E,dt)){ P.i=(P.i+1)%P.pts.length; P.wait=rnd(2.5,5); freshGoal(E); return null; } return {x:q[0],z:q[1],sp:.85}; }
