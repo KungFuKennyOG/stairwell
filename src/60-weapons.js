@@ -23,40 +23,52 @@ const KIND_WPN={corner:'bottle',cutter:'machete',gunman:'pistol',doorman:'shotgu
 function newItem(key,ammo,sup){ const w=WPN[key],a=w.gun?(ammo??w.mag):0; return {key,ammo:a,reload:0,uses:w.uses||0,cd:0,chambered:!w.pump||a>0,spent:false,pumpSt:'in',rev:false,sup:!!(sup&&CAN_SPEC[key])}; }
 
 /* ---------- suppressors ----------
-   One 9mm can fits the pistol and the MP5 (not the revolver: the cylinder gap leaks). The pump takes its own: a fat 12-gauge can
-   clamped on with two hose clamps, hung low off the barrel so the bead still shows over it (No Country for Old Men).
+   One 9mm can fits the pistol and the MP5 (not the revolver: the cylinder gap leaks). The pump takes its own, after the one in
+   No Country for Old Men: a big raw-steel tube, bare unfinished metal with screws round both end caps, slid over the end of a
+   chopped barrel. It covers the bead, so the can carries its own bead on top of its front cap.
    VR: hold the can in one hand and the gun in the other, push the can onto the muzzle and it threads on. Grip the can on the gun
    with your empty hand to unscrew it. Flat screen: V puts one on (or takes it off) the gun in your right hand.
    Suppressed: a cough instead of a bang, no flash, a little less kick. Only someone a few metres away hears it, and only as
    "what was that?", not an alarm. A round that misses still cracks into the wall where it lands, and someone near that wall comes to look. */
 /* L long, R radius, cy: how far the can's centre sits below the bore (the shotgun can hangs low so the bead clears it), item: what you hold */
-const CAN9={item:'can',L:.16,R:.0175,cy:0},CAN12={item:'bigcan',L:.42,R:.034,cy:-.024,clamps:true};
+const CAN9={item:'can',L:.16,R:.0175,cy:0},CAN12={item:'bigcan',L:.36,R:.026,cy:0,back:.08,raw:true};
 const CAN_SPEC={pistol:CAN9,smg:CAN9,shotgun:CAN12},GUN_SUP={pistol:3.5,smg:5,shotgun:7};
 const tSupCan=tex(16,32,'#1b1c1e',g=>{ R(g,'#2b2d30',0,0,16,32); R(g,'#1b1c1e',3,0,10,32); R(g,'#3c3f43',6,0,2,32); R(g,'#2f3135',8,0,1,32); /* a soft sheen running down the tube */
   for(const y0 of [1,27]) for(let y=y0;y<y0+4;y++) for(let x=0;x<16;x++) if((x+y)&1) R(g,'#121314',x,y,1,1); /* knurled grip bands at both ends */
   R(g,'#0e0f10',0,6,16,1); R(g,'#0e0f10',0,25,16,1); grain(g,7,761); });
 const mCan=M(tSupCan);
 /* centred on its own middle, running along +z (the front, with the bore, at +z) */
-function pCan(g,S){ const L=S.L,Rr=S.R,by=-S.cy; /* by: the bore, above the can's centre on the big one */
-  mk(cyl(Rr,Rr,L-.02,S.clamps?12:10),mCan,g,0,0,-.004,Math.PI/2);
-  mk(cyl(Rr-.0015,Rr,.014,S.clamps?12:10),mBlack,g,0,0,L/2-.011,Math.PI/2);                       /* front cap, chamfered */
-  mk(cyl(S.clamps?.0115:.0055,S.clamps?.0115:.0055,.004,8),M(null,{color:0x060606,double:true}),g,0,by,L/2-.002,Math.PI/2); /* bore */
-  if(S.clamps){ mk(cyl(Rr*.9,Rr,.014,12),mBlack,g,0,0,-L/2+.005,Math.PI/2);                       /* rear cap round the barrel */
-    mk(cyl(.0135,.0135,.05,8),M(tBlued,{double:true}),g,0,by,-L/2-.012,Math.PI/2);                  /* the barrel sleeve it slides over */
-    for(const z of [-L/2+.05,-L/2+.15]){ mk(cyl(Rr+.002,Rr+.002,.012,12,{open:true}),M(tSteel,{double:true}),g,0,0,z,Math.PI/2); mk(box(.012,.01,.016),mSteel,g,Rr*.72,Rr*.72,z,0,0,-.785); } } /* hose clamps with their screw housings */
-  else mk(cyl(.0125,.0125,.012,8),mBlack,g,0,0,-L/2+.004,Math.PI/2);                            /* booster where it threads on */
+function pCan(g,S){ const L=S.L,Rr=S.R;
+  if(S.raw){ /* the 12-gauge can: raw machined steel tube, thicker end caps, a ring of screw heads round each cap */
+    mk(cyl(Rr,Rr,L-.04,12),mRawCan,g,0,0,0,Math.PI/2);
+    for(const e of [-1,1]) mk(cyl(Rr+.0025,Rr+.0025,.022,12),mRawCap,g,0,0,e*(L/2-.011),Math.PI/2);
+    const sc=[]; for(const e of [-1,1]) for(let i=0;i<8;i++){ const a=(i+.5)/8*Math.PI*2; sc.push([Math.sin(a)*(Rr+.003),Math.cos(a)*(Rr+.003),e*(L/2-.011), .006,.006,.006]); }
+    mk(mergeBoxes(sc),mBlack,g);                                                                    /* screw heads */
+    mk(cyl(.012,.012,.004,8),M(null,{color:0x050505,double:true}),g,0,0,L/2+.0005,Math.PI/2);         /* the exit hole */
+    mk(box(.006,.006,.006),mSightDot,g,0,Rr+.0065,L/2-.012);                                         /* a bead on the front cap */
+    return g; }
+  mk(cyl(Rr,Rr,L-.02,10),mCan,g,0,0,-.004,Math.PI/2);
+  mk(cyl(Rr-.0015,Rr,.014,10),mBlack,g,0,0,L/2-.011,Math.PI/2);                                  /* front cap, chamfered */
+  mk(cyl(.0055,.0055,.004,8),M(null,{color:0x060606,double:true}),g,0,0,L/2-.002,Math.PI/2);      /* bore */
+  mk(cyl(.0125,.0125,.012,8),mBlack,g,0,0,-L/2+.004,Math.PI/2);                                  /* booster where it threads on */
   return g; }
-const canMuzzle=(w,it)=>it&&it.sup?[w.muzzle[0],w.muzzle[1],w.muzzle[2]+CAN_SPEC[it.key].L]:w.muzzle;
-function addCan(g,key){ const w=WPN[key],S=CAN_SPEC[key]; GEO_TEMP=true; const c=N(g,0,w.axisY+S.cy,w.muzzle[2]+S.L/2); pCan(c,S); GEO_TEMP=false; g.can=c; return c; }
+/* raw steel: brushed lengthwise, scuffed, a darker weld seam; caps a shade darker */
+const tRawCan=tex(32,32,'#8d9093',g=>{ const r=rng(771); for(let x=0;x<32;x++){ const v=r(); R(g,v>.66?'rgba(255,255,255,.12)':v<.33?'rgba(0,0,0,.12)':'rgba(0,0,0,0)',x,0,1,32); }
+  R(g,'#5f6265',15,0,1,32); R(g,'#a9acaf',16,0,1,32); for(let i=0;i<10;i++) R(g,'rgba(40,34,28,.25)',(r()*30)|0,(r()*30)|0,2+(r()*3|0),1+(r()*2|0)); grain(g,10,772); });
+const tRawCap=tex(16,8,'#6c6f72',g=>{ R(g,'#83868a',0,0,16,1); grain(g,12,773); });
+const mRawCan=M(tRawCan),mRawCap=M(tRawCap);
+const canMuzzle=(w,it)=>{ if(!it||!it.sup) return w.muzzle; const S=CAN_SPEC[it.key]; return [w.muzzle[0],w.muzzle[1],w.muzzle[2]+S.L-(S.back||0)]; };
+const canZ=(w,S)=>w.muzzle[2]+S.L/2-(S.back||0); /* the can's middle, along the gun */
+function addCan(g,key){ const w=WPN[key],S=CAN_SPEC[key]; GEO_TEMP=true; const c=N(g,0,w.axisY+S.cy,canZ(w,S)); pCan(c,S); GEO_TEMP=false; g.can=c; return c; }
 function removeCan(g){ if(!g||!g.can) return; disposeTree(g.can); const i=g.kids.indexOf(g.can); if(i>=0) g.kids.splice(i,1); g.can=null; }
 /* builds a gun (or anything) with its sights, and its can if it has one */
 function buildItem(g,item){ WPN[item.key].build(g); if(WPN[item.key].gun) addSights(g,item.key); if(item.sup) addCan(g,item.key); }
 function screwOn(gh,ch){ const it=gh.item; it.sup=true; if(gh.itemNode) addCan(gh.itemNode,it.key); equip(ch,null); sfx('thread'); buzz(gh.hand,.5,50); buzz(ch.hand,.6,60); }
 function unscrew(h,gh){ const it=gh.item; it.sup=false; removeCan(gh.itemNode); equip(h,newItem(CAN_SPEC[it.key].item)); h.canArm=false; sfx('thread',.8); buzz(h.hand,.5,50); buzz(gh.hand,.4,40); }
 /* where the can sits once it's on, in the world */
-const canSeat=gh=>{ const w=WPN[gh.item.key],S=CAN_SPEC[gh.item.key]; return mulP(itemM(gh),[0,w.axisY+S.cy,w.muzzle[2]+S.L/2]); };
+const canSeat=gh=>{ const w=WPN[gh.item.key],S=CAN_SPEC[gh.item.key]; return mulP(itemM(gh),[0,w.axisY+S.cy,canZ(w,S)]); };
 /* how far a point is from the can on a gun (anywhere along it, not just its middle) */
-function canDist(gh,p){ const w=WPN[gh.item.key],S=CAN_SPEC[gh.item.key],Mi=itemM(gh),a=mulP(Mi,[0,w.axisY+S.cy,w.muzzle[2]]),b=mulP(Mi,[0,w.axisY+S.cy,w.muzzle[2]+S.L]),ab=v3.sub(b,a),t=clamp(v3.dot(v3.sub(p,a),ab)/v3.dot(ab,ab),0,1);
+function canDist(gh,p){ const w=WPN[gh.item.key],S=CAN_SPEC[gh.item.key],Mi=itemM(gh),a=mulP(Mi,[0,w.axisY+S.cy,canZ(w,S)-S.L/2]),b=mulP(Mi,[0,w.axisY+S.cy,canZ(w,S)+S.L/2]),ab=v3.sub(b,a),t=clamp(v3.dot(v3.sub(p,a),ab)/v3.dot(ab,ab),0,1);
   return Math.hypot(...v3.sub(p,v3.add(a,v3.sc(ab,t))))-S.R; }
 /* VR, every frame: a can held near the muzzle of the gun in your other hand threads on (after you've first moved it away from the gun) */
 function tickCan(h){ if(!h.item||!WPN[h.item.key].fwd||!h.itemNode) return; const o=otherHand(h),it=o.item,S=it&&CAN_SPEC[it.key]; if(!S||S.item!==h.item.key||it.sup||!o.itemNode) { h.canArm=true; return; }
