@@ -863,16 +863,58 @@ function pPistol(g){ mk(box(.03,.035,.19),mBlued,g,0,.045,.06); mk(box(.028,.02,
 function pShotgun(g){ mk(box(.05,.07,.2),mBlack,g,0,0,0); mk(cyl(.012,.012,.5,6),M(tBlued,{double:true}),g,0,.02,.35,Math.PI/2);
   mk(cyl(.012,.012,.38,6),M(tBlued,{double:true}),g,0,-.016,.3,Math.PI/2); g.pump=mk(box(.046,.046,.17),mWood,g,0,-.018,.21); /* the fore-end slides: rack it */
   mk(box(.045,.1,.25,{td:.7}),mWood,g,0,-.04,-.2,.12); return g; }
-function pSMG(g){ /* MP5: slim stamped receiver, drum rear sight, hooded front sight, ribbed handguard, cocking tube, curved 30-round magazine, collapsed stock */
-  const dk=M(null,{color:0x232426});
-  mk(box(.04,.056,.28),mBlack,g,0,0,0); mk(box(.034,.012,.27),dk,g,0,.032,0);
-  mk(cyl(.011,.011,.075,6),M(tBlued,{double:true}),g,0,.012,.25,Math.PI/2); mk(cyl(.015,.015,.03,8),mBlack,g,0,.012,.272,Math.PI/2);
-  mk(box(.05,.05,.17,{tw:.9}),dk,g,0,-.022,.12); for(let z=.055;z<.2;z+=.03) for(const s of [-1,1]) mk(box(.004,.03,.008),mBlack,g,s*.025,-.024,z);
-  mk(cyl(.009,.009,.16,6),mBlack,g,0,.03,.13,Math.PI/2); mk(box(.01,.012,.03),mBlack,g,-.026,.03,.17);
-  mk(torus(.012,.003,4,10),mBlack,g,0,.044,.205); mk(cyl(.013,.013,.032,8),mBlack,g,0,.044,-.11,0,0,Math.PI/2);
-  const mg=N(g,0,-.03,.025,-.18,0,0); mk(box(.026,.1,.04),mBlack,mg,0,-.05,0); mk(box(.026,.09,.04),mBlack,mg,0,-.135,.016,-.32,0,0);
-  mk(box(.03,.03,.07),mBlack,g,0,-.04,-.05); mk(box(.034,.1,.042),mBlack,g,0,-.08,-.075,.3);
-  for(const s of [-1,1]) mk(box(.008,.008,.2),mSteel,g,s*.02,.006,-.22); mk(box(.05,.09,.02),mBlack,g,0,-.01,-.32); return g; }
+/* MP5A3 (black, from Kenny's reference photo): satin-black stamped receiver, charcoal stippled polymer slimline handguard and
+   trigger housing (red E/F by the selector), hooded front ring over the cocking tube, cocking handle up on the left, 3-lug muzzle,
+   rotary drum rear sight, curved black 30-round magazine with a light streak, black retractable stock rails and rubber butt pad.
+   Axis-aligned black parts are merged into one draw; about 22 draws in all. Anchors kept: bore y .012, muzzle z .29,
+   grip about (0,-.07,-.07), handguard about z .12, sights at z .205 / -.11. */
+const tMP5Recv=tex(16,16,'#1d1e20',g=>{ R(g,'#34363a',0,0,16,2); R(g,'#2a2c2f',0,2,16,2); R(g,'#141516',0,13,16,3); grain(g,8,741); });
+const tMP5Poly=tex(16,16,'#323437',g=>{ R(g,'#3e4044',0,0,16,3); R(g,'#383a3d',0,3,16,3); R(g,'#28292c',0,12,16,4); grain(g,9,742); specks(g,'#2a2c2f',6,743,16,16); });
+const tMP5Mag=tex(16,32,'#18191b',g=>{ R(g,'#2c2e31',0,0,16,32); R(g,'#18191b',2,0,12,32); R(g,'#9aa0a6',9,0,2,32); R(g,'#5a5f65',11,0,1,32); for(let y=6;y<20;y+=3) R(g,'#7d8186',4,y,4,1); grain(g,8,744); });
+const tMP5Pad=tex(8,8,'#202123',g=>{ R(g,'#2c2d30',0,0,8,1); grain(g,14,745); });
+const tMP5Cal=tex(48,8,null,g=>text(g,'CAL.9MMX19',4,1,'#e8e6e0'));
+const tMP5EF=tex(16,16,null,g=>{ text(g,'E',10,2,'#c8261e'); text(g,'F',4,9,'#c8261e'); });
+const mMP5Recv=M(tMP5Recv), mMP5Poly=M(tMP5Poly), mMP5Mag=M(tMP5Mag), mMP5Pad=M(tMP5Pad), mMP5Cal=M(tMP5Cal,{cut:true,double:true}), mMP5EF=M(tMP5EF,{cut:true,double:true});
+function pSMG(g){
+  /* receiver, rails, end caps, sight bases: one merged black mesh [x,y,z, w,h,d] */
+  mk(mergeBoxes([
+    [0,.02,-.0425, .036,.05,.215],   /* stamped receiver */
+    [0,.047,-.04, .026,.006,.2],     /* raised top with the claw-mount flats */
+    [0,.014,.064, .04,.046,.01],     /* handguard joint */
+    [0,.016,-.156, .04,.05,.016],    /* rear housing the stock slides into */
+    [0,-.016,.03, .034,.036,.052],   /* magazine well */
+    [0,.046,-.11, .022,.008,.024],   /* rear sight base */
+    [0,.022,.215, .024,.044,.02],    /* front sight block */
+    [0,.044,.215, .012,.012,.012],   /* front post base */
+    [.019,.021,-.235, .006,.009,.15],[-.019,.021,-.235, .006,.009,.15], /* stock rails */
+    [0,.016,-.31, .046,.028,.02],    /* stock yoke */
+    [0,-.03,.0, .02,.012,.012]       /* magazine release paddle */
+  ]),mMP5Recv,g);
+  /* trigger housing, guard and pistol grip: charcoal polymer */
+  mk(mergeBoxes([[0,-.018,-.0625, .033,.032,.125],[0,-.061,-.042, .01,.006,.056],[0,-.047,-.012, .01,.03,.008]]),mMP5Poly,g);
+  mk(box(.031,.098,.044,{tw:1.05,td:1.08}),mMP5Poly,g,0,-.081,-.088,.32);
+  mk(box(.005,.022,.006),mBlack,g,0,-.044,-.04,-.25);                 /* trigger */
+  mk(box(.004,.024,.008),mBlack,g,-.0185,-.012,-.055,.6,0,0);      /* selector lever */
+  mk(plane(.032,.032),mMP5EF,g,-.0172,-.018,-.06,0,-Math.PI/2,0);
+  mk(plane(.06,.01),mMP5Cal,g,-.0182,.03,.024,0,-Math.PI/2,0);
+  /* slimline handguard: rounded, a touch taller than wide, cross bolt at the back */
+  const hg=mk(cyl(.025,.025,.138,8),mMP5Poly,g,0,.003,.137,Math.PI/2); hg.s=[.94,1,1.16];
+  mk(cyl(.005,.005,.05,6),mBlack,g,0,-.002,.082,0,0,Math.PI/2);
+  /* cocking tube over the barrel, handle up on the left with its knurled knob */
+  mk(cyl(.0095,.0095,.16,6),M(tBlued,{double:true}),g,0,.036,.145,Math.PI/2);
+  const ch=N(g,-.009,.04,.12,0,0,.75); mk(box(.005,.022,.007),mBlack,ch,0,.011,0); mk(box(.014,.013,.014),mMP5Pad,ch,0,.025,0);
+  /* hooded front ring, barrel and 3-lug muzzle */
+  mk(torus(.0115,.0026,4,10),mBlack,g,0,.05,.215);
+  mk(cyl(.0085,.0085,.06,6),M(tBlued,{double:true}),g,0,.012,.25,Math.PI/2);
+  mk(cyl(.0115,.0115,.028,8),mBlack,g,0,.012,.277,Math.PI/2); mk(cyl(.0135,.0135,.008,8),mBlack,g,0,.012,.264,Math.PI/2);
+  /* rotary drum rear sight (low enough that the notch peeks over it) */
+  mk(cyl(.012,.012,.026,8),mBlack,g,0,.04,-.11,0,0,Math.PI/2);
+  /* curved 30-round magazine, sweeping forward */
+  const mg=N(g,0,-.032,.03,-.14,0,0); mk(box(.022,.075,.034),mMP5Mag,mg,0,-.0375,0);
+  const m2=N(mg,0,-.073,0,-.3,0,0); mk(box(.022,.085,.034),mMP5Mag,m2,0,-.042,0); mk(box(.026,.008,.038),mBlack,m2,0,-.087,0);
+  /* rubber butt pad on the retracted stock */
+  mk(box(.05,.105,.026,{tw:1,td:.85}),mMP5Pad,g,0,-.022,-.327,-.06);
+  return g; }
 const WEAPONS={fists:pFists,bottle:pBottle,knife:pKnife,machete:pMachete,revolver:pRevolver,pistol:pPistol,shotgun:pShotgun,smg:pSMG};
 
 /* --- the cast --- */
