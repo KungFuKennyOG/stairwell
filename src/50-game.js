@@ -1089,7 +1089,13 @@ function renderWith(w,h,noUpd){
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
   gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0);
-  drawTree(world); gl.bindVertexArray(null); }
+  /* a level with a sky: draw the sky first, then everything else blends its last few metres of fog into it */
+  const sky=FLOOR.sky&&FLOOR.sky.vis&&sky_inWorld(FLOOR.sky)?FLOOR.sky:null;
+  if(sky){ gl.uniform1f(u.uSkyFade,0); drawTree(sky); sky.vis=false; gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ZERO,gl.ONE); gl.uniform1f(u.uSkyFade,1); }
+  else gl.uniform1f(u.uSkyFade,0);
+  drawTree(world); if(sky){ sky.vis=true; gl.disable(gl.BLEND); gl.uniform1f(u.uSkyFade,0); } gl.bindVertexArray(null); }
+/* the sky only counts while it's actually hanging in the drawn world (a level's floor node can be swapped out) */
+function sky_inWorld(n){ for(let p=n;p;p=p.par){ if(!p.vis) return false; if(p===world) return true; } return false; }
 const POST2=program(PVS,`#version 300 es
 precision highp float;
 uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash; uniform float uSmooth; uniform float uSlow;
