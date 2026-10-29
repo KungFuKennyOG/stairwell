@@ -887,7 +887,7 @@ function update(dt,now){
   /* dormant: someone calm at his post, unhurt, far from you. His body stands frozen in its last pose (no physics, no skinning) until you
      come within 14 m or anything happens to him. A long level can hold a dozen people and still only pay for the few near you. */
   for(const E of enemies){ E.liveT=(E.liveT||0)+gdt;
-    const far=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)>(E.dormant?14:16),calm=!E.dead&&!E.aware&&(!E.mind||E.mind==='calm')&&E.st==='idle'&&!E.wounds.length&&!E.grabbed&&E.stun<.01&&!E.B.wake;
+    const far=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)>(E.dormant?14:16),calm=!E.dead&&!E.aware&&(!E.mind||E.mind==='calm'||E.mind==='nervous'&&!E.goHome)&&E.st==='idle'&&!E.wounds.length&&!E.grabbed&&E.stun<.01&&!E.B.wake;
     E.dormant=calm&&far&&E.liveT>1.5; }
   for(const E of enemies){ E.posed=!E.asleep&&!E.dormant; if(E.posed) targetsFor(E,GAME.t,gdt); }
   GAME.acc+=gdt; let n=0; while(GAME.acc>=H&&n<14){ physics(H); GAME.acc-=H; n++; } if(n>=14) GAME.acc=0;

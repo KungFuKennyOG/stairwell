@@ -89,7 +89,12 @@ function drawMap(g){ mapFit(); const W=SPAWNOPT.where; g.fillStyle='#0d0d0e'; g.
   for(const b of MAP_BTN){ const on=W===b.w; g.fillStyle=on?'#e2a33d':'#23262a'; g.fillRect(b.x,7,160,28); g.fillStyle=on?'#0a0a0a':'#f2ede2'; g.font='800 18px "Big Shoulders Display","Arial Narrow",sans-serif'; g.fillText(b.l,b.x+80,22,150); }
   const R=(x0,z0,x1,z1,fill,stroke)=>{ const a=toMap(Math.min(x0,x1),Math.min(z0,z1)),b=toMap(Math.max(x0,x1),Math.max(z0,z1)); g.fillStyle=fill; g.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]); if(stroke){ g.strokeStyle=stroke; g.lineWidth=2; g.strokeRect(a[0]+1,a[1]+1,b[0]-a[0]-2,b[1]-a[1]-2); } };
   const tun=FLOOR.mode==='tunnel',sth=FLOOR.mode==='stash';
-  if(tun){ for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const id=k*NX+i,sp=FLOOR.space[id]; if(sp===-9||sp>=0||FLOOR.nav[id]) continue; const x=cellX(i),z=cellZ(k); R(x-.27,z-.27,x+.27,z+.27,sp===-3||sp===-6||sp===-5?'#141619':W==='corridor'?'#7a5a20':'#1e2124'); } } /* the tunnel as dug, the old bore darker */
+  if(tun){ /* the tunnel as dug (the unlit digs darker): thousands of cells, so drawn once per level and kept */
+    if(!drawMap.bg||drawMap.bg.nav!==FLOOR.nav||drawMap.bg.W!==W){ const c=document.createElement('canvas'); c.width=MAPW; c.height=MAPH; const g2=c.getContext('2d');
+      for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const id=k*NX+i,sp=FLOOR.space[id]; if(sp===-9||sp>=0||FLOOR.nav[id]) continue; const a=toMap(cellX(i)-.27,cellZ(k)-.27),b=toMap(cellX(i)+.27,cellZ(k)+.27);
+        g2.fillStyle=sp===-3||sp===-6||sp===-5||sp===-8?'#141619':W==='corridor'?'#7a5a20':'#1e2124'; g2.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]); }
+      drawMap.bg={nav:FLOOR.nav,W,c}; }
+    g.drawImage(drawMap.bg.c,0,0); }
   else { R(-13,-2,-10,2,'#1b1a18'); if(!sth) R(10,-2,13,2,'#1b1a18'); }
   if(sth) for(const r of STASH_RECTS) if(r[4]<0||r[4]===7||r[4]===15) R(r[0],r[1],r[2],r[3],r[4]===-1&&W==='corridor'?'#7a5a20':'#1e2124'); /* streets, the back alley, the lot */
   if(FLOOR.mode!=='room'&&!tun&&!sth) R(-10,-1,10,1,W==='corridor'?'#7a5a20':'#1e2124','#3a3d40');

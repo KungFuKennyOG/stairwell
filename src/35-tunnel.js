@@ -1,19 +1,23 @@
 /* =====================================================================================================
-   THE TUNNEL: Puerto Seco, level 4. A dug smuggling tunnel under the border, about 100 m of it.
-   Start at the bottom of the shaft (the armoury rack and spawn board are in that first dugout). The main line runs east past
-   the pump room and a branch to the crew's dormitory (and the old cave-in beyond it), round the cart bend, through a flooded
-   stretch, into the staging chamber where the product is counted, and on up to the exit shaft. Two older, darker digs make
-   loops: the old bore (west half) and the drift (east half). Eleven cartel men are down here.
-   The generator in the pump room runs every bulb: shoot it and the tunnel goes black. With the power on they see you near a bulb;
-   in the black stretches between bulbs, and everywhere once the power's cut, only up close or by your muzzle flash.
-   Wading the flooded stretch is loud. Night vision and thermal: touch the top of your head with an empty hand and squeeze grip
+   THE TUNNEL: Puerto Seco, level 4. A dug smuggling tunnel under the border, about 175 m of it.
+   Start at the bottom of the shaft (the armoury rack and spawn board are in that first dugout). South half: the main line runs east
+   past the pump room, round the cart bend, through a flooded stretch into the staging chamber. Off it: the crew's dormitory and the
+   cave-in beyond (a shotgun left at the end), and from the pump room a passage to the vent shaft (daylight through a grate) and a
+   flooded sump (an MP5 on the crates). North half: from the main line a passage climbs to the packing lab, and the rail line runs
+   20 m dead straight from the lab to the dig face, where they're still digging. The exit ladder is off the far end of the rail line;
+   the old shaft at the end of the main line has caved in. Two ways there: north through the lab, or south through the staging
+   chamber and up the connector from the drift. The old bore and the drift are dark loops. Twenty-one cartel men.
+   The generator in the pump room runs every bulb (not the daylight in the vent shaft): shoot it and the tunnel goes black. With the
+   power on they see you near a light; in the black stretches between, only up close or by your muzzle flash.
+   Wading is loud. Night vision and thermal: touch the top of your head with an empty hand and squeeze grip
    (N on a keyboard) to cycle goggles up / night vision / thermal.
    ===================================================================================================== */
-const TUN={TH:2.4,RX:30,RZ:18,WIDEN:.15,WIDEN_NARROW:.2}; /* ceiling height; extra half-width on the main line and on the narrow digs (room to swing a machete) */
+const TUN={TH:2.4,RX:44,RZ:26,WIDEN:.15,WIDEN_NARROW:.2}; /* ceiling height; extra half-width on the main line and on the narrow digs (room to swing a machete) */
 /* The tunnel winds. It's laid out as dug paths (centre line [x,z,half-width], smoothed) plus chambers; the walls are traced as one
    continuous dug surface around whatever is open, so junctions and bends need no special cases.
-   Space ids: paths -1 main line, -3 the old bore, -4 dormitory branch, -5 the cave-in, -6 the drift; rooms -2 start dugout,
-   0 pump room, 1 exit, 2 staging, 3 dormitory. */
+   Space ids: paths -1 main line, -3 the old bore, -4 dormitory branch, -5 the cave-in, -6 the drift, -7 the rail line, -8 the
+   connector, -13 vent passage (not -9: that means no space), -10 sump passage, -11 lab passage, -12 exit branch; rooms -2 start dugout, 0 pump room, 1 old shaft,
+   2 staging, 3 dormitory, 4 vent shaft, 5 sump, 6 packing lab, 7 dig face, 8 exit. */
 const TUN_PATHS=[
   /* the main line, west half: dugout, pump room, cart bend, the flooded stretch, into the staging chamber */
   {id:-1,rails:1,pts:[[-10.6,-3.0,.8],[-9.0,-3.5,.75],[-7.4,-3.1,.8],[-6.2,-2.5,.85],[-4.8,-3.0,.75],[-3.2,-3.9,.75],[-1.4,-4.0,.8],[.4,-3.4,.8],[2.0,-2.3,.75],[3.6,-2.6,.8],[5.2,-2.0,.9],[6.4,-.6,1.2],[6.8,1.2,1.15],[6.3,2.8,.8],[7.0,4.1,.8],[8.6,4.6,.75],[10.2,4.0,.8],[11.8,3.0,.85],[13.4,2.2,.95],[15.2,2.6,1.0],[17.0,1.8,.95],[18.9,.2,.85]]},
@@ -27,15 +31,29 @@ const TUN_PATHS=[
   /* the cave-in: an older dig west from the dormitory that fell in. Something was left at the end of it */
   {id:-5,pts:[[-5.2,-11.4,.66],[-6.9,-12.6,.64],[-8.8,-12.2,.62],[-10.5,-13.2,.62],[-11.6,-13.4,.6]]},
   /* the drift: a narrow second way from the staging chamber round to the exit line. No bulbs */
-  {id:-6,pts:[[21.6,1.2,.62],[22.8,3.2,.6],[24.8,3.6,.6],[26.8,2.2,.62],[27.8,-.2,.6],[28.2,-2.8,.62],[27.8,-5.4,.6],[26.6,-7.0,.62],[25.2,-7.6,.7]]}];
+  {id:-6,pts:[[21.6,1.2,.62],[22.8,3.2,.6],[24.8,3.6,.6],[26.8,2.2,.62],[27.8,-.2,.6],[28.2,-2.8,.62],[27.8,-5.4,.6],[26.6,-7.0,.62],[25.2,-7.6,.7]]},
+  /* from the pump room south to the vent shaft, and on west to the sump */
+  {id:-13,pts:[[-3.1,1.0,.7],[-3.5,2.6,.7],[-5.2,4.0,.72],[-7.0,5.0,.7],[-8.8,5.6,.7],[-10.2,6.8,.72],[-10.9,7.5,.72]]},
+  {id:-10,pts:[[-13.2,8.8,.66],[-15.2,7.8,.64],[-17.2,8.6,.66],[-19.4,7.4,.7],[-20.2,7.3,.7]]},
+  /* off the main line before the flooded stretch, climbing north to the packing lab */
+  {id:-11,pts:[[10.3,4.6,.72],[10.9,6.8,.7],[10.1,8.8,.72],[11.0,10.8,.7],[11.8,12.6,.72],[12.0,13.3,.72]]},
+  /* the rail line: 20 m near dead straight, lab to dig face. The one long sightline down here */
+  {id:-7,rails:1,pts:[[14.6,14.6,1.0],[18,14.9,1.0],[21,14.4,1.0],[24,14.8,1.0],[27,14.3,1.0],[30,14.7,1.0],[33,14.2,1.0],[35.4,13.9,1.0],[36.1,13.9,1.0]]},
+  /* the connector: from the drift up to the rail line, closing the big loop */
+  {id:-8,pts:[[26.2,14.2,.66],[26.8,12.0,.64],[25.8,9.6,.64],[26.4,7.2,.64],[25.2,5.0,.66],[24.8,3.9,.7]]},
+  /* off the far end of the rail line, up to the exit shaft */
+  {id:-12,pts:[[32.6,14.6,.7],[33.4,16.4,.7],[32.6,18.2,.72],[32.6,19.5,.72]]}];
 /* chambers: centre, half size, corner radius, how ragged the walls are. The dugout keeps flat walls: the rack and board hang on them. */
 const TUN_ROOMS=[{id:-2,c:[-11.575,-3.0],h:[1.375,1.6],r:.12,n:0},{id:0,c:[-4.6,0],h:[1.6,1.1],r:.6,n:.1},{id:1,c:[27.4,-12.6],h:[1.1,1.2],r:.45,n:.04},
-  {id:2,c:[21,-1],h:[2.4,1.8],r:.5,n:.08},{id:3,c:[-3.2,-11.0],h:[2.2,1.6],r:.6,n:.1}];
-const TUN_EXIT=[28.15,-12.6]; /* the ladder up the far side */
-const TUN_WET=[12.2,18.6]; /* the flooded stretch of the main line, by x */
+  {id:2,c:[21,-1],h:[2.4,1.8],r:.5,n:.08},{id:3,c:[-3.2,-11.0],h:[2.2,1.6],r:.6,n:.1},
+  {id:4,c:[-11.8,8.4],h:[1.8,1.6],r:.5,n:.08},{id:5,c:[-21.8,7.2],h:[2.4,1.9],r:.7,n:.1},{id:6,c:[12.4,14.4],h:[2.8,1.9],r:.5,n:.08},
+  {id:7,c:[37.8,13.6],h:[2.4,2.0],r:.8,n:.14},{id:8,c:[32.6,20.2],h:[1.1,1.2],r:.45,n:.04}];
+const TUN_EXIT=[32.6,21.0]; /* the ladder up the far side */
+/* standing water: the flooded stretch of the main line, and the sump */
+const TUN_WATER=[{x0:12.2,x1:18.6,z0:-1,z1:4.6,id:-1},{x0:-24.4,x1:-19.0,z0:5.0,z1:9.4,id:5}];
 const TUN_CAST=[
   {id:'comando',name:'Chuy',x:-1.6,z:-3.95,hd:-Math.PI/2,extra:'Don\'t shoot, I have kids!'},
-  {id:'pistolero',name:'Lalo',x:-4.3,z:-.45,hd:Math.PI,extra:'I just count the money—'},
+  {id:'pistolero',name:'Lalo',x:-4.1,z:-.05,hd:Math.PI,extra:'I just count the money—'},
   {id:'halcon',name:'Nico',x:-5.5,z:-.35,hd:Math.PI*.8,extra:'I\'m twenty-two, man—'},
   {id:'halcon',name:'Memo',x:-2.4,z:-10.9,hd:Math.PI/2,extra:'I was asleep, I swear!'},
   {id:'machetero',name:'Paco',x:-4.4,z:-11.7,hd:Math.PI*.35,extra:'I just carry boxes—'},
@@ -44,14 +62,24 @@ const TUN_CAST=[
   {id:'escolta',name:'Toño',x:19.4,z:-.3,hd:-Math.PI/2,extra:'My mom is waiting for me—'},
   {id:'patron',name:'Gera',x:21.0,z:-.55,hd:Math.PI,extra:'I\'ll pay you. Whatever you want.'},
   {id:'comando',name:'Chava',x:22.6,z:-1.5,hd:Math.PI/2,extra:'I didn\'t know it was you—'},
-  {id:'escolta',name:'Kike',x:27.7,z:-12.2,hd:0,extra:'I just watch the ladder—'}];
+  {id:'escolta',name:'Kike',x:32.8,z:19.6,hd:Math.PI,extra:'I just watch the ladder—'},
+  {id:'halcon',name:'Poncho',x:-11.2,z:8.2,hd:2.36,extra:'I just watch the fan, man—'},
+  {id:'machetero',name:'Rafa',x:-21.0,z:6.6,hd:Math.PI/2,extra:'I got a wife, man. I got a wife—'},
+  {id:'pistolero',name:'Tavo',x:12.4,z:13.5,hd:Math.PI,extra:'I\'m just the driver—'},
+  {id:'halcon',name:'Lupe',x:13.3,z:14.2,hd:Math.PI*.7,extra:'I just weigh it, I just weigh it—'},
+  {id:'comando',name:'Neto',x:14.5,z:13.4,hd:Math.PI/2,extra:'You don\'t know who you\'re messing with—'},
+  {id:'machetero',name:'Flaco',x:23.4,z:14.9,hd:-Math.PI/2,extra:'I was gonna quit, I swear—'},
+  {id:'pistolero',name:'Güero',x:29.6,z:14.6,hd:-Math.PI/2,extra:'Wait— wait, we can talk—'},
+  {id:'escolta',name:'Toro',x:36.9,z:13.6,hd:-Math.PI/2,extra:'We just dig. We just dig—'},
+  {id:'halcon',name:'Pepe',x:38.7,z:12.7,hd:Math.PI,extra:'My back\'s broken from this hole—'},
+  {id:'machetero',name:'Chucho',x:38.6,z:14.6,hd:-Math.PI*.6,extra:'Take the money. Take it—'}];
 const CARTEL_OF={corner:'halcon',cutter:'machetero',gunman:'pistolero',doorman:'escolta',enforcer:'comando',landlord:'patron'};
 const NAMES_ES=['Chuy','Lalo','Nico','Beto','Toño','Memo','Paco','Chava','Rubén','Gera','Poncho','Kike','Rafa','Tavo','Lupe','Neto'];
 /* a cartel man, playing as one of the tower kinds; the lookout fights with a bottle in the game */
 function cartelChar(id,parent,grp){ const C=makeChar(id,parent,grp,id==='halcon'?{prop:pBottle,wFight:{p:[0,-.075,0],r:[1.57,0,0]},fight:ONE_HAND}:null); tagHeat(C); return C; }
 function tunnelCast(){ for(const sp of TUN_CAST){ const E=spawnEnemy(Object.assign({},sp,{maker:(h,g)=>cartelChar(sp.id,h,g)})); E.detail='works the tunnel'; enemies.push(E); } attachLabels();
   /* whoever dug the cave-in left his shotgun on a crate at the end of it */
-  if(FLOOR.reward){ const r=FLOOR.reward,Mw=m4.compose(m4.make(),[r[0],r[1],r[2]],[0,r[3],Math.PI/2],[1,1,1]); const P=addPickup(newItem('shotgun'),Mw,[0,0,0],[0,0,0]); P.rest=true; } }
+  for(const r of FLOOR.rewards||[]){ const Mw=m4.compose(m4.make(),[r.p[0],r.p[1],r.p[2]],[0,r.ry,Math.PI/2],[1,1,1]); const P=addPickup(newItem(r.key),Mw,[0,0,0],[0,0,0]); P.rest=true; } }
 
 /* ---------- the cartel men's lines. Ray speaks Spanish, so they're shown as he hears them: in English. es(spanish,english) keeps the Spanish in the source for reference only ---------- */
 let LINES_EN=null;
@@ -113,7 +141,7 @@ function dirtHeap(n,rx,rz,H,seed){ const g=new Geo(),R0=6,SG=14,ht=(u,a)=>{ cons
 function genTunnel(){
   setWorld(TUN.RX,TUN.RZ);
   disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
-  FLOOR.n=1; FLOOR.test=true; FLOOR.mode='tunnel'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; setLang(true);
+  FLOOR.n=1; FLOOR.test=true; FLOOR.mode='tunnel'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; FLOOR.rewards=[]; setLang(true);
   const G=floorN, B={g:G}, TH=TUN.TH; GEO_TEMP=true;
   /* sample the open field on a 0.25 m grid over the world */
   const GS=.25,X0=-TUN.RX,Z0=-TUN.RZ,GW=Math.round(TUN.RX*2/GS)+1,GH=Math.round(TUN.RZ*2/GS)+1,FF=new Float32Array(GW*GH);
@@ -176,7 +204,7 @@ function genTunnel(){
     mk(plane(w,d,3,3),M(tPuddle[v],{cut:true}),G,x,.012,z,-Math.PI/2,0,i*1.3));
   /* the flooded stretch: shin-deep standing water over the main line, a submersible pump losing the fight, its hose up the wall */
   { const g=new Geo(); FLOOR.wetGrid=null;
-    for(let k=0;k<GH-1;k++) for(let i=0;i<GW-1;i++){ const x=X0+i*GS,z=Z0+k*GS; if(x<TUN_WET[0]||x>TUN_WET[1]||FF[k*GW+i]<-.12) continue;
+    for(let k=0;k<GH-1;k++) for(let i=0;i<GW-1;i++){ const x=X0+i*GS,z=Z0+k*GS; if(FF[k*GW+i]<-.12||!TUN_WATER.some(w=>x+GS/2>w.x0&&x+GS/2<w.x1&&z+GS/2>w.z0&&z+GS/2<w.z1)) continue;
       const b=g.P.length/3; for(const [a,c] of [[0,0],[GS,0],[GS,GS],[0,GS]]) g.v([x+a,.17,z+c],[0,1,0],[(x+a)/1.4,(z+c)/1.4]); g.I.push(b,b+2,b+1,b,b+3,b+2); }
     g.groups.push({start:0,count:g.I.length,mi:0}); mk(g,M(tFlood),G);
     const pp=tunNear(-1,13.2,2.4),nx=-pp.tz,nz=pp.tx,px=pp.x+nx*.55,pz=pp.z+nz*.55; mk(box(.3,.4,.3,{at:[0,.2,0]}),M(null,{color:0x3a5a3a}),G,px,0,pz); addBox(px-.15,px+.15,pz-.15,pz+.15,0,.4,'prop');
@@ -186,7 +214,7 @@ function genTunnel(){
   place(B,'sandbags',-11.9,-4.3,0,6); place(B,'gascyl',-10.75,-4.25);
   /* the pump room: generator (shoot it: lights out), a table, the product */
   const gen=powered(place(B,'generator',-5.35,.62),.75,25); const gb=addBox(-5.8,-4.9,.34,.9,0,1.0,'generator'); gb.onHit=()=>tunnelPower(false);
-  place(B,'table',-3.65,-.25,Math.PI/2,1.0,.6,0xd8d4cc); addBox(-3.95,-3.35,-.75,.25,0,.77,'furn'); mk(box(.3,.2,.2),M(null,{color:0x2a2a2e}),G,-3.6,.88,-.3);
+  place(B,'table',-3.75,-.68,0,1.0,.6,0xd8d4cc); addBox(-4.25,-3.25,-.98,-.38,0,.77,'furn'); mk(box(.3,.2,.2),M(null,{color:0x2a2a2e}),G,-3.55,.88,-.7); /* in the corner: the doorway south to the vent stays clear */
   place(B,'bricksPile',-4.35,.75,0,12,13); addBox(-4.95,-3.75,.45,1.05,0,.4,'furn'); place(B,'gascyl',-3.4,.75);
   /* the dormitory: mattresses on the floor, a TV on a crate, washing on a line, plastic chairs */
   place(B,'mattress',-4.4,-12.05,0); addBox(-5.35,-3.45,-12.55,-11.55,0,.27,'step');
@@ -198,7 +226,7 @@ function genTunnel(){
   /* the cave-in: the old dig ends in a fallen heap; a crate before it, his shotgun on top */
   { const p=tunNear(-5,-11.4,-13.35),n=N(G,p.x,0,p.z,0,Math.atan2(p.tx,p.tz),0); dirtHeap(n,.85,1.1,1.25,4640); addBox(p.x-.7,p.x+.7,p.z-.7,p.z+.7,0,1.2,'furn');
     for(const [o,a] of [[.3,.5],[-.25,-.4]]){ mk(box(.14,.14,1.5),MT(tBeam),n,o,.5,-.3,.6,a,0); } }
-  { const p=tunNear(-5,-9.9,-12.9); place(B,'crates',p.x,p.z,Math.atan2(p.tx,p.tz)); addBox(p.x-.4,p.x+.4,p.z-.4,p.z+.4,0,1.1,'furn'); FLOOR.reward=[p.x,1.16,p.z,Math.atan2(p.tx,p.tz)]; }
+  { const p=tunNear(-5,-9.9,-12.9); place(B,'crates',p.x,p.z,Math.atan2(p.tx,p.tz)); addBox(p.x-.4,p.x+.4,p.z-.4,p.z+.4,0,1.1,'furn'); FLOOR.rewards.push({key:'shotgun',p:[p.x,1.16,p.z],ry:Math.atan2(p.tx,p.tz)}); }
   /* the old bore: no rails, thinner older timbers, a wall slumped into a heap, a cooler someone left in a hollow, one dead bulb */
   { const p=tunNear(-3,1.0,.8),nx=-p.tz,nz=p.tx,cx=p.x+nx*.62,cz=p.z+nz*.62,n=N(G,cx,0,cz,0,Math.atan2(nx,nz),0); dirtHeap(n,.62,.85,.62,4620);
     addBox(cx-.3,cx+.3,cz-.3,cz+.3,0,.45,'prop'); /* solid, but routed past rather than around: the bore is too tight for the nav grid otherwise */
@@ -218,25 +246,59 @@ function genTunnel(){
   place(B,'pchair',20.5,-.75,Math.PI); place(B,'pchair',21.4,-.7,Math.PI*.9);
   place(B,'stash',19.3,-2.35,0); addBox(18.85,19.75,-2.65,-2.05,0,1.3,'furn'); place(B,'stash',22.95,.3,Math.PI/2); addBox(22.65,23.25,-.15,.75,0,1.3,'furn');
   place(B,'bricksPile',21.0,-2.45,0,16,21); addBox(20.35,21.65,-2.75,-2.15,0,.5,'furn'); place(B,'gascyl',18.95,-1.7);
-  /* the exit: sandbags, the ladder up to the other side, the spray paint */
+  /* the old shaft at the end of the main line: its ladder still there, buried to the waist where the shaft came down */
   place(B,'sandbags',27.0,-13.5,0,6); addBox(26.25,27.75,-13.8,-13.3,0,.36,'prop');
-  { const l=N(G,TUN_EXIT[0],0,TUN_EXIT[1],0,Math.PI/2,0); FX.ladder(l,TH+.3); mk(plane(.8,.8),M(null,{color:0x0a0c10}),G,TUN_EXIT[0]-.15,TH-.01,TUN_EXIT[1],Math.PI/2); }
-  mk(plane(1.6,.4),MT(tSpray,{cut:true,double:true}),G,27.4,1.45,-13.78,0,0,0);
+  { const l=N(G,28.15,0,-12.6,0,Math.PI/2,0); FX.ladder(l,TH+.3); const n=N(G,27.7,0,-12.6,0,.4,0); dirtHeap(n,.85,1.0,1.1,4660); addBox(26.9,28.5,-13.5,-11.7,0,1.0,'furn');
+    for(const [o,a] of [[.2,.7],[-.3,-.5]]) mk(box(.14,.14,1.6),MT(tBeam),n,o,.7,.1,.7,a,.2); }
+  /* the exit: the ladder up to the other side, sandbags along the wall, the spray paint */
+  place(B,'sandbags',33.5,20.3,Math.PI/2,6); addBox(33.35,33.65,19.55,21.05,0,.36,'prop');
+  { const l=N(G,TUN_EXIT[0],0,TUN_EXIT[1]+.05,0,0,0); FX.ladder(l,TH+.3); mk(plane(.8,.8),M(null,{color:0x0a0c10}),G,TUN_EXIT[0],TH-.01,TUN_EXIT[1]+.05,Math.PI/2); }
+  mk(plane(1.6,.4),MT(tSpray,{cut:true,double:true}),G,31.52,1.45,20.2,0,Math.PI/2,0);
+  /* the vent shaft: a big intake fan on its stand, a ladder up to the grate and the daylight coming down it, a chair and a radio */
+  { const n=N(G,-13.15,0,7.4,0,Math.PI/2,0); mk(box(.5,.9,.3,{at:[0,.45,0]}),mBlackPipe,n,0,0,0); mk(cyl(.62,.62,.42,12),M(null,{color:0x4a5048}),n,0,1.25,0,Math.PI/2,0,0);
+    const bl=N(n,0,1.25,.22); for(let i=0;i<4;i++) mk(box(.12,.52,.02),M(null,{color:0x2a2c2a}),bl,0,0,0,0,0,i*Math.PI/2+.3); FLOOR.fan=bl; addBox(-13.6,-12.7,6.95,7.85,0,1.9,'furn'); }
+  { const l=N(G,-11.8,0,9.85,0,0,0); FX.ladder(l,TH+.3); mk(plane(1.0,1.0),M(null,{color:0x9ab0c8,unlit:true,double:true}),G,-11.8,TH-.01,9.55,Math.PI/2);
+    const g=N(G,-11.8,TH-.02,9.55); for(let i=-2;i<=2;i++) mk(box(.02,.02,1.0),mBlackPipe,g,i*.2,0,0); }
+  place(B,'pchair',-10.6,9.3,-Math.PI*.7); mk(box(.28,.16,.1),M(null,{color:0x2a2a2c}),G,-10.3,.08,9.6);
+  /* the sump: standing water wall to wall, a pump losing the fight, hoses up the wall; an MP5 left up on the dry crates */
+  { mk(box(.4,.5,.4,{at:[0,.25,0]}),M(null,{color:0x3a5a3a}),G,-20.0,0,8.6); addBox(-20.2,-19.8,8.4,8.8,0,.5,'prop');
+    mk(box(.06,TH,.06,{at:[0,TH/2,0]}),M(null,{color:0x14161a}),G,-19.9,0,8.95); mk(box(.06,.06,1.8),M(null,{color:0x14161a}),G,-20.6,.2,8.6,0,.6,0);
+    place(B,'crates',-23.4,8.3,.3); addBox(-23.85,-22.9,7.85,8.75,0,1.1,'furn'); FLOOR.rewards.push({key:'smg',p:[-23.4,1.16,8.3],ry:.3}); }
+  /* the packing lab: two tables of product being weighed and wrapped, crates of it stacked by the doors */
+  place(B,'counttable',11.2,15.2,0); addBox(10.3,12.1,14.75,15.65,0,.8,'furn');
+  place(B,'table',13.6,15.4,0,1.6,.9,0xd8d4cc); addBox(12.8,14.4,14.95,15.85,0,.78,'furn'); { const n=N(G,13.4,.78,15.35); FX.bricksPile(n,12,31); mk(box(.3,.08,.25),M(null,{color:0xd8d8dc}),G,14.1,.82,15.2); }
+  place(B,'pchair',11.0,14.4,Math.PI); place(B,'pchair',13.9,14.6,Math.PI*1.1);
+  place(B,'stash',10.1,13.1,Math.PI/2); addBox(9.8,10.4,12.65,13.55,0,1.3,'furn'); place(B,'stash',14.7,16.0,0); addBox(14.25,15.15,15.7,16.3,0,1.3,'furn'); place(B,'gascyl',9.9,16.0);
+  /* the rail line: a cart left halfway, a stack of crates */
+  { const p=tunNear(-7,22.4,14.6),ry=Math.atan2(p.tx,p.tz),nx=-p.tz,nz=p.tx,cx=p.x+nx*.72,cz=p.z+nz*.72; place(B,'cart',cx,cz,ry);
+    const ex=.37*Math.abs(Math.cos(ry))+.57*Math.abs(Math.sin(ry)),ez=.37*Math.abs(Math.sin(ry))+.57*Math.abs(Math.cos(ry)); addBox(cx-ex,cx+ex,cz-ez,cz+ez,0,.92,'furn'); }
+  { const p=tunNear(-7,31.2,14.5),nx=-p.tz,nz=p.tx,cx=p.x-nx*.55,cz=p.z-nz*.55; place(B,'crates',cx,cz,.4); addBox(cx-.4,cx+.4,cz-.4,cz+.4,0,1.1,'furn'); }
+  /* the dig face: the compressor thumping, the spoil heap, work lights on tripods, wheelbarrow and shovels. Still being dug */
+  { const c=powered(place(B,'generator',39.5,12.3,0),.7,25); addBox(39.0,40.0,12.0,12.6,0,1.0,'furn');
+    const h=N(G,39.4,0,14.9,0,.3,0); dirtHeap(h,.75,.95,.95,4670); addBox(38.8,40.0,14.1,15.6,0,.9,'furn');
+    for(const [x,z,ry] of [[36.3,12.0,.8],[38.3,15.5,-2.4]]){ const n=N(G,x,0,z,0,ry,0); for(let i=0;i<3;i++) mk(box(.03,1.75,.03,{at:[0,.86,0]}),mBlackPipe,n,Math.sin(i*2.1)*.25,0,Math.cos(i*2.1)*.25,Math.cos(i*2.1)*.13,0,-Math.sin(i*2.1)*.13);
+      mk(box(.36,.28,.22),M(null,{color:0x2a2a2c}),n,0,1.78,0,-.3,0,0); mk(plane(.3,.22),M(null,{color:0xfff4d8,unlit:true}),n,0,1.78,.112,-.3,0,0); }
+    const wb=N(G,36.6,0,15.1,0,.5,0); mk(box(.6,.25,.85,{tw:.8,td:.8,at:[0,.42,0]}),M(null,{color:0x5a6a58}),wb); mk(cyl(.15,.15,.06,8),mBlackPipe,wb,0,.15,.45,0,0,Math.PI/2); for(const s of [-1,1]) mk(box(.03,.03,.9),mWood,wb,s*.22,.45,-.35,.3,0,0);
+    for(const [x,z,a] of [[40.0,13.4,.25],[40.0,13.8,.15]]) { mk(box(.03,1.25,.03,{at:[0,.62,0]}),mWood,G,x,0,z,0,0,a); mk(box(.2,.25,.02),mBlackPipe,G,x+.02,.12,z,0,0,a); }
+    place(B,'sandbags',36.2,15.4,0,6); }
   /* bulbs on the cable. The lit ones are lights (the nearest six are switched on each frame); the dead ones leave long black stretches.
      The old bore, the drift and the cave-in have none at all */
   FLOOR.bulbs=[]; FLOOR.lights=[];
   const LIT=[[-11.6,-3.0,'room',.85,.55,.26,3.4,1],[-4.6,-.25,'room',1.0,.72,.4,3.9],[-.2,-3.75,-1,.85,.55,.26,3.4],[-3.2,-10.7,'room',.85,.6,.32,3.6],[9.4,4.4,-1,.85,.55,.26,3.4],
-    [15.2,2.6,-1,.62,.62,.38,3.6],[20.0,-1.1,'room',.95,.7,.4,4.0],[22.4,-1.4,'room',.95,.7,.4,4.0],[25.2,-5.2,-1,.85,.55,.26,3.4],[27.4,-12.5,'room',.85,.55,.26,3.4]];
-  for(const [x,z,on,r,g_,b_,rad,fl] of LIT){ const p=on==='room'?{x,z}:tunNear(on,x,z),n=N(G,p.x,TH-.19,p.z); FX.bulb(n,true); powered(n,.9,4);
+    [15.2,2.6,-1,.62,.62,.38,3.6],[20.0,-1.1,'room',.95,.7,.4,4.0],[22.4,-1.4,'room',.95,.7,.4,4.0],[25.2,-5.2,-1,.85,.55,.26,3.4],[27.4,-12.5,'room',.85,.55,.26,3.4],
+    [-11.8,9.4,'day',.32,.4,.52,4.4],[-21.2,6.8,'room',.55,.6,.36,3.2],[11.6,14.0,'room',.95,.72,.42,3.8],[13.8,14.8,'room',.95,.72,.42,3.8],[19.8,14.8,-7,.85,.55,.26,3.4],[28.6,14.5,-7,.85,.55,.26,3.4],
+    [36.3,12.0,'work',1.0,.95,.82,4.6],[38.3,15.5,'work',1.0,.95,.82,4.6],[32.6,20.0,'room',.85,.55,.26,3.4]];
+  for(const [x,z,on,r,g_,b_,rad,fl] of LIT){ if(on==='day'||on==='work'){ FLOOR.bulbs.push({p:[x,on==='day'?TH-.3:1.6,z],c:[r,g_,b_],r:rad,always:on==='day'}); continue; }
+    const p=on==='room'?{x,z}:tunNear(on,x,z),n=N(G,p.x,TH-.19,p.z); FX.bulb(n,true); powered(n,.9,4);
     FLOOR.bulbs.push({p:[p.x,TH-.27,p.z],c:[r,g_,b_],r:rad,flick:fl?n.kids[0].mesh.mats[0]:null}); }
-  for(const [id,x,z] of [[-1,-7.6,-3.2],[-1,-3.0,-3.9],[-1,3.4,-2.5],[-1,6.7,.9],[-1,12.6,2.6],[-1,17.8,1.2],[-1,24.7,-8.4],[-4,-1.9,-6.8],[-3,.6,2.0]]){ const p=tunNear(id,x,z); FX.bulb(N(G,p.x,TH-.19,p.z),false); }
+  for(const [id,x,z] of [[-1,-7.6,-3.2],[-1,-3.0,-3.9],[-1,3.4,-2.5],[-1,6.7,.9],[-1,12.6,2.6],[-1,17.8,1.2],[-1,24.7,-8.4],[-4,-1.9,-6.8],[-3,.6,2.0],[-13,-6.6,4.8],[-10,-16.2,8.1],[-11,10.6,8.4],[-7,24.6,14.7],[-7,33.8,14.1],[-8,26.2,10.4],[-12,33.3,16.6]]){ const p=tunNear(id,x,z); FX.bulb(N(G,p.x,TH-.19,p.z),false); }
   GEO_TEMP=false;
   /* navigation: walkable cells are well inside open space and clear of furniture */
   const nav=new Uint8Array(NX*NZ).fill(1),space=new Int16Array(NX*NZ).fill(-9),wet=new Uint8Array(NX*NZ),furn=BOXES.filter(b=>b.kind==='furn'||b.kind==='generator');
-  for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i,r=tunField(x,z); if(r.f<-.3) continue; space[id]=r.id; if(r.id===-1&&x>TUN_WET[0]&&x<TUN_WET[1]) wet[id]=1; if(r.f<.4) continue; /* a walker is 0.28 m round and the walls' boxes stick 0.13 m out of the dug face: routes stay clear of both */
+  for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i,r=tunField(x,z); if(r.f<-.3) continue; space[id]=r.id; if(TUN_WATER.some(w=>r.id===w.id&&x>w.x0&&x<w.x1&&z>w.z0&&z<w.z1)) wet[id]=1; if(r.f<.4) continue; /* a walker is 0.28 m round and the walls' boxes stick 0.13 m out of the dug face: routes stay clear of both */
     let bl=false; for(const b of furn){ if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; break; } } nav[id]=bl?1:0; }
   const U=(id,apt,R_)=>({id,side:1,x0:R_.c[0]-R_.h[0],x1:R_.c[0]+R_.h[0],z0:R_.c[1]-R_.h[1],z1:R_.c[1]+R_.h[1],w:R_.h[0]*2,apt,door:R_.c[0]-R_.h[0],room:true,lit:true});
-  const units=[U(0,'PUMP',TUN_ROOMS[1]),U(1,'EXIT',TUN_ROOMS[2]),U(2,'STAGING',TUN_ROOMS[3]),U(3,'DORM',TUN_ROOMS[4])];
+  const units=[U(0,'PUMP',TUN_ROOMS[1]),U(1,'OLD SHAFT',TUN_ROOMS[2]),U(2,'STAGING',TUN_ROOMS[3]),U(3,'DORM',TUN_ROOMS[4]),U(4,'VENT',TUN_ROOMS[5]),U(5,'SUMP',TUN_ROOMS[6]),U(6,'LAB',TUN_ROOMS[7]),U(7,'DIG',TUN_ROOMS[8]),U(8,'EXIT',TUN_ROOMS[9])];
   Object.assign(FLOOR,{nav,space,wet,units,party:[],bx:99,seats:[],beds:[],furn:[],stairUp:null,start:{x:-11.4,z:-3.0,yaw:-Math.PI/2}});
   tunnelLights(); boxGridDirty=true; navDirty=true; GAME.vision=GAME.vision||'off'; visionApply(); }
 /* the flooded stretch's water: dark brown-green, faint ripple bands that only show under a bulb */
@@ -269,14 +331,15 @@ function tunnelLights(){ setLights(Object.assign({},TUN_LIGHT,FLOOR.power?{pl:[]
    and the fog closes at 11 m, so a bulb only drops out of the six once it's lost in the fog anyway */
 function tunnelPickLights(){ if(FLOOR.mode!=='tunnel'||!FLOOR.bulbs) return;
   for(let i=0;i<6;i++){ L.plPos.set([0,-50,0],i*3); L.plCol.set([0,0,0],i*3); L.plDist[i]=1; }
-  if(FLOOR.power===false) return; const e=camBasis().eye;
-  const near=FLOOR.bulbs.map(b=>[b,Math.hypot(b.p[0]-e[0],b.p[2]-e[2])]).filter(o=>o[1]<18).sort((a,b)=>a[1]-b[1]).slice(0,6);
+  const e=camBasis().eye;
+  const near=FLOOR.bulbs.filter(b=>FLOOR.power!==false||b.always).map(b=>[b,Math.hypot(b.p[0]-e[0],b.p[2]-e[2])]).filter(o=>o[1]<18).sort((a,b)=>a[1]-b[1]).slice(0,6);
   near.forEach(([b],i)=>{ let c=b.c; if(b.flick){ const on=(Math.sin(GAME.t*23)+Math.sin(GAME.t*7.3)>-.7)||Math.sin(GAME.t*1.3)>.1,fk=on?1:.15; c=[c[0]*fk,c[1]*fk,c[2]*fk]; b.flick.color=on?[1,1,1]:[.3,.3,.32]; }
     L.plPos.set(b.p,i*3); L.plCol.set(c,i*3); L.plDist[i]=b.r; }); }
 /* you're lit if you're within a bulb's reach with the power on */
-function litAt(x,z){ if(FLOOR.power===false||!FLOOR.bulbs) return false; for(const b of FLOOR.bulbs) if(Math.hypot(b.p[0]-x,b.p[2]-z)<b.r*1.1) return true; return false; }
+function litAt(x,z){ if(!FLOOR.bulbs) return false; for(const b of FLOOR.bulbs) if((FLOOR.power!==false||b.always)&&Math.hypot(b.p[0]-x,b.p[2]-z)<b.r*1.1) return true; return false; }
 function tunnelPower(on){ if(FLOOR.mode!=='tunnel'||FLOOR.power===on) return; FLOOR.power=on;
-  if(!on){ FLOOR.offT=GAME.t; FLOOR.flick=null; sfx('bump',1); sfx('slowout',.7); for(const E of enemies) if(!E.dead){ setTimeout(()=>{ if(!E.dead){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; if(E.barkCd<=0) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Qué pasó?','What happened?'),es('¡Prendan la planta!','Start the generator!')]),2.4); } },200+Math.random()*700); } }
+  if(!on){ FLOOR.offT=GAME.t; FLOOR.flick=null; sfx('bump',1); sfx('slowout',.7); const F=fieldTo(PL.x,PL.z); for(const E of enemies) if(!E.dead){ const c=navCell(E.pos[0],E.pos[1]),near=F&&c>=0&&F[c]<1e9?F[c]<=500:Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)<25; /* within 25 m of walking */ setTimeout(()=>{ if(E.dead) return; /* the men near you come for you; the rest of the tunnel goes jumpy (sharper eyes) and holds where it is */
+    if(near||E.aware){ E.aware=true; E.mind='hunt'; if(E.st==='idle') E.st='alert'; } else if(!E.mind||E.mind==='calm') E.mind='nervous'; if(!E.dead&&E.barkCd<=0&&(near||Math.random()<.4)) bark(E,pick([es('¡Se fue la luz!','The lights went out!'),es('¿Qué pasó?','What happened?'),es('¡Prendan la planta!','Start the generator!')]),2.4); },200+Math.random()*700); } }
   tunnelLights(); visionApply(); }
 
 /* ---------- seeing in the dark ---------- */
@@ -309,6 +372,7 @@ function visionTick(dt){ const m=visionMode();
   if(GAME.vision==='nv'){ const e=camBasis().eye; L.plPos.set(e,18); L.plCol.set([1.6,1.6,1.6],18); L.plDist[6]=15; } else if(FLOOR.mode==='tunnel'){ L.plCol.set([0,0,0],18); } }
 function visionProgram(){ return GAME.vision==='nv'?NVP2:GAME.vision==='thermal'?THP2:null; }
 function tunnelTag(){ if(FLOOR.mode!=='tunnel') return; const dead=enemies.filter(E=>E.dead).length; $('floorTag').textContent=`Tunnel · ${dead}/${enemies.length} down${FLOOR.power===false?' · lights off':''}`; }
-function tickTunnel(dt){ visionTick(dt); tunnelPickLights(); if(FLOOR.mode==='tunnel'){ tunnelTag.t=(tunnelTag.t||0)-dt; if(tunnelTag.t<=0){ tunnelTag.t=.5; tunnelTag(); } }
+function tickTunnel(dt){ visionTick(dt); tunnelPickLights(); if(FLOOR.mode==='tunnel'&&FLOOR.fan){ FLOOR.fan.spin=lerp(FLOOR.fan.spin||0,FLOOR.power===false?0:14,Math.min(1,dt*(FLOOR.power===false?.4:2))); FLOOR.fan.r[2]+=FLOOR.fan.spin*dt; }
+  if(FLOOR.mode==='tunnel'){ tunnelTag.t=(tunnelTag.t||0)-dt; if(tunnelTag.t<=0){ tunnelTag.t=.5; tunnelTag(); } }
   if(FLOOR.mode!=='tunnel'||!GAME.started||PL.dead||GAME.clear) return;
   if(Math.hypot(PL.x-TUN_EXIT[0],PL.z-TUN_EXIT[1])<.9){ GAME.clear=true; showMsg('EL OTRO LADO','You made it to the other side. Reset to run it again: quiet, loud, or in the dark.'); if(XR.on) XR.clearT=6; } }

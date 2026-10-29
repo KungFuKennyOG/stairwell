@@ -205,15 +205,17 @@ let NAVPEN=new Uint8Array(NX*NZ);
 function setWorld(rx,rz){ if(RX===rx&&RZ===rz) return; RX=rx; RZ=rz; BG_W=RX*2; BG_H=RZ*2; boxGrid=null; boxGridDirty=true;
   NX=RX*4+1; NZ=RZ*4+1; NAVD=new Int32Array(NX*NZ); NAVPEN=new Uint8Array(NX*NZ); NAVF.clear(); navGen++; navDirty=true; }
 /* Dijkstra on 8 neighbours (10 straight, 14 diagonal, no corner cutting) with a bucket queue; pen marks cells that cost extra */
-function navField(F,src,pen){ const nav=FLOOR.nav; F.fill(1e9); const buckets=[[src]]; F[src]=0;
-  for(let dd=0;dd<buckets.length;dd++){ const q=buckets[dd]; if(!q) continue;
+function navField(F,src,pen,lim=1e9){ const nav=FLOOR.nav; F.fill(1e9); const buckets=[[src]]; F[src]=0;
+  for(let dd=0;dd<buckets.length&&dd<=lim;dd++){ const q=buckets[dd]; if(!q) continue;
     for(const c of q){ if(F[c]!==dd) continue; const ci=c%NX,ck=(c-ci)/NX;
       for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ if(!i&&!k) continue; const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const nc=nk*NX+ni; if(nav[nc]) continue;
         if(i&&k&&(nav[ck*NX+ni]||nav[nk*NX+ci])) continue; const nd=dd+(i&&k?14:10)+(pen&&pen[nc]?30:0); if(nd<F[nc]){ F[nc]=nd; (buckets[nd]||(buckets[nd]=[])).push(nc); } } } } }
 function navUpdate(dt,tx,tz){ navT-=dt; if(navT>0&&!navDirty) return; navT=.25; if(navDirty) navGen++; navDirty=false;
   const nav=FLOOR.nav; NAVD.fill(1e9); let src=navCell(tx,tz); if(src<0) return;
   if(nav[src]){ /* standing against a wall: start from the nearest open cell */ let bd=1e9,bs=-1; for(let k=-2;k<=2;k++) for(let i=-2;i<=2;i++){ const c=src+k*NX+i; if(c>=0&&c<nav.length&&!nav[c]&&i*i+k*k<bd){ bd=i*i+k*k; bs=c; } } if(bs<0) return; src=bs; }
-  navField(NAVD,src,null);
+  /* expand only as far as the farthest hunter could need: twice his straight-line distance plus 12 m (20 cost per metre) */
+  let far=12; for(const E of enemies) if(!E.dead&&(E.aware||E.mind&&E.mind!=='calm')) far=Math.max(far,2*Math.hypot(E.pos[0]-tx,E.pos[1]-tz)+12);
+  const lim=far*20; navField(NAVD,src,null,lim);
   /* spreading out: the hunter nearest you takes the shortest way; each one behind him treats the routes the men ahead are
      taking as in the way (+3 m per cell along them). When that sends a man a different way round, he commits to it: he picks a
      point on his new route (E.via) and walks there first, then hunts you from that side. One flank each, given up once he sees you. */
@@ -224,15 +226,17 @@ function navUpdate(dt,tx,tz){ navT-=dt; if(navT>0&&!navDirty) return; navT=.25; 
       for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(F[q]<bd){ bd=F[q]; best=q; } }
       if(best===c) break; c=best; fn(c); } };
   const mark=c=>{ const ci=c%NX,ck=(c-ci)/NX; for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni>=0&&nk>=0&&ni<NX&&nk<NZ) NAVPEN[nk*NX+ni]=1; } };
-  for(let n=0;n<H.length&&n<6;n++){ const E=H[n].E,c0=H[n].c; let F=NAVD;
+  /* only the four nearest hunters within 25 m of walking get their own routes; the rest just come the shortest way. Each route map
+     only spreads as far as it needs (to him, plus 12 m), so a sprawling level costs about what a small one does */
+  for(let n=0;n<H.length&&n<4&&H[n].d<=500;n++){ const E=H[n].E,c0=H[n].c,lim2=H[n].d+240; let F=NAVD;
     if(E.via&&(E.canSee||Math.hypot(E.pos[0]-E.via[0],E.pos[1]-E.via[1])<1.0||GAME.t-E.viaT>20)){ E.via=null; E.viaDone=true; }
-    if(n>0&&!E.via&&!E.viaDone){ E.navFB=E.navFB&&E.navFB.length===NX*NZ?E.navFB:new Int32Array(NX*NZ); navField(E.navFB,src,NAVPEN);
+    if(n>0&&!E.via&&!E.viaDone){ E.navFB=E.navFB&&E.navFB.length===NX*NZ?E.navFB:new Int32Array(NX*NZ); navField(E.navFB,src,NAVPEN,lim2);
       /* how far does his new route stray from the plain shortest one? if it goes a genuinely different way, commit to its far point */
       const plain=[]; trace(NAVD,c0,c=>plain.push(c)); let far=-1,fd=0;
       trace(E.navFB,c0,c=>{ const x=cellX(c%NX),z=cellZ((c-c%NX)/NX); let m=1e9; for(const q of plain){ const d=Math.hypot(x-cellX(q%NX),z-cellZ((q-q%NX)/NX)); if(d<m) m=d; } if(m>fd){ fd=m; far=c; } });
       if(far>=0&&fd>2.5){ E.via=[cellX(far%NX),cellZ((far-far%NX)/NX)]; E.viaT=GAME.t; } }
-    if(E.via){ E.navFB=E.navFB&&E.navFB.length===NX*NZ?E.navFB:new Int32Array(NX*NZ); navField(E.navFB,navCell(E.via[0],E.via[1]),null); E.navF=E.navFB; trace(E.navF,c0,mark); continue; }
-    if(n>0){ E.navFB=E.navFB&&E.navFB.length===NX*NZ?E.navFB:new Int32Array(NX*NZ); navField(E.navFB,src,NAVPEN); E.navF=F=E.navFB; }
+    if(E.via){ E.navFB=E.navFB&&E.navFB.length===NX*NZ?E.navFB:new Int32Array(NX*NZ); navField(E.navFB,navCell(E.via[0],E.via[1]),null,600); E.navF=E.navFB; trace(E.navF,c0,mark); continue; }
+    if(n>0){ E.navFB=E.navFB&&E.navFB.length===NX*NZ?E.navFB:new Int32Array(NX*NZ); navField(E.navFB,src,NAVPEN,lim2); E.navF=F=E.navFB; }
     trace(F,c0,mark); } }
 /* fields to other spots (where he was last seen or heard, a search point, home), cached per cell; rebuilt only for a new floor */
 const NAVF=new Map();
