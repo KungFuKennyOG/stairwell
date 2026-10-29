@@ -4,7 +4,10 @@ set -e
 cd "$(dirname "$0")"
 python3 - <<'PY'
 import glob
-parts=[open(f).read() for f in sorted(glob.glob('src/*.js'))]
+game=sorted(glob.glob('src/*.js'))
+kit=['src/houses/40-helpers.js','src/houses/41-paint.js','src/houses/43-castkit.js','src/houses/44-build.js','src/frontera/45-cast.js','src/frontera/46-places.js','src/frontera/48-vision.js']
+i=game.index('src/20-floor-assets.js')+1
+parts=[open(f).read() for f in game[:i]+kit+game[i:]]
 open('index.html','w').write(open('src/00-head.html').read()+'\n'.join(parts)+'\n</script>\n')
 # train.html: the Maiden Run art direction set, on the same engine (src/10-engine.js) plus src/train/*.js
 tparts=[open('src/10-engine.js').read()]+[open(f).read() for f in sorted(glob.glob('src/train/*.js'))]

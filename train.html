@@ -861,9 +861,16 @@ function pPistol(g){ mk(box(.03,.035,.19),mBlued,g,0,.045,.06); mk(box(.028,.02,
 function pShotgun(g){ mk(box(.05,.07,.2),mBlack,g,0,0,0); mk(cyl(.012,.012,.5,6),M(tBlued,{double:true}),g,0,.02,.35,Math.PI/2);
   mk(cyl(.012,.012,.38,6),M(tBlued,{double:true}),g,0,-.016,.3,Math.PI/2); g.pump=mk(box(.046,.046,.17),mWood,g,0,-.018,.21); /* the fore-end slides: rack it */
   mk(box(.045,.1,.25,{td:.7}),mWood,g,0,-.04,-.2,.12); return g; }
-function pSMG(g){ mk(box(.045,.07,.24),mBlack,g,0,0,.02); mk(cyl(.01,.01,.09,6),M(tBlued,{double:true}),g,0,.012,.18,Math.PI/2);
-  mk(box(.03,.17,.04),mBlack,g,0,-.11,.04); mk(box(.035,.1,.04),mBlack,g,0,-.07,-.07,.25);
-  mk(box(.01,.01,.22),mSteel,g,.02,.02,-.12); mk(box(.01,.01,.22),mSteel,g,-.02,.02,-.12); return g; }
+function pSMG(g){ /* MP5: slim stamped receiver, drum rear sight, hooded front sight, ribbed handguard, cocking tube, curved 30-round magazine, collapsed stock */
+  const dk=M(null,{color:0x232426});
+  mk(box(.04,.056,.28),mBlack,g,0,0,0); mk(box(.034,.012,.27),dk,g,0,.032,0);
+  mk(cyl(.011,.011,.075,6),M(tBlued,{double:true}),g,0,.012,.25,Math.PI/2); mk(cyl(.015,.015,.03,8),mBlack,g,0,.012,.272,Math.PI/2);
+  mk(box(.05,.05,.17,{tw:.9}),dk,g,0,-.022,.12); for(let z=.055;z<.2;z+=.03) for(const s of [-1,1]) mk(box(.004,.03,.008),mBlack,g,s*.025,-.024,z);
+  mk(cyl(.009,.009,.16,6),mBlack,g,0,.03,.13,Math.PI/2); mk(box(.01,.012,.03),mBlack,g,-.026,.03,.17);
+  mk(torus(.012,.003,4,10),mBlack,g,0,.044,.205); mk(cyl(.013,.013,.032,8),mBlack,g,0,.044,-.11,0,0,Math.PI/2);
+  const mg=N(g,0,-.03,.025,-.18,0,0); mk(box(.026,.1,.04),mBlack,mg,0,-.05,0); mk(box(.026,.09,.04),mBlack,mg,0,-.135,.016,-.32,0,0);
+  mk(box(.03,.03,.07),mBlack,g,0,-.04,-.05); mk(box(.034,.1,.042),mBlack,g,0,-.08,-.075,.3);
+  for(const s of [-1,1]) mk(box(.008,.008,.2),mSteel,g,s*.02,.006,-.22); mk(box(.05,.09,.02),mBlack,g,0,-.01,-.32); return g; }
 const WEAPONS={fists:pFists,bottle:pBottle,knife:pKnife,machete:pMachete,revolver:pRevolver,pistol:pPistol,shotgun:pShotgun,smg:pSMG};
 
 /* --- the cast --- */

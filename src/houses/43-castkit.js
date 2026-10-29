@@ -67,13 +67,14 @@ function civPoses(C){ const o=C.o,P=C.poses,hy=o.thigh+o.shin+o.foot+.05;
 
 const FEM={hf:.95,w:.92,depth:.92,lg:.9,ag:.84,belly:.95,shoeW:.085,shape:'fem'};
 const KID=(hf,hs)=>({hf,w:.78*hf/.72*.94,depth:.86,lg:.74*hf/.72,ag:.72*hf/.72,belly:1.04,headS:hs,shoeW:.07+.02*(hf-.72)/.2,jacket:.006,pants:.008,shape:'kid'});
-function makeChar(id,parent,grp){
-  const R_=ROSTER[id]; if(R_.maker){ const C=R_.maker(parent,grp); C.id=id; civPoses(C); return C; }
+/* over: per-use changes (a different prop, say). R_.as makes a restyled character play as one of the tower kinds in the game */
+function makeChar(id,parent,grp,over){
+  const R_=over?Object.assign({},ROSTER[id],over):ROSTER[id]; if(R_.maker){ const C=R_.maker(parent,grp); C.id=id; civPoses(C); return C; }
   const o=Object.assign(baseMatsLazy(id),R_.o,{torsoM:M(R_.torso),armM:M(R_.arm),legM:M(R_.leg),footM:M(R_.foot)});
   if(R_.hand) o.handM=M(R_.hand);
   const J=shapedRig(o,parent,o.shape); if(R_.extra) R_.extra(J,o);
   const kid=R_.side==='kid';
-  const s={kind:id,faces:{},grp,fight:R_.fight||{},showDrop:false,gripHand:R_.gripHand};
+  const s={kind:R_.as||id,faces:{},grp,fight:R_.fight||{},showDrop:false,gripHand:R_.gripHand};
   if(R_.prop){ Object.assign(s,{prop:R_.prop,wFight:R_.wFight||{p:[0,-.06,.02],r:[1.3,0,0]},twoHand:R_.twoHand,gun:R_.gun,support:R_.support}); if(R_.two) s.fightHipsY=J.hips.p[1]-.055; }
   const Cc=finish(parent,J,o,s); Cc.id=id; Cc.kid=kid; Cc.faceM={}; lazyFaces(Cc,id,kid);
   civPoses(Cc); if(kid){ Cc.poses.hurt=Cc.poses.cower; Cc.poses.beg=Cc.poses.cower; }

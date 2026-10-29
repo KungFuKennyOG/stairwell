@@ -26,7 +26,7 @@ function boxesAt(x,z){ if(boxGridDirty) buildBoxGrid(); const i=Math.floor(x+RX)
 const FURN_H={mattress:.27,bed:.5,couch:.9,tv:.92,table:.77,counter:.92,fridge:1.7,crates:1.1,trash:.35,wardrobe:1.9,desk:.78,filing:1.3,bucket:.3};
 function genFloor(n,seed,test=true){
   disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
-  FLOOR.n=n; FLOOR.seed=seed; FLOOR.test=test; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.mode='tower';
+  FLOOR.n=n; FLOOR.seed=seed; FLOOR.test=test; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.mode='tower'; FLOOR.power=true; setLang(false); FLOOR.start={x:-11.3,z:0,yaw:-Math.PI/2};
   const G=floorN; GEO_TEMP=true;
   const tier=tierOf(n), deco=tier<2?0:tier<4?1:2;
   const r=rng((seed*2654435761 ^ n*40503)>>>0);
@@ -229,7 +229,7 @@ function freeSpot(pred,minD=4){ for(let tries=0;tries<400;tries++){ const i=Math
 const ROOM_DX=-6; /* the old room was centred on 0; here it sits between x -10 and -2 */
 function genRoom(n){
   disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
-  FLOOR.n=n; FLOOR.test=true; FLOOR.mode='room'; FLOOR.doors=[]; FLOOR.windows=[];
+  FLOOR.n=n; FLOOR.test=true; FLOOR.mode='room'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; setLang(false); FLOOR.start={x:-11.3,z:0,yaw:-Math.PI/2};
   const G=floorN,T=.14,H_=RH; GEO_TEMP=true;
   const wall=(x0,z0,x1,z1,mat,gaps=[])=>{ const alongX=Math.abs(x1-x0)>Math.abs(z1-z0),a0=alongX?Math.min(x0,x1):Math.min(z0,z1),a1=alongX?Math.max(x0,x1):Math.max(z0,z1),c=alongX?z0:x0;
     const seg=(a,b,y0,y1)=>{ if(b-a<.01) return; const m=(a+b)/2,l=b-a; if(alongX){ mk(box(l,y1-y0,T),mat,G,m,(y0+y1)/2,c); addBox(a,b,c-T/2,c+T/2,y0,y1,'wall'); } else { mk(box(T,y1-y0,l),mat,G,c,(y0+y1)/2,m); addBox(c-T/2,c+T/2,a,b,y0,y1,'wall'); } };

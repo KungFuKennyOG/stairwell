@@ -1,5 +1,6 @@
 /* ---------- boot ---------- */
-genFloor(1,(Math.random()*1e9)|0,true); buildRack(); buildBoard();
+/* the build starts in the Puerto Seco tunnel (proof of concept); the TUNNEL / TOWER FLOOR button on the board switches */
+genTunnel(); buildRack(); buildBoard();
 for(const k of ['bright','dark','dust']) dynNode(k,M(null,{color:k==='bright'?0x8e0c0c:k==='dark'?0x4c0606:0x7a7570,double:true})); dynNode('gib',M(null,{color:0x6a1414,double:true})); dynNode('bone',M(null,{color:0xd6cdb4,double:true}));
 dynNode('pool',M(tPoolB,{cut:true,double:true})); dynNode('splat',M(tSplat,{cut:true,double:true})); dynNode('hole',M(tHole,{cut:true,double:true}));
 resetGame();

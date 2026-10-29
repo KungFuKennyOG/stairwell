@@ -13,15 +13,15 @@ const PERSONAL=['I got a daughter—','I owe him money, that\'s all—','I just 
 function windowHeading(x,z){ const c=navCell(x,z),id=c>=0?FLOOR.space[c]:-1,u=FLOOR.units.find(u=>u.id===id); if(!u) return rnd(0,6.28);
   const w=u.win||[(u.x0+u.x1)/2,u.side*6]; return Math.atan2(w[0]-x,w[1]-z); }
 function spawnKind(ki){
-  const K=KINDS[ki],W=SPAWNOPT.where; let spot=null,hd=null;
+  const K=KINDS[ki],W=SPAWNOPT.where,tun=FLOOR.mode==='tunnel'; let spot=null,hd=null;
   if(W==='near'){ /* in the corridor a few metres ahead of the landing, or near wherever you are */
     for(let t=0;t<30&&!spot;t++){ const x=clamp(PL.x+rnd(3.5,6.5),-9.5,9.5),z=rnd(-.6,.6),c=navCell(x,z); if(c>=0&&!FLOOR.nav[c]&&!enemies.some(E=>Math.hypot(E.pos[0]-x,E.pos[1]-z)<.9)&&Math.abs(x-FLOOR.bx)>1.2) spot={x,z}; }
     if(!spot) spot=freeSpot((x,z,sp)=>sp===-1,3); if(spot) hd=Math.atan2(PL.x-spot.x,PL.z-spot.z); }
   else if(W==='corridor'){ spot=freeSpot((x,z,sp)=>sp===-1,3)||freeSpot((x,z,sp)=>sp===-1,0); if(spot) hd=rnd(0,6.28); }
   else { const pred=W==='any'?(x,z,sp)=>sp>=0:(x,z,sp)=>sp===W; spot=freeSpot(pred,W==='any'?4:0); if(spot) hd=windowHeading(spot.x,spot.z); }
   if(!spot){ spot=freeSpot((x,z,sp)=>sp>=0,4); if(!spot) return null; hd=windowHeading(spot.x,spot.z); }
-  const name=K.key==='landlord'?'The Landlord':NAMES[(nameI++)%NAMES.length],det=DETAILS[(nameI*7)%DETAILS.length];
-  const E=spawnEnemy({maker:K.maker,name,x:spot.x,z:spot.z,hd,extra:K.key==='landlord'?'You know who owns this building?':pick(PERSONAL)});
+  const name=K.key==='landlord'?(tun?'Don Aurelio':'The Landlord'):tun?NAMES_ES[(nameI++)%NAMES_ES.length]:NAMES[(nameI++)%NAMES.length],det=DETAILS[(nameI*7)%DETAILS.length];
+  const E=spawnEnemy({maker:tun?(h,g)=>cartelChar(CARTEL_OF[K.key],h,g):K.maker,name,x:spot.x,z:spot.z,hd,extra:K.key==='landlord'?(tun?es('¿Sabes quién soy?','Do you know who I am?'):'You know who owns this building?'):tun?pick(TUN_CAST).extra:pick(PERSONAL)});
   E.detail=det; enemies.push(E); attachLabels();
   if(SPAWNOPT.aware){ E.aware=true; E.st='alert'; }
   GAME.clear=false; return E; }
@@ -30,10 +30,11 @@ function clearEnemies(){ meleeClear(); for(const G of GRABS.slice()) endGrab(G);
 /* the first room: prototype 01's apartment, with Dani, Marco and Teo where they used to be */
 function firstRoom(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genRoom(FLOOR.n); buildRack(); buildBoard(); SPAWNOPT.where='any'; resetGame(); if(XR.on) vrRecenter(); }
 function roomCast(){ for(const sp of SPAWNS){ const E=spawnEnemy(Object.assign({},sp,{x:sp.x+ROOM_DX})); E.detail=pick(DETAILS); enemies.push(E); } attachLabels(); }
+function goTunnel(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genTunnel(); buildRack(); buildBoard(); SPAWNOPT.where='any'; resetGame(); if(XR.on) vrRecenter(); }
 function newFloor(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genFloor(FLOOR.n,(Math.random()*1e9)|0,true); buildRack(); buildBoard(); if(!FLOOR.units.some(u=>u.id===SPAWNOPT.where)&&typeof SPAWNOPT.where==='number') SPAWNOPT.where='any'; resetGame(); if(XR.on) vrRecenter(); }
 
 /* ---------- the board (VR) ---------- */
-const BOARD=[]; let boardN=null; const BOARD_H=380; const boardTex={c:(()=>{ const c=document.createElement('canvas'); c.width=512; c.height=BOARD_H; return c; })(),glt:null,f:-1,text:''};
+const BOARD=[]; let boardN=null; const BOARD_H=441; const boardTex={c:(()=>{ const c=document.createElement('canvas'); c.width=512; c.height=BOARD_H; return c; })(),glt:null,f:-1,text:''};
 const BTN=[
   ...KINDS.map((K,i)=>({label:K.label.toUpperCase(),col:i%3,row:i<3?0:1,act:()=>spawnKind(i)})),
   {label:()=>'SPAWN: '+whereLabel(),col:0,row:2,act:()=>{ const o=['near','corridor','any']; SPAWNOPT.where=o[(o.indexOf(SPAWNOPT.where)+1)%3]; }},
@@ -46,9 +47,12 @@ const BTN=[
   {label:()=>'FLOOR '+String(FLOOR.n).padStart(2,'0')+' +1',col:2,row:4,act:()=>setTimeout(climb,0)},
   {label:()=>'BLADE TILT: '+MELEE_TILT_LBL[MEL.tilt],col:0,row:5,act:()=>{ MEL.tilt=(MEL.tilt+1)%MELEE_TILT.length; reequipMelee(); }},
   {label:()=>'HANDS: '+HAND_YAW_LBL[MEL.yaw],col:1,row:5,act:()=>{ MEL.yaw=(MEL.yaw+1)%HAND_YAW.length; }},
-  {label:()=>FLOOR.mode==='room'?'BACK TO TOWER':'FIRST ROOM',col:2,row:5,act:()=>setTimeout(FLOOR.mode==='room'?newFloor:firstRoom,0)}];
+  {label:()=>FLOOR.mode==='room'?'BACK TO TOWER':'FIRST ROOM',col:2,row:5,act:()=>setTimeout(FLOOR.mode==='room'?newFloor:firstRoom,0)},
+  {label:()=>FLOOR.mode==='tunnel'?'TOWER FLOOR':'TUNNEL',col:0,row:6,act:()=>setTimeout(FLOOR.mode==='tunnel'?newFloor:goTunnel,0)},
+  {label:()=>'GOGGLES: '+({off:'UP',nv:'NIGHT',thermal:'THERMAL'}[GAME.vision||'off']),col:1,row:6,act:()=>cycleVision()},
+  {label:()=>FLOOR.mode!=='tunnel'?'—':FLOOR.power===false?'POWER: OFF':'POWER: ON',col:2,row:6,act:()=>{ if(FLOOR.mode==='tunnel') tunnelPower(FLOOR.power===false); }}];
 function whereLabel(){ const W=SPAWNOPT.where; if(W==='near') return 'NEAR ME'; if(W==='corridor') return 'HALL'; if(W==='any') return 'ANY ROOM'; const u=FLOOR.units.find(u=>u.id===W); return u?'APT '+u.apt:'ANY ROOM'; }
-const BW=.72,BH=.2,BX0=-12.62,BY0=1.62,BZ=-1.93; /* buttons on the south wall of the landing, facing north */
+const BW=.72,BH=.2,BX0=-12.62,BY0=1.62; let BZ=-1.93; /* buttons on the south wall of the landing, facing north */
 function drawBoard(){ const g=boardTex.c.getContext('2d'),key=BTN.map(b=>typeof b.label==='function'?b.label():b.label).join('|')+BTN.map(b=>b.lit>0?1:0).join(''); if(boardTex.text===key) return; boardTex.text=key;
   g.fillStyle='#141414'; g.fillRect(0,0,512,BOARD_H); g.fillStyle='#e2a33d'; g.fillRect(0,0,512,3);
   g.textAlign='center'; g.textBaseline='middle';
@@ -56,15 +60,16 @@ function drawBoard(){ const g=boardTex.c.getContext('2d'),key=BTN.map(b=>typeof 
     g.fillText(typeof b.label==='function'?b.label():b.label,x+80,y+27,150); }
   if(boardTex.glt){ gl.bindTexture(gl.TEXTURE_2D,boardTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,boardTex.c); } }
 function buildBoard(){ if(boardN){ disposeTree(boardN); const i=world.kids.indexOf(boardN); if(i>=0) world.kids.splice(i,1); } boardN=null; if(!FLOOR.test) return;
-  boardN=N(world); boardTex.text=''; drawBoard();
+  BZ=FLOOR.mode==='tunnel'?-4.59:-1.93; boardN=N(world); boardTex.text=''; drawBoard();
   const H5=1.375*BOARD_H/320,cy=BY0-1.5*BH-.04-.1375-(H5-1.375)/2+.05;
   mk(box(2.3,H5+.08,.03),M(null,{color:0x0c0c0c}),boardN,-11.5,cy-.01,BZ-.01);
   mk(plane(2.2,H5),M(boardTex,{unlit:true}),boardN,-11.5,cy,BZ+.012);
   for(const b of BTN){ b.x=-11.5-1.1+(b.col+.5)*(2.2/3); b.y=cy+H5/2-(10+b.row*61+27)/BOARD_H*H5; b.lit=0; }
-  /* the floor plan, on the west wall behind where you start: poke a room to spawn people there */
+  /* the floor plan, on the west wall behind where you start: poke a room to spawn people there (not in the tunnel) */
+  if(FLOOR.mode==='tunnel') return;
   mk(box(.03,MAP_M[1]+.08,MAP_M[0]+.08),M(null,{color:0x0c0c0c}),boardN,MAP_X-.02,MAP_Y,0);
   mk(plane(MAP_M[0],MAP_M[1]),M(mapTex,{unlit:true}),boardN,MAP_X,MAP_Y,0,0,Math.PI/2,0); mapTex.text=''; drawMap(mapTex.c.getContext('2d')); uploadMap(); }
-function pokeBoard(p,h,dt){ if(!boardN) return; pokeMap(p,h);
+function pokeBoard(p,h,dt){ if(!boardN) return; if(FLOOR.mode!=='tunnel') pokeMap(p,h);
   for(const b of BTN){ b.lit=Math.max(0,b.lit-dt); const inside=Math.abs(p[0]-b.x)<BW/2-.03&&Math.abs(p[1]-b.y)<BH/2+.02&&p[2]<BZ+.09&&p[2]>BZ-.05;
     const k=h.side+b.label; if(inside&&!pokeBoard.held[k]){ pokeBoard.held[k]=true; b.lit=.3; b.act(); sfx('click',.8); buzz(h.hand,.6,30); } else if(!inside) pokeBoard.held[k]=false; }
   drawBoard(); }
