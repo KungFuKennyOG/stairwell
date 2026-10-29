@@ -4,7 +4,7 @@
    signs and tags; lit and dark windows, steel doors, roof parapets with rebar, water tanks; a taco cart, an oil-drum fire,
    a roadside shrine, an altar; a painted skyline backdrop.
    Also the plumbing a bigger level needs on the Quest:
-     batchStatic  merges every static mesh into one mesh per material per 12 m tile (hundreds of draw calls become dozens)
+     meshMerge    folds static meshes together: one per look per 16 m tile, plain colours sharing a palette texture
      lights       a level can have any number of lights; each frame the six that matter most to you are the ones lit
    ===================================================================================================== */
 
@@ -159,22 +159,61 @@ function solidBlock(B,x0,z0,x1,z1,o={}){ const G=B.g,h=o.h||2.9,t=S_(o.paint||tC
       else if(kind==='ac'){ n.p[1]=2.1; FX.acunit(n); }
       else { n.p[1]=1.0; FX.swin(n,kind==='win'?'dark':kind,ex||1.0,1.05); if(kind!=='win'&&kind!=='dark') n.kids.forEach(q=>{ if(q.mesh&&q.mesh.mats[0].unlit) q._keep=true; }); } } } }
 
-/* ---------- static batching: one mesh per material per 12 m tile ----------
-   Nodes marked _keep (lit by city power, the sky), live (animated, flipped, taken) or powered (they cool down in thermal) stay as they are. */
-function batchStatic(root){ updateWorld(root,null); const hot=new Set((FLOOR.hot||[]).map(o=>o.n)); const bins=new Map(),outs=[]; let merged=0;
-  const keep=n=>n._keep||n.live||n.fire||hot.has(n);
-  const add=(n,run,g)=>{ const w=n.world,cx=w[12],cz=w[14],tile=Math.floor(cx/12)+','+Math.floor(cz/12),m=run.m,mk_=(m.tex?tid(m.tex):0)+'|'+m.color.map(v=>v.toFixed(3))+'|'+m.emis.join()+'|'+m.unlit+m.cut+(m.dbl?1:0),key=mk_+'|'+(n._heat??'-')+'|'+tile;
-    let b=bins.get(key); if(!b||b.g.P.length/3>60000){ b={g:new Geo(),m:batchMat(mk_,m),heat:n._heat}; outs.push(b); bins.set(key,b); }
-    const G2=b.g,base=G2.P.length/3,P=g.P,Nm=g.Nm,T=g.T,map=new Map();
+/* ---------- merging meshes: fewer draw calls for the Quest ----------
+   meshMerge(root, o) folds every mesh under root into as few meshes as it can: one per look (texture, colour, lit or unlit,
+   one- or two-sided, heat in thermal) per tile. Plain-coloured materials all share one palette texture, so a tile's hundred
+   little coloured props become one mesh. Tiling is baked into the UVs. Untouched: nodes that are live (animated, flipped,
+   taken), fire, powered (they cool down in thermal), and anything o.keep says. _keep nodes (they ignore the lights-out swap)
+   merge among themselves. Emptied nodes are pruned so the scene graph walk each frame stays short.
+   o.tile: metres per tile (0: one tile, for things that move as a whole like a gun lying on the floor) */
+function makePalette(){ const c=document.createElement('canvas'); c.width=c.height=64; const P={t:{c,glt:null,f:-1},g:c.getContext('2d'),map:new Map(),n:0};
+  P.uv=col=>{ const k=col.map(v=>Math.round(v*255)).join(','); let i=P.map.get(k); if(i===undefined){ i=P.n++; if(i>=4096) i=4095; P.map.set(k,i); const [r,g,b]=col.map(v=>Math.round(Math.min(1,v)*255)); P.g.fillStyle=`rgb(${r},${g},${b})`; P.g.fillRect(i%64,(i/64|0),1,1); if(P.t.glt){ gl.deleteTexture(P.t.glt); P.t.glt=null; } }
+    return [((i%64)+.5)/64,1-((i/64|0)+.5)/64]; }; return P; }
+/* one big atlas for every texture that isn't tiled (signs, windows, doors, posters, car panels, gun parts...): all of them can
+   then share a draw call. Shelf-packed as they turn up; re-uploaded when something new is added */
+const ATLAS={W:1024,H:1024,c:null,g:null,t:null,map:new Map(),x:0,y:0,row:0,full:false};
+function atlasRect(t){ let r=ATLAS.map.get(t); if(r) return r; if(ATLAS.full) return null; const w=t.c.width,h=t.c.height; if(w>256||h>256) return null;
+  if(!ATLAS.c){ ATLAS.c=document.createElement('canvas'); ATLAS.c.width=ATLAS.W; ATLAS.c.height=ATLAS.H; ATLAS.g=ATLAS.c.getContext('2d'); ATLAS.t={c:ATLAS.c,glt:null,f:-1}; }
+  if(ATLAS.x+w>ATLAS.W){ ATLAS.x=0; ATLAS.y+=ATLAS.row; ATLAS.row=0; } if(ATLAS.y+h>ATLAS.H){ ATLAS.full=true; return null; }
+  r={x:ATLAS.x,y:ATLAS.y,w,h}; ATLAS.g.drawImage(t.c,r.x,r.y); ATLAS.x+=w; ATLAS.row=Math.max(ATLAS.row,h); ATLAS.map.set(t,r);
+  if(ATLAS.t.glt){ gl.deleteTexture(ATLAS.t.glt); ATLAS.t.glt=null; } return r; }
+const MERGE_MATS=new Map(); function mergeMat(k,m,o){ if(!MERGE_MATS.has(k)) MERGE_MATS.set(k,Object.assign({},m,o)); return MERGE_MATS.get(k); }
+let PAL=null;
+function meshMerge(root,o={}){ const tile=o.tile??12,hot=new Set((FLOOR.hot||[]).map(q=>q.n)),pal=o.pal||PAL||(PAL=makePalette()),bins=new Map(),outs=[]; let merged=0;
+  const skip=n=>n.live||n.fire||hot.has(n)||(o.keep&&o.keep(n));
+  const add=(n,M,run,g,keepF)=>{ const m=run.m,plain=!m.tex&&!m.cut,cx=M[12],cz=M[14],tk=tile?Math.floor(cx/tile)+','+Math.floor(cz/tile):'0';
+    /* a texture used once over (no tiling) can go in the atlas */
+    let ar=null; if(!plain&&m.tex&&m.tex.c&&!m.tex.dyn){ let lo=1e9,hi=-1e9; for(let i=run.start;i<run.start+run.count;i++){ const v=g.I[i],u=g.T[v*2]*m.rep[0],w=g.T[v*2+1]*m.rep[1]; lo=Math.min(lo,u,w); hi=Math.max(hi,u,w); } if(lo>=-.002&&hi<=1.002) ar=atlasRect(m.tex); }
+    const look=plain?'pal|'+m.unlit+(m.dbl?1:0)+'|'+m.emis.join():ar?('atlas|'+m.color.map(v=>v.toFixed(3))+'|'+m.emis.join()+'|'+m.unlit+m.cut+(m.dbl?1:0)):(tid(m.tex)+'|'+m.color.map(v=>v.toFixed(3))+'|'+m.emis.join()+'|'+m.unlit+m.cut+(m.dbl?1:0));
+    const key=look+'|'+(n._heat??'-')+'|'+(keepF?'K':'')+'|'+tk;
+    let b=bins.get(key); if(!b||b.g.P.length/3>60000){ b={g:new Geo(),m:plain?mergeMat('pal'+tid(pal.t)+look,m,{tex:pal.t,color:[1,1,1],rep:[1,1]}):ar?mergeMat(look,m,{tex:ATLAS.t,rep:[1,1]}):mergeMat(look,m,{rep:[1,1]}),heat:n._heat,keep:keepF}; outs.push(b); bins.set(key,b); }
+    const G2=b.g,P=g.P,Nm=g.Nm,T=g.T,map=new Map(),puv=plain?pal.uv(m.color):null;
     for(let i=run.start;i<run.start+run.count;i++){ const v=g.I[i]; let j=map.get(v); if(j===undefined){ const x=P[v*3],y=P[v*3+1],z=P[v*3+2],nx=Nm[v*3],ny=Nm[v*3+1],nz=Nm[v*3+2];
-        const X=w[0]*x+w[4]*y+w[8]*z+w[12],Y=w[1]*x+w[5]*y+w[9]*z+w[13],Z=w[2]*x+w[6]*y+w[10]*z+w[14]; const n3=norm3([w[0]*nx+w[4]*ny+w[8]*nz,w[1]*nx+w[5]*ny+w[9]*nz,w[2]*nx+w[6]*ny+w[10]*nz]);
-        j=G2.P.length/3; G2.P.push(X,Y,Z); G2.Nm.push(n3[0],n3[1],n3[2]); G2.T.push(T[v*2]*m.rep[0],T[v*2+1]*m.rep[1]); map.set(v,j); } G2.I.push(j); } };
-  (function walk(n,skip){ if(!n.vis) return; skip=skip||keep(n); if(n.mesh&&!skip){ const g=n.mesh.geo; for(const run of runsOf(n.mesh)) add(n,run,g); n.mesh=null; merged++; } for(const k of n.kids) walk(k,skip); })(root,false);
-  const prev=GEO_TEMP; GEO_TEMP=true; const out=N(root);
-  for(const b of outs){ const g=new Geo(); g.P=b.g.P; g.Nm=b.g.Nm; g.T=b.g.T; g.I=b.g.I; g.groups=[{start:0,count:g.I.length,mi:0}]; const n=mk(g,b.m,out); if(b.heat!=null) n._heat=b.heat; }
+        const n3=norm3([M[0]*nx+M[4]*ny+M[8]*nz,M[1]*nx+M[5]*ny+M[9]*nz,M[2]*nx+M[6]*ny+M[10]*nz]);
+        j=G2.P.length/3; G2.P.push(M[0]*x+M[4]*y+M[8]*z+M[12],M[1]*x+M[5]*y+M[9]*z+M[13],M[2]*x+M[6]*y+M[10]*z+M[14]); G2.Nm.push(n3[0],n3[1],n3[2]);
+        if(puv) G2.T.push(puv[0],puv[1]);
+        else if(ar){ const u=Math.min(1,Math.max(0,T[v*2]*m.rep[0])),w=Math.min(1,Math.max(0,T[v*2+1]*m.rep[1])); G2.T.push((ar.x+.5+u*(ar.w-1))/ATLAS.W,1-(ar.y+.5+(1-w)*(ar.h-1))/ATLAS.H); }
+        else G2.T.push(T[v*2]*m.rep[0],T[v*2+1]*m.rep[1]); map.set(v,j); } G2.I.push(j); } };
+  (function walk(n,M,keepF){ if(!n.vis||skip(n)) return; keepF=keepF||!!n._keep;
+    if(n.mesh){ const g=n.mesh.geo; for(const run of runsOf(n.mesh)) if(run.m) add(n,M,run,g,keepF); n.mesh=null; merged++; }
+    for(const k of n.kids){ const L=m4.compose(m4.make(),k.p,k.r,k.s),C=m4.make(); m4.mul(C,M,L); walk(k,C,keepF); } })(root,m4.make(),false);
+  (function prune(n){ for(let i=n.kids.length-1;i>=0;i--){ const k=n.kids[i]; prune(k); if(!k.mesh&&!k.kids.length&&!skip(k)&&!k._ref) n.kids.splice(i,1); } })(root);
+  const prev=GEO_TEMP; GEO_TEMP=true;
+  for(const b of outs){ const g=new Geo(); g.P=b.g.P; g.Nm=b.g.Nm; g.T=b.g.T; g.I=b.g.I; g.groups=[{start:0,count:g.I.length,mi:0}]; const n=mk(g,b.m,root); if(b.heat!=null) n._heat=b.heat; if(b.keep) n._keep=true; }
   GEO_TEMP=prev; return {merged,meshes:outs.length}; }
-/* one shared material per look, with its tiling baked into the UVs */
-const BMATS=new Map(); function batchMat(k,m){ if(!BMATS.has(k)) BMATS.set(k,Object.assign({},m,{rep:[1,1]})); return BMATS.get(k); }
+/* the level: everything static, in 12 m tiles (each tile is culled on its own) */
+function batchStatic(root){ PAL=makePalette(); return meshMerge(root,{tile:16}); }
+/* a man's skinned body: torso, arms and legs are three textures (three draw calls); in the atlas they're one */
+function atlasBody(C){ const b=C.J&&C.J.body; if(!b||!b.mesh||b.mesh.geo.vao) return; const g=b.mesh.geo,mats=b.mesh.mats;
+  if(mats.some(m=>!m||!m.tex||m.cut||m.unlit||m.rep[0]!==1||m.rep[1]!==1)) return; const rects=mats.map(m=>atlasRect(m.tex)); if(rects.some(r=>!r)) return;
+  const done=new Set(); for(const gr of g.groups){ const r=rects[gr.mi]; for(let i=gr.start;i<gr.start+gr.count;i++){ const v=g.I[i]; if(done.has(v)) continue; done.add(v);
+      const u=Math.min(1,Math.max(0,g.T[v*2])),w=Math.min(1,Math.max(0,g.T[v*2+1])); g.T[v*2]=(r.x+.5+u*(r.w-1))/ATLAS.W; g.T[v*2+1]=1-(r.y+.5+(1-w)*(r.h-1))/ATLAS.H; } }
+  const am=mergeMat('atlasBody|'+mats[0].color.join()+'|'+mats[0].emis.join(),mats[0],{tex:ATLAS.t,rep:[1,1]}); b.mesh.mats=mats.map(()=>am); b.mesh.runs=null; }
+/* a man's rigid parts: the bits of each hand and each shoe, the head's extras (not the face, which changes with his expression) */
+function mergeChar(C){ const J=C.J; for(const k of ['openL','openR','wrapL','wrapR','ankleL','ankleR']) if(J[k]) meshMerge(J[k],{tile:0,keep:n=>n!==J[k]&&!!Object.values(J).includes(n)});
+  if(J.head) meshMerge(J.head,{tile:0,keep:n=>n===J.headMesh||(n!==J.head&&Object.values(J).includes(n))}); }
+/* one thing that moves as a whole (a gun on a rack, on the floor, in a man's hand): all its parts become a mesh or two */
+function mergeTree(n){ if(!n) return; return meshMerge(n,{tile:0,pal:PAL||(PAL=makePalette())}); }
 
 /* ---------- lights: any number per level, the six nearest you are the ones lit ----------
    each: {p,c,d, pow:'gen' (off when the generator is) | 'city', fl: null|'tv'|'fire'|'candle'|'buzz'} */

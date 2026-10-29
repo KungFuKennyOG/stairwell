@@ -226,7 +226,7 @@ function useRight(){ const h=HANDS.R; if(h.item&&WPN[h.item.key].gun) fireHand(h
 
 /* ---------- things lying around: dropped, thrown, taken off the dead ---------- */
 const LOOSE=[];
-function addPickup(item,Mw,v,spin){ const n=N(world); GEO_TEMP=true; buildItem(n,item); GEO_TEMP=false; setLocal(n,m4.make(),Mw);
+function addPickup(item,Mw,v,spin){ const n=N(world); GEO_TEMP=true; buildItem(n,item); GEO_TEMP=false; if(typeof mergeTree==='function') mergeTree(n); /* one or two draw calls instead of dozens */ setLocal(n,m4.make(),Mw);
   const P={item,node:n,v:v.slice(),spin:spin||[rnd(-5,5),rnd(-5,5),rnd(-5,5)],rest:false,thrown:Math.hypot(...v)>3,age:0}; LOOSE.push(P); return P; }
 function removePickup(P){ const i=LOOSE.indexOf(P); if(i>=0) LOOSE.splice(i,1); disposeTree(P.node); const k=world.kids.indexOf(P.node); if(k>=0) world.kids.splice(k,1); }
 function updatePickups(dt){ for(const P of LOOSE){ P.age+=dt; if(P.rest) continue; const n=P.node,old=n.p.slice();

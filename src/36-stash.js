@@ -38,15 +38,15 @@ const STASH_CAST=[
   {id:'pistolero',name:'Memo Chico',x:12.2,z:1.2,hd:-Math.PI/2,extra:ES('Mi jefa me está esperando—','My mom is waiting for me—'),detail:'watches the alley'},
   {id:'escolta',name:'Chuy',x:16.9,z:-8.3,hd:-2.2,extra:ES('¡No dispares, tengo hijos!','Don\'t shoot, I have kids!'),detail:'warms up at the fire'}];
 /* weapons lying around the block: [key, x, y, z, yaw] */
-const STASH_LOOT=[['bottle',-6.25,1.15,-10.8,.4],['knife',-3.4,1.0,8.9,1.2],['revolver',1.2,.6,-11.3,.3],['shotgun',6.3,.86,-13.25,0],['machete',15.4,.6,2.7,2.2],['pistol',19.4,1.35,-11.2,1.0],['bottle',12.5,.1,-10.6,0],['can',5.7,.95,-13.3,.4],['bigcan',6.9,.95,-13.3,-.2]];
+const STASH_LOOT=[['bottle',-6.25,1.03,-10.8,.4],['knife',-3.4,1.0,8.9,1.2],['revolver',1.2,.6,-11.3,.3],['shotgun',6.3,.86,-13.25,0],['machete',15.4,.6,2.7,2.2],['pistol',19.4,1.35,-11.2,1.0],['bottle',12.5,.1,-10.6,0],['can',5.7,.95,-13.3,.4],['bigcan',6.9,.95,-13.3,-.2]];
 
-function stashCast(){ for(const sp of STASH_CAST){ const E=spawnEnemy(Object.assign({},sp,{maker:(h,g)=>cartelChar(sp.id,h,g)})); E.detail=sp.detail; E.radio=!!sp.radio;
+function stashCast(){ for(const sp of STASH_CAST){ const E=spawnEnemy(Object.assign({},sp,{maker:(h,g)=>cartelChar(sp.id,h,g)})); E.detail=sp.detail; E.radio=!!sp.radio; mergeTree(E.C.wpn); mergeTree(E.C.dropped); mergeChar(E.C); atlasBody(E.C);
     if(sp.patrol){ E.patrol={pts:sp.patrol,i:1,wait:0}; E.st='alert'; } enemies.push(E); } attachLabels(); }
 function stashLoot(){ for(const [k,x,y,z,ry] of STASH_LOOT){ const Mw=m4.compose(m4.make(),[x,y,z],[k==='knife'||k==='machete'||k==='bottle'?Math.PI/2:0,ry,0],[1,1,1]); addPickup(newItem(k),Mw,[0,0,0],[0,0,0]); } }
 
 function genStash(){
   setWorld(24,16); disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true; FIRES.length=0;
-  FLOOR.n=3; FLOOR.test=true; FLOOR.mode='stash'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; FLOOR.down=false; setLang(true);
+  FLOOR.n=3; FLOOR.test=true; FLOOR.mode='stash'; FLOOR.dormD=10; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; FLOOR.down=false; setLang(true);
   const G=floorN, B={g:G}; GEO_TEMP=true;
   /* a wall from the house builder plus its collision: doors and gaps are open; window and hole sills block to 1.4 m (you can't climb through,
      but people see and shoot over them) */
@@ -247,7 +247,7 @@ function genStash(){
   stashLights(); boxGridDirty=true; navDirty=true; GAME.vision=GAME.vision||'off'; visionApply(); }
 
 /* dark: no moon to speak of. Everything you see is lit by something: sodium lamps, bulbs, the TV, the fire, candles */
-const STASH_LIGHT={amb:[.017,.017,.024],dir:[.3,1,.2],dirCol:[.022,.024,.04],fog:[.016,.012,.013],fogNear:7,fogFar:40}; /* fog with a little sodium in it: the city's glow */
+const STASH_LIGHT={amb:[.017,.017,.024],dir:[.3,1,.2],dirCol:[.022,.024,.04],fog:[.016,.012,.013],fogNear:5,fogFar:27}; /* fog with a little sodium in it; the night swallows anything past ~27 m, and nothing past it is drawn */ /* fog with a little sodium in it: the city's glow */
 function stashLights(){ setLights(Object.assign({},STASH_LIGHT,{pl:[]})); if(FLOOR.power===false) L.amb=[.01,.011,.018]; lmTick(); }
 function stashPower(on,quiet){ if(FLOOR.mode!=='stash'||FLOOR.power===on) return; FLOOR.power=on; stashLever();
   if(!on){ FLOOR.offT=GAME.t;
@@ -276,7 +276,7 @@ const STASH_GOALS={ledger:'Took the ledger: Dale\'s name in it, and a warehouse 
 function stashGoal(k){ if(!FLOOR.goals) FLOOR.goals={}; if(FLOOR.goals[k]) return; FLOOR.goals[k]=true; if(XR.on) vrToast(STASH_GOALS[k],3.2); stashTag(); }
 function stashTag(){ const g=FLOOR.goals||{},dead=enemies.filter(E=>E.dead).length; $('floorTag').textContent=`Stash house · ${dead}/${enemies.length} down${g.ledger?' · ledger':''}${g.power?' · lights off':''}${g.radio?' · RADIOED':''}`; }
 function stashReset(){ if(FLOOR.power===false){ FLOOR.power=true; FLOOR.offT=null; stashLever(); stashLights(); } FLOOR.down=false; FLOOR.goals={}; if(FLOOR.ledgerN) FLOOR.ledgerN.vis=true;
-  stashCast(); stashLoot(); visionApply(); stashTag(); if(XR.on) vrToast('Find the shaft in the stash house. The halcones have radios.',4); }
+  stashCast(); stashLoot(); for(const R of RACK) if(!R.merged){ mergeTree(R.node); R.merged=true; } visionApply(); stashTag(); if(XR.on) vrToast('Find the shaft in the stash house. The halcones have radios.',4); }
 function goStash(){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genStash(); buildRack(); buildBoard(); SPAWNOPT.where='any'; resetGame(); if(XR.on) vrRecenter(); }
 /* down the shaft: into the tunnel with whatever is in your hands */
 function stashDescend(){ FLOOR.down=true; sfx('door',.5); const dead=enemies.filter(E=>E.dead).length,n=enemies.length,g=FLOOR.goals||{};
