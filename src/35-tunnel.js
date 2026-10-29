@@ -140,7 +140,7 @@ function dirtHeap(n,rx,rz,H,seed){ const g=new Geo(),R0=6,SG=14,ht=(u,a)=>{ cons
 /* ---------- the level ---------- */
 function genTunnel(){
   setWorld(TUN.RX,TUN.RZ);
-  disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true;
+  disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true;
   FLOOR.n=1; FLOOR.test=true; FLOOR.mode='tunnel'; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; FLOOR.rewards=[]; setLang(true);
   const G=floorN, B={g:G}, TH=TUN.TH; GEO_TEMP=true;
   /* sample the open field on a 0.25 m grid over the world */

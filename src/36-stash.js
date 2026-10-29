@@ -59,7 +59,7 @@ function stashCast(){ for(const sp of STASH_CAST){ const E=spawnEnemy(Object.ass
 function stashLoot(){ for(const [k,x,y,z,ry] of STASH_LOOT){ const Mw=m4.compose(m4.make(),[x,y,z],[k==='knife'||k==='machete'||k==='bottle'?Math.PI/2:0,ry,0],[1,1,1]); addPickup(newItem(k),Mw,[0,0,0],[0,0,0]); } }
 
 function genStash(){
-  setWorld(43,25); disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true; FIRES.length=0;
+  setWorld(43,25); disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true; FIRES.length=0;
   FLOOR.n=3; FLOOR.test=true; FLOOR.mode='stash'; FLOOR.dormD=10; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; FLOOR.down=false; setLang(true);
   const lights=[], addBoxW=addBox;
   const walkB=(B,x0,z0,x1,z1)=>{ const w=x1-x0,d=z1-z0; mk(box(w,.07,d),F(MT(tWalkCo,{repeat:[w/1.2,.1]}),MT(tWalkCo,{repeat:[w,d]}),MT(tWalkCo,{repeat:[w/1.2,.1]}),MT(tWalkCo,{repeat:[w,d]}),MT(tWalkCo,{repeat:[w/1.2,.1]})),B.g,(x0+x1)/2,.035,(z0+z1)/2); };
@@ -396,6 +396,7 @@ function genStash(){
   Object.assign(FLOOR,{nav,space,units,party:[],bx:99,seats:[],beds:[],furn:[],stairUp:null,start:{x:-11.6,z:0,yaw:-Math.PI/2},lights:[]});
   LM.list=lights;
   const st=batchStatic(floorN); FLOOR.batch=st;
+  FLOOR.batch.far=buildFarField(floorN,{swapD:22,drawD:34}); /* stand-ins for everything past ~22 m: the whole colonia shows */
   stashLights(); boxGridDirty=true; navDirty=true; GAME.vision=GAME.vision||'off'; visionApply(); }
 /* a wall from the house builder plus its collision (through the given addBox, so a moved frame can offset it): doors and gaps are open;
    window and hole sills block to 1.4 m (you can't climb through, but people see and shoot over them) */
@@ -407,7 +408,7 @@ function stashWall(B,addB,x0,z0,x1,z1,a,b,holes=[],o={}){ wall(B,x0,z0,x1,z1,a,b
   solid(s,s1,0,h,'wall'); }
 
 /* dark: no moon to speak of. Everything you see is lit by something: sodium lamps, bulbs, the TV, the fire, candles */
-const STASH_LIGHT={amb:[.018,.018,.026],dir:[.3,1,.2],dirCol:[.03,.032,.05],fog:[.018,.014,.016],fogNear:5,fogFar:27}; /* fog with a little sodium in it; the night swallows anything past ~27 m, and nothing past it is drawn (the sky is drawn past the fog) */
+const STASH_LIGHT={amb:[.018,.018,.026],dir:[.3,1,.2],dirCol:[.03,.032,.05],fog:[.018,.014,.016],fogNear:10,fogFar:95}; /* a light haze with a little sodium in it, no wall: past ~22 m the far field (38-farfield.js) stands in, out to the edge of the colonia; the last of the haze dissolves into the sky */
 function stashLights(){ setLights(Object.assign({},STASH_LIGHT,{pl:[]})); if(FLOOR.power===false) L.amb=[.01,.011,.018]; lmTick(); }
 function stashPower(on,quiet){ if(FLOOR.mode!=='stash'||FLOOR.power===on) return; FLOOR.power=on; stashLever();
   if(!on){ FLOOR.offT=GAME.t;
@@ -445,7 +446,7 @@ function stashDescend(){ FLOOR.down=true; sfx('door',.5); const dead=enemies.fil
 /* a beat to walk: there and back, a few seconds' look at each end */
 function patrolGoal(E,dt){ const P=E.patrol; if(P.wait>0){ P.wait-=dt; return null; } const q=P.pts[P.i];
   if(Math.hypot(E.pos[0]-q[0],E.pos[1]-q[1])<.7||stuck(E,dt)){ P.i=(P.i+1)%P.pts.length; P.wait=rnd(2.5,5); freshGoal(E); return null; } return {x:q[0],z:q[1],sp:.85}; }
-function tickStash(dt){ if(FLOOR.mode!=='stash') return;
+function tickStash(dt){ if(FLOOR.mode!=='stash') return; farTick();
   if(GAME.vision!=='nv') L.plCol.set([0,0,0],18); /* the goggles' torch is off when they're up */
   lmTick(); fireTick(GAME.t);
   /* a shot into the open sky hits the grid's lid: no bullet holes hanging in the air */

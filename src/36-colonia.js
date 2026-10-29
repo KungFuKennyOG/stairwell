@@ -191,23 +191,26 @@ function meshMerge(root,o={}){ const tile=o.tile??12,hot=new Set((FLOOR.hot||[])
   const skip=n=>n.live||n.fire||hot.has(n)||(o.keep&&o.keep(n));
   const add=(n,M,run,g,keepF)=>{ const m=run.m,plain=!m.tex&&!m.cut,cx=M[12],cz=M[14],tk=tile?Math.floor(cx/tile)+','+Math.floor(cz/tile):'0';
     /* a texture used once over (no tiling) can go in the atlas */
-    let ar=null; if(!plain&&m.tex&&m.tex.c&&!m.tex.dyn){ let lo=1e9,hi=-1e9; for(let i=run.start;i<run.start+run.count;i++){ const v=g.I[i],u=g.T[v*2]*m.rep[0],w=g.T[v*2+1]*m.rep[1]; lo=Math.min(lo,u,w); hi=Math.max(hi,u,w); } if(lo>=-.002&&hi<=1.002) ar=atlasRect(m.tex); }
+    let ar=null,wr=null; if(!plain&&m.tex&&m.tex.c&&!m.tex.dyn){ let lo=1e9,hi=-1e9; for(let i=run.start;i<run.start+run.count;i++){ const v=g.I[i],u=g.T[v*2]*m.rep[0],w=g.T[v*2+1]*m.rep[1]; lo=Math.min(lo,u,w); hi=Math.max(hi,u,w); }
+      if(lo>=-.002&&hi<=1.002) ar=atlasRect(m.tex); else if(o.wrap!==false) wr=atlasRect(m.tex); } /* tiled (a wall, a floor): it goes in the atlas too, and wraps inside its own rectangle there (aRect) */
+    if(wr) ar=wr;
     const look=plain?'pal|'+m.unlit+(m.dbl?1:0)+'|'+m.emis.join():ar?('atlas|'+m.color.map(v=>v.toFixed(3))+'|'+m.emis.join()+'|'+m.unlit+m.cut+(m.dbl?1:0)):(tid(m.tex)+'|'+m.color.map(v=>v.toFixed(3))+'|'+m.emis.join()+'|'+m.unlit+m.cut+(m.dbl?1:0));
     const key=look+'|'+(n._heat??'-')+'|'+(keepF?'K':'')+'|'+tk;
-    let b=bins.get(key); if(!b||b.g.P.length/3>60000){ b={g:new Geo(),m:plain?mergeMat('pal'+tid(pal.t)+look,m,{tex:pal.t,color:[1,1,1],rep:[1,1]}):ar?mergeMat(look,m,{tex:ATLAS.t,rep:[1,1]}):mergeMat(look,m,{rep:[1,1]}),heat:n._heat,keep:keepF}; outs.push(b); bins.set(key,b); }
+    let b=bins.get(key); if(!b||b.g.P.length/3>60000){ b={g:new Geo(),tk,m:plain?mergeMat('pal'+tid(pal.t)+look,m,{tex:pal.t,color:[1,1,1],rep:[1,1]}):ar?mergeMat(look,m,{tex:ATLAS.t,rep:[1,1]}):mergeMat(look,m,{rep:[1,1]}),heat:n._heat,keep:keepF}; if(ar) b.g.R=[]; outs.push(b); bins.set(key,b); }
     const G2=b.g,P=g.P,Nm=g.Nm,T=g.T,map=new Map(),puv=plain?pal.uv(m.color):null;
     for(let i=run.start;i<run.start+run.count;i++){ const v=g.I[i]; let j=map.get(v); if(j===undefined){ const x=P[v*3],y=P[v*3+1],z=P[v*3+2],nx=Nm[v*3],ny=Nm[v*3+1],nz=Nm[v*3+2];
         const n3=norm3([M[0]*nx+M[4]*ny+M[8]*nz,M[1]*nx+M[5]*ny+M[9]*nz,M[2]*nx+M[6]*ny+M[10]*nz]);
         j=G2.P.length/3; G2.P.push(M[0]*x+M[4]*y+M[8]*z+M[12],M[1]*x+M[5]*y+M[9]*z+M[13],M[2]*x+M[6]*y+M[10]*z+M[14]); G2.Nm.push(n3[0],n3[1],n3[2]);
         if(puv) G2.T.push(puv[0],puv[1]);
-        else if(ar){ const u=Math.min(1,Math.max(0,T[v*2]*m.rep[0])),w=Math.min(1,Math.max(0,T[v*2+1]*m.rep[1])); G2.T.push((ar.x+.5+u*(ar.w-1))/ATLAS.W,1-(ar.y+.5+(1-w)*(ar.h-1))/ATLAS.H); }
+        else if(wr){ G2.T.push(T[v*2]*m.rep[0],T[v*2+1]*m.rep[1]); G2.R.push((wr.x+.5)/ATLAS.W,(ATLAS.H-wr.y-wr.h+.5)/ATLAS.H,(wr.w-1)/ATLAS.W,(wr.h-1)/ATLAS.H); }
+        else if(ar){ const u=Math.min(1,Math.max(0,T[v*2]*m.rep[0])),w=Math.min(1,Math.max(0,T[v*2+1]*m.rep[1])); G2.T.push((ar.x+.5+u*(ar.w-1))/ATLAS.W,1-(ar.y+.5+(1-w)*(ar.h-1))/ATLAS.H); if(G2.R) G2.R.push(0,0,0,0); }
         else G2.T.push(T[v*2]*m.rep[0],T[v*2+1]*m.rep[1]); map.set(v,j); } G2.I.push(j); } };
   (function walk(n,M,keepF){ if(!n.vis||skip(n)) return; keepF=keepF||!!n._keep;
     if(n.mesh){ const g=n.mesh.geo; for(const run of runsOf(n.mesh)) if(run.m) add(n,M,run,g,keepF); n.mesh=null; merged++; }
     for(const k of n.kids){ const L=m4.compose(m4.make(),k.p,k.r,k.s),C=m4.make(); m4.mul(C,M,L); walk(k,C,keepF); } })(root,m4.make(),false);
   (function prune(n){ for(let i=n.kids.length-1;i>=0;i--){ const k=n.kids[i]; prune(k); if(!k.mesh&&!k.kids.length&&!skip(k)&&!k._ref) n.kids.splice(i,1); } })(root);
   const prev=GEO_TEMP; GEO_TEMP=true;
-  for(const b of outs){ const g=new Geo(); g.P=b.g.P; g.Nm=b.g.Nm; g.T=b.g.T; g.I=b.g.I; g.groups=[{start:0,count:g.I.length,mi:0}]; const n=mk(g,b.m,root); if(b.heat!=null) n._heat=b.heat; if(b.keep) n._keep=true; }
+  for(const b of outs){ const g=new Geo(); g.P=b.g.P; g.Nm=b.g.Nm; g.T=b.g.T; g.I=b.g.I; if(b.g.R) g.R=b.g.R; g.tileKey=b.tk; g.groups=[{start:0,count:g.I.length,mi:0}]; const n=mk(g,b.m,root); if(b.heat!=null) n._heat=b.heat; if(b.keep) n._keep=true; }
   GEO_TEMP=prev; return {merged,meshes:outs.length}; }
 /* the level: everything static, in 12 m tiles (each tile is culled on its own) */
 function batchStatic(root){ PAL=makePalette(); return meshMerge(root,{tile:16}); }

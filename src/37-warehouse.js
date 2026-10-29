@@ -240,7 +240,7 @@ Object.assign(FX,{
 
 /* ---------- the level ---------- */
 function genWare(){
-  setWorld(WARE.RX,WARE.RZ,WARE.RH); disposeTree(floorN); floorN.kids.length=0; BOXES.length=0; boxGridDirty=true; FIRES.length=0;
+  setWorld(WARE.RX,WARE.RZ,WARE.RH); disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true; FIRES.length=0;
   FLOOR.n=5; FLOOR.test=true; FLOOR.mode='ware'; FLOOR.dormD=12; FLOOR.doors=[]; FLOOR.windows=[]; FLOOR.power=true; FLOOR.offT=null; FLOOR.hot=[]; FLOOR.flick=null; FLOOR.up=false; FLOOR.goals={}; FLOOR.rewards=[]; setLang(false);
   const G=floorN, B={g:G}, BH=WARE.BH, SH=WARE.SH; GEO_TEMP=true;
   /* a wall from the house builder plus its collision (as in the stash house): open doors and gaps; window sills block to 1.4 m */
@@ -489,10 +489,11 @@ function genWare(){
   Object.assign(FLOOR,{nav,space,units,party:[],bx:99,seats:[],beds:[],furn:[],stairUp:null,start:{x:-11.5,z:0,yaw:-Math.PI/2},lights:[]});
   WARE.lights=lights; LM.list=lights;
   const st=meshMerge(G,{tile:TILE,pal:PAL=makePalette()}); FLOOR.batch=st;
+  FLOOR.batch.far=buildFarField(G,{swapD:22,drawD:34}); /* stand-ins past ~22 m: the yard, the fence and the street lights show all the way out */
   wareLights(); boxGridDirty=true; navDirty=true; GAME.vision=GAME.vision||'off'; visionApply(); }
 
 /* night: a little moon, the city's glow in the fog. Inside, what's lit is lit by something */
-const WARE_LIGHT={amb:[.05,.051,.06],dir:[.25,1,-.3],dirCol:[.03,.035,.06],fog:[.026,.027,.034],fogNear:12,fogFar:26};
+const WARE_LIGHT={amb:[.05,.051,.06],dir:[.25,1,-.3],dirCol:[.03,.035,.06],fog:[.026,.027,.034],fogNear:14,fogFar:90}; /* a haze, not a wall: the far field (38-farfield.js) stands in past ~22 m */
 function wareLights(){ setLights(Object.assign({},WARE_LIGHT,{pl:[]})); if(FLOOR.power===false) L.amb=[.014,.015,.022]; wareLM(); }
 /* the six lights nearest you: the fixed ones plus any flashlight that's on */
 function wareLM(){ const tl=[]; for(const E of enemies) if(E.tl&&E.torchOn) tl.push(E.tl); LM.list=tl.length?WARE.lights.concat(tl):WARE.lights; lmTick(); }
@@ -543,7 +544,7 @@ function wareTorches(){ const eye=[PL.x,1.4,PL.z]; let lit=false;
   return lit; }
 
 /* ---------- the level's frame ---------- */
-function tickWare(dt){ if(FLOOR.mode!=='ware') return;
+function tickWare(dt){ if(FLOOR.mode!=='ware') return; farTick();
   if(GAME.vision!=='nv') L.plCol.set([0,0,0],18);
   const beam=wareTorches(); WARE.lit=beam||wareLitAt(PL.x,PL.z); wareLM(); if(FLOOR.sky){ FLOOR.sky.p[0]=PL.x; FLOOR.sky.p[2]=PL.z; }
   for(const k of ['hole','splat']){ const D=DEC[k]; if(D.ver!==D._sv){ const n=D.length; for(let i=D.length-1;i>=0;i--){ const d=D[i]; if(d.c[1]>RH-.15&&d.n[1]<-.5) D.splice(i,1); } if(D.length!==n) D.ver++; D._sv=D.ver; } }

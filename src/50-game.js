@@ -1113,19 +1113,22 @@ function collidePlayer(){ const p=[PL.x,PL.z]; pushOutXZ(p,.3,'player'); PL.x=p[
 function renderWith(w,h,noUpd){
   if(!noUpd) updateWorld(world,null); gl.viewport(0,0,w,h); gl.clearColor(L.fog[0],L.fog[1],L.fog[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST); gl.useProgram(MAIN.p); curCull=null; curMat=null; curTex=null; gl.activeTexture(gl.TEXTURE0); const u=MAIN.loc;
-  { const v=view; setCull([-(v[0]*v[12]+v[1]*v[13]+v[2]*v[14]),-(v[4]*v[12]+v[5]*v[13]+v[6]*v[14]),-(v[8]*v[12]+v[9]*v[13]+v[10]*v[14])],L.fogFar+1.5); } /* skip what this eye can't see or the fog has swallowed */
+  const far=FLOOR.far&&inWorld(FLOOR.far.node)?FLOOR.far:null;
+  { const v=view; setCull([-(v[0]*v[12]+v[1]*v[13]+v[2]*v[14]),-(v[4]*v[12]+v[5]*v[13]+v[6]*v[14]),-(v[8]*v[12]+v[9]*v[13]+v[10]*v[14])],far?far.drawD:L.fogFar+1.5); } /* skip what this eye can't see or the fog has swallowed */
+  /* the far field: real tiles near the head, stand-ins past swapD (both eyes decide from the head, so they swap together) */
+  { const he=far?camBasis().eye:[0,0,0]; setSwap(he,far?far.swapD:1e9); gl.uniform3fv(u.uFarEye,he); gl.uniform1f(u.uFarSwap,far?far.swapD:1e9); }
   gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
   const wob=XR.on?0:2; gl.uniform1f(u.uSnap,wob===2?1:wob===1?2.5:0); gl.uniform1f(u.uAffine,wob===2?1:wob===1?.15:0); gl.uniform2f(u.uRes,w,h); /* in a headset there is no vertex wobble and no texture warp, ever: both swim between the eyes. The PS1 look in VR is the low-res textures, the dither and the palette */
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
   gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0);
   /* a level with a sky: draw the sky first, then everything else blends its last few metres of fog into it */
-  const sky=FLOOR.sky&&FLOOR.sky.vis&&sky_inWorld(FLOOR.sky)?FLOOR.sky:null;
-  if(sky){ gl.uniform1f(u.uSkyFade,0); drawTree(sky); sky.vis=false; gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ZERO,gl.ONE); gl.uniform1f(u.uSkyFade,1); }
+  const sky=FLOOR.sky&&inWorld(FLOOR.sky)?FLOOR.sky:null;
+  if(sky){ gl.uniform1f(u.uSkyFade,0); gl.depthMask(false); drawTree(sky); gl.depthMask(true); sky.vis=false; /* the sky writes no depth: the far field past it still draws */ gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ZERO,gl.ONE); gl.uniform1f(u.uSkyFade,1); }
   else gl.uniform1f(u.uSkyFade,0);
   drawTree(world); if(sky){ sky.vis=true; gl.disable(gl.BLEND); gl.uniform1f(u.uSkyFade,0); } gl.bindVertexArray(null); }
-/* the sky only counts while it's actually hanging in the drawn world (a level's floor node can be swapped out) */
-function sky_inWorld(n){ for(let p=n;p;p=p.par){ if(!p.vis) return false; if(p===world) return true; } return false; }
+/* a node only counts while it actually hangs in the drawn world: a level's floor is emptied by clearing its kids, which leaves stale parent links */
+function inWorld(n){ for(let p=n;p;p=p.par){ if(!p.vis) return false; if(p===world) return true; if(p.par&&!p.par.kids.includes(p)) return false; } return false; }
 const POST2=program(PVS,`#version 300 es
 precision highp float;
 uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash; uniform float uSmooth; uniform float uSlow;
