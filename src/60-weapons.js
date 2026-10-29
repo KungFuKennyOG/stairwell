@@ -1,7 +1,7 @@
 /* =====================================================================
    WEAPONS: what Ray holds.
    VR: each hand holds one thing or makes a fist. Grip grabs (from the rack, the floor, a body) and grip again
-   drops or throws. Trigger fires that hand's gun, A/X reloads it. Melee is physical: a fist or blade has to
+   drops or throws. Trigger fires that hand's gun; pointing it at the floor for half a second reloads it (A/X too). Melee is physical: a fist or blade has to
    actually move fast into a body, and harder swings hit harder.
    Flat screen (testing): the right hand holds what you pick with 1-8, click uses it; the left hand keeps a knife (F).
    ===================================================================== */

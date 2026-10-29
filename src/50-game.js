@@ -944,7 +944,7 @@ function frame(now){
 }
 
 /* ---------- VR (WebXR, Quest browser) ----------
-   Right hand: pistol (trigger fires, A reloads). Left hand: knife, stab by actually thrusting it into someone.
+   Right hand: pistol (trigger fires, point it at the floor to reload). Left hand: knife, stab by actually thrusting it into someone.
    Left stick moves where you look, right stick snap-turns 30 degrees, B or Y kicks, X toggles bullet time. */
 function buzz(hand,v,ms){ const h=XR.hands[hand]; try{ h&&h.src.gamepad&&h.src.gamepad.hapticActuators&&h.src.gamepad.hapticActuators[0].pulse(v,ms); }catch(_){} }
 const worldFromLocal=()=>{ const c=Math.cos(XR.yaw),s=Math.sin(XR.yaw),m=m4.make(); m.set([c,0,-s,0, 0,1,0,0, s,0,c,0, XR.origin[0],XR.origin[1],XR.origin[2],1]); return m; };
@@ -1004,6 +1004,9 @@ function xrFrame(t,xf){
     if(grip){ if(!h.item&&!h.grab&&nearGoggles(fp,eye,f,u)) cycleVision(); else grabOrDrop(h); }
     if(h.item&&WPN[h.item.key].gun){ if(trig||(WPN[h.item.key].auto&&pressed(0))) fireHand(h); }
     if(ab){ if(h.item&&WPN[h.item.key].melee) flipGrip(h); else reloadHand(h); } if(by) kick();
+    /* point-down reload: aim the barrel at the floor for half a second (a shotgun keeps feeding shells while you hold it there) */
+    if(h.item&&WPN[h.item.key].gun){ const it=h.item,w=WPN[it.key],Mi=itemM(h),bd=norm3(v3.sub(mulP(Mi,w.muzzle),mulP(Mi,[0,w.axisY,0])));
+      h.downT=bd[1]<-.87?(h.downT||0)+dt:0; if(h.downT>.5&&!(it.reload>0)){ reloadHand(h); if(it.reload>0) buzz(h.hand,.35,40); } } else h.downT=0;
     if(hand==='left'){ const sx=ax[2]||0,sz=ax[3]||0; if(GAME.started&&Math.hypot(sx,sz)>.15){ const fl=norm3([f[0],0,f[2]]),rl=[-fl[2],0,fl[0]],sp=2.2*dt*Math.max(GAME.ts,.3); /* bullet time slows you too */
         const before=[PL.x,PL.z]; PL.x+=(rl[0]*sx-fl[0]*sz)*sp; PL.z+=(rl[2]*sx-fl[2]*sz)*sp; collidePlayer(); XR.origin[0]+=PL.x-before[0]; XR.origin[2]+=PL.z-before[1]; }
       if(stickC) toggleSlow(); }
