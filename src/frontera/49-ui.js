@@ -5,6 +5,8 @@
    ===================================================================================================== */
 const state={view:'team',ps1:true,res:480,snap:true,affine:true,dither:true,roof:false,people:true,pose:'stand',mode:'lit'};
 const MODES=[['lit','Lights on'],['cut','Lights cut'],['nv','Night vision'],['thermal','Thermal']];
+const isDay=()=>!isCast()&&curPlace&&curPlace.day;
+const modesNow=()=>isDay()?[['lit','Daylight'],['thermal','Thermal']]:MODES;
 const cam={t:[0,1,0],th:.5,ph:.9,r:18},goal={t:[0,1,0],th:.5,ph:.9,r:18};
 function setGoal(c,instant){ goal.t=c.t.slice(); goal.ph=c.ph; goal.r=c.r; let th=c.th; while(th-cam.th>Math.PI) th-=Math.PI*2; while(th-cam.th<-Math.PI) th+=Math.PI*2; goal.th=th; if(instant){ cam.t=goal.t.slice(); cam.th=goal.th; cam.ph=goal.ph; cam.r=goal.r; } }
 function effR(){ const asp=cv.width/Math.max(1,cv.height); return cam.r*Math.max(1,(asp<.8?.82:1.1)/asp); }
@@ -37,11 +39,13 @@ function poseLineup(Lu){ const p=state.pose; Lu.chars.forEach((C,i)=>{ const nam
 /* ---------- light ---------- */
 const NIGHT={amb:[.11,.11,.14],dir:[-.35,1,.45],dirCol:[.2,.2,.28],fog:[.02,.018,.016],fogNear:40,fogFar:100};
 const UNDER={amb:[.07,.06,.05],dir:[0,1,0],dirCol:[0,0,0],fog:[.012,.009,.006],fogNear:14,fogFar:60};
+const DAY={amb:[.46,.42,.38],dir:[-.3,.42,-.85],dirCol:[1.2,.95,.68],fog:[.8,.66,.5],fogNear:50,fogFar:190};
 const STAGE_LIGHT={amb:[.42,.4,.4],dir:[-.4,.6,.7],dirCol:[.7,.62,.56],fog:[.04,.04,.04],fogNear:40,fogFar:90,pl:[[[-3,2.4,2],[.8,.7,.6],6],[[3,2.4,2],[.8,.7,.6],6],[[0,1.6,4],[.4,.42,.5],8]]};
 let curPlace=null;
 function root(){ return isCast()?LINEUPS[state.view].g:curPlace.g; }
 function applyLight(){ const m=state.mode;
   if(isCast()){ if(m==='lit') setLights(STAGE_LIGHT); else setLights({amb:[.025,.025,.03],dir:[0,1,0],dirCol:[0,0,0],fog:[.004,.004,.005],fogNear:40,fogFar:90,pl:[]}); }
+  else if(curPlace.day) setLights(Object.assign({},DAY,{pl:[]}));
   else { const base=curPlace.under?UNDER:NIGHT; if(m==='lit') setLights(Object.assign({},base,{pl:curPlace.lights}));
     else setLights(Object.assign({},base,{amb:base.amb.map(v=>v*(m==='nv'?.6:.3)),dirCol:base.dirCol.map(v=>v*.5),fog:[.003,.003,.003],pl:[]})); }
   if(m==='thermal') L.fog=[.0,.0,.02]; }
@@ -51,11 +55,12 @@ function flickerTick(t){ if(isCast()||!curPlace||state.mode!=='lit') return; for
 function irTick(eye){ if(state.mode!=='nv') return; L.plPos.set(eye,7*3); const c=isCast()?.9:1.6; L.plCol.set([c,c,c],7*3); L.plDist[7]=isCast()?13:38; }
 
 /* ---------- views and modes ---------- */
-function setMode(m){ state.mode=m; for(const k in LINEUPS) applyMode(LINEUPS[k].g,m); for(const k in PS) applyMode(PS[k].g,m); applyLight(); renderCard(); updateClock(); }
+function setMode(m){ if(isDay()&&(m==='cut'||m==='nv')) m='lit'; state.mode=m; for(const k in LINEUPS) applyMode(LINEUPS[k].g,m); for(const k in PS) applyMode(PS[k].g,m); applyLight(); renderCard(); updateClock(); }
 function showPlace(k,instant){ for(const key in PS) PS[key].g.vis=false; curPlace=getPlace(k); applyMode(curPlace.g,state.mode); curPlace.g.vis=true; curPlace.roof.vis=state.roof; for(const C of curPlace.chars) C.node.vis=state.people; setGoal(curPlace.cam,instant); }
 function showLineup(k,instant){ const Lu=lineup(k); applyMode(Lu.g,state.mode); for(const key in LINEUPS) LINEUPS[key].g.vis=key===k; const w=Lu.X.length*1.05, wide=innerWidth>760; setGoal({t:[wide?-.35:0,.95,.35],th:0,ph:1.4,r:wide?Math.max(5.2,w*1.3+1.2):w*1.15+1.4},instant); }
-function setView(v,instant){ if(!['team','cartel','stash','tunnel'].includes(v)) v='team'; state.view=v; STAGE.vis=isCast(); HOUSES.vis=!isCast();
+function setView(v,instant){ if(!['team','cartel','stash','tunnel','bridge'].includes(v)) v='team'; state.view=v; STAGE.vis=isCast(); HOUSES.vis=!isCast();
   if(isCast()) showLineup(v,instant); else showPlace(v,instant);
+  if(isDay()&&(state.mode==='cut'||state.mode==='nv')){ state.mode='lit'; applyMode(curPlace.g,'lit'); }
   document.querySelectorAll('.tabs a[data-view]').forEach(a=>{ if(a.dataset.view===v) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   applyLight(); renderCard(); updateClock(); }
 
@@ -65,11 +70,11 @@ const el=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.classNa
 function segOf(opts,cur,onPick){ const s=el('div','seg'); for(const [v,label] of opts){ const b=el('button',null,label); b.type='button'; b.dataset.v=v; b.setAttribute('aria-pressed',String(v===cur)); b.addEventListener('click',()=>{ s.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); onPick(v); }); s.append(b); } return s; }
 function peopleList(items,onPick){ const ul=el('ul','list'); items.forEach(it=>{ const li=el('li'),b=el('button'); b.type='button'; b.setAttribute('aria-pressed','false');
     const lead=el('span','num'); lead.style.cssText=`width:10px;height:10px;background:${it.color};align-self:center`;
-    const txt=el('span'); txt.style.minWidth='0'; const tg=it.side==='team'?['team','Team']:['cartel',it.was?'Was: '+it.was:'Cartel']; txt.append(el('span','tag '+tg[0],tg[1]),el('b',null,it.name),el('span','who',it.role));
+    const txt=el('span'); txt.style.minWidth='0'; const tg=it.side==='team'?['team','Team']:it.side==='cop'?['cop','Convoy']:it.side==='civ'?['civ','Civilian']:it.side==='kid'?['kid','Kid']:['cartel',it.was?'Was: '+it.was:'Cartel']; txt.append(el('span','tag '+tg[0],tg[1]),el('b',null,it.name),el('span','who',it.role));
     const sm=el('small',null,it.note); if(it.fate){ const f=el('span','fate'); f.style.display='block'; f.textContent=it.fate; sm.append(f); } txt.append(sm);
     b.append(lead,txt,el('span','num',it.right||'')); b.addEventListener('click',()=>{ ul.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); onPick(it); }); li.append(b); ul.append(li); }); return ul; }
-const MODE_NOTE={lit:'As lit. This is what the crew sees.',cut:'Every lamp, bulb and screen off. Your own eyes after you kill the power.',nv:'Night vision: the dark amplified, green grain, an infrared torch only you can see. Muzzle flashes and lights flare it.',thermal:'Thermal: people glow, faces hottest, guns and walls cold. Works in pitch black and through smoke; can\'t read a face.'};
-function modeBlock(){ const w=el('div'); w.append(el('p','seg-label','See it with'),segOf(MODES,state.mode,setMode),el('p','word',MODE_NOTE[state.mode])); return w; }
+const MODE_NOTE={lit:'As lit. This is what the crew sees.',cut:'Every lamp, bulb and screen off. Your own eyes after you kill the power.',nv:'Night vision: the dark amplified, green grain, an infrared torch only you can see. Muzzle flashes and lights flare it.',thermal:'Thermal: people glow, faces hottest, guns and walls cold. Works in pitch black and through smoke; can\'t read a face.',day:'Five in the afternoon, sun low in the west, dust in the air. The one daylight level: no goggles needed, but thermal still picks out who is sitting in which car.',dayTh:'Thermal in daylight: idling engines and exhausts glow, so does everyone in the cars. Tinted glass hides nothing.'};
+function modeBlock(){ const w=el('div'); const note=isDay()?(state.mode==='thermal'?MODE_NOTE.dayTh:MODE_NOTE.day):MODE_NOTE[state.mode]; w.append(el('p','seg-label','See it with'),segOf(modesNow(),state.mode,setMode),el('p','word',note)); return w; }
 function renderCard(){ card.innerHTML='';
   if(state.view==='team'){ card.append(el('p','sub','Prologue · the tower raid'),el('h2',null,'The team'));
     card.append(el('p','body','A joint task force goes into a cartel tower on a tip. You meet them in the truck on the way in. The tip was a setup: the team dies floor by floor, Ray goes down on the stairs, and the screen drains to black. Then he wakes up among them, left for dead.'));
@@ -83,8 +88,8 @@ function renderCard(){ card.innerHTML='';
     const all=el('button','btn','Whole view'); all.type='button'; all.addEventListener('click',()=>setGoal(H.cam)); const row=el('div','row'); row.append(all); card.append(row);
     if(H.rooms.length) card.append(el('p','seg-label','Rooms'),segOf(H.rooms.map((r,k)=>[k,r.name.split(' · ')[0]]),null,k=>setGoal(H.rooms[k].cam)));
     const seen=new Set(), list=[]; for(const p of H.people){ if(seen.has(p.id)) continue; seen.add(p.id); list.push(Object.assign({id:p.id,p},ROSTER[p.id])); }
-    card.append(el('p','seg-label','Here tonight'),peopleList(list,it=>{ const p=it.p; setGoal({t:[p.x,p.y+.9,p.z],th:cam.th,ph:.62,r:4.2}); })); } }
-function updateClock(){ clockEl.innerHTML=''; const m=MODES.find(x=>x[0]===state.mode)[1]; const where={team:'The truck, 21:40',cartel:'Line-up',stash:'Tierra Blanca, 02:40',tunnel:'Under the line, 02:55'}[state.view]; clockEl.append(el('b',null,m),where); }
+    card.append(el('p','seg-label',H.peopleLabel||'Here tonight'),peopleList(list,it=>{ const p=it.p; setGoal({t:[p.x,p.y+.9,p.z],th:cam.th,ph:.62,r:4.2}); })); } }
+function updateClock(){ clockEl.innerHTML=''; const m=modesNow().find(x=>x[0]===state.mode)[1]; const where={team:'The truck, 21:40',cartel:'Line-up',stash:'Tierra Blanca, 02:40',tunnel:'Under the line, 02:55',bridge:'Puente Seco, 16:55'}[state.view]; clockEl.append(el('b',null,m),where); }
 
 window.addEventListener('hashchange',()=>setView(location.hash.slice(1)));
 document.querySelectorAll('.tabs a[data-view]').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); const v=a.dataset.view; try{ history.replaceState(null,'','#'+v); }catch(_){} setView(v); }));
@@ -115,7 +120,7 @@ function frame(now){
   gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null);
   requestAnimationFrame(frame); }
 const hv=location.hash.slice(1);
-setView(['team','cartel','stash','tunnel'].includes(hv)?hv:'team',true);
+setView(['team','cartel','stash','tunnel','bridge'].includes(hv)?hv:'team',true);
 const ld=document.getElementById('loading'); if(ld) ld.hidden=true;
 window.__ps={state,setView,setMode,showPlace,setGoal,cam,goal,PS,LINEUPS,getPlace,ROSTER,renderCard,poseLineup};
 requestAnimationFrame(frame);
