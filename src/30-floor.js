@@ -176,6 +176,7 @@ function doorNear(x,z,maxD){ let best=null,bd=maxD; for(const D of FLOOR.doors){
 function solidFor(b,who){ /* what blocks whom: the player and walking people step over mattresses and ignore lintels above their heads */
   if(who==='body') return true;
   if(b.kind==='step') return false;
+  if(b.kind==='post'&&who==='walker') return false; /* timber posts: people walking slide past them instead of jamming on a corner */
   return b.y0<1.6&&b.h>.4; }
 function pushOutXZ(p,r,who){ /* push a circle (x,z) out of the boxes around it */
   for(let pass=0;pass<2;pass++) for(const b of boxesAt(p[0],p[1])){ if(!solidFor(b,who)) continue;
@@ -250,7 +251,7 @@ function lineClearNav(x0,z0,x1,z1){ const L=Math.hypot(x1-x0,z1-z0),n=Math.ceil(
 function navDir(x,z,tx,tz,F=NAVD){
   if(lineClearNav(x,z,tx,tz)) return norm3([tx-x,0,tz-z]);
   let c=navCell(x,z); if(c<0) return norm3([tx-x,0,tz-z]);
-  if(F[c]>=1e9){ let bd=1e9; for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const q=c+k*NX+i; if(q>=0&&q<F.length&&F[q]<bd){ bd=F[q]; c=q; } } if(bd>=1e9) return norm3([tx-x,0,tz-z]); }
+  if(F[c]>=1e9){ let bd=1e9; for(let k=-2;k<=2;k++) for(let i=-2;i<=2;i++){ /* shoved off the walkable cells: find the way back within a metre */ const q=c+k*NX+i; if(q>=0&&q<F.length&&F[q]<bd){ bd=F[q]; c=q; } } if(bd>=1e9) return norm3([tx-x,0,tz-z]); }
   /* follow the field a few cells ahead and aim at the furthest one we can walk to in a straight line */
   let cur=c,aim=null; for(let step=0;step<6;step++){ const ci=cur%NX,ck=(cur-ci)/NX; let best=cur,bd=F[cur];
     for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(F[q]<bd){ bd=F[q]; best=q; } }

@@ -2064,6 +2064,7 @@ function doorNear(x,z,maxD){ let best=null,bd=maxD; for(const D of FLOOR.doors){
 function solidFor(b,who){ /* what blocks whom: the player and walking people step over mattresses and ignore lintels above their heads */
   if(who==='body') return true;
   if(b.kind==='step') return false;
+  if(b.kind==='post'&&who==='walker') return false; /* timber posts: people walking slide past them instead of jamming on a corner */
   return b.y0<1.6&&b.h>.4; }
 function pushOutXZ(p,r,who){ /* push a circle (x,z) out of the boxes around it */
   for(let pass=0;pass<2;pass++) for(const b of boxesAt(p[0],p[1])){ if(!solidFor(b,who)) continue;
@@ -2138,7 +2139,7 @@ function lineClearNav(x0,z0,x1,z1){ const L=Math.hypot(x1-x0,z1-z0),n=Math.ceil(
 function navDir(x,z,tx,tz,F=NAVD){
   if(lineClearNav(x,z,tx,tz)) return norm3([tx-x,0,tz-z]);
   let c=navCell(x,z); if(c<0) return norm3([tx-x,0,tz-z]);
-  if(F[c]>=1e9){ let bd=1e9; for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const q=c+k*NX+i; if(q>=0&&q<F.length&&F[q]<bd){ bd=F[q]; c=q; } } if(bd>=1e9) return norm3([tx-x,0,tz-z]); }
+  if(F[c]>=1e9){ let bd=1e9; for(let k=-2;k<=2;k++) for(let i=-2;i<=2;i++){ /* shoved off the walkable cells: find the way back within a metre */ const q=c+k*NX+i; if(q>=0&&q<F.length&&F[q]<bd){ bd=F[q]; c=q; } } if(bd>=1e9) return norm3([tx-x,0,tz-z]); }
   /* follow the field a few cells ahead and aim at the furthest one we can walk to in a straight line */
   let cur=c,aim=null; for(let step=0;step<6;step++){ const ci=cur%NX,ck=(cur-ci)/NX; let best=cur,bd=F[cur];
     for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(F[q]<bd){ bd=F[q]; best=q; } }
@@ -2203,7 +2204,7 @@ function genRoom(n){ setWorld(13,6);
    Wading the flooded stretch is loud. Night vision and thermal: touch the top of your head with an empty hand and squeeze grip
    (N on a keyboard) to cycle goggles up / night vision / thermal.
    ===================================================================================================== */
-const TUN={TH:2.05,RX:30,RZ:18};
+const TUN={TH:2.4,RX:30,RZ:18,WIDEN:.15,WIDEN_NARROW:.2}; /* ceiling height; extra half-width on the main line and on the narrow digs (room to swing a machete) */
 /* The tunnel winds. It's laid out as dug paths (centre line [x,z,half-width], smoothed) plus chambers; the walls are traced as one
    continuous dug surface around whatever is open, so junctions and bends need no special cases.
    Space ids: paths -1 main line, -3 the old bore, -4 dormitory branch, -5 the cave-in, -6 the drift; rooms -2 start dugout,
@@ -2277,7 +2278,7 @@ function tunSample(P,pi){ const out=[]; const at=i=>P[Math.max(0,Math.min(P.leng
   return out; }
 /* segments bucketed on a 2 m grid, so a point only measures itself against the few pieces of tunnel near it */
 let TUN_S=null,TUN_BK=null;
-function tunPaths(){ if(TUN_S) return TUN_S; TUN_S=TUN_PATHS.map((P,pi)=>({id:P.id,pi,rails:!!P.rails,S:tunSample(P.pts,pi)}));
+function tunPaths(){ if(TUN_S) return TUN_S; TUN_S=TUN_PATHS.map((P,pi)=>({id:P.id,pi,rails:!!P.rails,S:tunSample(P.pts.map(q=>[q[0],q[1],q[2]+(P.id===-1?TUN.WIDEN:TUN.WIDEN_NARROW)]),pi)}));
   const bw=Math.ceil(TUN.RX),bh=Math.ceil(TUN.RZ); TUN_BK={w:bw,h:bh,c:Array.from({length:bw*bh},()=>[])};
   for(const P of TUN_S) for(let i=0;i<P.S.length-1;i++){ const a=P.S[i],b=P.S[i+1],m=2.4;
     const i0=Math.max(0,Math.floor((Math.min(a.x,b.x)-m+TUN.RX)/2)),i1=Math.min(bw-1,Math.floor((Math.max(a.x,b.x)+m+TUN.RX)/2)),k0=Math.max(0,Math.floor((Math.min(a.z,b.z)-m+TUN.RZ)/2)),k1=Math.min(bh-1,Math.floor((Math.max(a.z,b.z)+m+TUN.RZ)/2));
@@ -2353,12 +2354,12 @@ function genTunnel(){
       if(n===1&&g.P.length>6){} }
     flush(); };
   const railM=M(tRailsPaint,{cut:true,double:true}),cableM=M(null,{color:0x111214,double:true});
-  for(const P of paths) if(P.rails){ const end=P.S[P.S.length-1].s; strip(P.S,.6,end-.6,0,.9,.015,railM,.6,false); strip(P.S,0,end,.3,.025,1.93,cableM,1,true); }
+  for(const P of paths) if(P.rails){ const end=P.S[P.S.length-1].s; strip(P.S,.6,end-.6,0,.9,.015,railM,.6,false); strip(P.S,0,end,.3,.025,TH-.12,cableM,1,true); }
   /* timber frames across the paths, square to the tunnel: posts each side and a header. Only where both posts stand against
      earth (so never out in a junction or another tunnel's mouth), and never inside a chamber */
-  const frame=(p,thin)=>{ const nx=-p.tz,nz=p.tx,ry=Math.atan2(nx,nz),half=p.hw-.14,t=thin?.1:.12;
+  const frame=(p,thin)=>{ const nx=-p.tz,nz=p.tx,ry=Math.atan2(nx,nz),half=p.hwn-.11,t=thin?.1:.12; /* posts tight to the dug face */
     for(const sd of [-1,1]){ const px=p.x+nx*half*sd,pz=p.z+nz*half*sd; if(fAt(px+nx*sd*.34,pz+nz*sd*.34)>-.02||fAt(px,pz)>.4) return false; }
-    for(const sd of [-1,1]){ const px=p.x+nx*half*sd,pz=p.z+nz*half*sd; mk(box(t,TH-.02,t,{at:[0,(TH-.02)/2,0]}),MT(tBeam),G,px,0,pz,0,ry,0); addBox(px-t/2,px+t/2,pz-t/2,pz+t/2,0,TH,'wall'); }
+    for(const sd of [-1,1]){ const px=p.x+nx*half*sd,pz=p.z+nz*half*sd; mk(box(t,TH-.02,t,{at:[0,(TH-.02)/2,0]}),MT(tBeam),G,px,0,pz,0,ry,0); addBox(px-t/2,px+t/2,pz-t/2,pz+t/2,0,TH,'post'); }
     mk(box(.14,thin?.11:.14,half*2+.1),MT(tBeam),G,p.x,TH-.08,p.z,0,ry,0); return true; };
   for(const P of paths){ if(P.id===0) continue; const thin=P.id!==-1,gap=thin?2.0:1.7,end=P.S[P.S.length-1].s; let next=1.0;
     for(const p of P.S){ if(p.s<next||p.s>end-.8) continue; if(inRoom(p.x,p.z,.6)) continue; if(frame(p,thin)) next=p.s+gap; } }
@@ -2421,13 +2422,13 @@ function genTunnel(){
   FLOOR.bulbs=[]; FLOOR.lights=[];
   const LIT=[[-11.6,-3.0,'room',.85,.55,.26,3.4,1],[-4.6,-.25,'room',1.0,.72,.4,3.9],[-.2,-3.75,-1,.85,.55,.26,3.4],[-3.2,-10.7,'room',.85,.6,.32,3.6],[9.4,4.4,-1,.85,.55,.26,3.4],
     [15.2,2.6,-1,.62,.62,.38,3.6],[20.0,-1.1,'room',.95,.7,.4,4.0],[22.4,-1.4,'room',.95,.7,.4,4.0],[25.2,-5.2,-1,.85,.55,.26,3.4],[27.4,-12.5,'room',.85,.55,.26,3.4]];
-  for(const [x,z,on,r,g_,b_,rad,fl] of LIT){ const p=on==='room'?{x,z}:tunNear(on,x,z),n=N(G,p.x,1.86,p.z); FX.bulb(n,true); powered(n,.9,4);
-    FLOOR.bulbs.push({p:[p.x,1.78,p.z],c:[r,g_,b_],r:rad,flick:fl?n.kids[0].mesh.mats[0]:null}); }
-  for(const [id,x,z] of [[-1,-7.6,-3.2],[-1,-3.0,-3.9],[-1,3.4,-2.5],[-1,6.7,.9],[-1,12.6,2.6],[-1,17.8,1.2],[-1,24.7,-8.4],[-4,-1.9,-6.8],[-3,.6,2.0]]){ const p=tunNear(id,x,z); FX.bulb(N(G,p.x,1.86,p.z),false); }
+  for(const [x,z,on,r,g_,b_,rad,fl] of LIT){ const p=on==='room'?{x,z}:tunNear(on,x,z),n=N(G,p.x,TH-.19,p.z); FX.bulb(n,true); powered(n,.9,4);
+    FLOOR.bulbs.push({p:[p.x,TH-.27,p.z],c:[r,g_,b_],r:rad,flick:fl?n.kids[0].mesh.mats[0]:null}); }
+  for(const [id,x,z] of [[-1,-7.6,-3.2],[-1,-3.0,-3.9],[-1,3.4,-2.5],[-1,6.7,.9],[-1,12.6,2.6],[-1,17.8,1.2],[-1,24.7,-8.4],[-4,-1.9,-6.8],[-3,.6,2.0]]){ const p=tunNear(id,x,z); FX.bulb(N(G,p.x,TH-.19,p.z),false); }
   GEO_TEMP=false;
   /* navigation: walkable cells are well inside open space and clear of furniture */
   const nav=new Uint8Array(NX*NZ).fill(1),space=new Int16Array(NX*NZ).fill(-9),wet=new Uint8Array(NX*NZ),furn=BOXES.filter(b=>b.kind==='furn'||b.kind==='generator');
-  for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i,r=tunField(x,z); if(r.f<-.3) continue; space[id]=r.id; if(r.id===-1&&x>TUN_WET[0]&&x<TUN_WET[1]) wet[id]=1; if(r.f<.12) continue; /* the walls' boxes sit within 0.13 m of the dug face */
+  for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i,r=tunField(x,z); if(r.f<-.3) continue; space[id]=r.id; if(r.id===-1&&x>TUN_WET[0]&&x<TUN_WET[1]) wet[id]=1; if(r.f<.4) continue; /* a walker is 0.28 m round and the walls' boxes stick 0.13 m out of the dug face: routes stay clear of both */
     let bl=false; for(const b of furn){ if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; break; } } nav[id]=bl?1:0; }
   const U=(id,apt,R_)=>({id,side:1,x0:R_.c[0]-R_.h[0],x1:R_.c[0]+R_.h[0],z0:R_.c[1]-R_.h[1],z1:R_.c[1]+R_.h[1],w:R_.h[0]*2,apt,door:R_.c[0]-R_.h[0],room:true,lit:true});
   const units=[U(0,'PUMP',TUN_ROOMS[1]),U(1,'EXIT',TUN_ROOMS[2]),U(2,'STAGING',TUN_ROOMS[3]),U(3,'DORM',TUN_ROOMS[4])];
@@ -2502,7 +2503,9 @@ function visionTick(dt){ const m=visionMode();
   /* the goggles' infrared torch: light 6, at your eyes, only while night vision is on */
   if(GAME.vision==='nv'){ const e=camBasis().eye; L.plPos.set(e,18); L.plCol.set([1.6,1.6,1.6],18); L.plDist[6]=15; } else if(FLOOR.mode==='tunnel'){ L.plCol.set([0,0,0],18); } }
 function visionProgram(){ return GAME.vision==='nv'?NVP2:GAME.vision==='thermal'?THP2:null; }
-function tickTunnel(dt){ visionTick(dt); tunnelPickLights(); if(FLOOR.mode!=='tunnel'||!GAME.started||PL.dead||GAME.clear) return;
+function tunnelTag(){ if(FLOOR.mode!=='tunnel') return; const dead=enemies.filter(E=>E.dead).length; $('floorTag').textContent=`Tunnel · ${dead}/${enemies.length} down${FLOOR.power===false?' · lights off':''}`; }
+function tickTunnel(dt){ visionTick(dt); tunnelPickLights(); if(FLOOR.mode==='tunnel'){ tunnelTag.t=(tunnelTag.t||0)-dt; if(tunnelTag.t<=0){ tunnelTag.t=.5; tunnelTag(); } }
+  if(FLOOR.mode!=='tunnel'||!GAME.started||PL.dead||GAME.clear) return;
   if(Math.hypot(PL.x-TUN_EXIT[0],PL.z-TUN_EXIT[1])<.9){ GAME.clear=true; showMsg('EL OTRO LADO','You made it to the other side. Reset to run it again: quiet, loud, or in the dark.'); if(XR.on) XR.clearT=6; } }
 
 /* =====================================================================================================
