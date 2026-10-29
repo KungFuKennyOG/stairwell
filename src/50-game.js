@@ -193,12 +193,8 @@ function targetsFor(E,t,dt=1){
   else pose='writhe';
   if(E.drop){ E.drop.t+=dt; if(E.drop.t>=E.drop.T){ E.drop=null; E.settle=Math.max(E.settle||0,.9); } }
   const rel=setPose(E,pose,t);
-  /* walking legs and attack swings, layered over the pose */
-  if(st==='alert'&&E.walkAmt>.01){ const a=E.walkAmt,ph=E.walkPh,rn=E.runAmt||0,sw=.5+.4*rn;
-    J.thighL.r[0]+=-Math.sin(ph)*sw*a-.15*rn; J.thighR.r[0]+=Math.sin(ph)*sw*a-.15*rn; J.kneeL.r[0]+=(.15+.25*rn+(.65+.75*rn)*Math.max(0,-Math.cos(ph)))*a; J.kneeR.r[0]+=(.15+.25*rn+(.65+.75*rn)*Math.max(0,Math.cos(ph)))*a;
-    /* the free arm pumps; the weapon arm keeps the weapon up */
-    for(const s of ['L','R']){ if(E.wpnHeld&&(E.wpnHand===s||RANGED[E.kind])||E.hp['arm'+s]<.45) continue; const sg=s==='L'?1:-1; J['arm'+s].r=[(s==='L'?1:-1)*0+Math.sin(ph)*sg*(.25+.45*rn)*a-.1*rn,0,(s==='L'?.12:-.12)]; if(rn>.05) J['elbow'+s].r=[lerp(-.4,-1.3,rn),0,0]; }
-    if(rn>.05){ J.spine.r[0]+=.25*rn; J.hips.p[1]-=.04*rn; } }
+  /* walking (51-gait.js): planted feet, IK legs, pelvis and arms. Then attack swings, layered over the pose */
+  if((st==='alert'||st==='idle')&&!E.dead) gait(E,t,dt); else E.G=null;
   if(st==='alert'&&E.atkT>=0&&!RANGED[E.kind]){ const k=E.atkT; const wind=Math.min(1,k/.35),strike=clamp((k-.35)/.18,0,1);
     const h=E.wpnHand,sg=h==='R'?1:-1,A=J['arm'+h],El=J['elbow'+h],base=(h==='R'?E.fightJ:E.fightJL)['arm'+h][0];
     if(E.kind==='cutter'){ A.r=[lerp(lerp(base,-2.9,wind),-.5,strike),0,.25*sg]; El.r=[lerp(-1.2,-.2,strike),0,0]; J.spine.r[0]=lerp(-.1,.35,strike); }
@@ -216,8 +212,8 @@ function targetsFor(E,t,dt=1){
   const P=posePts(J,E.o,M);
   const Hp=frameFrom(P[PI_.hipL],P[PI_.hipR],P[PI_.pelvis],P[PI_.chest]),pel=P[PI_.pelvis],Ry=ryM(E.hd);
   /* poses blend over a few frames instead of snapping, so switching from writhing to crawling doesn't flip the body */
-  const kb=Math.min(1,dt*(E.st==='down'?3:7)),kw=Math.min(1,dt*9);
-  for(let i=0;i<NP;i++){ const l=mtv(Hp,v3.sub(P[i],pel)),w=v3.add([E.pos[0],0,E.pos[1]],mv(Ry,P[i])),o=i*3;
+  const kb=Math.min(1,dt*(E.st==='down'?3:7)),kw0=Math.min(1,dt*(E.G&&E.G.amt>.05?26:9)),kwL=E.G?Math.min(1,dt*26):kw0; /* walking, targets follow closely: the gait is already smooth, and lag would leave the body trailing its feet. Legs always do, so a step lands where it was put */
+  for(let i=0;i<NP;i++){ const l=mtv(Hp,v3.sub(P[i],pel)),w=v3.add([E.pos[0],0,E.pos[1]],mv(Ry,P[i])),o=i*3,kw=PD[i][4][0]==='l'?kwL:kw0;
     for(let c=0;c<3;c++){ E.Lc[o+c]=lerp(E.Lc[o+c],l[c],kb); E.Wt[o+c]=lerp(E.Wt[o+c],w[c],kw); } }
   /* muscles */
   const c=E.cons,legs=Math.min(E.hp.legL,E.hp.legR);
