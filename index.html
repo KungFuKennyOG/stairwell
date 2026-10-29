@@ -3329,6 +3329,7 @@ function buildBody(E){
 }
 const X_=(B,i)=>[B.x[i*3],B.x[i*3+1],B.x[i*3+2]];
 function setX(B,i,v){ B.x[i*3]=v[0]; B.x[i*3+1]=v[1]; B.x[i*3+2]=v[2]; }
+function kickV_(B,i,v,h){ kickV(B,i,v,h); }
 function kickV(B,i,v,h){ for(let c=0;c<3;c++) B.p[i*3+c]-=v[c]*h; B.wake=1; }
 const H=1/240;
 /* tuning for bodies on the floor (see the stepBody/targetsFor comments) */
@@ -3483,8 +3484,16 @@ function stepBody(E,h){
   if(E.drop&&E.drop.t<E.drop.Tg){ const D=E.drop,k=(1-D.t/D.Tg)*h*h,ad=(i,v)=>{ const o=i*3; x[o]+=v[0]*k; x[o+2]+=v[2]*k; };
     for(const s of ['L','R']) if(B.ground[PI_['an'+s]]||B.ground[PI_['toe'+s]]) ad(PI_['kn'+s],D.aKnee); /* only a leg with weight on it buckles; a free leg just hangs */
     for(const i of [PI_.chest,PI_.neck,PI_.head,PI_.shL,PI_.shR]) ad(i,D.aTop); for(const i of [PI_.pelvis,PI_.hipL,PI_.hipR]) ad(i,D.aHip); }
+  if(E.fence){ const F=E.fence,a=Math.min(1,F.t/.15)*Math.min(1,(F.T-F.t)/.5),sh=s=>X_(B,PI_['sh'+s]),
+    Rs=frameFrom(X_(B,PI_.shL),X_(B,PI_.shR),X_(B,PI_.chest),X_(B,PI_.neck)),ux=s=>v3.sc(Rs[0],s==='L'?.12:-.12);
+    const T={['el'+F.up]:v3.add(sh(F.up),v3.add(v3.sc(Rs[2],.22),v3.add(v3.sc(Rs[1],.12),ux(F.up)))),['hd'+F.up]:v3.add(sh(F.up),v3.add(v3.sc(Rs[2],.46),v3.add(v3.sc(Rs[1],.26),ux(F.up)))),
+      ['el'+F.cur]:v3.add(sh(F.cur),v3.add(v3.sc(Rs[1],-.24),v3.sc(Rs[2],.06))),['hd'+F.cur]:v3.add(sh(F.cur),v3.add(v3.sc(Rs[2],.14),v3.sc(Rs[1],-.06)))};
+    if(Rs[2][1]<-.3) F.t=Math.max(F.t,F.T-.5); /* face down: the raised arm would only push into the floor and roll him, so it lets go */
+    for(const key in T) T[key][1]=Math.max(T[key][1],.06);
+    let sx=0,sy=0,sz=0,n=0; for(const key in T){ if(E.cut['arm'+key.slice(-1)]) continue; const o=PI_[key]*3; for(let c=0;c<3;c++){ const d=clamp((T[key][c]-x[o+c])*.03*a,-.0012,.0012); x[o+c]+=d; if(c===0) sx+=d; else if(c===1) sy+=d; else sz+=d; } n++; }
+    if(n) for(const i of [PI_.chest,PI_.neck]){ const o=i*3; x[o]-=sx/2; x[o+1]-=Math.max(0,sy)/2; x[o+2]-=sz/2; } } /* the push comes off the chest: the arm moves, the body doesn't rise */
   /* the arms go dead first: a body falling as one piece would keep a raised gun arm up all the way down, so they are pulled down on their own */
-  if(E.drop&&E.drop.t<.6){ const k=(1-E.drop.t/.6)*h*h; for(const s of ['L','R']){ x[PI_['hd'+s]*3+1]-=9*k; x[PI_['el'+s]*3+1]-=5*k; } }
+  if(E.drop&&E.drop.t<.6&&!E.fence){ const k=(1-E.drop.t/.6)*h*h; for(const s of ['L','R']){ x[PI_['hd'+s]*3+1]-=9*k; x[PI_['el'+s]*3+1]-=5*k; } }
   /* muscles: blend of a world-anchored puppet (standing) and a pose held relative to the pelvis (hurt, on the ground).
      The relative part is internal force only: its net push is removed, so a body on the floor can curl up and kick but can't lift itself off it. */
   const s=E.sup; let Ha=null,pel=null;
@@ -3899,7 +3908,30 @@ function startDrop(E,T){ const B=E.B,pel=X_(B,PI_.pelvis); if(E.drop||pel[1]<.42
   kickV(B,PI_.pelvis,[0,-.8,0],H); for(const i of [PI_.hipL,PI_.hipR]) kickV(B,i,[0,-.7,0],H); for(const i of [PI_.knL,PI_.knR]) kickV(B,i,v3.sc(fw,rnd(.7,1)),H); /* the legs give, knees first: no frozen beat standing there dead */
   for(const i of [PI_.chest,PI_.neck,PI_.shL,PI_.shR]) kickV(B,i,push,H); kickV(B,PI_.head,v3.sc(push,1.3),H);
   E.drop.aKnee=v3.sc(fw,rnd(4,5.5)); E.drop.aTop=v3.add(v3.sc(fd,fwd?rnd(3,4.5):rnd(2.5,3.5)),v3.sc(rt,side*1.2)); E.drop.aHip=fwd?[0,0,0]:v3.sc(fw,-rnd(2,3)); /* falling back: the hips sit back over the heels */ }
-function die(E){ if(E.dead) return; startDrop(E); if(!E.headshot&&!E.cut.head) vox(E,'rattle'); E.dead=true; E.st='dead'; E.deadT=0; dropWeapon(E); E.face='sleep'; E.J.headMesh.mesh.mats[0]=E.C.faceM.sleep; E.J.headMesh.mesh.runs=null; E.barkT=0;
+/* after a headshot the brain doesn't always switch off cleanly. Often one arm locks up stiff and the other curls in for a second or two
+   (the fencing response), and for several seconds after he lands the limbs jerk and a leg or foot trembles in short bursts that die away.
+   Nothing of the sort when the head is gone. Small internal kicks only: limbs move, the body never lifts or turns. */
+function startSpasm(E){ if(E.cut.head||Math.random()<.55) return; /* most headshots are lights out, nothing after: only some twitch */
+  if(Math.random()<.4){ const s=Math.random()<.5?'L':'R'; E.fence={t:0,T:rnd(1.2,2.6),up:s,cur:s==='L'?'R':'L'}; }
+  if(Math.random()<.8) E.spasm={t:0,T:rnd(3,7),next:rnd(.7,1.3),burst:0,bt:0,bi:0}; }
+function tickSpasm(E,dt){
+  if(E.fence){ E.fence.t+=dt; if(E.fence.t>=E.fence.T) E.fence=null; }
+  const S=E.spasm; if(!S) return; S.t+=dt; if(S.t>=S.T){ E.spasm=null; return; }
+  const B=E.B,k=Math.pow(1-S.t/S.T,1.2),r=()=>rnd(-1,1),TR=[PI_.pelvis,PI_.hipL,PI_.hipR,PI_.chest,PI_.neck,PI_.shL,PI_.shR],
+    kickV=(B,i,v,h)=>{ kickV_(B,i,v,h); const q=[-v[0]/7,Math.min(0,-v[1])/7,-v[2]/7]; for(const t of TR) kickV_(B,t,q,h); }; /* every jerk pushes back on the trunk, so the body as a whole stays put */
+  E.settle=Math.max(E.settle||0,.1); /* and it doesn't turn on the floor while he twitches */
+  if(S.burst>0){ S.bt-=dt; if(S.bt<=0){ S.bt=rnd(.08,.12); S.burst--; S.bi^=1; const side=S.side,sg=S.bi?1:-1; /* a trembling foot or leg: quick alternating jerks */
+      kickV(B,PI_['toe'+side],[0,sg*.35*k,0],H); kickV(B,PI_['an'+side],[0,sg*.2*k,0],H); if(S.leg) kickV(B,PI_['kn'+side],[r()*.1*k,sg*.18*k,r()*.1*k],H); } return; }
+  S.next-=dt; if(S.next>0) return; S.next=rnd(.25,1.1)/(.5+.5*k); /* jerks come further apart as he goes */
+  const Rs=frameFrom(X_(B,PI_.shL),X_(B,PI_.shR),X_(B,PI_.chest),X_(B,PI_.neck)),side=Math.random()<.5?'L':'R',roll=Math.random();
+  if(roll<.35){ S.burst=Math.round(rnd(3,8)*(.4+.6*k)); S.bt=0; S.side=side; S.leg=Math.random()<.4; }
+  else if(roll<.7&&!E.cut['arm'+side]){ /* an arm jerks: the forearm snaps in toward the chest or flicks out */
+    const hd=PI_['hd'+side],el=PI_['el'+side],to=Math.random()<.6?v3.sub(X_(B,PI_['sh'+side]),X_(B,hd)):v3.add(Rs[2],v3.sc(Rs[0],side==='L'?.6:-.6)),v=v3.sc(norm3(to),rnd(.7,1.3)*k);
+    kickV(B,hd,v,H); kickV(B,el,v3.sc(v,-.35),H); }
+  else if(!E.cut['leg'+side]){ /* a leg kicks: the knee draws up a little */
+    const v=v3.add(v3.sc(Rs[2],.5*k),v3.sc(Rs[1],-.2*k)); kickV(B,PI_['kn'+side],v,H); kickV(B,PI_['an'+side],v3.sc(v,.4),H); }
+  if(Math.random()<.25*k) kickV(B,PI_.head,[r()*.25*k,0,r()*.25*k],H); }
+function die(E){ if(E.dead) return; startDrop(E); if(E.headshot) startSpasm(E); if(!E.headshot&&!E.cut.head) vox(E,'rattle'); E.dead=true; E.st='dead'; E.deadT=0; dropWeapon(E); E.face='sleep'; E.J.headMesh.mesh.mats[0]=E.C.faceM.sleep; E.J.headMesh.mesh.runs=null; E.barkT=0;
   for(const O of enemies) if(O!==E&&!O.dead&&!E.silent&&O.barkCd<=0&&Math.random()<.8){ bark(O,pick(LINES.friend(E.name))); break; } }
 
 /* weapons that fall out of hands */
@@ -3913,7 +3945,7 @@ function dropWeapon(E){ if(!E.wpnHeld||!E.C.wpn) return; E.wpnHeld=false; const 
 function think(E,dt,t){
   const B=E.B,pel=X_(B,PI_.pelvis),toP=[PL.x-pel[0],PL.z-pel[2]],dist=Math.hypot(toP[0],toP[1]);
   E.settle=Math.max(0,(E.settle||0)-dt); E.barkT-=dt; E.barkCd-=dt; E.stun=Math.max(0,E.stun-dt*(E.dead?0:.9)); E.hitT+=dt; E.near=E.near?dist<3.9:dist<3.1;
-  if(E.dead){ E.deadT+=dt; return; }
+  if(E.dead){ E.deadT+=dt; if(E.deadT>.7) tickSpasm(E,dt); else if(E.fence) E.fence.t+=dt; return; }
   if(E.koT&&E.st==='down'&&E.downT<E.koT) E.stun=1; /* out cold */
   /* blood and the heart */
   const bleed=E.wounds.reduce((s,w)=>s+(w.piece?0:w.rate),0)*(.3+.7*E.blood/100);
@@ -4274,7 +4306,7 @@ function post(targetFB,vx,vy,vw,vh,w,h){
 let last=performance.now();
 function frame(now){
   if(XR.on) return;
-  const dt=Math.min(.05,(now-last)/1000); last=now;
+  const dt=clamp((now-last)/1000,0,.05); last=now; /* a frame stamped before the last one would run time backwards and freeze every body */
   update(dt,now);
   resize(); const {f,r,u,eye}=camBasis();
   const bob=GAME.started?Math.sin(now*.008)*.004*Math.min(1,Math.hypot(stick.dx,stick.dy)+(KEYS.KeyW||KEYS.KeyS||KEYS.KeyA||KEYS.KeyD?1:0)):0;
