@@ -412,6 +412,7 @@ function paintHead(s,ex){
   if(s.spots) for(const [x,y] of [[-16,14],[24,22],[40,E+12]]) blob(I,cx+x,y,2.5,2,.35,'#7a4a30');
   if(s.glasses){ const G_=s.glasses; for(const sx of [-1,1]){ const e=cx+sx*18; softRect(I,e-11,E-7,22,14,'#a8c0c8',.08,1); for(const [a,b,c,d] of [[e-11,E-7,e+11,E-7],[e-11,E+7,e+11,E+7],[e-11,E-7,e-11,E+7],[e+11,E-7,e+11,E+7]]) softLine(I,a,b,c,d,G_,.95,1); }
     softLine(I,cx-7,E-2,cx+7,E-2,G_,.95,1); softLine(I,cx+29,E-3,cx+64,E-1,G_,.9,1); softLine(I,cx-29,E-3,cx-64,E-1,G_,.9,1); }
+  if(s.post) s.post(I,ex,T); /* per-face extras (lines, freckles, make-up): opt-in, see the team in src/frontera/45-cast.js */
   return toTex(I);
 }
 function hair3(I,s,T){
@@ -474,7 +475,7 @@ const tRayLeg=legP(308,()=>[NV,'twill'],{decor:I=>{ for(const x of [4,42]){ soft
   seam(I,48,0,48,128); seam(I,16,0,16,128); softRect(I,0,112,64,16,NVD,.5,3); bloodSoak(I,30,22,5,10,309); }});
 const tRayVest=garment(128,64,311,()=>['#1d2331','cordura',.5],{folds:6,decor:I=>{
   for(let y=34;y<58;y+=8) for(let x=2;x<128;x+=8) if((x>>3)%4!==3){ softRect(I,x,y,6,4,'#141924',.9,.4); softLine(I,x,y,x+6,y,'#3a445a',.4,.8); }
-  softRect(I,38,6,52,18,'#262e40',.9,1); textI(I,'POLICE',41,9,'#dedcd2',2); textI(I,'POLICE',-23,9,'#dedcd2',2); textI(I,'POLICE',105,9,'#dedcd2',2);
+  for(const cx of [64,0,128]){ softRect(I,cx-24,7,48,15,'#161b26',.95,.8); softLine(I,cx-24,7,cx+24,7,'#3a445a',.35,.8); softLine(I,cx-24,22,cx+24,22,'#3a445a',.35,.8); } /* blank ID panels: no lettering */
   softRect(I,0,0,128,3,'#10141c',1,1); softRect(I,0,61,128,3,'#10141c',1,1); bloodSoak(I,50,30,3,4,312); }});
 const tRayBoot=garment(64,32,313,()=>['#17181a','leather',.3],{folds:3,decor:I=>{ softRect(I,0,22,64,10,'#0b0b0c',1,1); for(const y of [4,9,14]) softLine(I,26,y,38,y,'#3a3a3e',.8,1); softRect(I,24,0,16,4,'#2a2a2e',.8,1); }});
 const tTape=flat(16,16,313,HEADS.ray.skin,'skin',{decor:I=>{ blob(I,5,4,3,2,.8,'#5c0a0a'); blob(I,11,6,2,2,.7,'#3e0606'); blob(I,8,12,6,2,-.2); }});
