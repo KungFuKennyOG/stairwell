@@ -55,7 +55,7 @@ function twKit(G,furn,seats,beds,lights,anim){
     /* a bare bulb on a wire. lit: it's one of the floor's lights */
     bulb(x,z,lit,warm=true,y=2.32){ mk(cyl(.004,.004,RH-y-.05,3),mBlack,G,x,(RH+y)/2+.02,z); mk(box(.08,.1,.08),lit?M(warm?tBulb:tFluo,{unlit:true}):M(tBulbDead),G,x,y,z); },
     light(p,c,d,kind){ lights.push([p,c,d]); if(kind) anim.push({i:lights.length-1,kind,t0:Math.random()*9}); return lights.length-1; },
-    tube(x,state){ const m=state==='dead'?M(tFluoDead):M(tFluo,{unlit:true}); const n=mk(box(1.2,.05,.2),m,G,x,2.75,0); return {n,m}; },
+    tube(x,state){ const m=state==='dead'?M(tFluoDead):M(tFluo,{unlit:true}); const n=mk(box(1.2,.05,.2),m,G,x,2.75,0); n.live=true; /* flickers or gets shot out: never merged */ return {n,m}; },
     tag(i,x,y,side){ mk(plane(1.6,.4),M(TAGS[i],{cut:true}),G,x,y,side*.925,0,side>0?Math.PI:0,0); },
     /* a framed picture leaning on a sill or a shelf */
     frame(t,x,y,z,ry){ const n=N(G,x,y,z,-.18,ry,0); mk(box(.11,.14,.012),mWood,n,0,.07,0); mk(plane(.085,.11),M(t),n,0,.07,.0065); return n; },
@@ -360,6 +360,8 @@ function genTower(i){ const D=TOWER[i]; setWorld(14,6);
   const fi=anim.findIndex(a=>a.kind==='flick'); if(fi>=0){ const li=anim[fi].i; if(li!==0){ const t=lights[0]; lights[0]=lights[li]; lights[li]=t; for(const a of anim){ if(a.i===0) a.i=li; else if(a.i===li) a.i=0; } }
     const tubeX=lights[0][0][0]; const tn=floorN.kids.find(k=>k.mesh&&Math.abs(k.p[0]-tubeX)<.01&&Math.abs(k.p[1]-2.75)<.01); FLOOR.flick={mat:tn?tn.mesh.mats[0]:M(tFluo),i:0}; anim.splice(fi,1); }
   GEO_TEMP=false;
+  /* everything static on the floor merged by material into 7 m tiles (36-colonia.js): a couple of dozen draws instead of a few hundred */
+  meshMerge(floorN,{tile:7});
   /* where people can walk: inside the corridor, the landings and the apartments, clear of anything below 1.5 m */
   const nav=new Uint8Array(NX*NZ),space=new Int16Array(NX*NZ).fill(-9);
   for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i;
