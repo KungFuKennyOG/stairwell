@@ -1,0 +1,370 @@
+/* =====================================================================
+   THE TOWER, the campaign. The prologue in the lobby, then hand-built floors one at a time up the stairs.
+   Every floor is small and dark with a few men on it, each caught in the middle of something, and what
+   he cares about is in the room with him. You hear them before they know you're there.
+   Same skeleton as the generated floors (30-floor.js): 26 x 12 m, a corridor down the middle, apartments
+   both sides, in on the west landing, up on the east one. Party walls can have a hole: the quiet way round.
+   ===================================================================== */
+
+/* ---------- the details: small painted things, read at arm's length ---------- */
+const tTwPhotoKid=tex(12,16,'#ece6d6',g=>{ R(g,'#7d9ab0',1,1,10,10); R(g,'#3a2418',4,2,4,2); R(g,'#c9945a',4,3,4,3); R(g,'#2a1a10',5,4,1,1); R(g,'#2a1a10',7,4,1,1); R(g,'#e05a7a',3,6,6,5); R(g,'#c9945a',2,7,1,2); R(g,'#c9945a',9,7,1,2); R(g,'#4f6e3e',1,10,10,1); });
+const tTwDrawing=tex(16,16,'#f4f0e4',g=>{ R(g,'#f2c230',1,1,3,3); R(g,'#d8362e',7,6,6,5); R(g,'#d8362e',6,5,8,1); R(g,'#3a6ad0',9,8,2,3); R(g,'#2a2a2a',3,9,1,4); R(g,'#2a2a2a',2,10,3,1); R(g,'#e05a7a',4,8,1,1); R(g,'#3aa040',0,13,16,1); text(g,'PAPI',1,14,'#3a6ad0'); });
+const tTwPhotoMom=tex(12,16,'#5a3a22',g=>{ R(g,'#d8d0bc',1,1,10,14); R(g,'#8a8a86',3,2,6,3); R(g,'#b98a62',3,4,6,5); R(g,'#2a1a10',4,6,1,1); R(g,'#2a1a10',7,6,1,1); R(g,'#3a4a6a',2,9,8,6); R(g,'#e8e2cf',5,10,2,1); });
+const tTwPoster=tex(24,36,'#c9a23a',g=>{ R(g,'#1a1a1a',1,1,22,34); R(g,'#a8241c',1,1,22,8); text(g,'FELIX',2,2,'#f2ede2'); R(g,'#7a6a5a',7,11,10,12); R(g,'#c9945a',9,12,6,5); R(g,'#a8241c',7,18,4,4); R(g,'#a8241c',13,18,4,4); text(g,'MANOS',2,25,'#f2c230'); text(g,'11-1',4,31,'#f2ede2'); });
+const tTwBoxes=cl(16,16,'#a07a4a',14,881,g=>{ R(g,'#8a6638',0,7,16,2); R(g,'#c9b48a',3,2,10,1); text(g,'SAMI',0,10,'#2a2a2a'); });
+const tTwBoxPlain=cl(16,16,'#a07a4a',14,882,g=>{ R(g,'#8a6638',0,7,16,2); text(g,'KIT',2,10,'#2a2a2a'); });
+const tTwMoney=tex(8,4,'#5f7a4a',g=>{ R(g,'#7a9a5e',1,1,6,2); R(g,'#e8e2cf',3,1,2,2); });
+const tTwLedger=tex(16,12,'#2a2420',g=>{ R(g,'#e8e2cf',1,1,14,10); for(let y=2;y<10;y+=2) R(g,'#7a7468',2,y,12,1); R(g,'#a8241c',8,1,1,10); });
+const tTwCards=tex(4,6,'#f2ede2',g=>{ R(g,'#a8241c',1,1,2,2); });
+const tTwVirgin=tex(16,24,'#c9a23a',g=>{ R(g,'#1d3a6a',1,1,14,22); R(g,'#e8a24a',4,2,8,8); R(g,'#2a6aa0',5,4,6,16); R(g,'#c9945a',7,5,2,3); R(g,'#e8e2cf',6,9,4,1); R(g,'#d8362e',6,19,4,3); });
+const tTwMail=tex(32,16,'#5a5e62',g=>{ for(let y=1;y<16;y+=5) for(let x=1;x<32;x+=4){ R(g,'#7a7e82',x,y,3,4); R(g,'#2a2d30',x+1,y+1,1,1); } });
+const tTwLift=tex(32,32,'#6a7076',g=>{ R(g,'#3a3e42',15,0,2,32); R(g,'#4a4e52',0,0,32,2); R(g,'#e8e2cf',2,12,28,7); text(g,'OUT OF',4,13,'#a8241c'); R(g,'#e8e2cf',2,19,28,6); text(g,'ORDER',6,19,'#a8241c'); });
+const tTwStreet=tex(32,32,'#0a0c10',g=>{ R(g,'#1a1c20',0,0,32,32); R(g,'#3a3226',1,1,14,30); R(g,'#3a3226',17,1,14,30); R(g,'#c98a3a',4,14,6,3); R(g,'#e8a24a',22,8,3,2); R(g,'#7a5a2a',0,26,32,6); R(g,'#2a2d30',15,0,2,32); R(g,'#8a8478',13,15,1,4); R(g,'#8a8478',18,15,1,4); });
+const tTwRice=tex(8,8,'#ece6d6',g=>{ R(g,'#f6f2e8',2,2,4,3); R(g,'#a8241c',5,4,2,2); R(g,'#c9a23a',2,5,2,1); });
+const tTwBrick=tex(8,8,'#ece8de',g=>{ R(g,'#c9c2b0',0,3,8,1); R(g,'#c9a23a',3,0,2,8); });
+const tTwCandle=tex(4,8,'#d8362e',g=>{ R(g,'#e8a24a',1,1,2,2); R(g,'#f2c230',1,4,2,3); });
+const tTwHeavy=cl(16,32,'#6a2a1e',16,883,g=>{ R(g,'#4a1a12',0,0,16,3); R(g,'#4a1a12',0,29,16,3); R(g,'#8a3a2a',6,8,4,14); });
+const tTwGlove=tex(4,4,'#b8241c',g=>R(g,'#e8e2cf',0,3,4,1));
+
+/* ---------- walls, the way the generated floors do them: chunks of ~1.5 m, every chunk a collision box ---------- */
+function twWall(list,axis,c,s0,s1,gaps){
+  gaps=gaps.slice().sort((a,b)=>a.s-b.s); let s=s0; const H_=RH,T=.14;
+  const seg=(a,b,y0,y1)=>{ const len=b-a; if(len<=.01) return; const nC=Math.max(1,Math.ceil(len/1.5)); for(let q=0;q<nC;q++){ const a2=a+len*q/nC,b2=a+len*(q+1)/nC,m=(a2+b2)/2,l=b2-a2;
+      if(axis==='x') list.push([m,(y0+y1)/2,c,l,y1-y0,T,l/1.5,(y1-y0)/2.8]); else list.push([c,(y0+y1)/2,m,T,y1-y0,l,l/1.5,(y1-y0)/2.8]); } };
+  for(const gp of gaps){ const a=gp.s-gp.w/2,b=gp.s+gp.w/2; seg(s,a,0,H_); if(gp.y0>0) seg(a,b,0,gp.y0); seg(a,b,gp.y1,H_); s=b; }
+  seg(s,s1,0,H_); }
+
+/* the building kit a floor's build(A) gets */
+function twKit(G,furn,seats,beds,lights,anim){
+  const A={
+    furn(kind,x,z,ry=0){ const node=N(G,x,0,z,0,ry,0),info=FURN[kind](node); let [w,d]=info.size; if(Math.abs(Math.sin(ry))>.5) [w,d]=[d,w];
+      addBox(x-w/2,x+w/2,z-d/2,z+d/2,0,FURN_H[kind]||.8,'furn'); const rec={kind,node,x,z,info}; furn.push(rec); if(info.seat) seats.push(rec); if(info.bed) beds.push(rec); return rec; },
+    /* a flat picture: faces +z turned by ry */
+    pic(t,x,y,z,ry,w,h,o={}){ return mk(plane(w,h),M(t,Object.assign({double:false},o)),G,x,y,z,o.rx||0,ry,o.rz||0); },
+    /* a small solid thing: optional collision when it's big enough to walk into */
+    blk(w,h,d,mat,x,y,z,ry=0,solid=false){ const n=mk(box(w,h,d),mat,G,x,y,z,0,ry,0); if(solid){ const s=Math.abs(Math.sin(ry))>.5,ww=s?d:w,dd=s?w:d; addBox(x-ww/2,x+ww/2,z-dd/2,z+dd/2,y-h/2,y+h/2,'furn'); } return n; },
+    /* a bare bulb on a wire. lit: it's one of the floor's lights */
+    bulb(x,z,lit,warm=true,y=2.32){ mk(cyl(.004,.004,RH-y-.05,3),mBlack,G,x,(RH+y)/2+.02,z); mk(box(.08,.1,.08),lit?M(warm?tBulb:tFluo,{unlit:true}):M(tBulbDead),G,x,y,z); },
+    light(p,c,d,kind){ lights.push([p,c,d]); if(kind) anim.push({i:lights.length-1,kind,t0:Math.random()*9}); return lights.length-1; },
+    tube(x,state){ const m=state==='dead'?M(tFluoDead):M(tFluo,{unlit:true}); const n=mk(box(1.2,.05,.2),m,G,x,2.75,0); return {n,m}; },
+    tag(i,x,y,side){ mk(plane(1.6,.4),M(TAGS[i],{cut:true}),G,x,y,side*.925,0,side>0?Math.PI:0,0); },
+    /* a framed picture leaning on a sill or a shelf */
+    frame(t,x,y,z,ry){ const n=N(G,x,y,z,-.18,ry,0); mk(box(.11,.14,.012),mWood,n,0,.07,0); mk(plane(.085,.11),M(t),n,0,.07,.0065); return n; },
+    candle(x,y,z){ mk(cyl(.025,.025,.11,6,{at:[0,.055,0]}),[M(tTwCandle),M(null,{color:0xf2c230,unlit:true}),M(tTwCandle)],G,x,y,z); }
+  }; return A; }
+
+/* ---------- the floors ----------
+   units: one row each side, west to east, covering x -10..10. side +1 is north (z 1..6), -1 south.
+   door: x of the doorway on the corridor wall. win: a window in the outside wall. hole: a hole in the party wall on this
+   unit's WEST side, at that depth (m from the corridor centre). cast: who's here; spots are alternatives, picked at random.
+   talk: what you overhear, in order, looping, while you're near and they don't know you're there. */
+const TW_MAKERS={corner:makeCorner,cutter:makeCutter,gunman:makeGunman,doorman:makeDoorman,enforcer:makeEnforcer,landlord:makeLandlord};
+const TOWER=[
+  { n:0,name:'Lobby',pro:true,wall:'dark',
+    units:[{side:1,x0:-10,x1:-4,door:-5.0},{side:1,x0:-4,x1:3,door:0},{side:1,x0:3,x1:10,door:5},{side:-1,x0:-10,x1:-2,door:-3.5},{side:-1,x0:-2,x1:10,door:2.0}],
+    amb:[.13,.125,.15],
+    build(A){ const t0=A.tube(-2.5,'on'),t1=A.tube(4,'on'); A.tube(-7,'dead'); A.tube(8,'dead');
+      FLOOR.proTubes=[t0,t1];
+      A.light([-2.5,2.5,0],[1.1,1.2,1.32],6.5,'flick');
+      A.light([-11.8,2.0,0],[1.0,.66,.34],5.5);
+      A.light([4,2.5,0],[.92,.98,1.06],6);
+      A.light([11.5,2.35,0],[1.2,.9,.55],4.5);
+      A.light([-8.2,2.45,.8],[0,0,0],5.5); /* the emergency lamp: off until you wake up */
+      mk(box(.3,.12,.08),M(null,{color:0x3a1010}),floorN,-8.2,2.6,.93);
+      /* the way in from the street: glass doors, the street glowing orange outside */
+      A.pic(tTwStreet,-12.92,1.15,0,Math.PI/2,1.9,2.2,{unlit:true,color:0x9a9a9a});
+      A.pic(tTwMail,-8.2,1.35,.925,Math.PI,1.6,.8); A.pic(tTwLift,-6.4,1.1,-.925,0,1.2,2.1);
+      A.tag(1,3.5,1.45,1); A.tag(4,6.6,1.5,-1);
+      A.furn('desk',-7.2,3.8,Math.PI); A.furn('filing',-9.4,5.5,Math.PI); A.furn('crates',6.5,4.8,Math.PI); A.furn('trash',-5.0,-4.6,0); A.furn('wardrobe',-8.5,-5.6,0); A.furn('crates',6.0,-5.2,0);
+      for(const [x,z] of [[-7.2,3.6],[0,3.5],[6.5,3.5],[-6,-3.5],[4,-3.5]]) A.bulb(x,z,false); },
+    team:[{id:'dunne',name:'Dunne',x:-3.2,z:.35,hd:Math.PI/2},{id:'harris',name:'Harris',x:-2.4,z:-.45,hd:Math.PI/2},{id:'reyes',name:'Reyes',x:-4.1,z:-.42,hd:Math.PI/2},
+      {id:'ibarra',name:'Ibarra',x:-4.9,z:.45,hd:Math.PI/2},{id:'novak',name:'Novak',x:-8.4,z:.5,hd:-Math.PI/2}] },
+
+  { n:1,name:'Floor 01',wall:'peel',floor:'lino',
+    units:[{side:1,x0:-10,x1:-5.4,door:-6.3,win:true},{side:1,x0:-5.4,x1:-.6,door:-3.0,win:true},{side:1,x0:-.6,x1:4.6,door:.4,win:true,winX:2.0,hole:4.2},{side:1,x0:4.6,x1:10,door:7.2,win:true},
+      {side:-1,x0:-10,x1:-4.2,door:-7.0,win:true},{side:-1,x0:-4.2,x1:3.4,door:2.4,win:true,winX:-.4},{side:-1,x0:3.4,x1:10,door:6.0,win:true,hole:3.2}],
+    build(A){ A.tube(-8,'dead'); A.tube(-3.5,'on'); A.tube(1,'dead'); A.tube(5,'dead'); A.tube(8.5,'dead');
+      A.light([-3.5,2.5,0],[1.05,1.15,1.28],6,'flick');
+      A.light([-11.5,2.35,0],[1.25,.92,.56],5);
+      /* Dani's kitchen: a bulb over the counter, rice on a plate, a knife beside it. His daughter on the fridge */
+      A.furn('counter',-7.9,5.62,Math.PI); A.furn('fridge',-9.5,5.6,Math.PI); A.furn('table',-8.5,2.55,Math.PI/2); A.furn('trash',-5.95,5.5,0);
+      A.bulb(-7.7,4.6,true); A.light([-7.7,2.25,4.6],[1.55,.9,.42],5.2);
+      A.blk(.26,.02,.26,M(tTwRice),-7.85,.935,5.55); A.blk(.22,.06,.22,M(tWhite),-8.35,.95,5.55);
+      A.pic(tTwPhotoKid,-9.62,1.18,5.244,Math.PI,.12,.16); A.pic(tTwDrawing,-9.38,1.42,5.244,Math.PI,.22,.22);
+      /* the empty squat */
+      A.furn('mattress',-3.0,5.4,Math.PI); A.furn('trash',-1.2,5.3,0); A.furn('bucket',-4.9,5.5,0); A.bulb(-3.0,3.5,false);
+      /* Kev's room: no bulb, just the street through the window. His mother on the sill */
+      A.furn('mattress',3.62,3.0,Math.PI/2); A.furn('trash',-.1,5.4,0);
+      A.frame(tTwPhotoMom,1.4,.92,5.86,Math.PI); A.light([2.0,1.7,5.2],[.62,.42,.22],3.6);
+      A.bulb(2.0,3.5,false);
+      /* storage */
+      A.furn('crates',6.5,5.4,Math.PI); A.furn('crates',9.2,5.4,Math.PI); A.bulb(7.2,3.5,false);
+      /* south: a dark bedroom */
+      A.furn('bed',-8.5,-5.45,0); A.furn('wardrobe',-5.0,-5.65,0); A.bulb(-7,-3.5,false);
+      /* Rui and Jojo's living room: the TV against the west wall, them watching it, the door behind them */
+      A.furn('couch',-.4,-5.55,0); A.furn('tv',-3.75,-3.4,Math.PI/2); A.furn('trash',3.0,-5.4,0);
+      A.light([-3.1,.95,-3.4],[.42,.58,1.15],4.2,'tv');
+      for(const [x,z] of [[-3.7,-2.9],[-3.75,-3.95],[1.1,-5.1]]) mk(cyl(.033,.033,.12,6,{at:[0,.06,0]}),[M(null,{color:0xb8b2a0}),M(null,{color:0x8a8478}),M(null,{color:0x8a8478})],floorN,x,x>0?.42:.92,z);
+      A.bulb(-.4,-3.5,false);
+      /* a dark kitchen */
+      A.furn('counter',6.7,-5.62,0); A.furn('fridge',9.5,-5.6,0); A.bulb(6.7,-3.5,false);
+      A.tag(0,4.2,1.45,1); A.tag(3,-6.0,1.5,-1); A.tag(6,8.6,1.4,-1);
+      A.light([11.5,2.35,0],[1.0,.78,.48],4.5); },
+    cast:[
+      {kind:'corner',name:'Dani',spots:[[-7.9,4.82,0],[-8.5,3.62,Math.PI]],pose:'lean',extra:'I got a daughter— she\'s six—'},
+      {kind:'corner',name:'Rui',spots:[[-2.3,-2.95,-Math.PI/2],[-1.9,-3.2,-Math.PI/2-.2]],pose:'watch',extra:'I\'m nineteen, man—'},
+      {kind:'corner',name:'Jojo',spots:[[-2.2,-4.15,-Math.PI/2+.25],[-1.6,-4.3,-Math.PI/2+.4]],pose:'idle',extra:'My brother\'s on six— please—'},
+      {kind:'corner',name:'Kev',spots:[[2.0,5.22,0],[1.6,5.2,.25]],pose:'phone',extra:'I was calling my mom— just my mom—'}],
+    talk:[
+      {who:['Dani'],r:6.5,lines:[['Dani','...five cops. In the lobby.'],['Dani','And I\'m eating rice.'],['Dani','Lupita\'s gonna ask.'],['Dani','What Papi does.'],['Dani','Eat your rice, Dani.']]},
+      {who:['Rui','Jojo'],r:7,lines:[['Rui','You heard it. Downstairs.'],['Jojo','Everybody heard it.'],['Rui','They said five cops.'],['Jojo','Six. Mario counted six.'],['Rui','So where\'s the sixth?'],['Jojo','...turn it up.'],
+        ['Jojo','My brother\'s on six.'],['Jojo','Says they waited all night.'],['Rui','Don\'t talk about it in here.']]},
+      {who:['Kev'],r:6,lines:[['Kev','Ma. Ma, it\'s me.'],['Kev','...Ma?'],['Kev','Pick up. Please.'],['Kev','Your street\'s dark, Ma.'],['Kev','It\'s Kevin. Call me back.']]}],
+    loot:[['knife',-7.4,.97,5.5,.4]],
+    clear:['FLOOR 01','Four men lived on this floor.'] },
+
+  { n:2,name:'Floor 02',wall:'paper',floor:'carpet',
+    units:[{side:1,x0:-10,x1:-4.6,door:-5.5},{side:1,x0:-4.6,x1:1.2,door:-.6,win:true,hole:4.6},{side:1,x0:1.2,x1:10,door:2.2,win:true,winX:5.6},
+      {side:-1,x0:-10,x1:-3,door:-4.0,win:true,winX:-6.5},{side:-1,x0:-3,x1:4,door:.6,win:true},{side:-1,x0:4,x1:10,door:5.2,win:true}],
+    build(A){ A.tube(-8,'dead'); A.tube(-4,'dead'); A.tube(1,'on'); A.tube(5,'dead'); A.tube(8.5,'dead');
+      A.light([1,2.5,0],[1.0,1.08,1.2],5.8,'flick');
+      A.light([-11.5,2.35,0],[1.25,.92,.56],5);
+      /* the cutting room: no window, one hot bulb low over the table */
+      A.furn('table',-7.4,3.6,0); A.furn('crates',-9.2,5.45,Math.PI); A.furn('trash',-5.3,2.0,0);
+      mk(cyl(.004,.004,.85,3),mBlack,floorN,-7.4,2.38,3.6); mk(box(.09,.11,.09),M(tBulb,{unlit:true}),floorN,-7.4,1.9,3.6);
+      A.light([-7.4,1.75,3.6],[1.85,1.2,.6],4.6);
+      for(const [x,z] of [[-7.6,3.35],[-7.35,3.42],[-7.15,3.7],[-7.55,3.85]]) A.blk(.16,.08,.11,M(tTwBrick),x,.81,z,.3*x);
+      A.blk(.22,.05,.22,mSteel,-7.1,.8,3.3); A.blk(.3,.01,.2,M(null,{color:0xd8d4c8}),-7.65,.775,3.95);
+      /* the squat with the hole into the cutting room */
+      A.furn('mattress',-1.8,5.45,Math.PI); A.furn('bucket',.6,5.5,0); A.bulb(-1.7,3.5,false);
+      /* Felix's room: a heavy bag, his fight poster, his gloves on a nail */
+      { const bx=6.0,bz=3.85; mk(cyl(.17,.17,1.0,8,{at:[0,0,0]}),[M(tTwHeavy),M(null,{color:0x4a1a12}),M(null,{color:0x4a1a12})],floorN,bx,1.2,bz);
+        mk(cyl(.006,.006,.9,3),mSteel,floorN,bx,2.2,bz); addBox(bx-.17,bx+.17,bz-.17,bz+.17,.7,1.7,'post'); }
+      A.pic(tTwPoster,7.7,1.5,5.926,Math.PI,.48,.72); A.blk(.09,.12,.07,M(tTwGlove),8.25,1.25,5.88); A.blk(.09,.12,.07,M(tTwGlove),8.38,1.2,5.88);
+      A.furn('mattress',9.0,2.8,Math.PI/2); A.bulb(5.6,3.2,true); A.light([5.6,2.2,3.2],[1.4,.9,.5],5);
+      /* Sami's room: a week in, still in boxes */
+      for(const [x,z,h,t] of [[-8.6,-5.5,.5,tTwBoxes],[-8.6,-5.5,.4,tTwBoxPlain],[-7.7,-5.55,.5,tTwBoxes],[-6.85,-5.5,.45,tTwBoxPlain],[-5.9,-5.55,.5,tTwBoxes],[-9.4,-4.4,.45,tTwBoxes]]){
+        const y=z===-5.5&&h===.4&&x===-8.6?.7:h/2; A.blk(.62,h,.5,M(t),x,y,z,0,y<.5); }
+      A.furn('mattress',-4.3,-3.2,Math.PI/2);
+      A.blk(.08,.25,.08,mBlack,-9.4,.75,-4.4); mk(cyl(.06,.11,.12,6,{at:[0,0,0]}),[M(null,{color:0xe8d8a8,unlit:true})],floorN,-9.4,.93,-4.4);
+      A.light([-9.3,1.05,-4.3],[1.1,.8,.45],4.2);
+      /* a dark kitchen, a dark room */
+      A.furn('counter',0,-5.62,0); A.furn('fridge',-2.3,-5.6,0); A.bulb(.5,-3.5,false);
+      A.furn('trash',8.6,-5.3,0); A.furn('wardrobe',5.2,-5.65,0); A.bulb(7,-3.5,false);
+      A.tag(7,-2.4,1.4,1); A.tag(5,7.5,1.5,-1);
+      A.light([11.5,2.35,0],[1.0,.78,.48],4.5); },
+    cast:[
+      {kind:'cutter',name:'Marco',spots:[[-7.4,2.5,0]],pose:'lean',extra:'I don\'t even know you—'},
+      {kind:'cutter',name:'Luis',spots:[[-7.4,4.72,Math.PI]],pose:'lean',extra:'It\'s not mine, it\'s his—'},
+      {kind:'corner',name:'Felix',spots:[[6.0,3.05,0],[6.3,3.1,-.3]],pose:'watch',extra:'I was a fighter, man—'},
+      {kind:'cutter',name:'Sami',spots:[[-7.2,-4.05,Math.PI],[-6.6,-4.1,Math.PI+.3]],pose:'lean',extra:'I just moved in, man!'}],
+    talk:[
+      {who:['Luis','Marco'],r:7,lines:[['Luis','Weigh it again.'],['Marco','It\'s fine.'],['Luis','He counts every gram, Marco.'],['Marco','...Ibarra\'s guy said Thursday.'],['Luis','Don\'t say that name.'],
+        ['Marco','I\'m just saying. It\'s Tuesday.'],['Luis','They\'re dead. Weigh it.']]},
+      {who:['Felix'],r:6,lines:[['Felix','Jab. Jab.'],['Felix','...hook.'],['Felix','Eleven and one.'],['Felix','Pops said I had hands.'],['Felix','Had.']]},
+      {who:['Sami'],r:6,lines:[['Sami','Where\'s the— where is it...'],['Sami','Moved in last week. Great.'],['Sami','Should\'ve stayed at my aunt\'s.'],['Sami','...found it.']]}],
+    loot:[],
+    clear:['FLOOR 02','Four men. One of them just moved in.'] },
+
+  { n:3,name:'Floor 03',wall:'dark',floor:'parquet',
+    units:[{side:1,x0:-10,x1:-3.6,door:-4.4,win:true},{side:1,x0:-3.6,x1:2.8,door:-1.0},{side:1,x0:2.8,x1:10,door:6.4,win:true,hole:4.4},
+      {side:-1,x0:-10,x1:-2,door:-3.2,win:true},{side:-1,x0:-2,x1:10,door:3.4,win:true,winX:6.0}],
+    build(A){ A.tube(-8,'dead'); A.tube(-4,'dead'); A.tube(2,'on'); A.tube(6,'dead');
+      A.light([2,2.5,0],[1.0,1.08,1.2],5.8,'flick');
+      A.light([-11.5,2.35,0],[1.25,.92,.56],5);
+      /* the rent office: a desk lamp, the money, the book. The .38 is on the desk */
+      A.furn('desk',-7.0,4.4,Math.PI); A.furn('filing',-9.5,5.6,Math.PI); A.furn('filing',-4.3,5.6,Math.PI);
+      for(const [x,z] of [[-7.3,4.55],[-7.15,4.6],[-7.35,4.75],[-6.95,4.7]]) A.blk(.1,.03,.05,M(tTwMoney),x,.795,z,.2);
+      A.blk(.24,.02,.18,M(tTwLedger),-6.75,.79,4.45,-.15);
+      mk(cyl(.05,.07,.02,6),mBlack,floorN,-7.55,.79,4.85); mk(cyl(.006,.006,.3,3),mBlack,floorN,-7.55,.94,4.85); mk(cyl(.04,.08,.08,6),[M(null,{color:0x2a3a2a}),M(null,{color:0xf2e2a8,unlit:true}),M(null,{color:0xf2e2a8,unlit:true})],floorN,-7.5,1.08,4.78);
+      A.light([-7.4,1.1,4.5],[1.3,1.05,.6],4.2);
+      /* the card game: a bulb over the table, the pot in the middle */
+      A.furn('table',-.4,3.6,Math.PI/2); A.furn('couch',-.4,5.55,Math.PI);
+      for(const [x,z,r] of [[-.75,3.4,.2],[-.6,3.85,-.4],[-.1,3.5,.9],[-.2,3.8,.1]]) A.blk(.05,.003,.075,M(tTwCards),x,.775,z,r);
+      for(const [x,z] of [[-.45,3.62],[-.38,3.58]]) A.blk(.1,.025,.05,M(tTwMoney),x,.785,z,.5);
+      mk(cyl(.035,.035,.24,6,{at:[0,.12,0]}),[M(null,{color:0x4a3a1a}),M(null,{color:0x2a2a1a}),M(null,{color:0x2a2a1a})],floorN,.15,.77,3.35);
+      A.bulb(-.4,3.6,true,true,2.0); A.light([-.4,1.85,3.6],[1.6,1.0,.5],4.6);
+      A.furn('mattress',8.8,5.4,Math.PI); A.furn('crates',4.2,5.4,Math.PI); A.bulb(6.4,3.5,false);
+      /* south: a dark bedroom, then Mike's room. His candles to the Virgin, and the street flashing red and blue */
+      A.furn('bed',-8.5,-5.45,0); A.furn('wardrobe',-4.5,-5.65,0); A.bulb(-6,-3.5,false);
+      A.furn('couch',1.6,-5.5,0); A.furn('crates',9.2,-5.45,0);
+      A.pic(tTwVirgin,9.2,1.65,-5.926,0,.36,.54); for(const [x,z] of [[8.95,-5.3],[9.15,-5.25],[9.4,-5.32],[9.05,-5.15]]) A.candle(x,1.1,z);
+      A.light([9.2,1.3,-5.0],[1.2,.7,.3],3.6,'candle');
+      A.light([6.0,1.7,-5.3],[.5,.2,.2],4.2,'police');
+      A.bulb(4,-3.5,false);
+      A.tag(7,-6.5,1.45,-1); A.tag(2,4.6,1.5,1);
+      A.light([11.5,2.35,0],[1.0,.78,.48],4.5); },
+    cast:[
+      {kind:'gunman',name:'Paulie',spots:[[-7.0,3.12,0]],pose:'lean',extra:'It\'s just the rent, man—'},
+      {kind:'gunman',name:'Eddie',spots:[[-.4,2.55,0]],pose:'lean',extra:'I got a kid on the way—'},
+      {kind:'cutter',name:'Tomas',spots:[[-.4,4.65,Math.PI]],pose:'lean',extra:'Take it, take the money—'},
+      {kind:'gunman',name:'Big Mike',spots:[[6.0,-5.2,Math.PI],[5.6,-5.15,Math.PI-.3]],pose:'watch',extra:'I didn\'t shoot nobody—'}],
+    talk:[
+      {who:['Paulie'],r:6.5,lines:[['Paulie','Two-oh-one. Short. Again.'],['Paulie','Twelve-oh-four. Paid.'],['Paulie','Two-oh-one owes two months.'],['Paulie','Write it down, Paulie.']]},
+      {who:['Tomas','Eddie'],r:7,lines:[['Tomas','Raise.'],['Eddie','With what, your rent?'],['Tomas','With yours.'],['Eddie','...you think they send more?'],['Tomas','Who?'],['Eddie','Kill five, they send fifty.'],['Tomas','Not here they don\'t. Raise.']]},
+      {who:['Big Mike'],r:6.5,lines:[['Big Mike','Their trucks are still there.'],['Big Mike','Lights going. Nobody\'s coming.'],['Big Mike','Nobody\'s ever coming.']]}],
+    loot:[['revolver',-6.5,.82,4.3,1.2]],
+    clear:['FLOOR 03','Twenty-seven floors to go.'] }
+];
+const TW_WALL={peel:tPeel,paper:tPaper,dark:tDarkPaint}, TW_FLOOR={lino:tLinoStain,carpet:tCarpet,parquet:tParquet};
+const TW_LAST=TOWER.length-1;
+
+/* ---------- building one ---------- */
+function genTower(i){ const D=TOWER[i]; setWorld(13,6);
+  disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true; if(typeof FIRES!=='undefined') FIRES.length=0;
+  Object.assign(FLOOR,{n:D.n,seed:0,test:false,camp:true,idx:i,def:D,mode:'camp',doors:[],windows:[],power:true,flick:null,dormD:undefined,down:false,goals:{},hot:[],noClear:!!D.pro,
+    start:{x:-11.3,z:0,yaw:-Math.PI/2},clearH:D.clear&&D.clear[0],clearP:D.clear&&D.clear[1]});
+  setLang(false); if(GAME.vision&&GAME.vision!=='off'&&typeof cycleVision==='function'){ GAME.vision='off'; if(typeof visionApply==='function') visionApply(); }
+  const G=floorN; GEO_TEMP=true;
+  const units=D.units.map((u,k)=>Object.assign({},u,{id:k,w:u.x1-u.x0,apt:String(D.n).padStart(2,'0')+String(k+1).padStart(2,'0'),lit:false}));
+  /* walls */
+  const unitW=[],hallW=[],stairW=[];
+  for(const side of [1,-1]){ const row=units.filter(u=>u.side===side).sort((a,b)=>a.x0-b.x0);
+    twWall(hallW,'x',side,-10,10,row.map(u=>({s:u.door,w:1.0,y0:0,y1:2.1})));
+    twWall(unitW,'x',side*6,-10,10,row.filter(u=>u.win).map(u=>({s:u.winX??(u.x0+u.x1)/2,w:1.4,y0:.9,y1:2.0})));
+    twWall(unitW,'z',-10,side>0?1:-6,side>0?6:-1,[]); twWall(unitW,'z',10,side>0?1:-6,side>0?6:-1,[]);
+    for(let k=1;k<row.length;k++){ const u=row[k]; twWall(unitW,'z',u.x0,side>0?1:-6,side>0?6:-1,u.hole!=null?[{s:side*u.hole,w:1.0,y0:0,y1:2.0}]:[]); } }
+  for(const sx of [-1,1]){ twWall(stairW,'z',sx*13,-2,2,[]); twWall(stairW,'x',2,sx>0?10:-13,sx>0?13:-10,[]); twWall(stairW,'x',-2,sx>0?10:-13,sx>0?13:-10,[]); }
+  mk(mergeBoxes(unitW),M(TW_WALL[D.wall]||tPeel),G); mk(mergeBoxes(hallW),M(tHallWall),G); mk(mergeBoxes(stairW),M(tStairWall),G);
+  for(const e of [...unitW,...hallW,...stairW]) addBox(e[0]-e[3]/2,e[0]+e[3]/2,e[2]-e[5]/2,e[2]+e[5]/2,e[1]-e[4]/2,e[1]+e[4]/2,'wall');
+  /* floors: each apartment its own, the corridor, the landings; the ceiling */
+  const ft=TW_FLOOR[D.floor]||tLinoStain;
+  for(const u of units){ const w=u.x1-u.x0; mk(plane(w,5,Math.ceil(w),5),M(ft,{repeat:[w/2,2.5]}),G,(u.x0+u.x1)/2,.002,u.side*3.5,-Math.PI/2); }
+  mk(plane(20,2,20,2),M(D.pro?tLinoHall:tLinoHall,{repeat:[10,1]}),G,0,.004,0,-Math.PI/2);
+  for(const sx of [-1,1]) mk(plane(3,4,3,4),M(tConcrete,{repeat:[1.5,2]}),G,sx*11.5,.004,0,-Math.PI/2);
+  mk(plane(26,12,26,12),M(tConcrete,{repeat:[13,6],color:0x6a6866}),G,0,RH,0,Math.PI/2);
+  /* windows: glass you can't fall through */
+  for(const u of units) if(u.win){ const x=u.winX??(u.x0+u.x1)/2; mk(plane(1.4,1.1),M(tNightWin,{unlit:true,color:0x8a8a8a}),G,x,1.45,u.side*5.94,0,u.side>0?Math.PI:0,0); addBox(x-.7,x+.7,u.side*6-.07,u.side*6+.07,.9,2.0,'window'); }
+  /* the stairs: west is where you came up (the lobby has the street doors instead), east goes on up */
+  const blocked=[];
+  for(const sx of [-1,1]){ if(sx<0&&D.pro) continue; const cm=M(tConcrete);
+    for(let s=0;s<7;s++){ const h=(s+1)*.17; mk(box(.34,h,1.7,{at:[0,h/2,0]}),cm,G,sx*(10.45+s*.34),0,1.05); addBox(sx*(10.28+s*.34),sx*(10.62+s*.34),.2,1.9,0,h,'step'); }
+    mk(box(3,.04,1.8),M(null,{color:0x050506,unlit:true}),G,sx*11.5,.006,-1.05);
+    mk(box(2.6,.04,.04),mSteel,G,sx*11.6,.95,-.12); addBox(sx*10.3,sx*12.9,-1.95,-.2,0,1.0,'rail');
+    blocked.push([sx>0?10.2:-13.1,.15,sx>0?13.1:-10.2,1.95]); }
+  for(const sx of [-1,1]){ const nm=N(G,sx*12.92,1.7,-1.0,0,sx>0?-Math.PI/2:Math.PI/2,0); mk(plane(1.0,.5),M(floorNum(sx<0?D.n:Math.min(30,D.n+1)),{cut:true}),nm); }
+  FLOOR.stairUp={x0:10.35,x1:12.9,z0:.2,z1:1.9};
+  /* the landings' bulbs */
+  for(const sx of [-1,1]){ mk(cyl(.004,.004,.4,3),mBlack,G,sx*11.5,2.6,0); mk(box(.08,.1,.08),M(tBulb,{unlit:true}),G,sx*11.5,2.36,0); }
+  /* what's in it */
+  const furn=[],seats=[],beds=[],lights=[],anim=[];
+  D.build(twKit(G,furn,seats,beds,lights,anim));
+  /* the flickering tube is light 0 (the game flickers FLOOR.lights[0] through FLOOR.flick) */
+  const fi=anim.findIndex(a=>a.kind==='flick'); if(fi>=0){ const li=anim[fi].i; if(li!==0){ const t=lights[0]; lights[0]=lights[li]; lights[li]=t; for(const a of anim){ if(a.i===0) a.i=li; else if(a.i===li) a.i=0; } }
+    const tubeX=lights[0][0][0]; const tn=floorN.kids.find(k=>k.mesh&&Math.abs(k.p[0]-tubeX)<.01&&Math.abs(k.p[1]-2.75)<.01); FLOOR.flick={mat:tn?tn.mesh.mats[0]:M(tFluo),i:0}; anim.splice(fi,1); }
+  GEO_TEMP=false;
+  /* where people can walk: inside the corridor, the landings and the apartments, clear of anything below 1.5 m */
+  const nav=new Uint8Array(NX*NZ),space=new Int16Array(NX*NZ).fill(-9);
+  for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i;
+    let sp=-9; if(Math.abs(x)<10&&Math.abs(z)<1) sp=-1; else if(Math.abs(x)>=10&&Math.abs(x)<13&&Math.abs(z)<2) sp=-2;
+    else if(Math.abs(z)>1&&Math.abs(z)<6){ const u=units.find(u=>u.side===Math.sign(z)&&x>=u.x0&&x<u.x1); if(u) sp=u.id; }
+    space[id]=sp; let bl=sp===-9; if(!bl&&blocked.some(r=>x>r[0]&&x<r[2]&&z>r[1]&&z<r[3])) bl=true;
+    if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.25) continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; break; } }
+    nav[id]=bl?1:0; }
+  Object.assign(FLOOR,{nav,space,units,party:[],bx:99,seats,beds,furn,lights,anim});
+  const amb=D.amb||[.15,.145,.17];
+  setLights({amb,dir:[.3,1,.4],dirCol:[.05,.05,.07],fog:[.012,.012,.016],fogNear:6,fogFar:19,pl:[...lights,[[0,-50,0],[0,0,0],1]]});
+  boxGridDirty=true; navDirty=true; NAVF.clear(); navGen++;
+  const tag=$('floorTag'); if(tag) tag.textContent=D.pro?'The lobby':D.name; }
+
+/* ---------- the people ---------- */
+function twMirror(P){ const j={}; for(const k in P.j){ const m=k.endsWith('L')?k.slice(0,-1)+'R':k.endsWith('R')?k.slice(0,-1)+'L':k,r=P.j[k]; j[m]=[r[0],-r[1],-r[2]]; } return {hipsY:P.hipsY,j}; }
+function twCast(){ const D=FLOOR.def;
+  for(const c of D.cast||[]){ const s=pick(c.spots);
+    const E=spawnEnemy({maker:TW_MAKERS[c.kind],name:c.name,x:s[0],z:s[1],hd:s[2],extra:c.extra,pre:E=>{
+      if(!c.pose||c.pose==='idle') return; civPoses(E.C); const P=E.C.poses;
+      if(c.pose==='phone'){ E.idleP=twMirror(P.phone); mk(box(.016,.12,.062),mBlack,E.J.handL,0,-.075,.0); mk(plane(.05,.1),M(null,{color:0x9ac0e0,unlit:true}),E.J.handL,.0085,-.075,0,0,Math.PI/2,0); }
+      else if(P[c.pose]) E.idleP=P[c.pose]; }});
+    E.detail=c.extra; enemies.push(E); }
+  FLOOR.convos=(D.talk||[]).map(t=>Object.assign({},t,{i:0,t:rnd(.6,2.2),dead:false}));
+  attachLabels(); }
+function twLoot(){ for(const [k,x,y,z,ry] of FLOOR.def.loot||[]){ const Mw=m4.compose(m4.make(),[x,y,z],[k==='knife'||k==='machete'||k==='bottle'?Math.PI/2:0,ry,0],[1,1,1]); addPickup(newItem(k),Mw,[0,0,0],[0,0,0]); } }
+
+/* what you overhear: one line at a time, out loud (a murmur from his own mouth) with the words over his head */
+function twTalk(dt){ for(const C of FLOOR.convos||[]){ if(C.dead) continue;
+  const who=C.who.map(n=>enemies.find(E=>E.name===n));
+  if(who.some(E=>!E||E.dead||E.aware||E.st==='down'||E.st==='kneel')){ C.dead=true; continue; }
+  if(who.some(E=>E.st!=='idle'||E.mind&&E.mind!=='calm'||E.grabbed)) continue;
+  if(!who.some(E=>Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)<(C.r||7))) continue;
+  C.t-=dt; if(C.t>0) continue;
+  const [nm,txt]=C.lines[C.i],E=who[C.who.indexOf(nm)],dur=clamp(1.3+txt.length*.06,1.7,3.4);
+  bark(E,txt,dur); vox(E,'mutter',.95); C.i++;
+  if(C.i>=C.lines.length){ C.i=0; C.t=dur+rnd(14,22); } else C.t=dur+rnd(.4,1.0); } }
+
+/* ---------- the run: loading, resetting, the stairs ---------- */
+function towerLoad(i){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genTower(i); buildRack(); buildBoard(); resetGame(); if(XR.on) vrRecenter(); }
+function towerReset(){ GAME.fade=0;
+  if(FLOOR.def.pro){ genTower(FLOOR.idx); proStart(); return; }
+  twCast(); twLoot(); if(XR.on) vrToast(FLOOR.def.name,2.5); }
+function towerClimb(){ if(GAME.climbing) return;
+  if(FLOOR.idx>=TW_LAST){ GAME.climbing=true; showMsg('THAT\'S THE SLICE','The lobby and floors 1-3. Floor 04 isn\'t built yet.'); if(XR.on){ vrToast('Floor 04 isn\'t built yet',4); XR.clearT=5; }
+    setTimeout(()=>{ GAME.climbing=false; PL.x=Math.min(PL.x,9.6); if(XR.on){ FLOOR.start={x:9.4,z:1.0,yaw:Math.PI/2}; vrRecenter(); } },1200); return; }
+  GAME.climbing=true; sfx('door',.6); const next=FLOOR.idx+1; try{ localStorage.setItem('stairwell.camp',String(next)); }catch(_){}
+  setTimeout(()=>{ carryInto(()=>towerLoad(next)); GAME.climbing=false; },350); }
+function towerSaved(){ const q=new URLSearchParams(location.search); if(q.has('f')) return clamp(parseInt(q.get('f'),10)||0,0,TW_LAST);
+  try{ return clamp(parseInt(localStorage.getItem('stairwell.camp')||'0',10)||0,0,TW_LAST); }catch(_){ return 0; } }
+
+/* lights that breathe: a TV, candles, a police car outside */
+function twAnim(){ for(const a of FLOOR.anim||[]){ const c=FLOOR.lights[a.i][1],t=GAME.t+a.t0; let k=1,col=c;
+  if(a.kind==='tv'){ k=.55+.3*Math.sin(t*7.1)+.25*Math.sin(t*17.3+1)+(Math.sin(t*1.3)>.85?.4:0); }
+  else if(a.kind==='candle'){ k=.82+.1*Math.sin(t*9.7)+.08*Math.sin(t*23.1); }
+  else if(a.kind==='police'){ const ph=(t*1.6)%2; col=ph<1?[1.6,.15,.12]:[.15,.3,1.7]; k=.35+.65*Math.max(0,Math.sin((ph%1)*Math.PI)); }
+  L.plCol.set([col[0]*k,col[1]*k,col[2]*k],a.i*3); } }
+
+function tickTower(dt){ document.body.classList.toggle('camp',FLOOR.mode==='camp'); /* no test panel in the campaign */ if(FLOOR.mode!=='camp') return; twAnim();
+  if(!GAME.started) return;
+  if(FLOOR.def.pro) proTick(dt); else twTalk(dt*Math.max(GAME.ts,.3));
+  /* the street: now and then a dog, far off */
+  GAME.dogT=(GAME.dogT??rnd(12,25))-dt; if(GAME.dogT<=0){ GAME.dogT=rnd(25,50); sfx('dog',.18,[rnd(-9,9),1.5,Math.random()<.5?7.5:-7.5]); } }
+
+/* ---------- the prologue: the lobby, the team, the tip that was a setup ---------- */
+const PRO_TALK=[[2,'Novak','Ray. They\'re waiting on us.'],[6,'Dunne','Landlord\'s on thirty. Quiet.'],[9.5,'Harris','Thirty floors. No elevator.'],[12.5,'Harris','Pool\'s open. Who pukes first?'],
+  [15.5,'Reyes','Shut up, Deuce.'],[18.5,'Novak','Is it always this quiet?'],[21.5,'Ibarra','Nobody on the corner tonight.'],[24.5,'Dunne','Stack up. Stairs. Go.']];
+const PRO_NOVAK=['Ray... Ray, you there?','They walked right past us.','They think we\'re dead.','I can\'t feel my legs, man.','Don\'t go up there alone.','Tell my mom I—'];
+const PRO_SHOT_A=[11.2,1.45,.7],PRO_SHOT_B=[2.0,1.4,-1.5];
+function proStart(){ FLOOR.pro={t:0,phase:'talk',said:0,ev:[]};
+  for(const m of FLOOR.def.team){ const E=spawnEnemy({maker:(h,g)=>makeChar(m.id,h,g),name:m.name,x:m.x,z:m.z,hd:m.hd,extra:''}); E.ally=true; E.detail='your team'; enemies.push(E); }
+  attachLabels(); GAME.fade=0; }
+const twTeam=n=>enemies.find(E=>E.name===n);
+function twHeartPt(E){ const B=E.B,ch=X_(B,PI_.chest),nk=X_(B,PI_.neck),Rs=frameFrom(X_(B,PI_.shL),X_(B,PI_.shR),ch,nk); return v3.add(v3.add(ch,v3.sc(v3.sub(nk,ch),.3)),v3.add(v3.sc(Rs[0],.035),v3.sc(Rs[2],.02))); }
+function proShot(from,name,part){ const E=twTeam(name); if(!E||E.dead) return;
+  const si={head:0,neck:1,chest:2,belly:3}[part],seg=SEGS[si],pt=part==='chest'?twHeartPt(E):part==='head'?X_(E.B,PI_.head):part==='neck'?X_(E.B,PI_.neck):v3.sc(v3.add(X_(E.B,PI_.pelvis),X_(E.B,PI_.chest)),.5);
+  const d=norm3(v3.sub(pt,from)); muzzle(from,d,false); sfx('smg',1,from); hitEnemy(E,seg,pt,d,'gun'); }
+function proSpray(from){ muzzle(from,norm3(v3.sub([PL.x,1.4,PL.z],from)),false); sfx('smg',.9,from); if(Math.random()<.6) sfx(Math.random()<.5?'whiz':'ric',.7,[PL.x+rnd(-1,1),1.5,PL.z+rnd(-1,1)]); }
+function proHurt(){ XR.flash=.5; if(XR.on){ buzz('left',1,160); buzz('right',1,160); } const f=$('flash'); if(f){ f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); } screenBlood(3); sfx('hurt'); }
+function proTick(dt){ const P=FLOOR.pro; if(!P) return; P.t+=dt;
+  if(P.phase==='talk'){
+    while(P.said<PRO_TALK.length&&P.t>=PRO_TALK[P.said][0]){ const [,n,txt]=PRO_TALK[P.said],E=twTeam(n); if(E&&!E.dead){ bark(E,txt,2.8); vox(E,'mutter',1); } P.said++; }
+    if(P.t>=27||P.t>4&&PL.x>-6.6){ P.phase='ambush'; P.a=0; P.step=0; } return; }
+  if(P.phase==='ambush'){ P.a+=dt; const a=P.a;
+    const EV=[[0,()=>{ const D=twTeam('Dunne'); if(D) bark(D,'Contact—',1.6); sfx('door',.9,[11.5,1.2,0]); }],
+      [.35,()=>{ sfx('glass',1,[-2.5,2.7,0]); FLOOR.flick=null; L.plCol.set([0,0,0],0); for(const t of FLOOR.proTubes) t.m.color=[.25,.26,.28]; FLOOR.proOut=true; }],
+      [.5,()=>proShot(PRO_SHOT_A,'Dunne','head')],[.62,()=>proSpray(PRO_SHOT_A)],
+      [.9,()=>proShot(PRO_SHOT_A,'Harris','neck')],[1.05,()=>{ sfx('glass',.8,[4,2.7,0]); L.plCol.set([0,0,0],6); }],
+      [1.3,()=>proShot(PRO_SHOT_B,'Reyes','chest')],[1.45,()=>proSpray(PRO_SHOT_B)],
+      [1.8,()=>proShot(PRO_SHOT_B,'Ibarra','belly')],[2.05,()=>proSpray(PRO_SHOT_A)],[2.3,()=>proShot(PRO_SHOT_A,'Ibarra','head')],
+      [2.6,()=>proShot(PRO_SHOT_A,'Harris','head')],[2.75,()=>proSpray(PRO_SHOT_B)],
+      [3.0,()=>{ proShot(PRO_SHOT_B,'Novak','belly'); const E=twTeam('Novak'); if(E&&!E.dead){ toDown(E,true); E.knocked=true; E.koT=1e9; for(const w of E.wounds) w.rate=Math.min(w.rate,.35); } }],
+      [3.3,()=>{ proSpray(PRO_SHOT_B); proHurt(); }],[3.7,()=>{ proSpray(PRO_SHOT_A); proHurt(); }],[4.0,()=>{ sfx('heart'); }]];
+    while(P.step<EV.length&&a>=EV[P.step][0]){ EV[P.step][1](); P.step++; }
+    if(a>4.0) GAME.fade=clamp((a-4.0)/1.3,0,1);
+    if(a>5.4){ P.phase='black'; P.b=0; P.beat=0;
+      /* the men who did it take the guns. Ray goes down beside Novak */
+      for(const E of enemies) if(E.ally&&E.C.wpn){ E.C.wpn.vis=false; E.wpnHeld=false; setGrip(E.J,'R',false); setGrip(E.J,'L',false); }
+      const Nv=twTeam('Novak'); if(Nv){ const p=X_(Nv.B,PI_.pelvis),q=[p[0]-.85,p[2]-.35]; pushOutXZ(q,.3,'player'); FLOOR.start={x:q[0],z:q[1],yaw:Math.atan2(-(p[0]-q[0]),-(p[2]-q[1]))}; PL.x=q[0]; PL.z=q[1]; PL.yaw=FLOOR.start.yaw; if(XR.on) vrRecenter(); } }
+    return; }
+  if(P.phase==='black'){ P.b+=dt; P.beat-=dt; if(P.beat<=0){ P.beat=1.15; sfx('heart'); }
+    if(P.b>5.5){ P.phase='wake'; P.w=0; P.line=0; P.lt=2.2; L.plCol.set([.9,.24,.12],12); FLOOR.lights[4][1]=[.9,.24,.12]; } return; }
+  if(P.phase==='wake'){ P.w+=dt; GAME.fade=clamp(1-P.w/3.2,0,1); const Nv=twTeam('Novak');
+    if(Nv&&!Nv.dead){ P.lt-=dt; if(P.lt<=0){ if(P.line<PRO_NOVAK.length){ const txt=PRO_NOVAK[P.line++],dur=clamp(1.4+txt.length*.06,2,3.4); bark(Nv,txt,dur); vox(Nv,P.line>4?'whimper':'plead',.8); P.lt=dur+1.1; }
+        else { Nv.dieT=.05; P.phase='alone'; } } Nv.barkCd=9; }
+    else if(P.w>4) P.phase='alone';
+    return; } }
+
+/* ---------- the start card: which floor ---------- */
+function towerBoot(){ const i=towerSaved(); genTower(i); buildRack(); buildBoard();
+  const row=$('lvlRow'); if(!row) return;
+  const btns=[...row.querySelectorAll('[data-lvl]')], mark=k=>btns.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lvl===String(k))));
+  mark(i);
+  for(const b of btns) b.addEventListener('click',()=>{ audio(); GAME.kit=null; const v=b.dataset.lvl; mark(v);
+    if(v==='test'){ FLOOR.camp=false; GAME.fade=0; goStash(); } else { try{ localStorage.setItem('stairwell.camp',v); }catch(_){} towerLoad(+v); } }); }

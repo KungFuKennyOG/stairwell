@@ -27,6 +27,7 @@ const VOX={
   gurgle: {dur:[.8,1.4],f:[.95,.85,.9],v:['o','uh','o'],eff:.35,br:.3,vol:.6,pri:3,bub:1},
   choke:  {dur:[.07,.12],f:[1.6,1.3],v:['h','uh'],eff:.6,br:.6,vol:.55,pri:3,rep:[3,4],gap:.14},
   rattle: {dur:[1.0,1.6],f:[.55,.42],v:['uh','o'],eff:.3,br:.6,vol:.5,pri:5,fry:1,bub:.5},
+  mutter: {dur:[.22,.4],f:[1.0,1.12,.94,1.04],v:['uh','eh','o','m'],eff:.28,br:.42,vol:.42,pri:0,rep:[3,6],gap:.07}, /* talking low: what you overhear through a doorway */
   breath: {dur:[.28,.4],f:[1,1],v:['h','h'],eff:0,br:1,vol:.28,pri:0,noVoice:true} };
 let VOXN=0; const VOX_MAX=6;
 function voiceOf(E){ return E.voice||(E.voice=Object.assign({},VOICE_KIND[E.kind]||VOICE_KIND.gunman,{f0:(VOICE_KIND[E.kind]||VOICE_KIND.gunman).f0*rnd(.92,1.08)})); }

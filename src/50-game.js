@@ -142,6 +142,7 @@ function spawnEnemy(sp){
     cut:{},sev:{armL:0,armR:0,legL:0,legR:0,head:0},sevP:new Uint8Array(NP),segOff:new Set(),Rcut:{},barkT:0,barkCd:0,face:'',wpnHeld:!!C.wpn,wpnHand:'R',heartPh:0,spurtT:0,deadT:0,t0:Math.random()*9,pools:[],lookYaw:0,silent:false,cons:1,downMode:'',hitT:0,mind:'calm',home:[sp.x,sp.z],homeHd:sp.hd,lkp:null,lostT:0};
   E.fightJ={}; for(const k of JOINTS) E.fightJ[k]=J[k].r.slice(); E.fightY=J.hips.p[1]; E.gunLow=lowW; E.gunUp=upW; E.aimK=0; E.carry='up';
   E.fightJL={}; for(const k of JOINTS){ const m=k.endsWith('L')?k.slice(0,-1)+'R':k.endsWith('R')?k.slice(0,-1)+'L':k,r=E.fightJ[m]; E.fightJL[k]=[r[0],-r[1],-r[2]]; }
+  if(sp.pre) sp.pre(E); /* per-man setup before the body is built (66-tower.js: his pose, a phone in his hand) */
   buildBody(E);
   const el=document.createElement('div'); el.className='bark'; el.hidden=true; $('labels').append(el); E.barkEl=el;
   /* start in the idle pose, already standing where it spawned */
@@ -156,7 +157,7 @@ function setPose(E,name,t){
   const s=Math.sin,ph=t+E.t0;
   switch(name){
     case 'fight': j=E.wpnHeld&&E.wpnHand==='L'?E.fightJL:E.fightJ; hy=E.fightY; break;
-    case 'idle': j=C.poses.idle.j; break;
+    case 'idle': j=E.idleP?E.idleP.j:C.poses.idle.j; break; /* a man caught mid-moment (on the phone, leaning on a table) stands in his own pose */
     case 'beg': j=C.poses.beg.j; hy=C.poses.beg.hipsY; break;
     case 'kneel': j=Object.assign({},C.poses.beg.j,{spine:[.5,0,.08],neck:[.15,0,0],head:[.25,0,0],armL:[-.3,0,.2],elbowL:[-1.4,0,0],armR:[-.3,0,-.2],elbowR:[-1.4,0,0]}); hy=C.poses.beg.hipsY; break;
     case 'writhe': rel=true; c*=PHYS.wr; j={spine:[.35+.18*s(ph*.9)*c,0,.25*s(ph*.6)*c],neck:[.2,0,0],head:[.25,.4*s(ph*.5)*c,0],
@@ -604,7 +605,7 @@ function rayEnemies(o,d,maxT,pad=0){ let best=null;
 /* damage */
 function bark(E,text,dur=2.6){ if(!text) return; E.barkEl.textContent=text; E.barkT=dur; E.barkCd=dur+rnd(.6,1.6); }
 /* he knows you're here. at: [x,z] where he thinks you are (a noise, a friend's scream); direct contact (seen, hit, kicked, grabbed) means where you actually are */
-function setAware(E,why,at){ if(E.dead) return; const p=at||[PL.x,PL.z];
+function setAware(E,why,at){ if(E.dead||E.ally) return; /* your own team never turns on you */ const p=at||[PL.x,PL.z];
   if(E.aware){ if(!E.canSee) E.lkp=p; return; }
   E.aware=true; E.mind='hunt'; E.lkp=p; E.lostT=at?.7:0; E.goHome=false; E.spotT=0; freshGoal(E); if(E.st==='idle') E.st='alert';
   if(GAME.barkGlobal<=0&&E.barkCd<=0){ bark(E,pick(LINES.alert)); GAME.barkGlobal=1.2; if(why!=='hit'){ vox(E,'shout'); noise([E.pos[0],0,E.pos[1]],8,{alarm:true,from:E}); } } }
@@ -739,10 +740,10 @@ function startDrop(E,T){ const B=E.B,pel=X_(B,PI_.pelvis); if(E.drop||pel[1]<.42
   for(const i of [PI_.chest,PI_.neck,PI_.shL,PI_.shR]) kickV(B,i,push,H); kickV(B,PI_.head,v3.sc(push,1.3),H);
   E.drop.aKnee=v3.sc(fw,rnd(4,5.5)); E.drop.aTop=v3.add(v3.sc(fd,fwd?rnd(3,4.5):rnd(2.5,3.5)),v3.sc(rt,side*1.2)); E.drop.aHip=fwd?[0,0,0]:v3.sc(fw,-rnd(2,3)); /* falling back: the hips sit back over the heels */ }
 function die(E){ if(E.dead) return; startDrop(E); if(!E.headshot&&!E.cut.head) vox(E,'rattle'); E.dead=true; E.st='dead'; E.deadT=0; dropWeapon(E); E.face='sleep'; E.J.headMesh.mesh.mats[0]=E.C.faceM.sleep; E.J.headMesh.mesh.runs=null; E.barkT=0;
-  for(const O of enemies) if(O!==E&&!O.dead&&!E.silent&&O.barkCd<=0&&Math.random()<.8){ bark(O,pick(LINES.friend(E.name))); break; } }
+  for(const O of enemies) if(O!==E&&!O.dead&&!E.silent&&O.barkCd<=0&&Math.random()<.8){ bark(O,pick(O.ally?[`${E.name}!`,`${E.name}— no—`]:LINES.friend(E.name))); break; } }
 
 /* weapons that fall out of hands */
-function dropWeapon(E){ if(!E.wpnHeld||!E.C.wpn) return; E.wpnHeld=false; const w=E.C.wpn,J=E.J;
+function dropWeapon(E){ if(E.ally||!E.wpnHeld||!E.C.wpn) return; /* the team keep their guns till the men who shot them take them */ E.wpnHeld=false; const w=E.C.wpn,J=E.J;
   const Wm=wpnMat(E); w.vis=false;
   const i=PI_['hd'+E.wpnHand]*3,v=[(E.B.x[i]-E.B.p[i])/H,(E.B.x[i+1]-E.B.p[i+1])/H,(E.B.x[i+2]-E.B.p[i+2])/H];
   const key=KIND_WPN[E.kind],W=WPN[key]; addPickup(newItem(key,W.gun?Math.max(1,Math.round(W.mag*rnd(.25,.75))):undefined),Wm,v,[rnd(-4,4),rnd(-4,4),rnd(-4,4)]);
@@ -826,7 +827,7 @@ function think(E,dt,t){
   else if(E.Rs&&(E.st==='alert'||E.st==='kneel'||E.st==='down')){ const l=mtv(E.Rs,norm3([toP[0],0,toP[1]])); E.lookYaw=lerp(E.lookYaw,clamp(Math.atan2(l[0],l[2]),-1,1),Math.min(1,dt*5)); }
   else E.lookYaw=lerp(E.lookYaw,0,Math.min(1,dt*3));
   /* talking */
-  if(E.barkCd<=0&&GAME.barkGlobal<=0){
+  if(E.barkCd<=0&&GAME.barkGlobal<=0&&!E.ally){ /* the team only say what the prologue gives them */
     const neck=E.wounds.some(w=>w.part==='neck');
     if(neck&&E.wounds.length) bark(E,pick(LINES.neck));
     else if(E.cons<.4&&E.wounds.length) bark(E,pick(LINES.dying),3.2);
@@ -1003,7 +1004,7 @@ function sfx(type,vol=1,pos){ const ac=audio(); if(!ac) return; const t=ac.curre
 function placeVM(node,pos,f,u,r,pitch){ const c=Math.cos(pitch),s=Math.sin(pitch),F=v3.add(v3.sc(f,c),v3.sc(u,s)),U=v3.sub(v3.sc(u,c),v3.sc(f,s)); node.p=pos; node.r=eul([v3.cross(U,F),U,F]); }
 
 /* ---------- game setup ---------- */
-function climb(){ GAME.climbing=true; const n=Math.min(30,FLOOR.n+1); sfx('door',.6);
+function climb(){ if(FLOOR.camp){ towerClimb(); return; } GAME.climbing=true; const n=Math.min(30,FLOOR.n+1); sfx('door',.6);
   try{ localStorage.setItem('stairwell.floor',String(n)); }catch(_){}
   setTimeout(()=>{ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genFloor(n,(Math.random()*1e9)|0,true); buildRack(); buildBoard();
     const keepR=HANDS.R.item,keepL=HANDS.L.item; resetGame(); equip(HANDS.R,keepR); equip(HANDS.L,keepL); if(XR.on){ vrRecenter(); vrToast('Floor '+String(n).padStart(2,'0'),2); }
@@ -1014,8 +1015,8 @@ function resetGame(){
   Object.assign(PL,{x:FLOOR.start.x,z:FLOOR.start.z,yaw:FLOOR.start.yaw,pitch:0,hp:100,hurtT:9,kickCd:0,dead:false});
   for(const D of FLOOR.doors) if(D.state==='open'&&D.u.doorState==='closed') setDoor(D,'closed',true);
   /* desk testing starts armed; in VR you start with your fists and walk to the rack */
-  equip(HANDS.R,XR.on?null:newItem('pistol')); equip(HANDS.L,XR.on?null:newItem('knife'));
-  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='ware') wareReset(); } /* the first room always starts with its three tenants */
+  equip(HANDS.R,XR.on||FLOOR.camp?null:newItem('pistol')); equip(HANDS.L,XR.on||FLOOR.camp?null:newItem('knife')); /* the campaign starts with fists everywhere */
+  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); } /* the first room always starts with its three tenants */
 /* dying restarts the level you're on, with whatever you carried into it (GAME.kit, set when a level is entered by its shaft or ladder) */
 function restartLevel(){ resetGame(); const k=GAME.kit; if(k&&k.mode===FLOOR.mode){ equip(HANDS.R,k.R?newItem(k.R):null); equip(HANDS.L,k.L?newItem(k.L):null); } if(XR.on) vrRecenter(); }
 /* into the next level with what's in your hands */
@@ -1083,10 +1084,10 @@ function update(dt,now){
   GAME.acc+=gdt; let n=0; while(GAME.acc>=H&&n<14){ physics(H); GAME.acc-=H; n++; } if(n>=14) GAME.acc=0;
   for(const E of enemies){ if(!E.dormant&&(!E.asleep||E.posed)){ driveRig(E); skinUpdate(E.C); } bleedFx(E,gdt); poolFx(E,gdt); }
   updateBlood(gdt); updatePickups(gdt); updateEmbedded(); updateShells(gdt); tickRack(gdt); tickMap(dt); buildBloodMeshes(); voiceListener();
-  if(!FLOOR.test&&!GAME.clear&&enemies.length&&enemies.every(E=>E.dead)){ GAME.clear=true; setTimeout(()=>{ if(GAME.clear){ showMsg('FLOOR 01 CLEAR','Three people lived here. Take the stairs, or reset and do it differently.'); if(XR.on) XR.clearT=6; } },2600); }
+  if(!FLOOR.test&&!FLOOR.noClear&&!GAME.clear&&enemies.length&&enemies.every(E=>E.dead)){ GAME.clear=true; setTimeout(()=>{ if(GAME.clear){ showMsg(FLOOR.clearH||'FLOOR 01 CLEAR',FLOOR.clearP||'Three people lived here. Take the stairs, or reset and do it differently.'); if(XR.on) XR.clearT=6; } },2600); }
   if(FLOOR.flick){ const on=(Math.sin(GAME.t*23)+Math.sin(GAME.t*7.3)>-.7)||Math.sin(GAME.t*1.3)>.1,fk=on?1:.15,c=FLOOR.lights[0][1]; L.plCol.set([c[0]*fk,c[1]*fk,c[2]*fk],0); FLOOR.flick.mat.color=on?[1,1,1]:[.3,.3,.32]; }
   flash.t-=dt; if(flash.t>0){ L.plPos.set(flash.pos,21); L.plCol.set(flash.big?[5.5,3.6,1.6]:[2.6,1.8,.9],21); L.plDist[7]=flash.big?9:6; } else { L.plCol.set([0,0,0],21); }
-  updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt); tickStash(dt); tickWare(dt); acousticsTick(dt);
+  updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt); tickStash(dt); tickWare(dt); tickTower(dt); acousticsTick(dt);
   if(GAME.slow){ GAME.beatT=(GAME.beatT||0)-dt; if(GAME.beatT<=0){ GAME.beatT=1.05; sfx('heart'); } } else GAME.beatT=0;
   /* the flight up: walk onto it and you climb to the next floor (saved on the stairs) */
   if(GAME.started&&!PL.dead&&!GAME.climbing){ const S=FLOOR.stairUp; if(S&&PL.x>S.x0+.6&&PL.z>S.z0&&PL.z<S.z1) climb(); }
@@ -1114,7 +1115,7 @@ function renderWith(w,h,noUpd){
 function inWorld(n){ for(let p=n;p;p=p.par){ if(!p.vis) return false; if(p===world) return true; if(p.par&&!p.par.kids.includes(p)) return false; } return false; }
 const POST2=program(PVS,`#version 300 es
 precision highp float;
-uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash; uniform float uSmooth; uniform float uSlow;
+uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash; uniform float uSmooth; uniform float uSlow; uniform float uFade;
 in vec2 vUv; out vec4 outColor;
 float bayer2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
 float bayer4(vec2 a){ return bayer2(0.5 * a) * 0.25 + bayer2(a); }
@@ -1129,6 +1130,7 @@ void main(){
   c += uSlow * (vec3(0.055, 0.048, 0.036) + c * 0.24);
   c = mix(c, c * vec3(1.3, 0.82, 0.78), red * uSlow * 0.5);
   c = mix(c, vec3(0.5, 0.0, 0.0), uFlash);
+  c *= 1.0 - uFade; /* the whole view to black and back: the prologue only. Even, edge to edge, never a vignette */
   float L = 31.0; c += (bayer4(px) - 0.5) / L; c = floor(c * L + 0.5) / L;
   outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`);
@@ -1138,7 +1140,7 @@ function post(targetFB,vx,vy,vw,vh,w,h){
     gl.uniform1f(VP.loc.uDither,1); if(VP.loc.uTime) gl.uniform1f(VP.loc.uTime,GAME.t); if(VP.loc.uGain) gl.uniform1f(VP.loc.uGain,10); if(VP.loc.uFlash) gl.uniform1f(VP.loc.uFlash,XR.on?XR.flash*1.2:0);
     for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,XR.on?gl.LINEAR:gl.NEAREST); gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); return; }
   gl.useProgram(POST2.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
-  gl.uniform1i(POST2.loc.tScene,0); gl.uniform2f(POST2.loc.uRes,w,h); gl.uniform1f(POST2.loc.uFlash,XR.on?XR.flash*1.2:0); gl.uniform1f(POST2.loc.uSmooth,XR.on?1:0); gl.uniform1f(POST2.loc.uSlow,clamp((1-GAME.ts)/.78,0,1));
+  gl.uniform1i(POST2.loc.tScene,0); gl.uniform2f(POST2.loc.uRes,w,h); gl.uniform1f(POST2.loc.uFlash,XR.on?XR.flash*1.2:0); gl.uniform1f(POST2.loc.uSmooth,XR.on?1:0); gl.uniform1f(POST2.loc.uSlow,clamp((1-GAME.ts)/.78,0,1)); gl.uniform1f(POST2.loc.uFade,clamp(GAME.fade||0,0,1));
   for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,XR.on?gl.LINEAR:gl.NEAREST); gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); }
 
 /* ---------- flat screen ---------- */

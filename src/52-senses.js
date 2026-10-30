@@ -27,7 +27,7 @@ const say=(E,lines,dur)=>{ if(E.barkCd<=0&&GAME.barkGlobal<=0){ bark(E,pick(line
 
 /* a sound at src [x,y,z], heard out to rad metres. o.alarm: gunshot/scream/kick. o.from: the enemy making it (doesn't hear himself) */
 function noise(src,rad,o={}){ if(!rad||!GAME.started) return;
-  for(const E of enemies){ if(E===o.from||!upright(E)) continue;
+  for(const E of enemies){ if(E===o.from||!upright(E)||E.ally) continue;
     const d=Math.hypot(E.pos[0]-src[0],E.pos[1]-src[2]); if(d>rad) continue;
     const r=sightClear([E.pos[0],1.6,E.pos[1]],[src[0],1.2,src[2]])?rad:rad*(o.alarm?.6:.45); if(d>r) continue; /* through a wall: a gunshot still carries, a footstep doesn't */
     setTimeout(()=>hear(E,src,d/r,o),120+d*45); } }
@@ -46,7 +46,7 @@ function hear(E,src,k,o){ if(!upright(E)) return; const at=navSnap(src[0],src[2]
   if(o.alarm&&(k<.65||(E.mind&&E.mind!=='calm'))) setAware(E,'noise',at);
   else investigate(E,at); }
 
-function investigate(E,at){ if(E.dead||E.aware) return;
+function investigate(E,at){ if(E.dead||E.aware||E.ally) return;
   if(E.mind==='search'){ E.srcC=at; E.wp=at; E.pauseT=0; E.searchT=Math.max(E.searchT,6); return; }
   if(E.mind!=='investigate') say(E,LINES.huh,2);
   E.mind='investigate'; E.lkp=at; E.goalT=0; freshGoal(E); if(E.st==='idle') E.st='alert'; }
@@ -58,7 +58,7 @@ function startSearch(E,c,why){ E.aware=false; E.mind='search'; E.srcC=navSnap(c[
 function giveUp(E){ E.mind='nervous'; E.wp=null; E.lkp=null; E.goHome=true; freshGoal(E); say(E,LINES.giveup,2.4); }
 
 /* called from think() every frame for anyone alive: eyes, then what that means */
-function senses(E,dt,dist,toP,B){
+function senses(E,dt,dist,toP,B){ if(E.ally){ E.canSee=false; return; } /* the team in the prologue: no eyes, no ears, no turning on you */
   E.sightT=(E.sightT||0)-dt; let tick=false;
   if(E.sightT<=0){ E.sightT=.2; tick=true; E.canSee=sightClear(X_(B,PI_.head),[PL.x,1.55,PL.z])&&seenInDark(E,dist); }
   if(!GAME.started||!upright(E)) return;

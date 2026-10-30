@@ -10,7 +10,7 @@ A gritty WebXR game for Meta Quest 3: a 30-floor tower, one floor per level, fis
 
 **The Meridian art direction set (world-loop bullet train, a hitman on vacation with a bounty on him):** https://kungfukennyog.github.io/stairwell/meridian.html. Source in `src/meridian/`, same engine.
 
-Current build: physics prototype 01, a single apartment floor with three enemies.
+Current build: the campaign slice. The prologue in the lobby (the team dies, Ray wakes up beside Novak), then hand-built floors 01-03: small, dark, four men each caught in the middle of something, with what they care about in the room and lines you overhear before they know you're there. Fists first, a knife on floor 01, guns on floor 03. Saves on the stairs; dying restarts the floor. Source: `src/66-tower.js`. The start card picks a floor, or the test levels (stash house, tunnel, warehouse, test floor with the rack and spawn board). `?f=0..3` in the URL starts on that floor.
 
 ## Building
 
