@@ -227,7 +227,8 @@ const TOWER=[
     clear:['FLOOR 03','Twelve floors to go.'] }
 ];
 const TW_WALL={peel:tPeel,paper:tPaper,dark:tDarkPaint}, TW_FLOOR={lino:tLinoStain,carpet:tCarpet,parquet:tParquet};
-const TW_LAST=TOWER.length-1;
+/* floors can be added by later files (67-*.js push onto TOWER), so the top is read when it's needed */
+const twLast=()=>TOWER.length-1;
 
 /* ---------- building one ---------- */
 function genTower(i){ const D=TOWER[i]; setWorld(14,6);
@@ -319,10 +320,10 @@ function towerReset(){ GAME.fade=0;
   if(FLOOR.def.pro){ genTower(FLOOR.idx); proStart(); return; }
   twCast(); twLoot(); if(!GAME.kit&&FLOOR.def.kit) equip(HANDS.R,newItem(FLOOR.def.kit)); /* started here from the card: Novak's pistol */ if(XR.on) vrToast(FLOOR.def.name,2.5); }
 function towerClimb(){ if(GAME.climbing) return; GAME.climbing=true;
-  if(FLOOR.idx>=TW_LAST){ GAME.atTop=true; showMsg('THAT\'S THE SLICE','The lobby and floors 1-3. Floor 04 isn\'t built yet.'); if(XR.on){ vrToast('Floor 04 isn\'t built yet',4); XR.clearT=5; } return; }
+  if(FLOOR.idx>=twLast()){ const nx=String(FLOOR.def.n+1).padStart(2,'0'); GAME.atTop=true; showMsg('THAT\'S AS FAR AS IT GOES',`Floor ${nx} isn\'t built yet.`); if(XR.on){ vrToast(`Floor ${nx} isn\'t built yet`,4); XR.clearT=5; } return; }
   const next=FLOOR.idx+1; FLOOR.next=next; GAME.fadeInT=0; try{ localStorage.setItem('stairwell.camp',String(next)); }catch(_){} }
-function towerSaved(){ const q=new URLSearchParams(location.search); if(q.has('f')) return clamp(parseInt(q.get('f'),10)||0,0,TW_LAST);
-  try{ return clamp(parseInt(localStorage.getItem('stairwell.camp')||'0',10)||0,0,TW_LAST); }catch(_){ return 0; } }
+function towerSaved(){ const q=new URLSearchParams(location.search); if(q.has('f')) return clamp(parseInt(q.get('f'),10)||0,0,twLast());
+  try{ return clamp(parseInt(localStorage.getItem('stairwell.camp')||'0',10)||0,0,twLast()); }catch(_){ return 0; } }
 
 /* the men looking for you: back to walking once they've calmed down, calling out into the dark, the flashlight moving ahead of them */
 function twHunt(dt){ const slot=FLOOR.lights.length; let lit=false;
@@ -399,6 +400,10 @@ function proTick(dt){ const P=FLOOR.pro; if(!P) return; P.t+=dt;
 /* ---------- the start card: which floor ---------- */
 function towerBoot(){ const i=towerSaved(); genTower(i); buildRack(); buildBoard();
   const row=$('lvlRow'); if(!row) return;
+  /* one button per built floor, generated from TOWER, before the motel and test buttons */
+  const ref=row.querySelector('[data-lvl="motel"]')||row.querySelector('[data-lvl="test"]');
+  for(const b of [...row.querySelectorAll('[data-lvl]')]) if(/^\d+$/.test(b.dataset.lvl)) b.remove();
+  TOWER.forEach((D,k)=>{ const b=document.createElement('button'); b.className='btn'; b.type='button'; b.dataset.lvl=String(k); b.setAttribute('aria-pressed','false'); b.textContent=D.pro?'The lobby':D.name; row.insertBefore(b,ref); });
   const btns=[...row.querySelectorAll('[data-lvl]')], mark=k=>btns.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lvl===String(k))));
   mark(i);
   for(const b of btns) b.addEventListener('click',()=>{ audio(); GAME.kit=null; const v=b.dataset.lvl; mark(v);
