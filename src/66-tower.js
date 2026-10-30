@@ -367,4 +367,4 @@ function towerBoot(){ const i=towerSaved(); genTower(i); buildRack(); buildBoard
   const btns=[...row.querySelectorAll('[data-lvl]')], mark=k=>btns.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lvl===String(k))));
   mark(i);
   for(const b of btns) b.addEventListener('click',()=>{ audio(); GAME.kit=null; const v=b.dataset.lvl; mark(v);
-    if(v==='test'){ FLOOR.camp=false; GAME.fade=0; goStash(); } else { try{ localStorage.setItem('stairwell.camp',v); }catch(_){} towerLoad(+v); } }); }
+    if(v==='test'){ FLOOR.camp=false; GAME.fade=0; goStash(); } else if(v==='motel'){ FLOOR.camp=false; GAME.fade=0; goMotel(); } else { try{ localStorage.setItem('stairwell.camp',v); }catch(_){} towerLoad(+v); } }); }

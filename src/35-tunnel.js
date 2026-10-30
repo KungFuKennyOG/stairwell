@@ -345,7 +345,7 @@ function tunnelPower(on){ if(FLOOR.mode!=='tunnel'||FLOOR.power===on) return; FL
 /* ---------- seeing in the dark ---------- */
 /* in a dark tunnel they see you up close, or by your muzzle flash for a moment after you fire */
 function inBore(x,z){ if(FLOOR.mode!=='tunnel'||!FLOOR.space) return false; const c=navCell(x,z); return c>=0&&FLOOR.space[c]===-3; }
-function seenInDark(E,dist){ if(FLOOR.mode==='ware') return wareSeen(E,dist); const flash=GAME.t-(GAME.shotT??-99)<1.4&&dist<16;
+function seenInDark(E,dist){ if(FLOOR.mode==='ware') return wareSeen(E,dist); if(FLOOR.mode==='motel') return motelSeen(E,dist); const flash=GAME.t-(GAME.shotT??-99)<1.4&&dist<16;
   if(FLOOR.mode!=='tunnel') return FLOOR.power!==false||dist<1.8||flash;
   /* in the tunnel: lit by a bulb, they see you; in the black between bulbs (or with the power cut), only up close or by your muzzle flash */
   if(litAt(PL.x,PL.z)) return true; return dist<(FLOOR.power!==false?2.6:1.8)||flash; }

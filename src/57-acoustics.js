@@ -38,7 +38,7 @@ function openSpan(x,z){ const o=[x,1.4,z],f=d=>{ const h=rayBoxes(o,d,25,b=>b.ki
 function envAt(x,z){ const m=FLOOR.mode,c=FLOOR.space?navCell(x,z):-1,sp=c>=0?FLOOR.space[c]:-9;
   if(m==='tunnel') return sp===-3||sp===-9?'tunnel':'chamber';
   if(m==='room') return 'room';
-  if(m!=='stash'&&m!=='ware') return sp>=0?'room':'hall';
+  if(m!=='stash'&&m!=='ware'&&m!=='motel') return sp>=0?'room':'hall';
   if(ENV_CACHE.space!==FLOOR.space){ ENV_CACHE.space=FLOOR.space; ENV_CACHE.m.clear(); }
   const key=c>=0?c:'x'+Math.round(x)+','+Math.round(z); if(ENV_CACHE.m.has(key)) return ENV_CACHE.m.get(key);
   const u=(FLOOR.units||[]).find(u=>u.id===sp),name=u?u.apt:'',[sx,sz]=openSpan(x,z),lo=Math.min(sx,sz),hi=Math.max(sx,sz); let k;
@@ -96,12 +96,12 @@ function gainN(ac,v,dest){ const g=ac.createGain(); g.gain.value=v; if(dest) g.c
 function stopAmb(){ for(const n of AMB.nodes){ try{ n.stop(); }catch(_){} try{ n.disconnect(); }catch(_){} } AMB.nodes=[]; for(const k in AMB.beds){ try{ AMB.beds[k].out.disconnect(); }catch(_){} } AMB.beds={}; }
 function buildAmb(ac){ stopAmb(); AMB.ac=ac; AMB.mode=FLOOR.mode; const B=audioBus(ac),m=FLOOR.mode;
   /* outside: far traffic, a slow wind; through a wall it's dulled (bed.lp) */
-  if(m==='stash'||m==='ware'){ const out=gainN(ac,0,B.inp),lp=filt(ac,'lowpass',8000); lp.connect(out);
+  if(m==='stash'||m==='ware'||m==='motel'){ const out=gainN(ac,0,B.inp),lp=filt(ac,'lowpass',8000); lp.connect(out);
     const tr=gainN(ac,.07,lp); const tf=filt(ac,'lowpass',170); loopNoise(ac,.5).connect(tf); tf.connect(tr); lfo(ac,.05,.025,tr.gain);
     const wi=gainN(ac,.012,lp); const wf=filt(ac,'bandpass',420,.6); loopNoise(ac,.8).connect(wf); wf.connect(wi); lfo(ac,.07,.01,wi.gain); lfo(ac,.11,160,wf.frequency);
     AMB.beds.night={out,lp}; }
   /* indoors: room tone, and the 60 Hz hum of something plugged in while the power's on */
-  if(m==='stash'||m==='tower'||m==='room'||m==='ware'){ const out=gainN(ac,0,B.inp); const rf=filt(ac,'lowpass',260); loopNoise(ac,.4).connect(rf); rf.connect(gainN(ac,.022,out));
+  if(m==='stash'||m==='tower'||m==='room'||m==='ware'||m==='motel'){ const out=gainN(ac,0,B.inp); const rf=filt(ac,'lowpass',260); loopNoise(ac,.4).connect(rf); rf.connect(gainN(ac,.022,out));
     const hum=gainN(ac,0,out); for(const [hz,a] of [[60,.006],[120,.005],[180,.002]]) osc(ac,'sine',hz).connect(gainN(ac,a,hum));
     AMB.beds.room={out,hum}; }
   /* the tower: fluorescent tubes buzzing, the building's air */
@@ -133,7 +133,7 @@ function acousticsTick(dt){ const ac=AC; if(!ac||!GAME.started) return; const B=
     const tb=AMB.beds.tun; if(tb){ fade(tb.out.gain,1); fade(tb.fan.gain,FLOOR.power===false?0:1,.6); } }
   /* one-shots in the ambience */
   const k=SND.env||'room';
-  if(FLOOR.mode==='stash'||FLOOR.mode==='ware'){ AMB.nextCricket-=dt; if(AMB.nextCricket<=0){ AMB.nextCricket=rnd(.25,1.1); const a=rnd(0,6.28),r=rnd(5,14); sfx('cricket',isInside(k)?.25:rnd(.5,1),[PL.x+Math.cos(a)*r,.2,PL.z+Math.sin(a)*r]); }
+  if(FLOOR.mode==='stash'||FLOOR.mode==='ware'||FLOOR.mode==='motel'){ AMB.nextCricket-=dt; if(AMB.nextCricket<=0){ AMB.nextCricket=rnd(.25,1.1); const a=rnd(0,6.28),r=rnd(5,14); sfx('cricket',isInside(k)?.25:rnd(.5,1),[PL.x+Math.cos(a)*r,.2,PL.z+Math.sin(a)*r]); }
     AMB.nextDog-=dt; if(AMB.nextDog<=0){ AMB.nextDog=rnd(14,40); const a=rnd(0,6.28),r=rnd(25,45); sfx('dog',rnd(.5,.9),[PL.x+Math.cos(a)*r,.5,PL.z+Math.sin(a)*r]); } }
   if(FLOOR.mode==='tunnel'){ AMB.nextDrip-=dt; if(AMB.nextDrip<=0){ AMB.nextDrip=rnd(.6,2.8); const a=rnd(0,6.28),r=rnd(1.5,9); sfx('drip',rnd(.4,1),[PL.x+Math.cos(a)*r,rnd(1.2,2.2),PL.z+Math.sin(a)*r]); } }
   /* bullet time: the world goes dull and far away */

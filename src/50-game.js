@@ -99,6 +99,7 @@ const KSTAT={corner:{melee:11,run:3.1},cutter:{melee:17,run:3.4},
   enforcer:{keep:4.4,cd:[1.5,2.2],dmg:7,acc:.17,range:11,burst:5},
   landlord:{keep:5,cd:[1.3,1.9],dmg:24,acc:.42,range:13,tough:.6}};
 const armed=E=>E.wpnHeld&&RANGED[E.kind];
+const kst=E=>E.ks||KSTAT[E.kind]; /* a man's own numbers (Dale is a worse shot than the men minding him), or his kind's */
 const DMG={ head:{gun:{kill:1},knife:{bleed:2.6,stun:1,art:.3}},
   neck:{gun:{bleed:6,art:1,stun:.8},knife:{bleed:8,art:1,stun:1}},
   chest:{gun:{bleed:2.4,stun:.7,art:.15},knife:{bleed:3.4,stun:.8,art:.3}},
@@ -757,7 +758,7 @@ function think(E,dt,t){
   if(E.koT&&E.st==='down'&&E.downT<E.koT) E.stun=1; /* out cold */
   /* blood and the heart */
   const bleed=E.wounds.reduce((s,w)=>s+(w.piece?0:w.rate),0)*(.3+.7*E.blood/100);
-  E.blood=Math.max(0,E.blood-bleed*dt*((KSTAT[E.kind]&&KSTAT[E.kind].tough)||1)); E.cons=clamp((E.blood-12)/46,0,1);
+  E.blood=Math.max(0,E.blood-bleed*dt*((kst(E)&&kst(E).tough)||1)); E.cons=clamp((E.blood-12)/46,0,1);
   const hr=1.15+(1-E.blood/100)*1.9+(E.aware?.4:0); E.heartPh+=dt*hr; if(E.heartPh>=1){ E.heartPh-=1; if(E.wounds.some(w=>w.art)) E.spurtT=.13; }
   E.spurtT-=dt;
   if(E.dieT!=null) E.dieT-=dt;
@@ -791,7 +792,7 @@ function think(E,dt,t){
       :E.mind==='search'&&E.pauseT>0?(E.scanHd??E.hd)+Math.sin((t+E.t0)*.9)*1.1 /* stands and looks around */
       :FLOOR.power===false?E.hd+Math.sin(t*.6+E.t0)*.3:E.hd;
     let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; const tr=E.stun>.3?0:2*(1-E.stun); E.hd+=clamp(dh,-tr*dt,tr*dt);
-    const KS=KSTAT[E.kind]||{},keep=armed(E)?KS.keep:1.25;
+    const KS=kst(E)||{},keep=armed(E)?KS.keep:1.25;
     const chase=fighting&&dist>keep+.15&&huntsInDark(E),walk=chase||(goal&&(huntsInDark(E)||E.lkp||E.mind==='search'));
     if(walk&&E.atkT<0&&E.stun<.4&&!E.grabbed){ const melee=!armed(E);
       let sp=chase?(melee?lerp(1.2,KS.run||2.6,clamp((dist-1.7)/2.2,0,1)):.85):goal.sp; /* blades charge at you; they ease off in the last couple of metres so they arrive swinging, not sliding */
@@ -858,7 +859,7 @@ function toDown(E,hard){ /* unless knocked flat, they buckle: held up on the way
 function wpnMat(E){ const w=E.C.wpn,loc=m4.make(),Wm=m4.make(); m4.compose(loc,w.p,w.r,w.s); const pb=BONES.find(b=>E.J[b]===w.par)||('hand'+E.wpnHand); m4.mul(Wm,E.M[pb],loc); return Wm; }
 function gunRay(E){ const Wm=wpnMat(E),W=WPN[KIND_WPN[E.kind]]; const mz=mulP(Wm,W.muzzle); return {mz,d:norm3(v3.sub(mz,mulP(Wm,[0,W.axisY,0])))}; }
 function enemyShoot(E,inBurst){
-  const g=gunRay(E),mz=g.mz,KS=KSTAT[E.kind],W=WPN[KIND_WPN[E.kind]];
+  const g=gunRay(E),mz=g.mz,KS=kst(E),W=WPN[KIND_WPN[E.kind]];
   if(!inBurst&&v3.dot(g.d,norm3(v3.sub([PL.x,1.45,PL.z],mz)))<Math.cos(.6)) return false; /* not on target yet: hold fire instead of shooting the ceiling */
   if(!inBurst){ const blk=bodyInLine(mz,[PL.x,1.4,PL.z],E); if(blk&&!blk.E.dead&&Math.random()<.75){ if(E.barkCd<=0) bark(E,blk.E.grabbed?pick([`Let ${blk.E.name} go!`,'Let him go, man!','I can\'t get a shot—']):'Move!',1.6); return false; } } /* friends in the way: mostly hold fire */
   GAME.eShots=(GAME.eShots||0)+1; muzzle(mz,g.d,!!KS.shotgun); muzzleSmoke(mz,g.d,!!KS.shotgun,false); sfx(W.snd||'gun',.8,mz); noise([E.pos[0],0,E.pos[1]],14,{alarm:true,from:E}); /* his friends come to the shooting */
@@ -1016,7 +1017,7 @@ function resetGame(){
   for(const D of FLOOR.doors) if(D.state==='open'&&D.u.doorState==='closed') setDoor(D,'closed',true);
   /* desk testing starts armed; in VR you start with your fists and walk to the rack */
   equip(HANDS.R,XR.on||FLOOR.camp?null:newItem('pistol')); equip(HANDS.L,XR.on||FLOOR.camp?null:newItem('knife')); /* the campaign starts with fists everywhere */
-  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); } /* the first room always starts with its three tenants */
+  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='motel') motelReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); } /* the first room always starts with its three tenants */
 /* dying restarts the level you're on, with whatever you carried into it (GAME.kit, set when a level is entered by its shaft or ladder) */
 function restartLevel(){ resetGame(); const k=GAME.kit; if(k&&k.mode===FLOOR.mode){ equip(HANDS.R,k.R?newItem(k.R):null); equip(HANDS.L,k.L?newItem(k.L):null); } if(XR.on) vrRecenter(); }
 /* into the next level with what's in your hands */
@@ -1087,7 +1088,7 @@ function update(dt,now){
   if(!FLOOR.test&&!FLOOR.noClear&&!GAME.clear&&enemies.length&&enemies.every(E=>E.dead)){ GAME.clear=true; setTimeout(()=>{ if(GAME.clear){ showMsg(FLOOR.clearH||'FLOOR 01 CLEAR',FLOOR.clearP||'Three people lived here. Take the stairs, or reset and do it differently.'); if(XR.on) XR.clearT=6; } },2600); }
   if(FLOOR.flick){ const on=(Math.sin(GAME.t*23)+Math.sin(GAME.t*7.3)>-.7)||Math.sin(GAME.t*1.3)>.1,fk=on?1:.15,c=FLOOR.lights[0][1]; L.plCol.set([c[0]*fk,c[1]*fk,c[2]*fk],0); FLOOR.flick.mat.color=on?[1,1,1]:[.3,.3,.32]; }
   flash.t-=dt; if(flash.t>0){ L.plPos.set(flash.pos,21); L.plCol.set(flash.big?[5.5,3.6,1.6]:[2.6,1.8,.9],21); L.plDist[7]=flash.big?9:6; } else { L.plCol.set([0,0,0],21); }
-  updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt); tickStash(dt); tickWare(dt); tickTower(dt); acousticsTick(dt);
+  updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt); tickStash(dt); tickWare(dt); tickTower(dt); tickMotel(dt); acousticsTick(dt);
   if(GAME.slow){ GAME.beatT=(GAME.beatT||0)-dt; if(GAME.beatT<=0){ GAME.beatT=1.05; sfx('heart'); } } else GAME.beatT=0;
   /* the flight up: walk onto it and you climb to the next floor (saved on the stairs) */
   if(GAME.started&&!PL.dead&&!GAME.climbing){ const S=FLOOR.stairUp; if(S&&PL.x>S.x0+.6&&PL.z>S.z0&&PL.z<S.z1) climb(); }
@@ -1235,7 +1236,7 @@ function xrFrame(t,xf){
     else { const sx=ax[2]||0; if(Math.abs(sx)>.7&&!XR.snapHeld){ XR.snapHeld=true; const a=-Math.sign(sx)*Math.PI/6,c=Math.cos(a),s=Math.sin(a),dx=XR.origin[0]-eye[0],dz=XR.origin[2]-eye[2];
         XR.origin[0]=eye[0]+dx*c+dz*s; XR.origin[2]=eye[2]-dx*s+dz*c; XR.yaw+=a; } else if(Math.abs(sx)<.3) XR.snapHeld=false;
       if(stickC){ const L=[720,1080,1440],i=(L.indexOf(XR.res)+1)%L.length; XR.res=L[i]; vrToast(['Sharpness: low (more PS1)','Sharpness: medium','Sharpness: high'][i],1.6); } }
-    meleeTick(h,dt); if(!h.supportOf) vrMelee(h,dt); else h.prevPts=null; pokeBoard(fp,h,dt); stashPoke(fp,h); warePoke(fp,h); updateAmmoLabel(h); }
+    meleeTick(h,dt); if(!h.supportOf) vrMelee(h,dt); else h.prevPts=null; pokeBoard(fp,h,dt); stashPoke(fp,h); warePoke(fp,h); motelPoke(fp,h); updateAmmoLabel(h); }
   applySupport(HANDS.R); applySupport(HANDS.L); updateArms(f,u,eye); updateSights(eye);
   /* keep the head out of walls and furniture by sliding the play space */
   { const bx=PL.x,bz=PL.z; collidePlayer(); XR.origin[0]+=PL.x-bx; XR.origin[2]+=PL.z-bz; }
