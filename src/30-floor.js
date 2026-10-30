@@ -172,6 +172,7 @@ function doorNear(x,z,maxD){ let best=null,bd=maxD; for(const D of FLOOR.doors){
 function solidFor(b,who){ /* what blocks whom: the player and walking people step over mattresses and ignore lintels above their heads */
   if(who==='body') return true;
   if(b.kind==='step') return false;
+  if(who==='player'&&PL.y) return b.y0<PL.y+1.6&&b.h>PL.y+.4; /* up the stairs: what's below your feet or over your head doesn't stop you */
   if(b.kind==='post'&&who==='walker') return false; /* timber posts: people walking slide past them instead of jamming on a corner */
   return b.y0<1.6&&b.h>.4; }
 function pushOutXZ(p,r,who){ /* push a circle (x,z) out of the boxes around it */

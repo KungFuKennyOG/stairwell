@@ -564,7 +564,7 @@ const PL={x:0,z:3.2,yaw:0,pitch:0,hp:100,hurtT:9,ammo:12,reload:0,stabT:-1,stabD
 const KEYS={};
 const GAME={started:false,ts:1,slow:false,acc:0,t:0,clear:false,barkGlobal:0};
 function camBasis(){ if(XR.on&&XR.head) return XR.head; const cy=Math.cos(PL.yaw),sy=Math.sin(PL.yaw),cp=Math.cos(PL.pitch),sp=Math.sin(PL.pitch);
-  const f=[-sy*cp,sp,-cy*cp],r=norm3(v3.cross(f,[0,1,0])),u=v3.cross(r,f); return {f,r,u,eye:[PL.x,1.62,PL.z]}; }
+  const f=[-sy*cp,sp,-cy*cp],r=norm3(v3.cross(f,[0,1,0])),u=v3.cross(r,f); return {f,r,u,eye:[PL.x,1.62+(PL.y||0),PL.z]}; } /* PL.y: up the stairs (66-tower.js) */
 /* rays */
 function raySeg(o,d,a,b,r){
   const u=v3.sub(b,a),w=v3.sub(o,a),bb=v3.dot(d,u),c=v3.dot(u,u),dd=v3.dot(d,w),e=v3.dot(u,w);
@@ -1013,7 +1013,7 @@ function climb(){ if(FLOOR.camp){ towerClimb(); return; } GAME.climbing=true; co
 function resetGame(){
   clearEnemies(); for(const P of LOOSE.slice()) removePickup(P);
   BP.length=0; MF.length=0; DEC.splat.length=0; DEC.pool.length=0; DEC.hole.length=0; for(const k in DEC) DEC[k].ver=(DEC[k].ver||0)+1;
-  Object.assign(PL,{x:FLOOR.start.x,z:FLOOR.start.z,yaw:FLOOR.start.yaw,pitch:0,hp:100,hurtT:9,kickCd:0,dead:false});
+  Object.assign(PL,{x:FLOOR.start.x,z:FLOOR.start.z,y:0,yaw:FLOOR.start.yaw,pitch:0,hp:100,hurtT:9,kickCd:0,dead:false});
   for(const D of FLOOR.doors) if(D.state==='open'&&D.u.doorState==='closed') setDoor(D,'closed',true);
   /* desk testing starts armed; in VR you start with your fists and walk to the rack */
   equip(HANDS.R,XR.on||FLOOR.camp?null:newItem('pistol')); equip(HANDS.L,XR.on||FLOOR.camp?null:newItem('knife')); /* the campaign starts with fists everywhere */
@@ -1198,7 +1198,7 @@ async function enterVR(){
     await gl.makeXRCompatible();
     session.updateRenderState({baseLayer:new XRWebGLLayer(session,gl,{antialias:false,depth:false}),depthNear:.04,depthFar:60});
     let space; try{ space=await session.requestReferenceSpace('local-floor'); XR.floor=true; }catch(_){ space=await session.requestReferenceSpace('local'); XR.floor=false; }
-    XR.session=session; XR.space=space; XR.on=true; equip(HANDS.R,null); equip(HANDS.L,null); XR.origin=[PL.x,XR.floor?0:1.62,PL.z]; XR.yaw=PL.yaw; XR.last=0;
+    XR.session=session; XR.space=space; XR.on=true; equip(HANDS.R,null); equip(HANDS.L,null); XR.baseY=XR.floor?0:1.62; XR.origin=[PL.x,XR.baseY+(PL.y||0),PL.z]; XR.yaw=PL.yaw; XR.last=0;
     session.addEventListener('end',()=>{ XR.on=false; XR.session=null; XR.head=null; resetGame(); for(const E of enemies) E.label.vis=false; last=performance.now(); requestAnimationFrame(frame); });
     session.requestAnimationFrame(xrFrame);
   }catch(err){ fail('Could not start VR: '+(err&&err.message||err)+'. Open this page in the Quest browser and try again.'); }
