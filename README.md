@@ -1,6 +1,6 @@
 # Stairwell
 
-A gritty WebXR game for Meta Quest 3: a 30-floor tower, one floor per level, fists to knives to guns, physical enemies that suffer.
+A gritty WebXR game for Meta Quest 3: a 15-floor tower, one hand-built floor per level, Novak's pistol and whatever the men upstairs have, physical enemies that suffer.
 
 **Play:** https://kungfukennyog.github.io/stairwell/ (open it in the Quest browser and press *Play in VR*; it also runs on desktop and phone).
 

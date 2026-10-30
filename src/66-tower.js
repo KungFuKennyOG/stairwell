@@ -224,7 +224,7 @@ const TOWER=[
       {who:['Tomas','Eddie'],r:3.8,lines:[['Tomas','Raise.'],['Eddie','With what, cop money?'],['Tomas','With yours.'],['Eddie','...you think they send more?'],['Tomas','Who?'],['Eddie','Kill five, they send fifty.'],['Tomas','Not here they don\'t. Raise.']]},
       {who:['Big Mike'],r:3.8,lines:[['Big Mike','Their trucks are still there.'],['Big Mike','Lights going. Nobody\'s coming.'],['Big Mike','Nobody\'s ever coming.']]}],
     loot:[['revolver',-6.5,.82,4.3,1.2]],
-    clear:['FLOOR 03','Twenty-seven floors to go.'] }
+    clear:['FLOOR 03','Twelve floors to go.'] }
 ];
 const TW_WALL={peel:tPeel,paper:tPaper,dark:tDarkPaint}, TW_FLOOR={lino:tLinoStain,carpet:tCarpet,parquet:tParquet};
 const TW_LAST=TOWER.length-1;
@@ -353,7 +353,7 @@ function tickTower(dt){ twStairs(dt); document.body.classList.toggle('camp',FLOO
   GAME.dogT=(GAME.dogT??rnd(12,25))-dt; if(GAME.dogT<=0){ GAME.dogT=rnd(25,50); sfx('dog',.18,[rnd(-9,9),1.5,Math.random()<.5?7.5:-7.5]); } }
 
 /* ---------- the prologue: the lobby, the team, the tip that was a setup ---------- */
-const PRO_TALK=[[2,'Novak','Ray. They\'re waiting on us.'],[6,'Dunne','Landlord\'s on thirty. Quiet.'],[9.5,'Harris','Thirty floors. No elevator.'],[12.5,'Harris','Pool\'s open. Who pukes first?'],
+const PRO_TALK=[[2,'Novak','Ray. They\'re waiting on us.'],[6,'Dunne','Landlord\'s on fifteen. Quiet.'],[9.5,'Harris','Fifteen floors. No elevator.'],[12.5,'Harris','Pool\'s open. Who pukes first?'],
   [15.5,'Reyes','Shut up, Deuce.'],[18.5,'Novak','Is it always this quiet?'],[21.5,'Ibarra','Nobody on the corner tonight.'],[24.5,'Dunne','Stack up. Stairs. Go.']];
 const PRO_NOVAK=['Ray... Ray, you there?','They walked right past us.','They think we\'re dead.','I can\'t feel my legs, man.','Don\'t go up there alone.','Here. Take it.','Tell my mom I—']; /* on 'Take it' his pistol is by his hand */
 const PRO_SHOT_A=[13.2,2.75,.9],PRO_SHOT_B=[2.0,1.4,-1.5];
@@ -448,7 +448,7 @@ function twShaft(G,sx,role,n,blocked){
   /* a caged lamp on the end wall over the half landing */
   mk(box(.16,.2,.1),M(null,{color:0x1a1a1a}),G,X(13.88),3.25,.9); mk(box(.08,.11,.05),M(tBulb,{unlit:true}),G,X(13.8),3.25,.9);
   /* the floor number on the end of the core wall, facing the corridor */
-  mk(plane(.8,.4),M(floorNum(role==='up'?Math.min(30,n+1):n),{cut:true}),G,X(ST_X0-.075),1.75,0,0,sx>0?-Math.PI/2:Math.PI/2,0);
+  mk(plane(.8,.4),M(floorNum(role==='up'?Math.min(15,n+1):n),{cut:true}),G,X(ST_X0-.075),1.75,0,0,sx>0?-Math.PI/2:Math.PI/2,0);
   blocked.push([Math.min(X(ST_X0-.05),X(14.1)),-2.1,Math.max(X(ST_X0-.05),X(14.1)),2.1]); }
 /* the lobby's west end: a vestibule and the glass doors to the street */
 function twVestibule(G,blocked){ const wl=[]; twBoxes(wl,-14,-10,0,RH,1.93,2.07); twBoxes(wl,-14,-10,0,RH,-2.07,-1.93); twBoxes(wl,-14.07,-13.93,0,RH,-2,2);
