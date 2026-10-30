@@ -300,11 +300,15 @@ function twTalk(dt){ for(const C of FLOOR.convos||[]){ if(C.dead) continue;
   const who=C.who.map(n=>enemies.find(E=>E.name===n));
   if(who.some(E=>!E||E.dead||E.aware||E.st==='down'||E.st==='kneel')){ C.dead=true; continue; }
   if(who.some(E=>E.st!=='idle'||E.mind&&E.mind!=='calm'||E.grabbed)) continue;
-  if(!who.some(E=>Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)<(C.r||3.8))) continue; /* close: in the doorway, or right behind them */
+  /* further off you only hear them murmur (no words, no lines used up), so the voices pull you in. The words start when you're
+     close and can see one of them: in the doorway, or right behind them */
+  const d=Math.min(...who.map(E=>Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z))); if(d>7.5) continue;
+  const eye=camBasis().eye,close=d<Math.max(C.r||0,4.6)&&who.some(E=>sightClear(eye,X_(E.B,PI_.head)));
+  if(!close){ C.mt=(C.mt??rnd(.5,1.5))-dt; if(C.mt<=0){ C.mt=rnd(1.8,3); vox(pick(who),'mutter',.75); } continue; }
   C.t-=dt; if(C.t>0) continue;
-  const [nm,txt]=C.lines[C.i],E=who[C.who.indexOf(nm)],dur=clamp(1.3+txt.length*.06,1.7,3.4);
+  const [nm,txt]=C.lines[C.i],E=who[C.who.indexOf(nm)],dur=clamp(1.7+txt.length*.07,2.4,4.2);
   bark(E,txt,dur); vox(E,'mutter',.95); C.i++;
-  if(C.i>=C.lines.length){ C.i=0; C.t=dur+rnd(14,22); } else C.t=dur+rnd(.4,1.0); } }
+  if(C.i>=C.lines.length){ C.i=0; C.t=dur+rnd(14,22); } else C.t=dur+rnd(.5,1.1); } }
 
 /* ---------- the run: loading, resetting, the stairs ---------- */
 function towerLoad(i){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genTower(i); buildRack(); buildBoard(); resetGame(); if(XR.on) vrRecenter(); }

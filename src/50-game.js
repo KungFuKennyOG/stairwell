@@ -1245,7 +1245,7 @@ function xrFrame(t,xf){
   /* the FPS on your left wrist, so you can see what the Quest is doing */
   XR.fpsAcc=(XR.fpsAcc||0)+dt; XR.fpsN=(XR.fpsN||0)+1; if(XR.fpsAcc>=.5){ XR.fps=Math.round(XR.fpsN/XR.fpsAcc); XR.fpsAcc=0; XR.fpsN=0; drawFps(XR.fps); }
   /* subtitles float over heads, facing you */
-  for(const E of enemies){ const on=E.barkT>0&&!E.dead; E.label.vis=on; if(on){ setLabel(E,E.barkEl.textContent); const hp=X_(E.B,PI_.head),p=v3.add(hp,[0,.36,0]); E.label.p=p; E.label.r=[0,Math.atan2(eye[0]-p[0],eye[2]-p[2]),0]; } }
+  for(const E of enemies){ const on=E.barkT>0&&!E.dead; E.label.vis=on; if(on){ setLabel(E,E.barkEl.textContent); const hp=X_(E.B,PI_.head),p=v3.add(hp,[0,.36,0]); E.label.p=p; E.label.r=[0,Math.atan2(eye[0]-p[0],eye[2]-p[2]),0]; const k=clamp(Math.hypot(eye[0]-p[0],eye[2]-p[2])/2.4,1,2.2); E.label.s=[k,k,1]; } } /* further off, the words get bigger so you can still read them */
   /* the panel: follows your gaze lazily, never glued to your face */
   { let ph='',pp='',bar=-1;
     if(XR.resetHold>0){ ph='Resetting the floor'; pp='keep holding both grips'; bar=XR.resetHold/1.2; }
