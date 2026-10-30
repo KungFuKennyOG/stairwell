@@ -90,8 +90,8 @@ const TOWER=[
       {id:'ibarra',name:'Ibarra',x:-4.9,z:.45,hd:Math.PI/2},{id:'novak',name:'Novak',x:-8.4,z:.5,hd:-Math.PI/2}] },
 
   { n:1,name:'Floor 01',kit:'pistol',wall:'peel',floor:'lino',
-    units:[{side:1,x0:-10,x1:-5.4,door:-6.3,win:true},{side:1,x0:-5.4,x1:-.6,door:-3.0,win:true},{side:1,x0:-.6,x1:4.6,door:.4,win:true,winX:2.0,hole:4.2},{side:1,x0:4.6,x1:10,door:7.2,win:true},
-      {side:-1,x0:-10,x1:-4.2,door:-7.0,win:true},{side:-1,x0:-4.2,x1:3.4,door:2.4,win:true,winX:-.4},{side:-1,x0:3.4,x1:10,door:6.0,win:true,hole:3.2}],
+    units:[{side:1,x0:-10,x1:-5.4,door:-6.3,win:true,paper:'tile',fl:'tile'},{side:1,x0:-5.4,x1:-.6,door:-3.0,win:true,paper:'peel',fl:'conc'},{side:1,x0:-.6,x1:4.6,door:.4,win:true,winX:2.0,hole:4.2,paper:'nicotine'},{side:1,x0:4.6,x1:10,door:7.2,win:true,paper:'concrete',fl:'conc'},
+      {side:-1,x0:-10,x1:-4.2,door:-7.0,win:true,paper:'pink',fl:'rug'},{side:-1,x0:-4.2,x1:3.4,door:2.4,win:true,winX:-.4,paper:'sage',fl:'check'},{side:-1,x0:3.4,x1:10,door:6.0,win:true,hole:3.2,paper:'tile',fl:'tile'}],
     build(A){ A.tube(-8,'dead'); A.tube(-3.5,'on'); A.tube(1,'dead'); A.tube(5,'dead'); A.tube(8.5,'dead');
       A.light([-3.5,2.5,0],[1.05,1.15,1.28],6,'flick');
       A.light([-11.5,2.35,0],[1.25,.92,.56],5);
@@ -138,8 +138,8 @@ const TOWER=[
     clear:['FLOOR 01','Five men. All of them were on the stairs.'] },
 
   { n:2,name:'Floor 02',kit:'pistol',wall:'paper',floor:'carpet',
-    units:[{side:1,x0:-10,x1:-4.6,door:-5.5},{side:1,x0:-4.6,x1:1.2,door:-.6,win:true,hole:4.6},{side:1,x0:1.2,x1:10,door:2.2,win:true,winX:5.6},
-      {side:-1,x0:-10,x1:-3,door:-4.0,win:true,winX:-6.5},{side:-1,x0:-3,x1:4,door:.6,win:true},{side:-1,x0:4,x1:10,door:5.2,win:true}],
+    units:[{side:1,x0:-10,x1:-4.6,door:-5.5,paper:'concrete',fl:'conc'},{side:1,x0:-4.6,x1:1.2,door:-.6,win:true,hole:4.6,paper:'peel',fl:'conc'},{side:1,x0:1.2,x1:10,door:2.2,win:true,winX:5.6,paper:'blue'},
+      {side:-1,x0:-10,x1:-3,door:-4.0,win:true,winX:-6.5,paper:'cream',fl:'oak'},{side:-1,x0:-3,x1:4,door:.6,win:true,paper:'tile',fl:'tile'},{side:-1,x0:4,x1:10,door:5.2,win:true,paper:'nicotine'}],
     build(A){ A.tube(-8,'dead'); A.tube(-4,'dead'); A.tube(1,'on'); A.tube(5,'dead'); A.tube(8.5,'dead');
       A.light([1,2.5,0],[1.0,1.08,1.2],5.8,'flick');
       A.light([-11.5,2.35,0],[1.25,.92,.56],5);
@@ -185,8 +185,8 @@ const TOWER=[
     clear:['FLOOR 02','Five men. One of them beat Novak.'] },
 
   { n:3,name:'Floor 03',kit:'pistol',wall:'dark',floor:'parquet',
-    units:[{side:1,x0:-10,x1:-3.6,door:-4.4,win:true},{side:1,x0:-3.6,x1:2.8,door:-1.0},{side:1,x0:2.8,x1:10,door:6.4,win:true,hole:4.4},
-      {side:-1,x0:-10,x1:-2,door:-3.2,win:true},{side:-1,x0:-2,x1:10,door:3.4,win:true,winX:6.0}],
+    units:[{side:1,x0:-10,x1:-3.6,door:-4.4,win:true,paper:'panel',fl:'oak'},{side:1,x0:-3.6,x1:2.8,door:-1.0,paper:'nicotine',fl:'rug'},{side:1,x0:2.8,x1:10,door:6.4,win:true,hole:4.4,paper:'peel',fl:'conc'},
+      {side:-1,x0:-10,x1:-2,door:-3.2,win:true,paper:'pink'},{side:-1,x0:-2,x1:10,door:3.4,win:true,winX:6.0,paper:'sage'}],
     build(A){ A.tube(-8,'dead'); A.tube(-4,'dead'); A.tube(2,'on'); A.tube(6,'dead');
       A.light([2,2.5,0],[1.0,1.08,1.2],5.8,'flick');
       A.light([-11.5,2.35,0],[1.25,.92,.56],5);
@@ -230,6 +230,76 @@ const TW_WALL={peel:tPeel,paper:tPaper,dark:tDarkPaint}, TW_FLOOR={lino:tLinoSta
 /* floors can be added by later files (67-*.js push onto TOWER), so the top is read when it's needed */
 const twLast=()=>TOWER.length-1;
 
+
+/* ---------- polish: painted panels, trims, the things people leave about ----------
+   Walls are built as their two faces, cut into cells of about 0.6 x 0.7 m: lighting here is per vertex, so a bulb's pool on a wall needs
+   vertices to land on, or the light breaks into saw-teeth. Each face takes the paint of the room it faces, mapped in world space
+   (one 1.2 m panel across, floor to ceiling down), so a lintel shows the top of the wall and the skirting runs at the bottom. */
+/* grime over a painted panel: water run down from the ceiling, scuffs along the skirting, plaster showing where the paint came off */
+function twGrime(g,w,h,r,k=1){ for(let i=0;i<3*k;i++){ const x=r()*w|0,len=(.15+r()*.45)*h; vfill(g,x,0,2+(r()*3|0),len,[[0,'rgba(60,44,20,.42)'],[.6,'rgba(60,44,20,.18)'],[1,'rgba(60,44,20,0)']]); }
+  for(let i=0;i<6*k;i++) R(g,'rgba(20,16,12,'+(.15+r()*.2)+')',r()*w|0,h-5-(r()*7|0),2+(r()*4|0),1);
+  for(let i=0;i<k;i++){ if(r()<.6) continue; const x=r()*(w-6),y=h*.3+r()*h*.4,ww=2+r()*4,hh=2+r()*3; ell(g,x+ww/2,y+hh/2,ww/2,hh/2,'rgba(170,160,140,.28)'); }
+  vfill(g,0,0,w,6,[[0,'rgba(0,0,0,.35)'],[1,'rgba(0,0,0,0)']]); }
+const twPaint=(base,seed,fn,o={})=>wallTex(base,seed,(g,w,h,r)=>{ if(fn) fn(g,w,h,r); twGrime(g,w,h,r,o.grime??1); },o);
+const TW_PAPER={
+  peel:twPaint('#6c7c66',1601,(g,w,h,r)=>{ for(let i=0;i<3;i++){ const x=r()*26|0,y=8+r()*40|0,ww=3+(r()*4|0),hh=2+(r()*3|0); R(g,'rgba(150,140,112,.55)',x,y,ww,hh); R(g,'rgba(0,0,0,.22)',x,y+hh,ww,1); } },{skirt:'#3e4a3a',grime:1.6}),
+  paper:twPaint('#8a7a50',1602,(g,w,h,r)=>{ for(let x=0;x<w;x+=6){ R(g,'#7a6a42',x,0,1,h); R(g,'rgba(255,240,190,.08)',x+3,0,1,h); } for(let i=0;i<2;i++){ const x=r()*24|0; R(g,'rgba(40,28,10,.35)',x,10,6,1); poly(g,[[x,10],[x+6,10],[x+4,18]],'rgba(200,180,140,.5)'); } },{skirt:'#3a2e1c',grime:1.3}),
+  dark:twPaint('#3c4046',1603,(g,w,h)=>{ R(g,'#4c5056',0,h*.42|0,w,1); },{skirt:'#202226',grime:1.2}),
+  nicotine:twPaint('#a8935e',1604,(g,w,h)=>{ for(let x=0;x<w;x+=8){ R(g,'rgba(120,96,50,.25)',x,0,3,h); } vfill(g,0,0,w,h*.5,[[0,'rgba(90,64,24,.45)'],[1,'rgba(90,64,24,0)']]); },{skirt:'#5a4626',grime:1.4}),
+  tile:twPaint('#b8a870',1605,(g,w,h)=>{ R(g,'#cfd0c4',0,h*.5,w,h*.5-3); for(let y=h*.5;y<h-3;y+=4) R(g,'rgba(0,0,0,.14)',0,y|0,w,1); for(let x=0;x<w;x+=4) R(g,'rgba(0,0,0,.14)',x,h*.5|0,1,h*.5-3); R(g,'#4a7a6a',0,h*.5|0,w,2); },{skirt:'#4a7a6a',grime:1.2}),
+  sage:twPaint('#6e7e62',1606,(g,w,h)=>{ R(g,'#5a6850',0,h*.62|0,w,h*.38); R(g,'#8a9a7a',0,h*.62|0,w,1); },{skirt:'#3a4434',crown:'#9aa88a',grime:1.2}),
+  cream:twPaint('#c8b894',1607,null,{skirt:'#8a7a5a',crown:'#d8ccb0',grime:1.5}),
+  pink:twPaint('#c49ca0',1608,(g,w,h)=>{ for(let y=6;y<h-6;y+=10) for(let x=(y/10|0)%2?6:0;x<w;x+=12) ell(g,x,y,1.4,1.4,'#d8b8ba'); },{skirt:'#e2d8d0',grime:1.4}),
+  blue:twPaint('#465a7a',1609,null,{skirt:'#2a3446',grime:1.3}),
+  panel:twPaint('#5a4632',1610,(g,w,h,r)=>{ for(let x=0;x<w;x+=8){ R(g,'#46362a',x,0,1,h); R(g,'rgba(255,220,160,.07)',x+1,0,2,h); } R(g,'#3a2c20',0,h*.55|0,w,2); },{skirt:'#2a1e14',grime:.8}),
+  concrete:twPaint('#6a6a66',1611,(g,w,h,r)=>{ for(let i=0;i<14;i++) R(g,'rgba(0,0,0,.12)',r()*w|0,r()*h|0,2,1); for(let y=0;y<h;y+=21) R(g,'rgba(0,0,0,.22)',0,y,w,1); },{skirt:false,grime:1.6}) };
+/* the corridor: cream over a green dado and a dark rail, kicked and scraped along the bottom */
+const tTwHall=twPaint('#a39f86',1620,(g,w,h)=>{ vfill(g,0,h*.56,w,h*.44,[[0,'#3e5244'],[1,'#2c3a30']]); R(g,'#1e2a22',0,h*.56|0,w,2); R(g,'rgba(255,255,255,.08)',0,(h*.56|0)+2,w,1); },{skirt:'#1a1e1a',grime:1.8});
+const TW_FLOORS={lino:tLinoStain,check:tFlLino,tile:tFlTile,conc:tFlConc,carpet:tCarpet,rug:tFlCarpet,oak:tFlOak,old:tLinoStain,parquet:tParquet};
+const TW_FLTINT={check:0x7a7468,tile:0x8a8a82,conc:0x7a7672,rug:0x8a8278,oak:0x8a7e70};
+const tTwStain=P2(32,32,(g,w,h)=>{ const r=rng(1630); for(let k=0;k<3;k++){ const cx=8+r()*16,cy=8+r()*16,rr=5+r()*7; for(let i=0;i<5;i++) ell(g,cx+(r()-.5)*rr,cy+(r()-.5)*rr,rr*(.5+r()*.5),rr*(.4+r()*.5),'rgba(70,52,26,.16)'); ell(g,cx,cy,rr*.9,rr*.75,'rgba(0,0,0,0)'); }
+  g.strokeStyle='rgba(60,40,16,.35)'; g.lineWidth=1; g.beginPath(); g.ellipse(16,16,11,9,.3,0,6.28); g.stroke(); });
+const tTwPlates=n=>P2(32,8*n,(g,w,h)=>{ R(g,'#2a2620',0,0,w,h); });
+/* a merge pot: boxes, cylinders and quads by material, flushed as one mesh per material (one draw call each) */
+function twPot(){ const P=new Map();
+  const geoOf=m=>{ let e=P.get(m); if(!e){ e=new Geo(); e.groups=[{start:0,count:0,mi:0}]; P.set(m,e); } return e; };
+  const put=(m,src,x,y,z,ry=0,rx=0,rz=0)=>{ const g=geoOf(m),b=g.P.length/3,R_=m4.compose(m4.make(),[x,y,z],[rx,ry,rz],[1,1,1]);
+    for(let i=0;i<src.P.length;i+=3){ const v=mulP(R_,[src.P[i],src.P[i+1],src.P[i+2]]); g.P.push(v[0],v[1],v[2]); const n=src.Nm, q=[R_[0]*n[i]+R_[4]*n[i+1]+R_[8]*n[i+2],R_[1]*n[i]+R_[5]*n[i+1]+R_[9]*n[i+2],R_[2]*n[i]+R_[6]*n[i+1]+R_[10]*n[i+2]]; g.Nm.push(q[0],q[1],q[2]); }
+    for(const t of src.T) g.T.push(t); for(const ix of src.I) g.I.push(ix+b); };
+  return { box(m,w,h,d,x,y,z,ry,rx,rz){ put(m,box(w,h,d),x,y,z,ry,rx,rz); }, cyl(m,rt,rb,h,seg,x,y,z,ry,rx,rz){ put(m,cyl(rt,rb,h,seg),x,y,z,ry,rx,rz); },
+    quad(m,c,n,u,v,su,sv,uv=[0,0,1,1]){ const g=geoOf(m),b=g.P.length/3; for(const [a,bb,ta,tb] of [[-1,-1,uv[0],uv[1]],[1,-1,uv[2],uv[1]],[1,1,uv[2],uv[3]],[-1,1,uv[0],uv[3]]]){ g.v([c[0]+u[0]*a*su+v[0]*bb*sv,c[1]+u[1]*a*su+v[1]*bb*sv,c[2]+u[2]*a*su+v[2]*bb*sv],n,[ta,tb]); } g.I.push(b,b+1,b+2,b,b+2,b+3); },
+    raw:geoOf,
+    flush(G){ for(const [m,g] of P){ if(!g.I.length) continue; g.groups=[{start:0,count:g.I.length,mi:0}]; mk(g,m,G); } P.clear(); } }; }
+/* the faces of wall slabs [cx,cy,cz,w,h,d,...]: matAt(x,z) says what paint faces into that spot (null: nobody sees it) */
+function twFaces(pot,list,matAt,trim){ const CU=.6,CV=.7;
+  for(const e of list){ const [cx,cy,cz,w,h,d]=e,alongX=w>=d,L=alongX?w:d,T=alongX?d:w,a0=(alongX?cx:cz)-L/2,y0=cy-h/2,nu=Math.max(1,Math.ceil(L/CU-.01)),nv=Math.max(1,Math.ceil(h/CV-.01));
+    for(const sd of [1,-1]){ const nrm=alongX?[0,0,sd]:[sd,0,0],off=(alongX?cz:cx)+sd*T/2;
+      for(let i=0;i<nu;i++){ const s0=a0+L*i/nu,s1=a0+L*(i+1)/nu,sm=(s0+s1)/2; const px=alongX?sm:off+sd*.25,pz=alongX?off+sd*.25:sm,m=matAt(px,pz); if(!m) continue;
+        const g=pot.raw(m);
+        for(let j=0;j<nv;j++){ const yA=y0+h*j/nv,yB=y0+h*(j+1)/nv,b=g.P.length/3;
+          const P_=(s,y)=>alongX?[s,y,off]:[off,y,s], U=s=>(alongX?s:-s)*sd/1.2;
+          const cs=[[s0,yA],[s1,yA],[s1,yB],[s0,yB]]; if(sd<0) cs.reverse();
+          if(!alongX) cs.reverse();
+          for(const [s,y] of cs) g.v(P_(s,y),nrm,[U(s),y/RH]);
+          g.I.push(b,b+1,b+2,b,b+2,b+3); } } }
+    /* the edges: jambs, the underside of a lintel, the tops (under the ceiling, unseen, skipped) */
+    const ends=alongX?[[cx-w/2,[-1,0,0]],[cx+w/2,[1,0,0]]]:[[cz-d/2,[0,0,-1]],[cz+d/2,[0,0,1]]];
+    for(const [pos,n] of ends){ const c=alongX?[pos,cy,cz]:[cx,cy,pos]; pot.quad(trim,c,n,alongX?[0,0,1]:[1,0,0],[0,1,0],T/2,h/2); }
+    if(y0>.05) pot.quad(trim,[cx,y0,cz],[0,-1,0],[1,0,0],[0,0,1],w/2,d/2); } }
+/* stuff on the floor along the walls of a room: a few things, out of the way of doors and furniture */
+function twClutter(pot,units,rnd2){ const mBag=M(null,{color:0x16181a}),mBottle=M(null,{color:0x2e5a34}),mCan=M(null,{color:0x8a8e90}),mCloth=M(null,{color:0x4a5260}),mPaper=M(null,{color:0xb8b0a0}),mShoe=M(null,{color:0x2a2420});
+  for(const u of units){ const n=3+(rnd2()*4|0);
+    for(let t=0,k=0;t<40&&k<n;t++){ const along=rnd2(),edge=rnd2()<.5; let x=u.x0+.35+along*(u.w-.7),z=u.side*(edge?5.6:1.4+rnd2()*4.2); if(!edge){ x=rnd2()<.5?u.x0+.3:u.x1-.3; }
+      if(Math.abs(x-u.door)<.9&&Math.abs(z)<2.2) continue; if(u.hole!=null&&Math.abs(x-u.x0)<.6&&Math.abs(Math.abs(z)-u.hole)<.8) continue;
+      if(BOXES.some(b=>b.kind!=='wall'&&x>b.x0-.25&&x<b.x1+.25&&z>b.z0-.25&&z<b.z1+.25)) continue;
+      const ry=rnd2()*6.28,kind=rnd2(); k++;
+      if(kind<.22){ pot.box(mBag,.42,.34,.36,x,.17,z,ry); pot.box(mBag,.12,.08,.1,x,.38,z,ry); }
+      else if(kind<.42){ for(let q=0;q<1+(rnd2()*3|0);q++){ const lay=rnd2()<.5; pot.cyl(mBottle,.028,.034,.24,6,x+(rnd2()-.5)*.3,lay?.034:.12,z+(rnd2()-.5)*.3,rnd2()*6,lay?Math.PI/2:0,0); } }
+      else if(kind<.58){ for(let q=0;q<2+(rnd2()*3|0);q++) pot.cyl(mCan,.033,.033,.12,6,x+(rnd2()-.5)*.35,.033,z+(rnd2()-.5)*.35,rnd2()*6,Math.PI/2,0); }
+      else if(kind<.74){ pot.box(mCloth,.5,.08,.38,x,.04,z,ry); pot.box(mCloth,.3,.06,.28,x+.08,.1,z,ry+.6); }
+      else if(kind<.88){ for(let q=0;q<3;q++) pot.box(mPaper,.3,.006,.22,x+(rnd2()-.5)*.25,.003+q*.006,z+(rnd2()-.5)*.25,rnd2()*6); }
+      else { pot.box(mShoe,.11,.09,.28,x,.045,z,ry); pot.box(mShoe,.11,.09,.28,x+.16,.045,z+.05,ry+.3); } } } }
+
 /* ---------- building one ---------- */
 function genTower(i){ const D=TOWER[i]; setWorld(14,6);
   disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true; if(typeof FIRES!=='undefined') FIRES.length=0;
@@ -245,21 +315,45 @@ function genTower(i){ const D=TOWER[i]; setWorld(14,6);
     twWall(unitW,'x',side*6,-10,10,row.filter(u=>u.win).map(u=>({s:u.winX??(u.x0+u.x1)/2,w:1.4,y0:.9,y1:2.0})));
     twWall(unitW,'z',-10,side>0?1:-6,side>0?6:-1,[]); twWall(unitW,'z',10,side>0?1:-6,side>0?6:-1,[]);
     for(let k=1;k<row.length;k++){ const u=row[k]; twWall(unitW,'z',u.x0,side>0?1:-6,side>0?6:-1,u.hole!=null?[{s:side*u.hole,w:1.0,y0:0,y1:2.0}]:[]); } }
-  mk(mergeBoxes(unitW),M(TW_WALL[D.wall]||tPeel),G); mk(mergeBoxes(hallW),M(tHallWall),G); mk(mergeBoxes(stairW),M(tStairWall),G);
+  /* paint: each apartment its own (u.paper), the floor's default otherwise; the corridor; the stairwells */
+  const pot=twPot(), mTrim=M(null,{color:0x2a241e,double:true}), mHall=M(tTwHall), mStair=M(tStairWall);
+  const paperM={}; const papOf=k=>paperM[k]||(paperM[k]=M(TW_PAPER[k]||TW_PAPER.peel));
+  const matAt=(x,z)=>{ const ax=Math.abs(x),az=Math.abs(z); if(az>6||ax>14) return null; if(ax>10) return az<2.05?mStair:null; if(az<1) return mHall;
+    const u=units.find(u=>u.side===Math.sign(z)&&x>=u.x0&&x<u.x1); return u?papOf(u.paper||D.wall):null; };
+  twFaces(pot,[...unitW,...hallW],matAt,mTrim);
   for(const e of [...unitW,...hallW,...stairW]) addBox(e[0]-e[3]/2,e[0]+e[3]/2,e[2]-e[5]/2,e[2]+e[5]/2,e[1]-e[4]/2,e[1]+e[4]/2,'wall');
-  /* floors: each apartment its own, the corridor, the landings; the ceiling */
-  const ft=TW_FLOOR[D.floor]||tLinoStain;
-  for(const u of units){ const w=u.x1-u.x0; mk(plane(w,5,Math.ceil(w),5),M(ft,{repeat:[w/2,2.5]}),G,(u.x0+u.x1)/2,.002,u.side*3.5,-Math.PI/2); }
-  mk(plane(20,2,20,2),M(D.pro?tLinoHall:tLinoHall,{repeat:[10,1]}),G,0,.004,0,-Math.PI/2);
-  mk(plane(20,12,20,12),M(tConcrete,{repeat:[10,6],color:0x6a6866}),G,0,RH,0,Math.PI/2);
-  /* windows: glass you can't fall through */
-  for(const u of units) if(u.win){ const x=u.winX??(u.x0+u.x1)/2; mk(plane(1.4,1.1),M(tNightWin,{unlit:true,color:0x8a8a8a}),G,x,1.45,u.side*5.94,0,u.side>0?Math.PI:0,0); addBox(x-.7,x+.7,u.side*6-.07,u.side*6+.07,.9,2.0,'window'); }
+  /* floors: each apartment its own (u.fl), the corridor; finer cells so the light pools are round. The ceiling, stained */
+  const flM={}; const flOf=k=>flM[k]||(flM[k]=M(TW_FLOORS[k]||TW_FLOORS.old,{repeat:[1,1]}));
+  for(const u of units){ const w=u.x1-u.x0,fk=u.fl||D.floor,big=fk==='check'||fk==='tile'||fk==='rug'||fk==='oak'||fk==='conc',m=M(TW_FLOORS[fk]||TW_FLOORS.old,{repeat:big?[w,5]:[w/1.6,5/1.6],color:TW_FLTINT[fk]??0xffffff}); mk(plane(w,5,Math.ceil(w*2),10),m,G,(u.x0+u.x1)/2,.002,u.side*3.5,-Math.PI/2); }
+  mk(plane(20,2,40,4),M(tLinoHall,{repeat:[10,1]}),G,0,.004,0,-Math.PI/2);
+  mk(plane(20,12,40,24),M(tConcrete,{repeat:[10,6],color:0x6a6866}),G,0,RH,0,Math.PI/2);
+  const r2=rng((D.n+1)*7919);
+  { const mSt=M(tTwStain,{cut:true}); for(let k=0;k<9;k++){ const x=-9.5+r2()*19,z=(r2()-.5)*11,sz=.5+r2()*1.1; pot.quad(mSt,[x,RH-.004,z],[0,-1,0],[1,0,0],[0,0,1],sz,sz*.8); }
+    for(let k=0;k<7;k++){ const x=-9.5+r2()*19,z=(r2()-.5)*11,sz=.4+r2()*.7; if(Math.abs(z)<1.1||Math.abs(z)>5.6) continue; pot.quad(mSt,[x,.008,z],[0,1,0],[1,0,0],[0,0,-1],sz,sz*.7); } }
+  /* the corridor ceiling: two pipes and a conduit run its length, clamped every couple of metres */
+  { const mPipe=M(tSteel,{color:0x6a6862}),mRust=M(null,{color:0x4a3022});
+    pot.cyl(mPipe,.045,.045,20,6,0,RH-.12,.72,0,0,Math.PI/2); pot.cyl(mRust,.03,.03,20,5,0,RH-.1,.55,0,0,Math.PI/2); pot.cyl(mPipe,.016,.016,20,4,0,RH-.05,-.7,0,0,Math.PI/2);
+    for(let x=-9;x<=9;x+=2.2){ pot.box(mTrim,.04,.1,.24,x,RH-.07,.64); pot.box(mTrim,.03,.04,.06,x+.4,RH-.03,-.7); } }
+  /* door casings both sides, and the number beside each door on the corridor side (one atlas, one draw) */
+  { const N_=units.length,plates=tex(32,8*N_,'#2a2620',(g)=>{ units.forEach((u,k)=>{ const t=String(D.n)+String(k+1).padStart(2,'0'); R(g,'#8a7a4a',1,k*8+1,30,6); R(g,'#c8b070',2,k*8+2,28,4); text(g,t,(32-textW(t))>>1,k*8+2,'#2a2014'); }); });
+    const mPl=M(plates);
+    units.forEach((u,k)=>{ const z=u.side; for(const sx of [-1,1]) pot.box(mTrim,.08,2.18,.24,u.door+sx*.54,1.09,z); pot.box(mTrim,1.16,.09,.24,u.door,2.145,z);
+      const px=u.door+(u.door<(u.x0+u.x1)/2?.82:-.82),pz=z-z*.075; pot.quad(mPl,[px,1.55,pz],[0,0,-z],[z>0?-1:1,0,0],[0,1,0],.16,.04,[0,1-(k+1)/N_,1,1-k/N_]); } ); }
+  /* windows: frame, sill, glass you can't fall through, and a curtain in some */
+  { const mCurt=[M(null,{color:0x6a2a24}),M(null,{color:0x8a7a52}),M(null,{color:0x3a4a5a})]; for(const u of units) if(u.win){ const x=u.winX??(u.x0+u.x1)/2,z=u.side*5.94;
+    mk(plane(1.4,1.1),M(tNightWin,{unlit:true,color:0x8a8a8a}),G,x,1.45,z,0,u.side>0?Math.PI:0,0); addBox(x-.7,x+.7,u.side*6-.07,u.side*6+.07,.9,2.0,'window');
+    const zi=u.side*(6-.1); pot.box(mTrim,1.56,.05,.22,x,.88,zi); pot.box(mTrim,1.5,.07,.08,x,2.03,u.side*5.95); for(const sx of [-1,1]) pot.box(mTrim,.07,1.15,.08,x+sx*.72,1.45,u.side*5.95); pot.box(mTrim,.04,1.1,.04,x,1.45,u.side*5.93);
+    if(r2()<.6){ const c=mCurt[r2()*3|0],sx=r2()<.5?-1:1; pot.box(c,.5,1.35,.04,x+sx*.55,1.35,u.side*5.82,0,0,sx*.03); pot.box(mTrim,1.8,.03,.03,x,2.1,u.side*5.82); } } }
+  /* where the party wall was knocked through: plaster and brick on the floor either side */
+  { const mDeb=M(null,{color:0x8a8478}),mBrick=M(null,{color:0x7a4a34}); for(const u of units) if(u.hole!=null){ const z=u.side*u.hole; for(let q=0;q<9;q++){ const sx=r2()<.5?-1:1; (q%3?pot.box.bind(null,mDeb):pot.box.bind(null,mBrick))(.08+r2()*.14,.04+r2()*.05,.06+r2()*.12,u.x0+sx*(.15+r2()*.6),.03,z+(r2()-.5)*1.1,r2()*6); } } }
   /* the stairwells: real switchbacks (twShaft). East goes up; west is where you came up, its flight up barricaded. The lobby has the street doors on the west */
   const blocked=[];
   for(const sx of [-1,1]){ if(sx<0&&D.pro) twVestibule(G,blocked); else twShaft(G,sx,sx>0?'up':'in',D.n,blocked); }
   /* what's in it */
   const furn=[],seats=[],beds=[],lights=[],anim=[];
   D.build(twKit(G,furn,seats,beds,lights,anim));
+  if(!D.pro&&D.clutter!==false) twClutter(pot,units,r2);
+  pot.flush(G);
   for(const l of lights){ const p=l[0]; if(Math.abs(Math.abs(p[0])-11.5)<.01&&Math.abs(p[1]-2.35)<.01&&Math.abs(p[2])<.01){ const sx=Math.sign(p[0]);
       if(sx<0&&D.pro) continue; l[0]=[sx*13.55,3.25,.9]; l[2]=Math.max(l[2],6.2); } }
   /* the flickering tube is light 0 (the game flickers FLOOR.lights[0] through FLOOR.flick) */
