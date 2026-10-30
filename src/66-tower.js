@@ -89,7 +89,7 @@ const TOWER=[
     team:[{id:'dunne',name:'Dunne',x:-3.2,z:.35,hd:Math.PI/2},{id:'harris',name:'Harris',x:-2.4,z:-.45,hd:Math.PI/2},{id:'reyes',name:'Reyes',x:-4.1,z:-.42,hd:Math.PI/2},
       {id:'ibarra',name:'Ibarra',x:-4.9,z:.45,hd:Math.PI/2},{id:'novak',name:'Novak',x:-8.4,z:.5,hd:-Math.PI/2}] },
 
-  { n:1,name:'Floor 01',wall:'peel',floor:'lino',
+  { n:1,name:'Floor 01',kit:'pistol',wall:'peel',floor:'lino',
     units:[{side:1,x0:-10,x1:-5.4,door:-6.3,win:true},{side:1,x0:-5.4,x1:-.6,door:-3.0,win:true},{side:1,x0:-.6,x1:4.6,door:.4,win:true,winX:2.0,hole:4.2},{side:1,x0:4.6,x1:10,door:7.2,win:true},
       {side:-1,x0:-10,x1:-4.2,door:-7.0,win:true},{side:-1,x0:-4.2,x1:3.4,door:2.4,win:true,winX:-.4},{side:-1,x0:3.4,x1:10,door:6.0,win:true,hole:3.2}],
     build(A){ A.tube(-8,'dead'); A.tube(-3.5,'on'); A.tube(1,'dead'); A.tube(5,'dead'); A.tube(8.5,'dead');
@@ -126,7 +126,7 @@ const TOWER=[
       {kind:'corner',name:'Rui',spots:[[-2.3,-2.95,-Math.PI/2],[-1.9,-3.2,-Math.PI/2-.2]],pose:'watch',extra:'I\'m nineteen, man—'},
       {kind:'corner',name:'Jojo',spots:[[-2.2,-4.15,-Math.PI/2+.25],[-1.6,-4.3,-Math.PI/2+.4]],pose:'idle',extra:'My brother\'s on six— please—'},
       {kind:'corner',name:'Kev',spots:[[2.0,5.22,0],[1.6,5.2,.25]],pose:'phone',extra:'I just held the door— I didn\'t shoot—'},
-      {kind:'corner',name:'Tito',spots:[[10.35,.55,-Math.PI/2]],pose:'idle',extra:'They made me look— they made me—',
+      {kind:'gunman',name:'Tito',spots:[[10.35,.55,-Math.PI/2]],pose:'idle',extra:'They made me look— they made me—',
         hunt:{pts:[[7.2,0],[7.2,3.4],[7.2,0],[-3.0,0],[-3.0,3.4],[-3.0,0],[-7.0,0],[-7.0,-3.4],[-7.0,0],[-10.35,.5],[-6.0,0],[2.4,0],[6.0,0],[6.0,-3.4],[6.0,0],[10.35,.4]],
           calls:['Cop?','Come out, cop.','Landlord says six.','We only counted five.','I know you\'re hurt.','...cop?','You\'re bleeding, man. I can smell it.']}}],
     talk:[
@@ -137,7 +137,7 @@ const TOWER=[
     loot:[['knife',-7.4,.97,5.5,.4]],
     clear:['FLOOR 01','Five men. All of them were on the stairs.'] },
 
-  { n:2,name:'Floor 02',wall:'paper',floor:'carpet',
+  { n:2,name:'Floor 02',kit:'pistol',wall:'paper',floor:'carpet',
     units:[{side:1,x0:-10,x1:-4.6,door:-5.5},{side:1,x0:-4.6,x1:1.2,door:-.6,win:true,hole:4.6},{side:1,x0:1.2,x1:10,door:2.2,win:true,winX:5.6},
       {side:-1,x0:-10,x1:-3,door:-4.0,win:true,winX:-6.5},{side:-1,x0:-3,x1:4,door:.6,win:true},{side:-1,x0:4,x1:10,door:5.2,win:true}],
     build(A){ A.tube(-8,'dead'); A.tube(-4,'dead'); A.tube(1,'on'); A.tube(5,'dead'); A.tube(8.5,'dead');
@@ -172,8 +172,8 @@ const TOWER=[
       {kind:'cutter',name:'Marco',spots:[[-7.4,2.5,0]],pose:'lean',extra:'I don\'t even know you—'},
       {kind:'cutter',name:'Luis',spots:[[-7.4,4.72,Math.PI]],pose:'lean',extra:'It\'s not mine, it\'s his—'},
       {kind:'corner',name:'Felix',spots:[[6.0,3.05,0],[6.3,3.1,-.3]],pose:'watch',extra:'I was a fighter, man—'},
-      {kind:'cutter',name:'Sami',spots:[[-7.2,-4.05,Math.PI],[-6.6,-4.1,Math.PI+.3]],pose:'lean',extra:'I just moved in, man!'},
-      {kind:'cutter',name:'Nico',spots:[[10.35,.55,-Math.PI/2]],pose:'idle',extra:'It was the Landlord\'s order—',
+      {kind:'gunman',name:'Sami',spots:[[-7.2,-4.05,Math.PI],[-6.6,-4.1,Math.PI+.3]],pose:'lean',extra:'I just moved in, man!'},
+      {kind:'doorman',name:'Nico',spots:[[10.35,.55,-Math.PI/2]],pose:'idle',extra:'It was the Landlord\'s order—',
         hunt:{pts:[[5.2,0],[6.5,-3.4],[5.2,0],[.6,0],[.6,-3.4],[.6,0],[-.6,0],[-1.7,3.4],[-3.6,4.4],[-1.7,3.4],[-.6,0],[-10.35,.5],[-4.0,0],[2.2,0],[2.2,2.6],[2.2,0],[10.35,.4]],
           calls:['Hey. Cop.','Tito\'s not answering.','...Tito?','You\'re on two now, huh?','Come out. I\'ll make it quick.','We left you for dead. Should\'ve checked.']}}],
     talk:[
@@ -184,7 +184,7 @@ const TOWER=[
     loot:[],
     clear:['FLOOR 02','Five men. One of them beat Novak.'] },
 
-  { n:3,name:'Floor 03',wall:'dark',floor:'parquet',
+  { n:3,name:'Floor 03',kit:'pistol',wall:'dark',floor:'parquet',
     units:[{side:1,x0:-10,x1:-3.6,door:-4.4,win:true},{side:1,x0:-3.6,x1:2.8,door:-1.0},{side:1,x0:2.8,x1:10,door:6.4,win:true,hole:4.4},
       {side:-1,x0:-10,x1:-2,door:-3.2,win:true},{side:-1,x0:-2,x1:10,door:3.4,win:true,winX:6.0}],
     build(A){ A.tube(-8,'dead'); A.tube(-4,'dead'); A.tube(2,'on'); A.tube(6,'dead');
@@ -218,7 +218,7 @@ const TOWER=[
       {kind:'gunman',name:'Paulie',spots:[[-7.0,3.12,0]],pose:'lean',extra:'It\'s just the rent, man—'},
       {kind:'gunman',name:'Eddie',spots:[[-.4,2.55,0]],pose:'lean',extra:'I got a kid on the way—'},
       {kind:'cutter',name:'Tomas',spots:[[-.4,4.65,Math.PI]],pose:'lean',extra:'Take it, take the money—'},
-      {kind:'gunman',name:'Big Mike',spots:[[6.0,-5.2,Math.PI],[5.6,-5.15,Math.PI-.3]],pose:'watch',extra:'I didn\'t shoot nobody—'}],
+      {kind:'enforcer',name:'Big Mike',spots:[[6.0,-5.2,Math.PI],[5.6,-5.15,Math.PI-.3]],pose:'watch',extra:'I didn\'t shoot nobody—'}],
     talk:[
       {who:['Paulie'],r:3.8,lines:[['Paulie','Two-oh-one. Short. Again.'],['Paulie','Helmets: five.'],['Paulie','Five hundred a helmet.'],['Paulie','Somebody owes me a sixth.']]},
       {who:['Tomas','Eddie'],r:3.8,lines:[['Tomas','Raise.'],['Eddie','With what, cop money?'],['Tomas','With yours.'],['Eddie','...you think they send more?'],['Tomas','Who?'],['Eddie','Kill five, they send fifty.'],['Tomas','Not here they don\'t. Raise.']]},
@@ -312,9 +312,12 @@ function twTalk(dt){ for(const C of FLOOR.convos||[]){ if(C.dead) continue;
 
 /* ---------- the run: loading, resetting, the stairs ---------- */
 function towerLoad(i){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genTower(i); buildRack(); buildBoard(); resetGame(); if(XR.on) vrRecenter(); }
+/* Novak's pistol, on the floor by his right hand, pushed toward you */
+function proNovakGun(Nv){ if(FLOOR.pro.gun) return; FLOOR.pro.gun=true; const h=X_(Nv.B,PI_.hdR),d=norm3([PL.x-h[0],0,PL.z-h[2]]),p=[h[0]+d[0]*.25,.06,h[2]+d[2]*.25];
+  const Mw=m4.compose(m4.make(),p,[0,Math.atan2(d[0],d[2]),Math.PI/2],[1,1,1]); addPickup(newItem('pistol'),Mw,v3.sc(d,.35),[0,0,0]); sfx('bump',.4,p); }
 function towerReset(){ GAME.fade=0;
   if(FLOOR.def.pro){ genTower(FLOOR.idx); proStart(); return; }
-  twCast(); twLoot(); if(XR.on) vrToast(FLOOR.def.name,2.5); }
+  twCast(); twLoot(); if(!GAME.kit&&FLOOR.def.kit) equip(HANDS.R,newItem(FLOOR.def.kit)); /* started here from the card: Novak's pistol */ if(XR.on) vrToast(FLOOR.def.name,2.5); }
 function towerClimb(){ if(GAME.climbing) return; GAME.climbing=true;
   if(FLOOR.idx>=TW_LAST){ GAME.atTop=true; showMsg('THAT\'S THE SLICE','The lobby and floors 1-3. Floor 04 isn\'t built yet.'); if(XR.on){ vrToast('Floor 04 isn\'t built yet',4); XR.clearT=5; } return; }
   const next=FLOOR.idx+1; FLOOR.next=next; GAME.fadeInT=0; try{ localStorage.setItem('stairwell.camp',String(next)); }catch(_){} }
@@ -352,7 +355,7 @@ function tickTower(dt){ twStairs(dt); document.body.classList.toggle('camp',FLOO
 /* ---------- the prologue: the lobby, the team, the tip that was a setup ---------- */
 const PRO_TALK=[[2,'Novak','Ray. They\'re waiting on us.'],[6,'Dunne','Landlord\'s on thirty. Quiet.'],[9.5,'Harris','Thirty floors. No elevator.'],[12.5,'Harris','Pool\'s open. Who pukes first?'],
   [15.5,'Reyes','Shut up, Deuce.'],[18.5,'Novak','Is it always this quiet?'],[21.5,'Ibarra','Nobody on the corner tonight.'],[24.5,'Dunne','Stack up. Stairs. Go.']];
-const PRO_NOVAK=['Ray... Ray, you there?','They walked right past us.','They think we\'re dead.','I can\'t feel my legs, man.','Don\'t go up there alone.','Tell my mom I—'];
+const PRO_NOVAK=['Ray... Ray, you there?','They walked right past us.','They think we\'re dead.','I can\'t feel my legs, man.','Don\'t go up there alone.','Here. Take it.','Tell my mom I—']; /* on 'Take it' his pistol is by his hand */
 const PRO_SHOT_A=[13.2,2.75,.9],PRO_SHOT_B=[2.0,1.4,-1.5];
 function proStart(){ FLOOR.pro={t:0,phase:'talk',said:0,ev:[]};
   for(const m of FLOOR.def.team){ const E=spawnEnemy({maker:(h,g)=>makeChar(m.id,h,g),name:m.name,x:m.x,z:m.z,hd:m.hd,extra:''}); E.ally=true; E.detail='your team'; enemies.push(E); }
@@ -388,7 +391,7 @@ function proTick(dt){ const P=FLOOR.pro; if(!P) return; P.t+=dt;
   if(P.phase==='black'){ P.b+=dt; P.beat-=dt; if(P.beat<=0){ P.beat=1.15; sfx('heart'); }
     if(P.b>5.5){ P.phase='wake'; P.w=0; P.line=0; P.lt=2.2; L.plCol.set([.9,.24,.12],12); FLOOR.lights[4][1]=[.9,.24,.12]; } return; }
   if(P.phase==='wake'){ P.w+=dt; GAME.fade=clamp(1-P.w/3.2,0,1); const Nv=twTeam('Novak');
-    if(Nv&&!Nv.dead){ P.lt-=dt; if(P.lt<=0){ if(P.line<PRO_NOVAK.length){ const txt=PRO_NOVAK[P.line++],dur=clamp(1.4+txt.length*.06,2,3.4); bark(Nv,txt,dur); vox(Nv,P.line>4?'whimper':'plead',.8); P.lt=dur+1.1; }
+    if(Nv&&!Nv.dead){ P.lt-=dt; if(P.lt<=0){ if(P.line<PRO_NOVAK.length){ const txt=PRO_NOVAK[P.line++],dur=clamp(1.4+txt.length*.06,2,3.4); bark(Nv,txt,dur); vox(Nv,P.line>4?'whimper':'plead',.8); P.lt=dur+1.1; if(txt.startsWith('Here.')) proNovakGun(Nv); }
         else { Nv.dieT=.05; P.phase='alone'; } } Nv.barkCd=9; }
     else if(P.w>4) P.phase='alone';
     return; } }

@@ -1611,8 +1611,9 @@ function teamArm(seed,col,colD,flag){ return armP(seed,()=>[col,'twill'],{decor:
 function teamLeg(seed,col,colD){ return legP(seed,()=>[col,'twill'],{decor:I=>{ for(const x of [4,42]){ softRect(I,x,30,17,24,colD,.6,1); softRect(I,x,30,17,5,mix(col,'#ffffff',.08),.9,.6); seam(I,x,35,x+17,35); } seam(I,48,0,48,128); seam(I,16,0,16,128); softRect(I,0,112,64,16,colD,.5,3); }}); }
 function teamVest(seed,base,word,name,textCol='#dedcd2'){ return garment(128,64,seed,()=>[base,'cordura',.5],{folds:6,decor:I=>{
   for(let y=34;y<58;y+=8) for(let x=2;x<128;x+=8) if((x>>3)%4!==3){ softRect(I,x,y,6,4,mix(base,'#000000',.3),.9,.4); softLine(I,x,y,x+6,y,mix(base,'#ffffff',.15),.4,.8); }
-  softRect(I,38,6,52,18,mix(base,'#ffffff',.06),.9,1); const w=textW(word,2); textI(I,word,64-w/2,9,textCol,2); textI(I,word,64-w/2-64,9,textCol,2); textI(I,word,64-w/2+64,9,textCol,2);
-  if(name){ softRect(I,46,26,36,6,'#101418',.9,.6); textI(I,name,64-textW(name,1)/2,27,'#c8c4b8',1); } softRect(I,0,0,128,3,mix(base,'#000000',.4),1,1); softRect(I,0,61,128,3,mix(base,'#000000',.4),1,1); }}); }
+  /* no lettering (the pixel font read as garbage on a vest): a plain velcro ID panel front and back, stitched round, and a blank name tape */
+  for(const cx of [64,0,128]){ softRect(I,cx-24,7,48,15,mix(base,'#000000',.22),.95,.8); for(const [x0,y0,x1,y1] of [[cx-24,7,cx+24,7],[cx-24,22,cx+24,22],[cx-24,7,cx-24,22],[cx+24,7,cx+24,22]]) softLine(I,x0,y0,x1,y1,mix(base,'#ffffff',.18),.35,.8); }
+  if(name){ softRect(I,48,26,32,5,mix(base,'#000000',.35),.9,.6); } softRect(I,0,0,128,3,mix(base,'#000000',.4),1,1); softRect(I,0,61,128,3,mix(base,'#000000',.4),1,1); }}); }
 const tTeamTorso=teamTorso('dunne',1301,NAVY,NAVY_D), tTeamLeg=teamLeg(1303,NAVY,NAVY_D);
 const tTeamArmUS=teamArm(1302,NAVY,NAVY_D,['#b8302a','#e8e4dc','#2a3a6a']);
 const FED='#2a2c2e', FED_D='#1a1b1c';
