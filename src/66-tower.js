@@ -394,7 +394,7 @@ function genTower(i){ const D=TOWER[i]; TL=D.len||10; setWorld(TL+4,6);
 function twMirror(P){ const j={}; for(const k in P.j){ const m=k.endsWith('L')?k.slice(0,-1)+'R':k.endsWith('R')?k.slice(0,-1)+'L':k,r=P.j[k]; j[m]=[r[0],-r[1],-r[2]]; } return {hipsY:P.hipsY,j}; }
 function twCast(){ const D=FLOOR.def;
   for(const c of [...(D.cast||[]),...(D.civ||[])]){ const s=pick(c.spots);
-    const mk_=TW_MAKERS[c.kind]||(typeof ROSTER!=='undefined'&&ROSTER[c.kind]?(h,g)=>makeChar(c.kind,h,g):c.civ?makeCorner:makeGunman); /* tenants and plain clothes come from the cast kit (45c-tenants.js) */
+    const mk_=TW_MAKERS[c.kind]||(typeof ROSTER!=='undefined'&&ROSTER[c.kind]?(h,g)=>makeChar(c.kind,h,g):c.civ?makeLandlord:makeGunman); /* tenants and plain clothes come from the cast kit (45c-tenants.js); until it's in, a tenant wears the old landlord's cardigan */
     const E=spawnEnemy({maker:mk_,name:c.name,x:s[0],z:s[1],hd:s[2],extra:c.extra,pre:E=>{
       if(!c.pose||c.pose==='idle') return; civPoses(E.C); const P=E.C.poses;
       if(c.pose==='phone'){ E.idleP=twMirror(P.phone); mk(box(.016,.12,.062),mBlack,E.J.handL,0,-.075,.0); mk(plane(.05,.1),M(null,{color:0x9ac0e0,unlit:true}),E.J.handL,.0085,-.075,0,0,Math.PI/2,0); }
