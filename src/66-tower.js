@@ -365,7 +365,7 @@ function genTower(i){ const D=TOWER[i]; setWorld(14,6);
   /* where people can walk: inside the corridor, the landings and the apartments, clear of anything below 1.5 m */
   const nav=new Uint8Array(NX*NZ),space=new Int16Array(NX*NZ).fill(-9);
   for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i;
-    let sp=-9; if(Math.abs(x)<10&&Math.abs(z)<1) sp=-1; else if(Math.abs(x)>=10&&Math.abs(x)<(D.pro&&x<0?14:10.75)&&Math.abs(z)<2) sp=-2;
+    let sp=-9; if(Math.abs(x)<10&&Math.abs(z)<=1) sp=-1; /* <=: the doorway cells sit on the wall line (the wall boxes block the rest of it) */ else if(Math.abs(x)>=10&&Math.abs(x)<(D.pro&&x<0?14:10.75)&&Math.abs(z)<2) sp=-2;
     else if(Math.abs(z)>1&&Math.abs(z)<6){ const u=units.find(u=>u.side===Math.sign(z)&&x>=u.x0&&x<u.x1); if(u) sp=u.id; }
     space[id]=sp; let bl=sp===-9; if(!bl&&blocked.some(r=>x>r[0]&&x<r[2]&&z>r[1]&&z<r[3])) bl=true;
     if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.25) continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; break; } }
@@ -414,7 +414,7 @@ function proNovakGun(Nv){ if(FLOOR.pro.gun) return; FLOOR.pro.gun=true; const h=
   const Mw=m4.compose(m4.make(),p,[0,Math.atan2(d[0],d[2]),Math.PI/2],[1,1,1]); addPickup(newItem('pistol'),Mw,v3.sc(d,.35),[0,0,0]); sfx('bump',.4,p); }
 function towerReset(){ GAME.fade=0;
   if(FLOOR.def.pro){ genTower(FLOOR.idx); proStart(); return; }
-  twCast(); twLoot(); if(!GAME.kit&&FLOOR.def.kit) equip(HANDS.R,newItem(FLOOR.def.kit)); /* started here from the card: Novak's pistol */ if(XR.on) vrToast(FLOOR.def.name,2.5); }
+  FLOOR.flanked=false; FLOOR.upT=null; twCast(); twLoot(); if(!GAME.kit&&FLOOR.def.kit) equip(HANDS.R,newItem(FLOOR.def.kit)); /* started here from the card: Novak's pistol */ if(XR.on) vrToast(FLOOR.def.name,2.5); }
 function towerClimb(){ if(GAME.climbing) return; GAME.climbing=true;
   if(FLOOR.idx>=twLast()){ const nx=String(FLOOR.def.n+1).padStart(2,'0'); GAME.atTop=true; showMsg('THAT\'S AS FAR AS IT GOES',`Floor ${nx} isn\'t built yet.`); if(XR.on){ vrToast(`Floor ${nx} isn\'t built yet`,4); XR.clearT=5; } return; }
   const next=FLOOR.idx+1; FLOOR.next=next; GAME.fadeInT=0; try{ localStorage.setItem('stairwell.camp',String(next)); }catch(_){} }
@@ -445,9 +445,81 @@ function twAnim(){ for(const a of FLOOR.anim||[]){ const c=FLOOR.lights[a.i][1],
 
 function tickTower(dt){ twStairs(dt); document.body.classList.toggle('camp',FLOOR.mode==='camp'); /* no test panel in the campaign */ if(FLOOR.mode!=='camp') return; twAnim();
   if(!GAME.started) return;
-  if(FLOOR.def.pro) proTick(dt); else { twTalk(dt*Math.max(GAME.ts,.3)); twHunt(dt); }
+  if(FLOOR.def.pro) proTick(dt); else { twTalk(dt*Math.max(GAME.ts,.3)); twHunt(dt); twRoles(dt*Math.max(GAME.ts,.3)); }
   /* the street: now and then a dog, far off */
   GAME.dogT=(GAME.dogT??rnd(12,25))-dt; if(GAME.dogT<=0){ GAME.dogT=rnd(25,50); sfx('dog',.18,[rnd(-9,9),1.5,Math.random()<.5?7.5:-7.5]); } }
+
+
+/* ---------- once they know you're here: hunters, holders, ambushers ----------
+   Not everyone comes at once. When the floor goes loud each man gets a role:
+   hunt    the nearest one or two come for you the ordinary way (the flashlight men always hunt)
+   flank   one man with a blade goes quiet and goes round: through the next room, the knocked-through wall, the far end of the hall.
+           He waits out of your sight, behind you or off to the side, and when you turn your back or walk past he comes screaming
+   hold    the rest stay in their rooms on their toes: a gun deep in the room covering the doorway, a blade flat against the wall
+           beside it. They fight you if you come in, and one of them comes out when a hunter goes down */
+const TW_HOLD=['I got the door.','Come on in, cop.','I\'m not coming out there!','He\'s in the hall!','Come get it.','I can hear you breathing.'];
+const TW_UP=['Fine— I\'m coming!','Where is he?!','Okay. Okay. I\'m going.','Cover me—'];
+const TW_JUMP=['AAAAAH!','DIE, COP!','GOT YOU—','HERE!'];
+const twMelee=E=>!RANGED[E.kind]&&!(typeof RANGED[E.kind.replace(/^m/,'')]!=='undefined'&&RANGED[E.kind.replace(/^m/,'')]);
+const twUp=E=>!E.dead&&(E.st==='idle'||E.st==='alert');
+function twUnitOf(x,z){ const c=navCell(x,z),id=c>=0?FLOOR.space[c]:-9; return FLOOR.units.find(u=>u.id===id)||null; }
+function twFree(x,z){ const c=navCell(x,z); if(c<0||FLOOR.nav[c]) return false; const ci=c%NX; for(let a=-1;a<=1;a++) for(let b=-1;b<=1;b++){ const q=c+a*NX+b; if(q<0||q>=FLOOR.nav.length||Math.abs((q%NX)-ci)>1||FLOOR.nav[q]) return false; } return true; } /* open all round: not in a doorway, not against a wall */
+/* where a holder waits: a blade beside the doorway inside, a gun deep in the room looking at it */
+function twHoldSpot(E){ let u=twUnitOf(E.home[0],E.home[1]); if(!u){ let bd=1e9; for(const v of FLOOR.units){ const d=Math.hypot(v.door-E.pos[0],v.side-E.pos[1]); if(d<bd){ bd=d; u=v; } } } if(!u) return null;
+  const door=[u.door,u.side],cands=[];
+  if(twMelee(E)){ for(const sx of [-1,1]) for(const dz of [.55,.75]){ const x=u.door+sx*.85,z=u.side*(1+dz); if(x>u.x0+.3&&x<u.x1-.3&&twFree(x,z)) cands.push([x,z]); } }
+  else { for(let k=0;k<24;k++){ const x=u.x0+.5+Math.random()*(u.w-1),z=u.side*(3.6+Math.random()*1.9); if(twFree(x,z)&&sightClear([x,1.4,z],[door[0],1.3,door[1]])) cands.push([x,z]); } }
+  if(!cands.length){ const q=navSpotNear(u.door,u.side*2.5,1.5); if(q) cands.push(q); } if(!cands.length) return null;
+  const p=cands[Math.random()*cands.length|0]; return {x:p[0],z:p[1],hd:Math.atan2(door[0]-p[0],door[1]-p[1]),u}; }
+/* where an ambusher waits: 3-9 m from you by foot, out of your sight, behind you or to the side, and reachable without passing you */
+function twAmbushSpot(E){ const eye=[PL.x,1.6,PL.z],f=camBasis().f,fl=norm3([f[0],0,f[2]]),toF=fieldTo(PL.x,PL.z); if(!toF) return null; let best=null,bs=-1e9;
+  for(let k=0;k<160;k++){ const i=Math.random()*NX|0,kk=Math.random()*NZ|0,c=kk*NX+i; if(FLOOR.nav[c]) continue; const x=cellX(i),z=cellZ(kk),d=toF[c];
+    if(!(d>=60&&d<=190)||!twFree(x,z)) continue; if(Math.abs(x)>10.2) continue; if(sightClear(eye,[x,1.4,z])) continue;
+    const v=norm3([x-PL.x,0,z-PL.z]),fw=v3.dot(v,fl); if(fw>.35) continue;
+    if(enemies.some(O=>O!==E&&!O.dead&&Math.hypot(O.pos[0]-x,O.pos[1]-z)<1.2)) continue;
+    /* his way there mustn't run past you */
+    const F=fieldTo(x,z); if(!F) continue; let cc=navCell(E.pos[0],E.pos[1]),ok=F[cc]<1e9;
+    for(let s=0;ok&&s<160&&F[cc]>0;s++){ const ci=cc%NX,ck=(cc-ci)/NX; let bq=cc,bd=F[cc]; for(let a=-1;a<=1;a++) for(let b=-1;b<=1;b++){ const ni=ci+b,nk=ck+a; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(F[q]<bd){ bd=F[q]; bq=q; } } if(bq===cc) break; cc=bq;
+      if(Math.hypot(cellX(cc%NX)-PL.x,cellZ((cc-cc%NX)/NX)-PL.z)<2.6) ok=false; }
+    if(!ok) continue; const sc=-fw*2+Math.random()*.6-Math.abs(d-110)/120; if(sc>bs){ bs=sc; best=[x,z]; } }
+  return best; }
+function twFlank(E){ E.role='flank'; E.fl={ph:'go',t:0,spot:null}; E.silent=true; }
+function twRoles(dt){ if(PL.dead) return;
+  const awake=enemies.filter(E=>E.aware&&twUp(E)&&!E.ally);
+  for(const E of enemies) if(E.role&&(!E.aware||!twUp(E))){ if(E.role==='flank'&&!E.dead) E.silent=false; if(!E.aware) E.role=null; }
+  const live=r=>awake.filter(E=>E.role===r);
+  /* new to it: the flashlight men hunt; one blade flanks; two hunt; the rest hold */
+  const fresh=awake.filter(E=>!E.role).sort((a,b)=>Math.hypot(a.pos[0]-PL.x,a.pos[1]-PL.z)-Math.hypot(b.pos[0]-PL.x,b.pos[1]-PL.z));
+  for(const E of fresh){ if(E.hunter){ E.role='hunt'; continue; }
+    if(!live('flank').length&&twMelee(E)&&Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)>3.5){ twFlank(E); continue; }
+    if(live('hunt').length<2){ E.role='hunt'; continue; }
+    E.role='hold'; E.hold=twHoldSpot(E); E.holdT=rnd(4,9); }
+  /* a hunter down: a holder comes out after a beat */
+  if(live('hunt').length+live('flank').length<2){ FLOOR.upT=(FLOOR.upT??rnd(3,5))-dt; if(FLOOR.upT<=0){ FLOOR.upT=null; const H=live('hold').sort((a,b)=>Math.hypot(a.pos[0]-PL.x,a.pos[1]-PL.z)-Math.hypot(b.pos[0]-PL.x,b.pos[1]-PL.z))[0];
+      if(H){ H.hold=null; if(!live('flank').length&&twMelee(H)) twFlank(H); else { H.role='hunt'; if(H.barkCd<=0) bark(H,pick(TW_UP),2.2); } } } } else FLOOR.upT=null;
+  for(const E of awake){
+    if(E.role==='hold'||E.role==='flank') E.lostT=0; /* on their toes: they don't drift off to search while they wait */
+    if(E.role==='hold'){ E.holdT-=dt; if(E.holdT<=0){ E.holdT=rnd(7,13); if(!E.canSee&&Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)<9&&E.barkCd<=0&&GAME.barkGlobal<=0){ bark(E,pick(TW_HOLD),2.2); GAME.barkGlobal=1; } }
+      if(E.hold&&!E.canSee&&!E.moveDir){ let dh=E.hold.hd-E.hd; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); E.hd+=clamp(dh,-2*dt,2*dt); } }
+    if(E.role==='flank'){ E.barkCd=Math.max(E.barkCd,2); if(E.fl.ph!=='strike') E.atkCd=Math.max(E.atkCd,.5); } } }
+/* called from think() for anyone aware with a role: {goal,chase} replaces what he'd do, or null for the ordinary hunt */
+function twRoleMove(E,dt,fighting,dist){
+  if(E.role==='hold'){ const H=E.hold; if(!H) return {goal:null,chase:false};
+    const pu=twUnitOf(PL.x,PL.z); if(pu&&pu===H.u&&dist<4.5) return null; /* you're in his room: he fights */
+    if(fighting) return {goal:null,chase:twMelee(E)&&dist<2.2};
+    const d=Math.hypot(E.pos[0]-H.x,E.pos[1]-H.z); if(d>.45) return {goal:{x:H.x,z:H.z,sp:1.7},chase:false}; E.moveDir=null; return {goal:null,chase:false}; }
+  if(E.role==='flank'){ const F_=E.fl; F_.t+=dt;
+    if(F_.ph==='strike'){ if(!F_.yelled&&dist<2.4){ F_.yelled=true; E.silent=false; bark(E,pick(TW_JUMP),1.6); vox(E,'scream',1.3); E.barkCd=3; } return {goal:{x:PL.x,z:PL.z,sp:3.4},chase:true}; }
+    /* he's seen: you looking at him, close */
+    const f=camBasis().f,to=norm3([E.pos[0]-PL.x,0,E.pos[1]-PL.z]),youSee=dist<7&&v3.dot(norm3([f[0],0,f[2]]),to)>.75&&sightClear([PL.x,1.6,PL.z],[E.pos[0],1.4,E.pos[1]]);
+    const back=v3.dot(norm3([f[0],0,f[2]]),to)<.1;
+    if(F_.ph==='wait'){ F_.wt=(F_.wt||0)+dt; if(back&&F_.wt>(F_.wl||(F_.wl=rnd(4,8)))) F_.go=true; else if(F_.wt>14){ F_.spot=null; F_.wt=0; F_.wl=0; } } /* waited long enough with your back to him */
+    if(youSee||fighting&&(back||dist<2.6)||F_.ph==='wait'&&(dist<3.2||F_.go)){ F_.ph='strike'; return {goal:{x:PL.x,z:PL.z,sp:3.4},chase:true}; }
+    if(!F_.spot||F_.t>12&&F_.ph==='go'||F_.ph==='wait'&&Math.hypot(F_.spot[0]-PL.x,F_.spot[1]-PL.z)>9.5){ F_.spot=twAmbushSpot(E); F_.t=0; F_.ph='go'; if(!F_.spot){ E.role='hunt'; E.silent=false; return null; } }
+    const d=Math.hypot(E.pos[0]-F_.spot[0],E.pos[1]-F_.spot[1]);
+    if(F_.ph==='go'&&d>.5){ if(stuck(E,dt)){ F_.spot=null; return {goal:null,chase:false}; } return {goal:{x:F_.spot[0],z:F_.spot[1],sp:2.3},chase:false}; }
+    F_.ph='wait'; E.moveDir=null; const want=Math.atan2(PL.x-E.pos[0],PL.z-E.pos[1]); let dh=want-E.hd; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); E.hd+=clamp(dh,-2*dt,2*dt); return {goal:null,chase:false}; }
+  return null; }
 
 /* ---------- the prologue: the lobby, the team, the tip that was a setup ---------- */
 const PRO_TALK=[[2,'Novak','Ray. They\'re waiting on us.'],[6,'Dunne','Landlord\'s on fifteen. Quiet.'],[9.5,'Harris','Fifteen floors. No elevator.'],[12.5,'Harris','Pool\'s open. Who pukes first?'],

@@ -786,14 +786,16 @@ function think(E,dt,t){
     else if(armed(E)&&!E.oneHand&&E.M){ /* line the gun up on you: blade the body and lean until the barrel, not the chest, points at you */
       const g=gunRay(E),tp=norm3(v3.sub([PL.x,1.45,PL.z],g.mz)); let ye=Math.atan2(tp[0],tp[2])-Math.atan2(g.d[0],g.d[2]); ye=Math.atan2(Math.sin(ye),Math.cos(ye));
       const k=Math.min(1,dt*2.5); E.aimYaw=clamp((E.aimYaw||0)+ye*k,-.7,.7); E.aimPit=clamp((E.aimPit||0)+(Math.asin(tp[1])-Math.asin(g.d[1]))*k,-.35,.35); }
-    const fighting=E.aware&&E.canSee,goal=fighting?null:aiGoal(E,dt,t);
+    const fighting=E.aware&&E.canSee,RO=E.role&&E.aware&&typeof twRoleMove==='function'?twRoleMove(E,dt,fighting,dist):null; /* the tower: hunters, holders, ambushers (66-tower.js) */
+    let goal=RO?RO.goal:fighting?null:aiGoal(E,dt,t);
     const want=fighting?Math.atan2(toP[0],toP[1])+(E.wpnHeld&&!E.oneHand?E.aimYaw||0:0)
       :goal&&E.moveDir?Math.atan2(E.moveDir[0],E.moveDir[2])
       :E.mind==='search'&&E.pauseT>0?(E.scanHd??E.hd)+Math.sin((t+E.t0)*.9)*1.1 /* stands and looks around */
       :FLOOR.power===false?E.hd+Math.sin(t*.6+E.t0)*.3:E.hd;
     let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; const tr=E.stun>.3?0:2*(1-E.stun); E.hd+=clamp(dh,-tr*dt,tr*dt);
     const KS=kst(E)||{},keep=armed(E)?KS.keep:1.25;
-    const chase=fighting&&dist>keep+.15&&huntsInDark(E),walk=chase||(goal&&(huntsInDark(E)||E.lkp||E.mind==='search'));
+    const chase=RO?RO.chase:fighting&&dist>keep+.15&&huntsInDark(E);
+    const walk=chase||(goal&&(huntsInDark(E)||E.lkp||E.mind==='search'||E.role));
     if(walk&&E.atkT<0&&E.stun<.4&&!E.grabbed){ const melee=!armed(E);
       let sp=chase?(melee?lerp(1.2,KS.run||2.6,clamp((dist-1.7)/2.2,0,1)):.85):goal.sp; /* blades charge at you; they ease off in the last couple of metres so they arrive swinging, not sliding */
       if(FLOOR.power===false&&!E.canSee) sp=Math.min(sp,.75); /* feeling his way in the dark */

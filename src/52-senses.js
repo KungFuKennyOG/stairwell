@@ -80,6 +80,7 @@ function senses(E,dt,dist,toP,B){ if(E.ally){ E.canSee=false; return; } /* the t
       /* call it out: friends who are hunting but can't see you learn where you are */
       E.callT=(E.callT||0)-dt; if(E.callT<=0&&E.canSee){ E.callT=1;
         for(const O of enemies) if(O!==E&&O.aware&&upright(O)&&!O.canSee&&Math.hypot(O.pos[0]-E.pos[0],O.pos[1]-E.pos[1])<10){ O.lkp=[PL.x,PL.z]; } } }
+    else if(E.role==='hold'||E.role==='flank'){ E.lostT=0; } /* the tower's holders and ambushers wait it out (66-tower.js) */
     else { E.lostT=(E.lostT||0)+dt; if(E.lostT<.6) E.lkp=[PL.x,PL.z]; /* he saw which way you went */
       if(E.lkp&&Math.hypot(E.pos[0]-E.lkp[0],E.pos[1]-E.lkp[1])<1) startSearch(E,E.lkp,'lost');
       else if(E.lostT>(E.lkp?20:7)) startSearch(E,E.lkp||E.pos.slice(),'lost'); } } }
