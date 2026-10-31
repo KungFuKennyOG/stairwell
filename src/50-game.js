@@ -823,7 +823,8 @@ function think(E,dt,t){
   /* moving */
   E.crawlF=null; E.walkAmt=lerp(E.walkAmt,0,Math.min(1,dt*6));
   if(E.st==='alert'||E.st==='idle'||E.st==='kneel'){
-    const k=Math.min(1,dt*(E.grabbed?6:E.st==='alert'?1:2.5)); E.pos[0]=lerp(E.pos[0],pel[0],k); E.pos[1]=lerp(E.pos[1],pel[2],k);
+    const k=Math.min(1,dt*(E.grabbed?6:E.st==='alert'||E.tl&&E.tl.walk?1:2.5)); E.pos[0]=lerp(E.pos[0],pel[0],k); E.pos[1]=lerp(E.pos[1],pel[2],k);
+    if(E.ally&&E.st==='idle'&&typeof teamLife==='function') teamLife(E,dt,t); /* the team waiting in the lobby (66-tower.js) */
     if(E.st==='kneel'){ const want=Math.atan2(toP[0],toP[1])+(E.shielder&&E.civMode==='shield'?Math.PI:0); /* a shield turns his back to you */ let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; E.hd+=clamp(dh,-dt,dt); } }
   if(E.st==='alert'&&(E.surr||E.civFreeze)){ /* hands up, or frozen: no walking, no fighting, turned toward you (69-standoff.js) */
     E.moveDir=null; E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6)); E.atkCd=Math.max(E.atkCd,.5); E.atkT=-1; E.burstN=0;
@@ -894,7 +895,8 @@ function think(E,dt,t){
     if(prevMode&&E.downMode!==prevMode){ if(E.modeT>0) E.downMode=prevMode; else E.modeT=1.6; }
     if(E.downMode!=='crawl'&&E.downMode!=='scoot') E.crawlF=null; }
   /* looking at the player */
-  if(E.Rs&&E.st==='alert'&&!(E.aware&&E.canSee)){ const sw=E.mind==='search'||E.mind==='investigate'?Math.sin((t+E.t0)*1.3)*.6:0; E.lookYaw=lerp(E.lookYaw,sw,Math.min(1,dt*3)); } /* doesn't know where you are: looks around, not at you */
+  if(E.ally&&E.tl&&E.st==='idle'){} /* the team in the lobby: teamLife already set where they look */
+  else if(E.Rs&&E.st==='alert'&&!(E.aware&&E.canSee)){ const sw=E.mind==='search'||E.mind==='investigate'?Math.sin((t+E.t0)*1.3)*.6:0; E.lookYaw=lerp(E.lookYaw,sw,Math.min(1,dt*3)); } /* doesn't know where you are: looks around, not at you */
   else if(E.Rs&&(E.st==='alert'||E.st==='kneel'||E.st==='down')){ const l=mtv(E.Rs,norm3([toP[0],0,toP[1]])); E.lookYaw=lerp(E.lookYaw,clamp(Math.atan2(l[0],l[2]),-1,1),Math.min(1,dt*5)); }
   else E.lookYaw=lerp(E.lookYaw,0,Math.min(1,dt*3));
   /* talking */

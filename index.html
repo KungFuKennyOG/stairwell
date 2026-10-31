@@ -5931,7 +5931,8 @@ function think(E,dt,t){
   /* moving */
   E.crawlF=null; E.walkAmt=lerp(E.walkAmt,0,Math.min(1,dt*6));
   if(E.st==='alert'||E.st==='idle'||E.st==='kneel'){
-    const k=Math.min(1,dt*(E.grabbed?6:E.st==='alert'?1:2.5)); E.pos[0]=lerp(E.pos[0],pel[0],k); E.pos[1]=lerp(E.pos[1],pel[2],k);
+    const k=Math.min(1,dt*(E.grabbed?6:E.st==='alert'||E.tl&&E.tl.walk?1:2.5)); E.pos[0]=lerp(E.pos[0],pel[0],k); E.pos[1]=lerp(E.pos[1],pel[2],k);
+    if(E.ally&&E.st==='idle'&&typeof teamLife==='function') teamLife(E,dt,t); /* the team waiting in the lobby (66-tower.js) */
     if(E.st==='kneel'){ const want=Math.atan2(toP[0],toP[1])+(E.shielder&&E.civMode==='shield'?Math.PI:0); /* a shield turns his back to you */ let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; E.hd+=clamp(dh,-dt,dt); } }
   if(E.st==='alert'&&(E.surr||E.civFreeze)){ /* hands up, or frozen: no walking, no fighting, turned toward you (69-standoff.js) */
     E.moveDir=null; E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6)); E.atkCd=Math.max(E.atkCd,.5); E.atkT=-1; E.burstN=0;
@@ -6002,7 +6003,8 @@ function think(E,dt,t){
     if(prevMode&&E.downMode!==prevMode){ if(E.modeT>0) E.downMode=prevMode; else E.modeT=1.6; }
     if(E.downMode!=='crawl'&&E.downMode!=='scoot') E.crawlF=null; }
   /* looking at the player */
-  if(E.Rs&&E.st==='alert'&&!(E.aware&&E.canSee)){ const sw=E.mind==='search'||E.mind==='investigate'?Math.sin((t+E.t0)*1.3)*.6:0; E.lookYaw=lerp(E.lookYaw,sw,Math.min(1,dt*3)); } /* doesn't know where you are: looks around, not at you */
+  if(E.ally&&E.tl&&E.st==='idle'){} /* the team in the lobby: teamLife already set where they look */
+  else if(E.Rs&&E.st==='alert'&&!(E.aware&&E.canSee)){ const sw=E.mind==='search'||E.mind==='investigate'?Math.sin((t+E.t0)*1.3)*.6:0; E.lookYaw=lerp(E.lookYaw,sw,Math.min(1,dt*3)); } /* doesn't know where you are: looks around, not at you */
   else if(E.Rs&&(E.st==='alert'||E.st==='kneel'||E.st==='down')){ const l=mtv(E.Rs,norm3([toP[0],0,toP[1]])); E.lookYaw=lerp(E.lookYaw,clamp(Math.atan2(l[0],l[2]),-1,1),Math.min(1,dt*5)); }
   else E.lookYaw=lerp(E.lookYaw,0,Math.min(1,dt*3));
   /* talking */
@@ -7694,8 +7696,10 @@ const TOWER=[
       A.tag(1,3.5,1.45,1); A.tag(4,6.6,1.5,-1);
       A.furn('desk',-7.2,3.8,Math.PI); A.furn('filing',-9.4,5.5,Math.PI); A.furn('crates',6.5,4.8,Math.PI); A.furn('trash',-5.0,-4.6,0); A.furn('wardrobe',-8.5,-5.6,0); A.furn('crates',6.0,-5.2,0);
       for(const [x,z] of [[-7.2,3.6],[0,3.5],[6.5,3.5],[-6,-3.5],[4,-3.5]]) A.bulb(x,z,false); },
-    team:[{id:'dunne',name:'Dunne',x:-3.2,z:.35,hd:Math.PI/2},{id:'harris',name:'Harris',x:-2.4,z:-.45,hd:Math.PI/2},{id:'reyes',name:'Reyes',x:-4.1,z:-.42,hd:Math.PI/2},
-      {id:'ibarra',name:'Ibarra',x:-4.9,z:.45,hd:Math.PI/2},{id:'novak',name:'Novak',x:-8.4,z:.5,hd:-Math.PI/2}] },
+    /* not a line: Dunne and Harris face each other talking, Reyes leans on the far wall, Ibarra stands off on his own watching
+       the stairs, Novak hangs back by the mailboxes waiting for Ray. role = how they wait (teamLife) */
+    team:[{id:'dunne',name:'Dunne',x:-3.5,z:.5,hd:-2.1,role:'lead'},{id:'harris',name:'Harris',x:-2.3,z:-.25,hd:-1.0,role:'pace'},{id:'reyes',name:'Reyes',x:-4.6,z:-.55,hd:1.0,role:'lean'},
+      {id:'ibarra',name:'Ibarra',x:-.9,z:.45,hd:1.75,role:'watch'},{id:'novak',name:'Novak',x:-8.4,z:.5,hd:-1.7,role:'fidget'}] },
 
   { n:1,name:'Floor 01',kit:'pistol',wall:'peel',floor:'lino',
     units:[{side:1,x0:-10,x1:-5.4,door:-6.3,win:true,paper:'tile',fl:'tile'},{side:1,x0:-5.4,x1:-.6,door:-3.0,win:true,paper:'peel',fl:'conc'},{side:1,x0:-.6,x1:4.6,door:.4,win:true,winX:2.0,hole:4.2,paper:'nicotine'},{side:1,x0:4.6,x1:10,door:7.2,win:true,paper:'concrete',fl:'conc'},
@@ -8191,18 +8195,62 @@ const PRO_TALK=[[2,'Novak','Ray. They\'re waiting on us.'],[6,'Dunne','Landlord\
 const PRO_NOVAK=['Ray... Ray, you there?','They walked right past us.','They think we\'re dead.','I can\'t feel my legs, man.','Don\'t go up there alone.','Here. Take it.','Tell my mom I—']; /* on 'Take it' his pistol is by his hand */
 const PRO_SHOT_A=[13.2,2.75,.9],PRO_SHOT_B=[2.0,1.4,-1.5];
 function proStart(){ FLOOR.pro={t:0,phase:'talk',said:0,ev:[]};
-  for(const m of FLOOR.def.team){ const E=spawnEnemy({maker:(h,g)=>makeChar(m.id,h,g),name:m.name,x:m.x,z:m.z,hd:m.hd,extra:''}); E.ally=true; E.detail='your team'; enemies.push(E); }
+  for(const m of FLOOR.def.team){ const E=spawnEnemy({maker:(h,g)=>makeChar(m.id,h,g),name:m.name,x:m.x,z:m.z,hd:m.hd,extra:''}); E.ally=true; E.detail='your team'; E.tm=m; enemies.push(E); }
   attachLabels(); GAME.fade=0; }
 const twTeam=n=>enemies.find(E=>E.name===n);
+/* The team while they wait (called from the enemy update in 50-game.js, standing only). Nobody stands to attention: they look at
+   whoever's talking, glance at Ray as he comes up, check their kit, turn and shift their feet (the gait steps the feet under them).
+   Harris can't keep still, Reyes leans and barely moves, Ibarra keeps to himself watching the stairs, Novak fidgets.
+   On "Stack up" they turn for the stairs and take a step or two; on contact every head snaps to the stairs. */
+const TL_STAIRS=[12,0],TL_STREET=[-12,0],TL_R={pace:.75,fidget:.3,lead:.25,watch:.3,lean:0};
+function teamLife(E,dt,t){ const P=FLOOR.pro,m=E.tm; if(!P||!m) return;
+  let L=E.tl; if(!L) L=E.tl={home:[m.x,m.z],hd:m.hd,look:'mate',mate:null,lookT:rnd(.4,1.5),stepT:rnd(1.5,4),walk:null,pitch:0,pitchT:rnd(3,8),pitchOn:0,met:false};
+  const me=E.pos,dP=Math.hypot(PL.x-me[0],PL.z-me[1]),mates=enemies.filter(O=>O.ally&&O!==E&&!O.dead),amb=P.phase!=='talk';
+  /* where he looks */
+  const spk=!amb&&P.spk&&P.spkT>0&&P.spk!==E&&!P.spk.dead&&(m.role!=='watch'||P.spkT>1.5)?P.spk:null; /* Ibarra glances, then back to the stairs */
+  if(!L.met&&dP<4.5&&m.role!=='watch'){ L.met=true; L.look='ray'; L.lookT=rnd(1.6,2.6); }
+  L.lookT-=dt;
+  if(L.lookT<=0){ const r=Math.random(),near=dP<6; L.lookT=rnd(1.8,4.5);
+    L.look=m.role==='watch'?(r<.7?'stairs':near&&r<.85?'ray':'mate'):m.role==='fidget'?(near&&r<.6?'ray':r<.85?'mate':'street')
+      :m.role==='lean'?(near&&r<.3?'ray':r<.7?'mate':'none'):(near&&r<.4?'ray':r<.85?'mate':'none');
+    L.mate=mates.length?mates[Math.floor(Math.random()*mates.length)]:null; }
+  const want=amb||P.stack?TL_STAIRS:spk?[spk.pos[0],spk.pos[1]]:L.look==='ray'?[PL.x,PL.z]:L.look==='stairs'?TL_STAIRS:L.look==='street'?TL_STREET
+    :L.look==='mate'&&L.mate&&!L.mate.dead?[L.mate.pos[0],L.mate.pos[1]]:null;
+  /* now and then eyes down: his watch, a strap, the gun (not while someone's talking to him, not once it starts) */
+  L.pitchT-=dt; if(L.pitchT<=0&&!spk&&!amb&&m.role!=='watch'){ L.pitchT=rnd(6,12); L.pitchOn=rnd(1,2); }
+  L.pitchOn=Math.max(0,L.pitchOn-dt);
+  E.lookPitch=lerp(E.lookPitch||0,L.pitchOn>0&&!spk&&!amb?.45:0,Math.min(1,dt*3));
+  let yawT=0; if(E.Rs&&want){ const l=mtv(E.Rs,norm3([want[0]-me[0],0,want[1]-me[1]])); yawT=clamp(Math.atan2(l[0],l[2]),-1.1,1.1); }
+  E.lookYaw=lerp(E.lookYaw||0,yawT,Math.min(1,dt*(amb?8:4)));
+  /* a step: a new spot near where he started, clear of the others and of Ray */
+  L.stepT-=dt;
+  if(!amb&&!P.stack&&!L.walk&&L.stepT<=0){ const R=TL_R[m.role]||0; L.stepT=m.role==='pace'?rnd(2.5,5):rnd(4,9);
+    if(R>0){ const a=Math.random()*Math.PI*2,g=[L.home[0]+Math.cos(a)*R,clamp(L.home[1]+Math.sin(a)*R*.5,-.55,.55)];
+      if(mates.every(O=>Math.hypot(O.pos[0]-g[0],O.pos[1]-g[1])>.85)&&Math.hypot(PL.x-g[0],PL.z-g[1])>.9) L.walk=g; } }
+  if(P.stack&&!L.stacked){ L.stacked=true; L.walk=m.role==='fidget'?null:[me[0]+rnd(.35,.8),clamp(me[1]*.85,-.55,.55)]; L.hd=Math.PI/2+rnd(-.25,.25); }
+  if(amb) L.walk=null;
+  let bodyGoal;
+  if(L.walk){ const dx=L.walk[0]-me[0],dz=L.walk[1]-me[1],d=Math.hypot(dx,dz);
+    if(d<.08||Math.hypot(PL.x-L.walk[0],PL.z-L.walk[1])<.7){ L.walk=null; E.moveDir=null; bodyGoal=E.hd; }
+    else { const sp=Math.min(.55,d*1.4+.2),wh=Math.atan2(dx,dz); E.moveDir=[dx/d,0,dz/d]; me[0]+=dx/d*sp*dt; me[1]+=dz/d*sp*dt;
+      E.walkAmt=lerp(E.walkAmt,1,Math.min(1,dt*8)); E.walkPh+=dt*sp*6.2;
+      bodyGoal=Math.abs(wrapA(wh-E.hd))<1.6?wh:E.hd; } } /* a step back or aside: he doesn't turn round for it */
+  else { E.moveDir=null;
+    const hw=want?Math.atan2(want[0]-me[0],want[1]-me[1]):L.hd,dB=wrapA(hw-E.hd);
+    bodyGoal=amb||P.stack?hw:Math.abs(dB)>.85?hw-Math.sign(dB)*.45:want?E.hd:L.hd; /* the body only follows the head when it has to twist too far */
+    if(!amb&&!P.stack){ const lim={lean:.5,watch:.6,fidget:1.2}[m.role]||1.6; bodyGoal=L.hd+clamp(wrapA(bodyGoal-L.hd),-lim,lim); } } /* and never far from how he was standing: a glance, not an about-turn */
+  const dh=wrapA(bodyGoal-E.hd),tr=amb?2.4:.9; if(Math.abs(dh)>.04) E.hd+=clamp(dh,-tr*dt,tr*dt);
+  pushOutXZ(me,.28,'walker');
+  for(const O of mates){ if(O.st!=='idle') continue; const dx=me[0]-O.pos[0],dz=me[1]-O.pos[1],d=Math.hypot(dx,dz); if(d<.7&&d>1e-3){ me[0]+=dx/d*(.7-d)*.5; me[1]+=dz/d*(.7-d)*.5; } } }
 function twHeartPt(E){ const B=E.B,ch=X_(B,PI_.chest),nk=X_(B,PI_.neck),Rs=frameFrom(X_(B,PI_.shL),X_(B,PI_.shR),ch,nk); return v3.add(v3.add(ch,v3.sc(v3.sub(nk,ch),.3)),v3.add(v3.sc(Rs[0],.035),v3.sc(Rs[2],.02))); }
 function proShot(from,name,part){ const E=twTeam(name); if(!E||E.dead) return;
   const si={head:0,neck:1,chest:2,belly:3}[part],seg=SEGS[si],pt=part==='chest'?twHeartPt(E):part==='head'?X_(E.B,PI_.head):part==='neck'?X_(E.B,PI_.neck):v3.sc(v3.add(X_(E.B,PI_.pelvis),X_(E.B,PI_.chest)),.5);
   const d=norm3(v3.sub(pt,from)); muzzle(from,d,false); sfx('smg',1,from); hitEnemy(E,seg,pt,d,'gun'); }
 function proSpray(from){ muzzle(from,norm3(v3.sub([PL.x,1.4,PL.z],from)),false); sfx('smg',.9,from); if(Math.random()<.6) sfx(Math.random()<.5?'whiz':'ric',.7,[PL.x+rnd(-1,1),1.5,PL.z+rnd(-1,1)]); }
 function proHurt(){ XR.flash=.5; if(XR.on){ buzz('left',1,160); buzz('right',1,160); } const f=$('flash'); if(f){ f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); } screenBlood(3); sfx('hurt'); }
-function proTick(dt){ const P=FLOOR.pro; if(!P) return; P.t+=dt;
+function proTick(dt){ const P=FLOOR.pro; if(!P) return; P.t+=dt; P.spkT=(P.spkT||0)-dt;
   if(P.phase==='talk'){
-    while(P.said<PRO_TALK.length&&P.t>=PRO_TALK[P.said][0]){ const [,n,txt]=PRO_TALK[P.said],E=twTeam(n); if(E&&!E.dead){ bark(E,txt,2.8); vox(E,'mutter',1); } P.said++; }
+    while(P.said<PRO_TALK.length&&P.t>=PRO_TALK[P.said][0]){ const [,n,txt]=PRO_TALK[P.said],E=twTeam(n); if(E&&!E.dead){ bark(E,txt,2.8); vox(E,'mutter',1); P.spk=E; P.spkT=2.8; } if(P.said===PRO_TALK.length-1) P.stack=true; P.said++; }
     if(P.t>=27||P.t>4&&PL.x>-6.6){ P.phase='ambush'; P.a=0; P.step=0; } return; }
   if(P.phase==='ambush'){ P.a+=dt; const a=P.a;
     const EV=[[0,()=>{ const D=twTeam('Dunne'); if(D) bark(D,'Contact—',1.6); sfx('door',.9,[11.5,1.2,0]); }],
