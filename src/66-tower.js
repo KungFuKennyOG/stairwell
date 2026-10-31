@@ -128,8 +128,8 @@ const TOWER=[
       {kind:'corner',name:'Kev',spots:[[2.0,5.22,0],[1.6,5.2,.25]],pose:'phone',extra:'I just held the door— I didn\'t shoot—'},
       {kind:'abuela',civ:true,fem:true,old:true,name:'Doña Chela',spots:[[-8.5,-4.45,Math.PI],[-7.6,-4.5,Math.PI+.3]],pose:'idle',extra:'I\'m seventy-eight, mijo—'},
       {kind:'obrero',civ:true,name:'Toño',spots:[[6.7,-4.82,Math.PI],[7.4,-4.85,Math.PI-.3]],pose:'lean',extra:'I work at the plant— I just work—'},
-      {kind:'gunman',name:'Tito',spots:[[10.35,.55,-Math.PI/2]],pose:'idle',extra:'They made me look— they made me—',
-        hunt:{pts:[[7.2,0],[7.2,3.4],[7.2,0],[-3.0,0],[-3.0,3.4],[-3.0,0],[-7.0,0],[-7.0,-3.4],[-7.0,0],[-10.35,.5],[-6.0,0],[2.4,0],[6.0,0],[6.0,-3.4],[6.0,0],[10.35,.4]],
+      {kind:'gunman',name:'Tito',spots:[[16.35,.55,-Math.PI/2]],pose:'idle',extra:'They made me look— they made me—',
+        hunt:{pts:[[7.2,0],[7.2,3.4],[7.2,0],[-3.0,0],[-3.0,3.4],[-3.0,0],[-7.0,0],[-7.0,-3.4],[-7.0,0],[-16.35,.5],[-6.0,0],[2.4,0],[6.0,0],[6.0,-3.4],[6.0,0],[16.35,.4]],
           calls:['Cop?','Come out, cop.','Landlord says six.','We only counted five.','I know you\'re hurt.','...cop?','You\'re bleeding, man. I can smell it.']}}],
     talk:[
       {who:['Dani'],r:3.8,lines:[['Dani','...the old one kept talking.'],['Dani','His daughter\'s wedding.'],['Dani','In June, he said.'],['Dani','I took his watch.'],['Dani','Eat your rice, Dani.']]},
@@ -174,11 +174,11 @@ const TOWER=[
       A.light([11.5,2.35,0],[1.0,.78,.48],4.5); },
     cast:[
       {kind:'cutter',name:'Marco',spots:[[-7.4,2.5,0]],pose:'lean',extra:'I don\'t even know you—'},
-      {kind:'cutter',name:'Luis',spots:[[-7.4,4.72,Math.PI]],pose:'lean',extra:'It\'s not mine, it\'s his—'},
+      {kind:'cutter',name:'Luis',spots:[[-7.4,4.9,Math.PI]],pose:'lean',extra:'It\'s not mine, it\'s his—'},
       {kind:'corner',name:'Felix',spots:[[6.0,3.05,0],[6.3,3.1,-.3]],pose:'watch',extra:'I was a fighter, man—'},
       {kind:'vecino2',hidden:true,name:'Sami',spots:[[-7.2,-4.05,Math.PI],[-6.6,-4.1,Math.PI+.3]],pose:'lean',extra:'I just moved in, man!'},
-      {kind:'doorman',name:'Nico',spots:[[10.35,.55,-Math.PI/2]],pose:'idle',extra:'It was the Landlord\'s order—',
-        hunt:{pts:[[5.2,0],[6.5,-3.4],[5.2,0],[.6,0],[.6,-3.4],[.6,0],[-.6,0],[-1.7,3.4],[-3.6,4.4],[-1.7,3.4],[-.6,0],[-10.35,.5],[-4.0,0],[2.2,0],[2.2,2.6],[2.2,0],[10.35,.4]],
+      {kind:'doorman',name:'Nico',spots:[[16.35,.55,-Math.PI/2]],pose:'idle',extra:'It was the Landlord\'s order—',
+        hunt:{pts:[[5.2,0],[6.5,-3.4],[5.2,0],[.6,0],[.6,-3.4],[.6,0],[-.6,0],[-1.7,3.4],[-3.6,4.4],[-1.7,3.4],[-.6,0],[-16.35,.5],[-4.0,0],[2.2,0],[2.2,2.6],[2.2,0],[16.35,.4]],
           calls:['Hey. Cop.','Tito\'s not answering.','...Tito?','You\'re on two now, huh?','Come out. I\'ll make it quick.','We left you for dead. Should\'ve checked.']}}],
     talk:[
       {who:['Luis','Marco'],r:3.8,lines:[['Luis','Weigh it again.'],['Marco','Their radio\'s still talking.'],['Luis','So turn it off. Weigh it.'],['Marco','...Ibarra\'s guy said Thursday.'],['Luis','Don\'t say that name.'],
@@ -312,40 +312,42 @@ function twClutter(pot,units,rnd2){ const mBag=M(null,{color:0x16181a}),mBottle=
       else if(kind<.88){ for(let q=0;q<3;q++) pot.box(mPaper,.3,.006,.22,x+(rnd2()-.5)*.25,.003+q*.006,z+(rnd2()-.5)*.25,rnd2()*6); }
       else { pot.box(mShoe,.11,.09,.28,x,.045,z,ry); pot.box(mShoe,.11,.09,.28,x+.16,.045,z+.05,ry+.3); } } } }
 
+/* the floor's half-length: apartments run x -TL..TL, the stairwells sit beyond them (TL..TL+4). The lobby is 10, the floors 16 */
+let TL=10; const TO=()=>TL-10;
 /* ---------- building one ---------- */
-function genTower(i){ const D=TOWER[i]; setWorld(14,6);
+function genTower(i){ const D=TOWER[i]; TL=D.len||10; setWorld(TL+4,6);
   disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true; if(typeof FIRES!=='undefined') FIRES.length=0;
   Object.assign(FLOOR,{n:D.n,seed:0,test:false,camp:true,idx:i,def:D,mode:'camp',doors:[],windows:[],power:true,flick:null,dormD:undefined,down:false,goals:{},hot:[],noClear:!!D.pro,
-    start:D.pro?{x:-11.3,z:0,yaw:-Math.PI/2}:{x:-10.35,z:-.45,yaw:-Math.PI/2},stairUp:null,clearH:D.clear&&D.clear[0],clearP:D.clear&&D.clear[1]});
+    start:D.pro?{x:-11.3,z:0,yaw:-Math.PI/2}:{x:-(TL+.35),z:-.45,yaw:-Math.PI/2},stairUp:null,clearH:D.clear&&D.clear[0],clearP:D.clear&&D.clear[1]});
   setLang(false); if(GAME.vision&&GAME.vision!=='off'&&typeof cycleVision==='function'){ GAME.vision='off'; if(typeof visionApply==='function') visionApply(); }
   const G=floorN; GEO_TEMP=true;
   const units=D.units.map((u,k)=>Object.assign({},u,{id:k,w:u.x1-u.x0,apt:String(D.n).padStart(2,'0')+String(k+1).padStart(2,'0'),lit:false}));
   /* walls */
   const unitW=[],hallW=[],stairW=[];
   for(const side of [1,-1]){ const row=units.filter(u=>u.side===side).sort((a,b)=>a.x0-b.x0);
-    twWall(hallW,'x',side,-10,10,row.map(u=>({s:u.door,w:1.0,y0:0,y1:2.1})));
-    twWall(unitW,'x',side*6,-10,10,row.filter(u=>u.win).map(u=>({s:u.winX??(u.x0+u.x1)/2,w:1.4,y0:.9,y1:2.0})));
-    twWall(unitW,'z',-10,side>0?1:-6,side>0?6:-1,[]); twWall(unitW,'z',10,side>0?1:-6,side>0?6:-1,[]);
+    twWall(hallW,'x',side,-TL,TL,row.map(u=>({s:u.door,w:1.0,y0:0,y1:2.1})));
+    twWall(unitW,'x',side*6,-TL,TL,row.filter(u=>u.win).map(u=>({s:u.winX??(u.x0+u.x1)/2,w:1.4,y0:.9,y1:2.0})));
+    twWall(unitW,'z',-TL,side>0?1:-6,side>0?6:-1,[]); twWall(unitW,'z',TL,side>0?1:-6,side>0?6:-1,[]);
     for(let k=1;k<row.length;k++){ const u=row[k]; twWall(unitW,'z',u.x0,side>0?1:-6,side>0?6:-1,u.hole!=null?[{s:side*u.hole,w:1.0,y0:0,y1:2.0}]:[]); } }
   /* paint: each apartment its own (u.paper), the floor's default otherwise; the corridor; the stairwells */
   const pot=twPot(), mTrim=M(null,{color:0x2a241e,double:true}), mHall=M(tTwHall), mStair=M(tStairWall);
   const paperM={}; const papOf=k=>paperM[k]||(paperM[k]=M(TW_PAPER[k]||TW_PAPER.peel));
-  const matAt=(x,z)=>{ const ax=Math.abs(x),az=Math.abs(z); if(az>6||ax>14) return null; if(ax>10) return az<2.05?mStair:null; if(az<1) return mHall;
+  const matAt=(x,z)=>{ const ax=Math.abs(x),az=Math.abs(z); if(az>6||ax>TL+4) return null; if(ax>TL) return az<2.05?mStair:null; if(az<1) return mHall;
     const u=units.find(u=>u.side===Math.sign(z)&&x>=u.x0&&x<u.x1); return u?papOf(u.paper||D.wall):null; };
   twFaces(pot,[...unitW,...hallW],matAt,mTrim);
   for(const e of [...unitW,...hallW,...stairW]) addBox(e[0]-e[3]/2,e[0]+e[3]/2,e[2]-e[5]/2,e[2]+e[5]/2,e[1]-e[4]/2,e[1]+e[4]/2,'wall');
   /* floors: each apartment its own (u.fl), the corridor; finer cells so the light pools are round. The ceiling, stained */
   const flM={}; const flOf=k=>flM[k]||(flM[k]=M(TW_FLOORS[k]||TW_FLOORS.old,{repeat:[1,1]}));
   for(const u of units){ const w=u.x1-u.x0,fk=u.fl||D.floor,big=fk==='check'||fk==='tile'||fk==='rug'||fk==='oak'||fk==='conc',m=M(TW_FLOORS[fk]||TW_FLOORS.old,{repeat:big?[w,5]:[w/1.6,5/1.6],color:TW_FLTINT[fk]??0xffffff}); mk(plane(w,5,Math.ceil(w*2),10),m,G,(u.x0+u.x1)/2,.002,u.side*3.5,-Math.PI/2); }
-  mk(plane(20,2,40,4),M(tLinoHall,{repeat:[10,1]}),G,0,.004,0,-Math.PI/2);
-  mk(plane(20,12,40,24),M(tConcrete,{repeat:[10,6],color:0x6a6866}),G,0,RH,0,Math.PI/2);
+  mk(plane(2*TL,2,4*TL,4),M(tLinoHall,{repeat:[TL,1]}),G,0,.004,0,-Math.PI/2);
+  mk(plane(2*TL,12,4*TL,24),M(tConcrete,{repeat:[TL,6],color:0x6a6866}),G,0,RH,0,Math.PI/2);
   const r2=rng((D.n+1)*7919);
-  { const mSt=M(tTwStain,{cut:true}); for(let k=0;k<9;k++){ const x=-9.5+r2()*19,z=(r2()-.5)*11,sz=.5+r2()*1.1; pot.quad(mSt,[x,RH-.004,z],[0,-1,0],[1,0,0],[0,0,1],sz,sz*.8); }
-    for(let k=0;k<7;k++){ const x=-9.5+r2()*19,z=(r2()-.5)*11,sz=.4+r2()*.7; if(Math.abs(z)<1.1||Math.abs(z)>5.6) continue; pot.quad(mSt,[x,.008,z],[0,1,0],[1,0,0],[0,0,-1],sz,sz*.7); } }
+  { const mSt=M(tTwStain,{cut:true}); for(let k=0;k<Math.round(TL*.9);k++){ const x=-(TL-.5)+r2()*(2*TL-1),z=(r2()-.5)*11,sz=.5+r2()*1.1; pot.quad(mSt,[x,RH-.004,z],[0,-1,0],[1,0,0],[0,0,1],sz,sz*.8); }
+    for(let k=0;k<Math.round(TL*.7);k++){ const x=-(TL-.5)+r2()*(2*TL-1),z=(r2()-.5)*11,sz=.4+r2()*.7; if(Math.abs(z)<1.1||Math.abs(z)>5.6) continue; pot.quad(mSt,[x,.008,z],[0,1,0],[1,0,0],[0,0,-1],sz,sz*.7); } }
   /* the corridor ceiling: two pipes and a conduit run its length, clamped every couple of metres */
   { const mPipe=M(tSteel,{color:0x6a6862}),mRust=M(null,{color:0x4a3022});
-    pot.cyl(mPipe,.045,.045,20,6,0,RH-.12,.72,0,0,Math.PI/2); pot.cyl(mRust,.03,.03,20,5,0,RH-.1,.55,0,0,Math.PI/2); pot.cyl(mPipe,.016,.016,20,4,0,RH-.05,-.7,0,0,Math.PI/2);
-    for(let x=-9;x<=9;x+=2.2){ pot.box(mTrim,.04,.1,.24,x,RH-.07,.64); pot.box(mTrim,.03,.04,.06,x+.4,RH-.03,-.7); } }
+    pot.cyl(mPipe,.045,.045,2*TL,6,0,RH-.12,.72,0,0,Math.PI/2); pot.cyl(mRust,.03,.03,2*TL,5,0,RH-.1,.55,0,0,Math.PI/2); pot.cyl(mPipe,.016,.016,2*TL,4,0,RH-.05,-.7,0,0,Math.PI/2);
+    for(let x=-(TL-1);x<=TL-1;x+=2.2){ pot.box(mTrim,.04,.1,.24,x,RH-.07,.64); pot.box(mTrim,.03,.04,.06,x+.4,RH-.03,-.7); } }
   /* door casings both sides, and the number beside each door on the corridor side (one atlas, one draw) */
   { const N_=units.length,plates=tex(32,8*N_,'#2a2620',(g)=>{ units.forEach((u,k)=>{ const t=String(D.n)+String(k+1).padStart(2,'0'); R(g,'#8a7a4a',1,k*8+1,30,6); R(g,'#c8b070',2,k*8+2,28,4); text(g,t,(32-textW(t))>>1,k*8+2,'#2a2014'); }); });
     const mPl=M(plates);
@@ -367,7 +369,7 @@ function genTower(i){ const D=TOWER[i]; setWorld(14,6);
   if(!D.pro&&D.clutter!==false) twClutter(pot,units,r2);
   pot.flush(G);
   for(const l of lights){ const p=l[0]; if(Math.abs(Math.abs(p[0])-11.5)<.01&&Math.abs(p[1]-2.35)<.01&&Math.abs(p[2])<.01){ const sx=Math.sign(p[0]);
-      if(sx<0&&D.pro) continue; l[0]=[sx*13.55,3.25,.9]; l[2]=Math.max(l[2],6.2); } }
+      if(sx<0&&D.pro) continue; l[0]=[sx*(13.55+TO()),3.25,.9]; l[2]=Math.max(l[2],6.2); } }
   /* the flickering tube is light 0 (the game flickers FLOOR.lights[0] through FLOOR.flick) */
   const fi=anim.findIndex(a=>a.kind==='flick'); if(fi>=0){ const li=anim[fi].i; if(li!==0){ const t=lights[0]; lights[0]=lights[li]; lights[li]=t; for(const a of anim){ if(a.i===0) a.i=li; else if(a.i===li) a.i=0; } }
     const tubeX=lights[0][0][0]; const tn=floorN.kids.find(k=>k.mesh&&Math.abs(k.p[0]-tubeX)<.01&&Math.abs(k.p[1]-2.75)<.01); FLOOR.flick={mat:tn?tn.mesh.mats[0]:M(tFluo),i:0}; anim.splice(fi,1); }
@@ -377,7 +379,7 @@ function genTower(i){ const D=TOWER[i]; setWorld(14,6);
   /* where people can walk: inside the corridor, the landings and the apartments, clear of anything below 1.5 m */
   const nav=new Uint8Array(NX*NZ),space=new Int16Array(NX*NZ).fill(-9);
   for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i;
-    let sp=-9; if(Math.abs(x)<10&&Math.abs(z)<=1) sp=-1; /* <=: the doorway cells sit on the wall line (the wall boxes block the rest of it) */ else if(Math.abs(x)>=10&&Math.abs(x)<(D.pro&&x<0?14:10.75)&&Math.abs(z)<2) sp=-2;
+    let sp=-9; if(Math.abs(x)<TL&&Math.abs(z)<=1) sp=-1; /* <=: the doorway cells sit on the wall line (the wall boxes block the rest of it) */ else if(Math.abs(x)>=TL&&Math.abs(x)<(D.pro&&x<0?TL+4:TL+.75)&&Math.abs(z)<2) sp=-2;
     else if(Math.abs(z)>1&&Math.abs(z)<6){ const u=units.find(u=>u.side===Math.sign(z)&&x>=u.x0&&x<u.x1); if(u) sp=u.id; }
     space[id]=sp; let bl=sp===-9; if(!bl&&blocked.some(r=>x>r[0]&&x<r[2]&&z>r[1]&&z<r[3])) bl=true;
     if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.25) continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; break; } }
@@ -485,7 +487,8 @@ function twCivTick(dt){ for(const E of enemies){ if(E.dead){ if(E.concealed&&!E.
     /* he knows: out comes the gun */
     if(E.concealed&&E.aware&&!E.wpnHeld&&(E.st==='alert')){ E.drawT=(E.drawT||0)+dt; if(E.drawT>.6){ E.wpnHeld=true; E.C.wpn.vis=true; setGrip(E.J,'R',true); sfx('click',.9,[E.pos[0],1.1,E.pos[1]]); E.atkCd=Math.max(E.atkCd,.5); } } } }
 function twClearLine(){ const D=FLOOR.def,civ=enemies.filter(E=>E.civ),bad=enemies.filter(E=>!E.civ),cd=civ.filter(E=>E.dead).length;
-  let t=(D.clear&&D.clear[1])||''; if(civ.length) t+=' '+(cd===0?`The ${civ.length===1?'one':civ.length} who weren't there ${civ.length===1?'is':'are'} still breathing.`:cd===1?'You killed one who wasn\'t.':`You killed ${cd} who weren't.`); return t; }
+  const W=['none','one','two','three','four','five','six','seven','eight'],w=k=>W[k]||String(k);
+  let t=(D.clear&&D.clear[1])||''; if(civ.length) t+=' '+(cd===0?(civ.length===1?'The one who wasn\'t there is still breathing.':`The ${w(civ.length)} who weren't there are still breathing.`):cd===1?'You killed one who wasn\'t.':`You killed ${w(cd)} who weren't.`); return t; }
 
 /* ---------- once they know you're here: hunters, holders, ambushers ----------
    Not everyone comes at once. When the floor goes loud each man gets a role:
@@ -511,7 +514,7 @@ function twHoldSpot(E){ let u=twUnitOf(E.home[0],E.home[1]); if(!u){ let bd=1e9;
 /* where an ambusher waits: 3-9 m from you by foot, out of your sight, behind you or to the side, and reachable without passing you */
 function twAmbushSpot(E){ const eye=[PL.x,1.6,PL.z],f=camBasis().f,fl=norm3([f[0],0,f[2]]),toF=fieldTo(PL.x,PL.z); if(!toF) return null; let best=null,bs=-1e9;
   for(let k=0;k<160;k++){ const i=Math.random()*NX|0,kk=Math.random()*NZ|0,c=kk*NX+i; if(FLOOR.nav[c]) continue; const x=cellX(i),z=cellZ(kk),d=toF[c];
-    if(!(d>=60&&d<=190)||!twFree(x,z)) continue; if(Math.abs(x)>10.2) continue; if(sightClear(eye,[x,1.4,z])) continue;
+    if(!(d>=60&&d<=190)||!twFree(x,z)) continue; if(Math.abs(x)>TL+.2) continue; if(sightClear(eye,[x,1.4,z])) continue;
     const v=norm3([x-PL.x,0,z-PL.z]),fw=v3.dot(v,fl); if(fw>.35) continue;
     if(enemies.some(O=>O!==E&&!O.dead&&Math.hypot(O.pos[0]-x,O.pos[1]-z)<1.2)) continue;
     /* his way there mustn't run past you */
@@ -626,7 +629,7 @@ function twBoxes(list,x0,x1,y0,y1,z0,z1){ /* a wall as boxes no bigger than ~1.5
   for(let i=0;i<nx;i++) for(let j=0;j<ny;j++) for(let k=0;k<nz;k++){ const a=x0+(x1-x0)*i/nx,b=x0+(x1-x0)*(i+1)/nx,c=y0+(y1-y0)*j/ny,d=y0+(y1-y0)*(j+1)/ny,e=z0+(z1-z0)*k/nz,f=z0+(z1-z0)*(k+1)/nz;
     list.push([(a+b)/2,(c+d)/2,(e+f)/2,b-a,d-c,f-e,Math.max(b-a,f-e)/1.5,(d-c)/2.8]); } }
 function twShaft(G,sx,role,n,blocked){
-  const X=v=>sx*v, wl=[], st=[], cm=M(tConcrete,{repeat:[1,1]});
+  const X=v=>sx*(v+TO()), wl=[], st=[], cm=M(tConcrete,{repeat:[1,1]});
   /* the shaft's walls, a storey below to a storey above; the header over the corridor opening and the pit wall under the landing */
   twBoxes(wl,Math.min(X(10),X(14)),Math.max(X(10),X(14)),-3,5.6,1.93,2.07); twBoxes(wl,Math.min(X(10),X(14)),Math.max(X(10),X(14)),-3,5.6,-2.07,-1.93);
   twBoxes(wl,Math.min(X(13.93),X(14.07)),Math.max(X(13.93),X(14.07)),-3,5.6,-2,2);
@@ -667,7 +670,7 @@ function twVestibule(G,blocked){ const wl=[]; twBoxes(wl,-14,-10,0,RH,1.93,2.07)
   mk(plane(4,4,4,4),M(tLinoHall,{repeat:[2,2]}),G,-12,.004,0,-Math.PI/2); mk(plane(4,4,4,4),M(tConcrete,{color:0x6a6866}),G,-12,RH,0,Math.PI/2);
   mk(cyl(.004,.004,.4,3),mBlack,G,-11.8,2.6,0); mk(box(.08,.1,.08),M(tBulb,{unlit:true}),G,-11.8,2.36,0); }
 /* your height on the stairs: whichever surface under you is nearest where you are now (the flights never cross at one height) */
-function twStairY(x,z,cy){ const ax=Math.abs(x); if(FLOOR.mode!=='camp'||ax<10||Math.abs(z)>2.1||FLOOR.def.pro&&x<0) return 0;
+function twStairY(x,z,cy){ const ax=Math.abs(x)-TO(); if(FLOOR.mode!=='camp'||ax<10||Math.abs(z)>2.1||FLOOR.def.pro&&x<0) return 0;
   if(ax<ST_X0) return cy>2.1?RH:0;
   if(ax>=ST_MID) return 1.4;
   const t=clamp((ax-ST_X0)/ST_RUN,0,1); if(z>0) return 1.4*t; return cy<.7?0:1.4+1.4*(1-t); }
@@ -675,8 +678,8 @@ function twStairs(dt){ const target=twStairY(PL.x,PL.z,PL.y||0); PL.y=lerp(PL.y|
   if(XR.on&&XR.baseY!=null) XR.origin[1]=XR.baseY+PL.y;
   /* step onto the east landing: fade to black and you're on the next floor's landing (no walking the flights) */
   if(FLOOR.mode!=='camp'||!GAME.started||PL.dead) return;
-  if(!GAME.climbing&&PL.x>10.45&&Math.abs(PL.z)<1.9) towerClimb();
-  if(GAME.atTop&&PL.x<10.15){ GAME.atTop=false; GAME.climbing=false; } /* top floor so far: back out into the corridor re-arms it */
+  if(!GAME.climbing&&PL.x>TL+.45&&Math.abs(PL.z)<1.9) towerClimb();
+  if(GAME.atTop&&PL.x<TL+.15){ GAME.atTop=false; GAME.climbing=false; } /* top floor so far: back out into the corridor re-arms it */
   if(GAME.fadeInT!=null){ GAME.fadeInT+=dt; GAME.fade=clamp(GAME.fadeInT/.4,0,1);
     if(GAME.fadeInT>=.5){ GAME.fadeInT=null; carryInto(()=>towerLoad(FLOOR.next)); GAME.climbing=false; GAME.fade=1; GAME.fadeOut=.6; } }
   if(GAME.fadeOut>0){ GAME.fadeOut-=dt; GAME.fade=clamp(GAME.fadeOut/.6,0,1); } }

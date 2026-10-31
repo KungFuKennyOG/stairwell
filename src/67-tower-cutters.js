@@ -138,8 +138,8 @@ TOWER.push(
       {kind:'cutter',name:'Gordo',spots:[[-8.15,3.75,Math.PI/2]],pose:'lean',extra:'I didn\'t take nothing off them—'},
       {kind:'cutter',name:'Emilio',spots:[[-1.0,4.82,0],[-1.3,4.85,.15]],pose:'lean',extra:'It was my father\'s— please—'},
       {kind:'vecino4',hidden:true,name:'Beto',spots:[[.3,-4.1,Math.PI],[-.3,-4.2,Math.PI+.2]],pose:'phone',extra:'I\'m a godfather Sunday— please—'},
-      {kind:'doorman',name:'Lalo',spots:[[10.35,.55,-Math.PI/2]],pose:'idle',extra:'They pay by the helmet, man—',
-        hunt:{pts:[[7.0,0],[7.0,3.4],[7.0,0],[6.2,0],[6.2,-3.4],[6.2,0],[2.8,0],[2.8,-2.6],[2.8,0],[-1.2,0],[-1.2,2.6],[-1.2,0],[-4.4,0],[-4.4,-3.2],[-4.4,0],[-10.35,.5],[-5.4,0],[0,0],[10.35,.4]],
+      {kind:'doorman',name:'Lalo',spots:[[16.35,.55,-Math.PI/2]],pose:'idle',extra:'They pay by the helmet, man—',
+        hunt:{pts:[[7.0,0],[7.0,3.4],[7.0,0],[6.2,0],[6.2,-3.4],[6.2,0],[2.8,0],[2.8,-2.6],[2.8,0],[-1.2,0],[-1.2,2.6],[-1.2,0],[-4.4,0],[-4.4,-3.2],[-4.4,0],[-16.35,.5],[-5.4,0],[0,0],[16.35,.4]],
           calls:['Cop?','Nico said you\'d come up.','...Nico?','Five hundred a helmet.','Yours is worth more.','You\'re the last one, cop.']}}],
     talk:[
       {who:['Gordo','Chuy'],r:3.8,lines:[['Gordo','Who brought the shield up?'],['Chuy','Paulie. Fifty bucks.'],['Gordo','It\'s a good table.'],['Chuy','Didn\'t help the guy holding it.'],
