@@ -928,7 +928,7 @@ function think(E,dt,t){
   else if(E.cons<.35&&E.wounds.length) face='shock';
   else if(playDead) face='sleep'; /* eyes shut */
   else if(E.gShoot) face='fight';
-  else if(E.civFreeze||E.surr&&E.st==='alert') face='shock'; /* frozen, or the moment the hands go up */
+  else if(E.civFreeze||E.surr&&E.st==='alert'||E.civ&&E.panic&&face==='fight') face='shock'; /* frozen, the moment the hands go up, a scared tenant */
   if(face!==E.face){ E.face=face; E.J.headMesh.mesh.mats[0]=E.C.faceM[face]; E.J.headMesh.mesh.runs=null; }
 }
 function switchHand(E,s){ /* the good hand takes the weapon; a two-handed grip becomes one-handed */
