@@ -5381,7 +5381,12 @@ function stepBody(E,h){
     p[o]+=((x[o]-p[o])-vx)*kd; p[o+1]+=((x[o+1]-p[o+1])-vy)*kd; p[o+2]+=((x[o+2]-p[o+2])-vz)*kd;
     for(let c=0;c<3;c++){ const d=x[o+c]-p[o+c]; if(d>.12) p[o+c]=x[o+c]-.12; else if(d<-.12) p[o+c]=x[o+c]+.12; } }
   /* crawling: drag the trunk toward a slow target speed (it pulls, it doesn't skate) */
-  if(E.crawlF&&E.crawlF[2]>0){ const f=E.crawlF,vt=.55*f[2]; for(const i of [PI_.chest,PI_.pelvis,PI_.neck]){ const o=i*3,vx=(x[o]-p[o])/h,vz=(x[o+2]-p[o+2])/h; p[o]-=(f[0]*vt-vx)*.08*h; p[o+2]-=(f[1]*vt-vz)*.08*h; } }
+  if(E.crawlF&&E.crawlF[2]>0){ const f=E.crawlF,vt=.55*f[2]; for(const i of [PI_.chest,PI_.pelvis,PI_.neck]){ const o=i*3,vx=(x[o]-p[o])/h,vz=(x[o+2]-p[o+2])/h; p[o]-=(f[0]*vt-vx)*.08*h; p[o+2]-=(f[1]*vt-vz)*.08*h; }
+    /* and he turns his body, head first, toward where he's going, a little with each pull. Dragging only the trunk left him facing
+       wherever he fell, clawing at the table in front of him */
+    const pe=PI_.pelvis*3,ch=PI_.chest*3; let hx=x[ch]-x[pe],hz=x[ch+2]-x[pe+2]; const hl=Math.hypot(hx,hz);
+    if(hl>.1){ hx/=hl; hz/=hl; const e=Math.atan2(hx*f[1]-hz*f[0],hx*f[0]+hz*f[1]),a=clamp(e,-.7*h,.7*h)*Math.min(1,f[2]*3),c=Math.cos(a),sn=Math.sin(a),px=x[pe],pz=x[pe+2];
+      for(let i=0;i<NP;i++){ if(PN&&PN[i]) continue; const o=i*3; for(const A of [x,p]){ const rx=A[o]-px,rz=A[o+2]-pz; A[o]=px+rx*c-rz*sn; A[o+2]=pz+rx*sn+rz*c; } } } }
 }
 function solveBody(E){
   const B=E.B,x=B.x,C=B.cons;
@@ -5948,7 +5953,7 @@ function think(E,dt,t){
     if(E.knocked||E.downT<1.3||!lying) E.downMode='writhe'; /* first lie there and hurt, then start dragging. Crawling while still half up threw his arms over his head and levered him right over */
     else if(dist<2.2&&up>-.2&&E.cons>.3&&!E.wounds.some(w=>w.part==='neck'&&!w.piece)) E.downMode='downbeg'; /* on his back he begs; on his belly he keeps trying to drag himself away */
     else if(canMove&&dist<6){ E.downMode=up>(E.downMode==='crawl'?.45:.2)?'scoot':up<(E.downMode==='scoot'?-.45:-.2)?'crawl':(E.downMode==='scoot'||E.downMode==='crawl'?E.downMode:'writhe');
-      if(E.downMode!=='writhe'){ const away=norm3([-toP[0],0,-toP[1]]),k=Math.sin((t+E.t0)*2.4); E.crawlF=[away[0],away[2],Math.max(0,E.downMode==='crawl'?Math.abs(k):Math.abs(Math.sin((t+E.t0)*2.6)))*.55*E.cons]; } }
+      if(E.downMode!=='writhe'){ const g=crawlGoal(E,pel),away=g?navTo(pel[0],pel[2],g[0],g[1]):norm3([-toP[0],0,-toP[1]]),k=Math.sin((t+E.t0)*2.4); E.crawlF=[away[0],away[2],Math.max(0,E.downMode==='crawl'?Math.abs(k):Math.abs(Math.sin((t+E.t0)*2.6)))*.55*E.cons]; } }
     else E.downMode='writhe';
     if(prevMode&&E.downMode!==prevMode){ if(E.modeT>0) E.downMode=prevMode; else E.modeT=1.6; }
     if(E.downMode==='writhe'||E.downMode==='downbeg') E.crawlF=null; }
@@ -5979,6 +5984,16 @@ function switchHand(E,s){ /* the good hand takes the weapon; a two-handed grip b
   const w=E.C.wpn,J=E.J; setParent(w,J['hand'+s]); const f=E.C.twoHand?{p:[.036,-.214,.04],r:[Math.PI/2,0,0]}:E.C.wFight; w.p=[-f.p[0],f.p[1],f.p[2]]; w.r=[f.r[0],-f.r[1],-f.r[2]];
   E.wpnHand=s; E.oneHand=true; setGrip(J,s,true); setGrip(J,s==='R'?'L':'R',false); E.atkCd=Math.max(E.atkCd,1.2);
   if(E.barkCd<=0) bark(E,pick(['*grunts* —fuck—','I can still shoot you—','Hnn— other hand—']),2); }
+/* where a man on the floor drags himself: somewhere he can reach that is farther from you, out of your sight if he can manage it
+   (behind the counter, out the door), not straight away from you into whatever is behind him. Picked again when he gets there,
+   every few seconds, or when you get closer to it than he is */
+function crawlGoal(E,pel){ const here=Math.hypot(pel[0]-PL.x,pel[2]-PL.z),g=E.cg;
+  if(g&&GAME.t<E.cgT&&Math.hypot(pel[0]-g[0],pel[2]-g[1])>.6&&Math.hypot(g[0]-PL.x,g[1]-PL.z)>here) return g;
+  E.cg=null; E.cgT=GAME.t+5; if(!FLOOR.nav) return null; const F=fieldTo(pel[0],pel[2]); let best=null,bs=-1e9;
+  for(let n=0;n<40;n++){ const a=Math.random()*6.283,d=rnd(1.5,6),x=pel[0]+Math.cos(a)*d,z=pel[2]+Math.sin(a)*d,c=navCell(x,z); if(c<0||FLOOR.nav[c]) continue;
+    const walk=F?F[c]/20:d; if(walk>9) continue; const dp=Math.hypot(x-PL.x,z-PL.z); if(dp<here+.8) continue;
+    const sc=dp-walk*.35+(sightClear([PL.x,1.5,PL.z],[x,.4,z])?0:2.5); if(sc>bs){ bs=sc; best=[cellX(c%NX),cellZ((c-c%NX)/NX)]; } }
+  return E.cg=best; }
 function toDown(E,hard){ /* unless knocked flat, they buckle: held up on the way down to a knee, then let go */
   E.st='down'; E.downT=0; E.settle=Math.max(E.settle||0,1.4); dropWeapon(E);
   const B=E.B,Rh=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),X_(B,PI_.pelvis),X_(B,PI_.chest)),fw=Rh[2];
