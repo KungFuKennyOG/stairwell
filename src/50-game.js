@@ -279,7 +279,8 @@ function stepBody(E,h){
   for(let i=0;i<NP;i++){ const k=E.K[i],o=i*3; CR[o]=CR[o+1]=CR[o+2]=0; if(PN&&PN[i]) continue; vx+=x[o]-p[o]; vy+=x[o+1]-p[o+1]; vz+=x[o+2]-p[o+2]; if(k<=0) continue;
     if(s>0) for(let c=0;c<3;c++) x[o+c]+=(E.Wt[o+c]-x[o+c])*k*s;
     if(Ha){ const r=v3.add(pel,mv(Ha,[E.Lc[o],E.Lc[o+1],E.Lc[o+2]])); r[1]=Math.max(r[1],B.r[i]+.004); /* never ask a limb to go through the floor: that would push the body up forever */
-      for(let c=0;c<3;c++){ CR[o+c]=clamp((r[c]-x[o+c])*k*(1-s),-PHYS.cr,PHYS.cr); }
+      const cap=E.gShoot&&PD[i][4]==='armR'?PHYS.cr*5:PHYS.cr; /* firing from the floor: the gun arm whips round, it doesn't drift */
+      for(let c=0;c<3;c++){ CR[o+c]=clamp((r[c]-x[o+c])*k*(1-s),-cap,cap); }
       if(B.ground[i]&&CR[o+1]<0) CR[o+1]=0; /* the floor would cancel a push into it; counting it would launch the rest of the body */
       sx+=CR[o]; sy+=CR[o+1]; sz+=CR[o+2]; } }
   sx/=na; sy/=na; sz/=na; vx/=na; vy/=na; vz/=na;
@@ -658,6 +659,7 @@ function setAware(E,why,at){ if(E.dead||E.ally) return; /* your own team never t
   if(E.civ){ if(typeof twCivPanic==='function') twCivPanic(E,why); return; } /* tenants panic, they don't fight (66-tower.js) */ const p=at||[PL.x,PL.z];
   if(E.aware){ if(!E.canSee) E.lkp=p; return; }
   E.aware=true; E.mind='hunt'; E.lkp=p; E.lostT=at?.7:0; E.goHome=false; E.spotT=0; freshGoal(E); if(E.st==='idle') E.st='alert';
+  if(E.concealed&&!E.wpnHeld) return; /* plain clothes, gun still hidden: he keeps his mouth shut. He shouts when it comes out, or says he just lives here (66-tower.js, 69-standoff.js) */
   if(GAME.barkGlobal<=0&&E.barkCd<=0){ bark(E,pick(LINES.alert)); GAME.barkGlobal=1.2; if(why!=='hit'){ vox(E,'shout'); noise([E.pos[0],0,E.pos[1]],8,{alarm:true,from:E}); } } }
 function faceHold(E,f,t){ if(!E.dead) E.faceHold={f,t}; }
 /* fists and anything blunt: no wound to speak of, but it stuns, and enough to the head puts him out cold */

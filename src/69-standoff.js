@@ -8,6 +8,7 @@
      some put themselves between you and the person next to them
    E.covered: your gun is on him right now (VR: the muzzle line; flat screen: the crosshair) */
 const SURR_LINES=['Okay! Okay!','Don\'t shoot!','I\'m done— I\'m done!','Alright, alright—','No more, man—'];
+const SURR_PLAIN=['Don\'t shoot!','Okay! Okay!','Please—','Don\'t— don\'t—'];
 const FREEZE_LINES=['Please...','I— I—','Oh God...','Please, I—'];
 const DENY_LINES=['What— what is that?','Is that a gun?','What\'s happening?','Who are you?','This isn\'t— this isn\'t real—'];
 const SHIELD_LINES=['Don\'t look, don\'t look—','Stay down— stay down—','I got you, I got you—','Not her— please—'];
@@ -30,11 +31,11 @@ const lookingAt=(p,deg)=>{ const c=camBasis(),v=norm3(v3.sub(p,c.eye)); return v
 function surrender(E,why){ if(E.dead||E.surr||E.ally) return;
   E.surr={ph:'reach',t:0,why,hold:rnd(.9,1.6)}; E.role=null; E.atkCd=1e9; E.burstN=0; E.atkT=-1; E.fakeWait=rnd(1.2,2.6);
   E.backup=!E.civ&&psychOf(E)==='fake'&&!!E.C.wpn&&!!RANGED[E.kind];
-  if(E.barkCd<=0||why!=='civ'){ bark(E,pick(E.civ?FREEZE_LINES:SURR_LINES),2.2); GAME.barkGlobal=.8; }
+  if(E.barkCd<=0||why!=='civ'){ bark(E,pick(E.civ?FREEZE_LINES:E.concealed?SURR_PLAIN:SURR_LINES),2.2); GAME.barkGlobal=.8; } /* plain clothes: only what a tenant would say too */
   vox(E,E.civ?'cry':'plead',.9); }
 /* a faker comes back up with the gun he kept */
 function springBack(E){ E.surr=null; E.st='alert'; E.rise=.55; E.aware=true; E.role='hunt'; E.concealed=false;
-  E.wpnHeld=true; E.wpnHand='R'; E.C.wpn.vis=true; setGrip(E.J,'R',true); E.sprung=.35; E.backup=false; /* he's been waiting for this: the first shot comes in about a third of a second */ sfx('click',.9,[E.pos[0],1.1,E.pos[1]]); }
+  E.wpnHeld=true; E.wpnHand='R'; E.C.wpn.vis=true; setGrip(E.J,'R',true); E.sprung=.35; E.backup=false; if(E.concealed!==undefined){ bark(E,pick(LINES.alert),1.6); GAME.barkGlobal=1; vox(E,'shout'); } /* he's been waiting for this: the first shot comes in about a third of a second */ sfx('click',.9,[E.pos[0],1.1,E.pos[1]]); }
 
 function surrDecide(E,dt,dist){
   if(E.civ||E.surr||E.dead||E.st!=='alert'||!E.aware||E.grabbed) return; const P=psychOf(E);

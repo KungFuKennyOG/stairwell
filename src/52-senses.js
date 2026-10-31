@@ -73,7 +73,7 @@ function senses(E,dt,dist,toP,B){ if(E.ally){ E.canSee=false; return; } /* the t
     else if(tick&&enemies.length>1){ for(const O of enemies){ if(O===E||!(O.dead||O.st==='down'||O.st==='kneel')||(E.seen&&E.seen.has(O))) continue;
         const op=X_(O.B,PI_.pelvis),dx=op[0]-E.pos[0],dz=op[2]-E.pos[1],d=Math.hypot(dx,dz); if(d>8||(dx*fwd[0]+dz*fwd[1])/(d||1)<.1&&d>1.2) continue;
         if(!sightClear(X_(B,PI_.head),[op[0],.45,op[2]])) continue;
-        (E.seen||(E.seen=new Set())).add(O); if(E.civ){ if(typeof twCivPanic==='function') twCivPanic(E,'body'); break; } say(E,LINES.body(O.name),2.6); vox(E,'shout');
+        (E.seen||(E.seen=new Set())).add(O); if(E.civ){ if(typeof twCivPanic==='function') twCivPanic(E,'body'); break; } if(!(E.concealed&&!E.wpnHeld)){ say(E,LINES.body(O.name),2.6); vox(E,'shout'); }
         if(E.st==='idle') E.st='alert'; startSearch(E,[op[0],op[2]],'body'); noise([E.pos[0],0,E.pos[1]],9,{from:E}); break; } } }
   if(E.aware){
     if(E.canSee||E.tracks){ E.lkp=[PL.x,PL.z]; E.lostT=0; E.mind='hunt';

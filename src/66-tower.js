@@ -502,7 +502,7 @@ function twCivTick(dt){ for(const E of enemies){ if(E.dead){ if(E.concealed&&!E.
     /* he knows: out comes the gun */
     if(E.concealed&&E.aware&&!E.wpnHeld&&(E.st==='alert')&&!E.surr){ /* your gun on him from close: a quitter puts his hands up instead (69-standoff.js); a fighter still draws, a beat later */
       const pinned=E.covered&&Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)<5.5; if(pinned&&psychOf(E)!=='fight') continue;
-      E.drawT=(E.drawT||0)+dt; if(E.drawT>(pinned?.95:.6)){ E.wpnHeld=true; E.C.wpn.vis=true; setGrip(E.J,'R',true); sfx('click',.9,[E.pos[0],1.1,E.pos[1]]); E.atkCd=Math.max(E.atkCd,.5); } } } }
+      E.drawT=(E.drawT||0)+dt; if(E.drawT>(pinned?.95:.6)){ E.wpnHeld=true; E.C.wpn.vis=true; setGrip(E.J,'R',true); sfx('click',.9,[E.pos[0],1.1,E.pos[1]]); E.atkCd=Math.max(E.atkCd,.5); bark(E,pick(LINES.alert),1.8); GAME.barkGlobal=1; vox(E,'shout'); noise([E.pos[0],0,E.pos[1]],8,{alarm:true,from:E}); } /* now he shouts */ } } }
 function twClearLine(){ const D=FLOOR.def,civ=enemies.filter(E=>E.civ),bad=enemies.filter(E=>!E.civ),cd=civ.filter(E=>E.dead).length;
   const W=['none','one','two','three','four','five','six','seven','eight'],w=k=>W[k]||String(k);
   let t=(D.clear&&D.clear[1])||''; if(civ.length) t+=' '+(cd===0?(civ.length===1?'The one who wasn\'t there is still breathing.':`The ${w(civ.length)} who weren't there are still breathing.`):cd===1?'You killed one who wasn\'t.':`You killed ${w(cd)} who weren't.`); return t; }
