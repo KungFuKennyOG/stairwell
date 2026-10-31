@@ -5278,9 +5278,21 @@ function setPose(E,name,t){
       armL:[-.6,0,.4],elbowL:[-1.4,0,0],armR:[-.6,0,-.4],elbowR:[-1.4,0,0]}; break; }
     case 'downbeg': rel=true; j={spine:[.3,0,0],neck:[.1,0,0],head:[-.2,0,0],thighL:[-.9,0,.15],kneeL:[1.4,0,0],thighR:[-.4,0,-.1],kneeR:[.9,0,0],
       armL:[-1.7+.05*s(ph*5),.2,.3],elbowL:[-.5,0,0],armR:[-1.1,0,-.3],elbowR:[-1.2,0,0]}; break;
-    case 'crawl': { rel=true; const k=s(ph*2.4); j={spine:[-.15,0,.1*k],neck:[-.3,0,0],head:[-.45,0,0],armL:[-2.5+.75*k,0,.3],elbowL:[-.3-.7*Math.max(0,-k),0,0],armR:[-2.5-.75*k,0,-.3],elbowR:[-.3-.7*Math.max(0,k),0,0],
+    case 'curl': { rel=true; const en=E.energy??1,rk=.08*s(ph*.8)*c*en; /* on his side, knees to his chest, hands on the wound, rocking a little */
+      j={spine:[.85+rk,0,.1*s(ph*.55)*c*en],neck:[.4,0,0],head:[.3,0,0],thighL:[-1.5,0,.1],kneeL:[2.05,0,0],thighR:[-1.3,0,-.1],kneeR:[1.9,0,0],
+      armL:[-.9,0,.5],elbowL:[-1.8,0,0],armR:[-.9,0,-.5],elbowR:[-1.8,0,0]}; break; }
+    case 'cower': { rel=true; const tr=.03*s(ph*9); /* you're standing over him: he curls up tight with his arms over his head */
+      j={spine:[.9,0,0],neck:[.5,0,0],head:[.4,0,0],thighL:[-1.6,0,.1],kneeL:[2.1,0,0],thighR:[-1.45,0,-.1],kneeR:[2.0,0,0],
+      armL:[-2.5+tr,0,.55],elbowL:[-2.3,0,0],armR:[-2.5-tr,0,-.55],elbowR:[-2.3,0,0]}; break; }
+    case 'gasp': { rel=true; const en=E.energy??1,br=.07*s(ph*4.5)*(.4+.6*en); /* chest wound: head and shoulders up off the floor, fast shallow breaths */
+      j={spine:[.42+br,0,0],neck:[.3,0,0],head:[.12,0,0],thighL:[-.5,0,.1],kneeL:[1.04,0,0],thighR:[-.35,0,-.1],kneeR:[.74,0,0],
+      armL:[-.6,0,.4],elbowL:[-1.4,0,0],armR:[-.25,0,-.75],elbowR:[-.5,0,0]}; break; }
+    case 'still': { rel=true; const br=.015*s(ph*1.3); /* playing dead, or too far gone to move: flat, slack, just breathing */
+      j={spine:[.05+br,0,0],neck:[.05,0,0],head:[0,0,0],thighL:[-.08,0,.08],kneeL:[.15,0,0],thighR:[-.05,0,-.08],kneeR:[.1,0,0],
+      armL:[-.25,0,.5],elbowL:[-.35,0,0],armR:[-.2,0,-.45],elbowR:[-.25,0,0]}; break; }
+    case 'crawl': { rel=true; const k=s(ph*2.4)*(E.pullAmp??1); j={spine:[-.15,0,.1*k],neck:[-.3,0,0],head:[-.45,0,0],armL:[-2.5+.75*k,0,.3],elbowL:[-.3-.7*Math.max(0,-k),0,0],armR:[-2.5-.75*k,0,-.3],elbowR:[-.3-.7*Math.max(0,k),0,0],
       thighL:[.1,0,.1],kneeL:[.25+.5*Math.max(0,k),0,0],thighR:[.1,0,-.1],kneeR:[.25+.5*Math.max(0,-k),0,0]}; break; }
-    case 'scoot': { rel=true; const k=s(ph*2.6); j={spine:[.35,0,0],neck:[.3,0,0],head:[.35,0,0],armL:[.55,0,.45],elbowL:[-1.5,0,0],armR:[.55,0,-.45],elbowR:[-1.5,0,0],
+    case 'scoot': { rel=true; const k=s(ph*2.6)*(E.pullAmp??1); j={spine:[.35,0,0],neck:[.3,0,0],head:[.35,0,0],armL:[.55,0,.45],elbowL:[-1.5,0,0],armR:[.55,0,-.45],elbowR:[-1.5,0,0],
       thighL:[-.7-.45*k,0,.12],kneeL:[1.2+.5*k,0,0],thighR:[-.7+.45*k,0,-.12],kneeR:[1.2-.5*k,0,0]}; break; }
   }
   for(const k in j) J[k].r=j[k].slice();
@@ -5321,7 +5333,7 @@ function targetsFor(E,t,dt=1){
   if(throat&&(st==='kneel'||st==='down'&&pose!=='crawl'&&pose!=='scoot')){ J.neck.r=[.5,0,0]; J.head.r=[.35,0,0]; J.spine.r[0]=Math.max(J.spine.r[0],.45); }
   let M=fkMats(J);
   E.handRot={L:J.handL.r.slice(),R:J.handR.r.slice()};
-  if(!E.dead&&E.wounds.length&&(st==='kneel'&&(!E.near||throat)||throat&&st==='down'||st==='down'&&(pose==='writhe'||pose==='downbeg'))){ if(clutch(E,M)) M=fkMats(J); }
+  if(!E.dead&&E.wounds.length&&(st==='kneel'&&(!E.near||throat)||throat&&st==='down'||st==='down'&&(pose==='writhe'||pose==='downbeg'||pose==='curl'||pose==='gasp'||pose==='still'))){ if(clutch(E,M)) M=fkMats(J); }
   const P=posePts(J,E.o,M);
   const Hp=frameFrom(P[PI_.hipL],P[PI_.hipR],P[PI_.pelvis],P[PI_.chest]),pel=P[PI_.pelvis],Ry=ryM(E.hd);
   /* poses blend over a few frames instead of snapping, so switching from writhing to crawling doesn't flip the body */
@@ -5499,7 +5511,7 @@ function collideBody(E){
       if(px>b.x0-r&&px<b.x1+r&&pz>b.z0-r&&pz<b.z1+r&&py<b.h+r&&py>b.y0-r){ const pens=[px-(b.x0-r),(b.x1+r)-px,pz-(b.z0-r),(b.z1+r)-pz,(b.h+r)-py,b.y0>0?py-(b.y0-r):1e9]; let m=0; for(let k=1;k<6;k++) if(pens[k]<pens[m]) m=k;
         if(m===0){ x[o]=b.x0-r; p[o]=Math.min(p[o],x[o]); } else if(m===1){ x[o]=b.x1+r; p[o]=Math.max(p[o],x[o]); } else if(m===2){ x[o+2]=b.z0-r; p[o+2]=Math.min(p[o+2],x[o+2]); } else if(m===3){ x[o+2]=b.z1+r; p[o+2]=Math.max(p[o+2],x[o+2]); }
         else if(m===4){ x[o+1]=b.h+r; p[o+1]=Math.max(p[o+1],x[o+1]); gr=true; } else { x[o+1]=b.y0-r; p[o+1]=Math.min(p[o+1],x[o+1]); } } }
-    if(gr){ p[o]=x[o]-(x[o]-p[o])*PHYS.fric; p[o+2]=x[o+2]-(x[o+2]-p[o+2])*PHYS.fric; }
+    if(gr){ const fr=E.crawlF&&E.crawlF[2]>.05?.97:PHYS.fric; /* mid-pull he slides along the floor; the floor's drag had him stuck in place */ p[o]=x[o]-(x[o]-p[o])*fr; p[o+2]=x[o+2]-(x[o+2]-p[o+2])*fr; }
     B.ground[i]=gr?1:0;
     { const dvx=x[o]-p[o]-v0x,dvy=x[o+1]-p[o+1]-v0y,dvz=x[o+2]-p[o+2]-v0z,im=Math.hypot(dvx,dvy,dvz)/H; if(im>B.imp[i]){ B.imp[i]=im; const vl=Math.hypot(v0x,v0y,v0z)||1; B.impDir[i]=[v0x/vl,v0y/vl,v0z/vl]; } } /* how hard it just hit something */
     /* the player is a solid cylinder: walking into a standing man shoves him. Anyone on the floor (crawling, writhing, dead) is stepped over:
@@ -5950,19 +5962,39 @@ function think(E,dt,t){
     const Rh=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),pel,X_(B,PI_.chest)),up=Rh[2][1];
     const canMove=E.cons>.35&&Math.max(E.hp.armL,E.hp.armR)>.35&&!E.wounds.some(w=>w.part==='neck');
     const lying=pel[1]<.35&&X_(B,PI_.chest)[1]<.45; /* actually on the floor, not still kneeling or slumped against a table */
-    if(E.knocked||E.downT<1.3||!lying) E.downMode='writhe'; /* first lie there and hurt, then start dragging. Crawling while still half up threw his arms over his head and levered him right over */
-    else if(dist<2.2&&up>-.2&&E.cons>.3&&!E.wounds.some(w=>w.part==='neck'&&!w.piece)) E.downMode='downbeg'; /* on his back he begs; on his belly he keeps trying to drag himself away */
-    else if(canMove&&dist<6){ E.downMode=up>(E.downMode==='crawl'?.45:.2)?'scoot':up<(E.downMode==='scoot'?-.45:-.2)?'crawl':(E.downMode==='scoot'||E.downMode==='crawl'?E.downMode:'writhe');
-      if(E.downMode!=='writhe'){ const g=crawlGoal(E,pel),away=g?navTo(pel[0],pel[2],g[0],g[1]):norm3([-toP[0],0,-toP[1]]),k=Math.sin((t+E.t0)*2.4); E.crawlF=[away[0],away[2],Math.max(0,E.downMode==='crawl'?Math.abs(k):Math.abs(Math.sin((t+E.t0)*2.6)))*.55*E.cons]; } }
-    else E.downMode='writhe';
+    /* How a man on the floor behaves. From how people actually go down: a belly wound lies still and curls up (moving hurts), a chest
+       wound fights for air with his head and shoulders up, someone with working arms drags himself toward cover, some go still and play
+       dead. Everyone fades as the blood goes: restless, then slower with longer rests, then still. Each man has his own way (E.temper);
+       the wound can overrule it. */
+    if(!E.temper){ const r=Math.random(); E.temper=r<.45?'crawl':r<.8?'curl':'still'; }
+    const en=clamp((E.blood-20)/55,0,1); E.energy=en;
+    const wst=E.wounds.filter(w=>!w.piece).reduce((a,w)=>!a||w.rate>a.rate?w:a,null),wp=wst?wst.part:'',belly=wp==='belly',chestW=wp==='chest';
+    const wantCrawl=E.temper==='crawl'&&canMove&&lying&&!(belly&&en<.6); /* crawling only from flat on the floor: half up against a table it levered him over */
+    let mode;
+    if(E.knocked&&E.koT&&E.downT<E.koT&&!E.ally) mode='still'; /* out cold */
+    else if(E.knocked&&E.ally||E.downT<1.3||E.wounds.some(w=>w.part==='neck'&&!w.piece)) mode='writhe'; /* first he lands and hurts; a throat wound holds his throat */
+    else if(en<.18) mode='still'; /* bled out to the edge: barely moving, shallow breaths */
+    else if(dist<2.2&&E.cons>.3){ /* you're over him */
+      if(E.temper==='still') mode='still'; else if(wantCrawl&&up<-.2) mode='crawl'; else if(E.temper==='crawl') mode='downbeg'; else mode='cower'; }
+    else if(wantCrawl&&dist<9) mode=up>(E.downMode==='crawl'?.45:.2)?'scoot':up<(E.downMode==='scoot'?-.45:-.2)?'crawl':(E.downMode==='scoot'||E.downMode==='crawl'?E.downMode:'curl');
+    else if(chestW) mode='gasp';
+    else if(E.temper==='still') mode='still';
+    else mode='curl';
+    E.downMode=mode;
+    if(mode==='crawl'||mode==='scoot'){ /* effort in pulls, then a rest; the rests get longer as he weakens */
+      E.pullT=(E.pullT??0)-dt; if(E.pullT<=0){ E.pulling=!E.pulling; E.pullT=E.pulling?rnd(1.6,3.4)*(.5+en*.5):rnd(.7,2)/(en+.35); }
+      E.pullAmp=lerp(E.pullAmp||0,E.pulling?1:0,Math.min(1,dt*3));
+      const g=crawlGoal(E,pel),away=g?navTo(pel[0],pel[2],g[0],g[1]):norm3([-toP[0],0,-toP[1]]),k=Math.sin((t+E.t0)*2.4);
+      E.crawlF=[away[0],away[2],Math.max(0,mode==='crawl'?Math.abs(k):Math.abs(Math.sin((t+E.t0)*2.6)))*(.3+.7*en)*E.pullAmp]; }
     if(prevMode&&E.downMode!==prevMode){ if(E.modeT>0) E.downMode=prevMode; else E.modeT=1.6; }
-    if(E.downMode==='writhe'||E.downMode==='downbeg') E.crawlF=null; }
+    if(E.downMode!=='crawl'&&E.downMode!=='scoot') E.crawlF=null; }
   /* looking at the player */
   if(E.Rs&&E.st==='alert'&&!(E.aware&&E.canSee)){ const sw=E.mind==='search'||E.mind==='investigate'?Math.sin((t+E.t0)*1.3)*.6:0; E.lookYaw=lerp(E.lookYaw,sw,Math.min(1,dt*3)); } /* doesn't know where you are: looks around, not at you */
   else if(E.Rs&&(E.st==='alert'||E.st==='kneel'||E.st==='down')){ const l=mtv(E.Rs,norm3([toP[0],0,toP[1]])); E.lookYaw=lerp(E.lookYaw,clamp(Math.atan2(l[0],l[2]),-1,1),Math.min(1,dt*5)); }
   else E.lookYaw=lerp(E.lookYaw,0,Math.min(1,dt*3));
   /* talking */
-  if(E.barkCd<=0&&GAME.barkGlobal<=0&&!E.ally){ /* the team only say what the prologue gives them */
+  const playDead=E.st==='down'&&E.downMode==='still'&&E.temper==='still'&&(E.energy??1)>=.18;
+  if(E.barkCd<=0&&GAME.barkGlobal<=0&&!E.ally&&!playDead){ /* playing dead: not a sound */ /* the team only say what the prologue gives them */
     const neck=E.wounds.some(w=>w.part==='neck');
     if(neck&&E.wounds.length) bark(E,pick(LINES.neck));
     else if(E.cons<.4&&E.wounds.length) bark(E,pick(LINES.dying),3.2);
@@ -5973,11 +6005,12 @@ function think(E,dt,t){
   E.aimK=lerp(E.aimK||0,(E.st==='alert'?1:0)*(1-Math.min(E.stun,.8)*.7),Math.min(1,dt*3.5)); /* bring the long gun up when fighting, drop it when rocked */
   voiceTick(E,dt,dist);
   /* face */
-  let face=E.st==='kneel'&&E.near&&!E.wounds.some(w=>w.part==='neck')||E.downMode==='downbeg'&&E.st==='down'?'beg':(E.wounds.length||E.stun>.35)?'hurt':'fight';
+  let face=E.st==='kneel'&&E.near&&!E.wounds.some(w=>w.part==='neck')||(E.downMode==='downbeg'||E.downMode==='cower')&&E.st==='down'?'beg':(E.wounds.length||E.stun>.35)?'hurt':'fight';
   if(E.faceHold&&E.faceHold.t>0){ E.faceHold.t-=dt; face=E.faceHold.f; }
   else if(E.impaled>0) face='agony';
   else if(E.grabbed&&E.chokeT>0||E.wounds.some(w=>w.part==='neck'&&!w.piece)) face='choke';
   else if(E.cons<.35&&E.wounds.length) face='shock';
+  else if(playDead) face='sleep'; /* eyes shut */
   if(face!==E.face){ E.face=face; E.J.headMesh.mesh.mats[0]=E.C.faceM[face]; E.J.headMesh.mesh.runs=null; }
 }
 function switchHand(E,s){ /* the good hand takes the weapon; a two-handed grip becomes one-handed */
