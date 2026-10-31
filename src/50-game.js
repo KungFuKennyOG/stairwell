@@ -162,7 +162,8 @@ function setPose(E,name,t){
     case 'beg': j=C.poses.beg.j; hy=C.poses.beg.hipsY; break;
     /* the standoff (69-standoff.js). reach: hands come down to the belt first, the split second a surrender looks like a draw */
     case 'reach': j=Object.assign({},C.poses.idle.j,{spine:[.14,0,0],head:[.05,0,0],armL:[-.3,0,.3],elbowL:[-1.45,0,0],armR:[-.3,0,-.3],elbowR:[-1.45,0,0]}); break;
-    case 'hands': j=Object.assign({},C.poses.idle.j,{spine:[-.04,0,0],head:[-.12,0,0],armL:[-.35,-.5,.55],elbowL:[-1.9,0,0],armR:[-.35,.5,-.55],elbowR:[-1.9,0,0]}); break;
+    case 'hands': j=Object.assign({},C.poses.idle.j,{spine:[-.04,0,0],head:[-.12,0,0],armL:[-1.5,0,.9],elbowL:[-1.7,0,0],armR:[-1.5,0,-.9],elbowR:[-1.7,0,0]}); break; /* hands up: elbows out, forearms up, hands beside the head */
+    case 'kneelup': j=Object.assign({},C.poses.beg.j,{head:[-.15,0,0],armL:[-1.5,0,.9],elbowL:[-1.7,0,0],armR:[-1.5,0,-.9],elbowR:[-1.7,0,0]}); hy=C.poses.beg.hipsY; break;
     case 'freeze': j=Object.assign({},C.poses.idle.j,{spine:[.1,0,0],neck:[.08,0,0],head:[.05,0,0],armL:[-.55,0,.18],elbowL:[-1.75,0,0],armR:[-.55,0,-.18],elbowR:[-1.75,0,0]}); break; /* rigid, hands drawn up to the chest */
     case 'shield': j=Object.assign({},C.poses.beg.j,{spine:[.8,0,0],neck:[.35,0,0],head:[.3,0,0],armL:[-1.25,0,-.15],elbowL:[-1.5,0,0],armR:[-1.25,0,.15],elbowR:[-1.5,0,0]}); hy=C.poses.beg.hipsY; break; /* on his knees, back to you, wrapped over the one beside him */
     case 'kneel': j=Object.assign({},C.poses.beg.j,{spine:[.5,0,.08],neck:[.15,0,0],head:[.25,0,0],armL:[-.3,0,.2],elbowL:[-1.4,0,0],armR:[-.3,0,-.2],elbowR:[-1.4,0,0]}); hy=C.poses.beg.hipsY; break;
@@ -213,7 +214,7 @@ function targetsFor(E,t,dt=1){
   const st=E.st;
   const throat=!E.dead&&E.wounds.some(w=>w.part==='neck'&&!w.piece); /* a man holding his throat shut doesn't beg */
   if(st==='idle') pose='idle'; else if(st==='alert') pose=E.surr?(E.surr.ph==='reach'?'reach':'hands'):E.civFreeze?'freeze':'fight';
-  else if(st==='kneel') pose=E.civMode==='shield'&&E.shielder?'shield':(E.near||E.surr)&&!throat?'beg':'kneel';
+  else if(st==='kneel') pose=E.civMode==='shield'&&E.shielder?'shield':E.surr&&!throat?'kneelup':E.near&&!throat?'beg':'kneel';
   else if(st==='down'){ pose=E.fallT>0?'kneel':E.downMode||'writhe'; }
   else pose='writhe';
   if(E.drop){ E.drop.t+=dt; if(E.drop.t>=E.drop.T){ E.drop=null; E.settle=Math.max(E.settle||0,.9); } }
