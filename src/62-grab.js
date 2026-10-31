@@ -21,7 +21,7 @@ function startGrab(h,g){ const E=g.E,q=X_(E.B,g.i);
   if(Math.hypot(...G.off)>.08) G.off=v3.sc(norm3(G.off),.08);
   GRABS.push(G); h.grab=G; E.grabbed=(E.grabbed||0)+1; sfx('grab'); if(XR.on) buzz(h.hand,.7,60);
   if(!E.dead){ if(!G.choke) setAware(E,'grab'); E.stun=Math.min(1,E.stun+.25); if(G.choke&&E.barkCd<1.5) bark(E,'—hhk— gk—',1.6); else if(E.barkCd<1.2) bark(E,pick(['Get off me—','Let go!','Hey— HEY—']),1.4); } }
-function endGrab(G,throwV){ const i=GRABS.indexOf(G); if(i>=0) GRABS.splice(i,1); G.h.grab=null; const E=G.E; E.grabbed=Math.max(0,(E.grabbed||0)-1);
+function endGrab(G,throwV){ const i=GRABS.indexOf(G); if(i>=0) GRABS.splice(i,1); G.h.grab=null; const E=G.E; E.grabbed=Math.max(0,(E.grabbed||0)-1); E.shoveT=0; /* let go or thrown: the floor's grip (50-game.js) waits a moment */
   if(throwV){ const sp=Math.hypot(...throwV); for(const n of [G.i,PI_.chest,PI_.neck,PI_.pelvis]) kickV(E.B,n,v3.sc(throwV,n===G.i?1:.6),H); if(sp>2.5){ E.slamT=1.5; E.stun=Math.min(1,E.stun+.3); } }
   E.slamT=Math.max(E.slamT||0,.8); }
 /* pull each held point toward the hand, every physics step: the rest of the body follows through its joints */

@@ -88,7 +88,7 @@ function setX(B,i,v){ B.x[i*3]=v[0]; B.x[i*3+1]=v[1]; B.x[i*3+2]=v[2]; }
 function kickV(B,i,v,h){ for(let c=0;c<3;c++) B.p[i*3+c]-=v[c]*h; B.wake=1; }
 const H=1/240;
 /* tuning for bodies on the floor (see the stepBody/targetsFor comments) */
-const PHYS={k:.016,cr:.0011,kd:.02,kdDown:.1,fric:.82,wr:1}; /* on the floor: softer muscles, a lower force cap and much more damping, so a hurt man moves like a heavy body instead of buzzing */
+const PHYS={k:.016,cr:.0011,kd:.02,kdDown:.1,fric:.82,wr:1,grip:.95}; /* on the floor: softer muscles, a lower force cap and much more damping, so a hurt man moves like a heavy body instead of buzzing */
 
 /* ---------- enemies ---------- */
 const RANGED={gunman:1,doorman:1,enforcer:1,landlord:1};
@@ -161,9 +161,13 @@ function setPose(E,name,t){
     case 'idle': j=E.idleP?E.idleP.j:C.poses.idle.j; break; /* a man caught mid-moment (on the phone, leaning on a table) stands in his own pose */
     case 'beg': j=C.poses.beg.j; hy=C.poses.beg.hipsY; break;
     case 'kneel': j=Object.assign({},C.poses.beg.j,{spine:[.5,0,.08],neck:[.15,0,0],head:[.25,0,0],armL:[-.3,0,.2],elbowL:[-1.4,0,0],armR:[-.3,0,-.2],elbowR:[-1.4,0,0]}); hy=C.poses.beg.hipsY; break;
-    case 'writhe': rel=true; c*=PHYS.wr; j={spine:[.35+.18*s(ph*.9)*c,0,.25*s(ph*.6)*c],neck:[.2,0,0],head:[.25,.4*s(ph*.5)*c,0],
-      thighL:[-.9-.45*s(ph*1.1)*c,0,.1],kneeL:[1.3+.35*s(ph*1.3)*c,0,0],thighR:[-.6-.55*s(ph*.8+1)*c,0,-.1],kneeR:[1.1+.45*s(ph*.9+2)*c,0,0],
-      armL:[-.6,0,.4],elbowL:[-1.4,0,0],armR:[-.6,0,-.4],elbowR:[-1.4,0,0]}; break;
+    case 'writhe': { rel=true; c*=PHYS.wr*(.35+.65*Math.exp(-(E.downT||0)/8)); /* thrashing at first, then mostly lying there hurting */
+      /* knees drawn up with the feet kept on the floor: the knee bends twice what the hip does (thigh and shin are about the same length), so a
+         foot slides along the floor instead of lifting. Hip and knee on separate waves made the legs pedal in the air and walked the body round */
+      const hL=.62+.16*s(ph*.55)*c,hR=.45+.18*s(ph*.42+1.7)*c;
+      j={spine:[.3+.1*s(ph*.5)*c,0,.08*s(ph*.37)*c],neck:[.2,0,0],head:[.25,.35*s(ph*.4)*c,0],
+      thighL:[-hL,0,.1],kneeL:[2*hL+.04,0,0],thighR:[-hR,0,-.1],kneeR:[2*hR+.04,0,0],
+      armL:[-.6,0,.4],elbowL:[-1.4,0,0],armR:[-.6,0,-.4],elbowR:[-1.4,0,0]}; break; }
     case 'downbeg': rel=true; j={spine:[.3,0,0],neck:[.1,0,0],head:[-.2,0,0],thighL:[-.9,0,.15],kneeL:[1.4,0,0],thighR:[-.4,0,-.1],kneeR:[.9,0,0],
       armL:[-1.7+.05*s(ph*5),.2,.3],elbowL:[-.5,0,0],armR:[-1.1,0,-.3],elbowR:[-1.2,0,0]}; break;
     case 'crawl': { rel=true; const k=s(ph*2.4); j={spine:[-.15,0,.1*k],neck:[-.3,0,0],head:[-.45,0,0],armL:[-2.5+.75*k,0,.3],elbowL:[-.3-.7*Math.max(0,-k),0,0],armR:[-2.5-.75*k,0,-.3],elbowR:[-.3-.7*Math.max(0,k),0,0],
@@ -396,11 +400,22 @@ function collidePair(A,Bd){
       const dh=Math.hypot(dx,dz); if(dh<1e-4) continue; const pen=m-Math.sqrt(d2),wa=A.sup>.5&&Bd.sup<=.5?.15:Bd.sup>.5&&A.sup<=.5?.85:.5;
       a[o]-=dx/dh*pen*wa; a[o+2]-=dz/dh*pen*wa; b[q]+=dx/dh*pen*(1-wa); b[q+2]+=dz/dh*pen*(1-wa); } }
 }
+/* a hurt man lying on the floor has the floor's grip: his limbs move, but his body as a whole doesn't slide or turn on its own. Writhing
+   against the floor used to walk bodies round in circles. Most of each step's net slide and turn (hips' heading) is taken back. Off while he
+   crawls or scoots (that is meant to move him), is held or dropping, and for a moment after a hit, so a bullet, a kick or a throw still shoves him */
+const gripOK=E=>!E.dead&&E.st==='down'&&(E.downT||0)>1.5&&!E.crawlF&&!E.grabbed&&!E.drop&&(E.hitT||0)>.6&&(E.shoveT??9)>.6&&!(E.fallT>0)
+  &&E.B.x[PI_.pelvis*3+1]<.3&&E.B.x[PI_.chest*3+1]<.4; /* only once he's down and lying on the floor: still falling, or half on a bed, he must be free to slide off */
+function gripRef(E){ const x=E.B.x,PN=E.pinM; let cx=0,cz=0,n=0; for(let i=0;i<NP;i++){ if(PN&&PN[i]) continue; cx+=x[i*3]; cz+=x[i*3+2]; n++; }
+  const l=X_(E.B,PI_.hipL),r=X_(E.B,PI_.hipR); return [cx/n,cz/n,Math.atan2(l[2]-r[2],l[0]-r[0])]; }
+function gripFloor(E,g0){ const g1=gripRef(E),k=PHYS.grip,x=E.B.x,PN=E.pinM; let da=g1[2]-g0[2]; da=Math.atan2(Math.sin(da),Math.cos(da));
+  const a=-da*k,c=Math.cos(a),s=Math.sin(a),tx=(g0[0]-g1[0])*k,tz=(g0[1]-g1[1])*k;
+  for(let i=0;i<NP;i++){ if(PN&&PN[i]) continue; const o=i*3,rx=x[o]-g1[0],rz=x[o+2]-g1[1]; x[o]=g1[0]+rx*c-rz*s+tx; x[o+2]=g1[1]+rx*s+rz*c+tz; } }
 /* a corpse that has come to rest goes to sleep: no physics, no skinning, until something touches it (a hit, a grab, you, another body) */
 function wakeBody(E){ E.asleep=false; E.calm=0; E.B.wake=0; }
 function physics(h){
   for(const E of enemies) if(E.asleep){ const q=E.B.x; if(E.B.wake||E.grabbed||Math.hypot(q[0]-PL.x,q[2]-PL.z)<.7||enemies.some(O=>O!==E&&!O.asleep&&Math.hypot(O.B.x[0]-q[0],O.B.x[2]-q[2])<1.1)) wakeBody(E); }
   const live=enemies.filter(E=>!E.asleep&&!E.dormant);
+  for(const E of live) E.gs=gripOK(E)?gripRef(E):null;
   for(const E of live) stepBody(E,h);
   applyGrabs(h);
   /* full joint stops while a limp body is moving: falling, or just hit, kicked or grabbed. A corpse that has come down and been left alone
@@ -409,6 +424,7 @@ function physics(h){
   for(const E of live){ E.limp=E.dead||E.sup<.9; E.stops=E.limp&&(!E.dead||E.deadT<1.6||(E.hitT||0)<1.2||!!E.grabbed); }
   for(let it=0;it<5;it++){ for(const E of live){ solveBody(E); if(E.limp){ if(it===3) selfCollide(E); else if(it===4) limitBody(E,true,E.stops?.02:.005); } else if(it===4) limitBody(E); } if(it===2) applyGrabs(h); }
   for(const E of live) collideBody(E);
+  for(const E of live) if(E.gs) gripFloor(E,E.gs);
   /* a corpse that has been left alone and is nearly still goes to sleep (no physics) until something touches it. Its joint stops and
      self-contact would otherwise keep nudging it against the floor forever, and it would creep or bob. Twitching or just-hit bodies stay awake. */
   for(const E of live){ E.B.wake=0; if(!E.dead||E.deadT<2.2||E.grabbed||(E.hitT||0)<1.5){ E.calm=0; continue; } let mv=0,mx=0; const x=E.B.x,p=E.B.p; for(let i=0;i<NP*3;i++){ const d=Math.abs(x[i]-p[i]); mv+=d; if(d>mx) mx=d; } mv/=NP*3; /* average motion: one buzzing foot shouldn't keep the whole body awake */
@@ -755,7 +771,7 @@ function dropWeapon(E){ if(E.ally||!E.wpnHeld||!E.C.wpn) return; /* the team kee
 /* ---------- enemy brain ---------- */
 function think(E,dt,t){
   const B=E.B,pel=X_(B,PI_.pelvis),toP=[PL.x-pel[0],PL.z-pel[2]],dist=Math.hypot(toP[0],toP[1]);
-  E.settle=Math.max(0,(E.settle||0)-dt); E.barkT-=dt; E.barkCd-=dt; E.stun=Math.max(0,E.stun-dt*(E.dead?0:.9)); E.hitT+=dt; E.near=E.near?dist<3.9:dist<3.1;
+  E.settle=Math.max(0,(E.settle||0)-dt); E.barkT-=dt; E.barkCd-=dt; E.stun=Math.max(0,E.stun-dt*(E.dead?0:.9)); E.hitT+=dt; E.shoveT=(E.shoveT??9)+dt; E.near=E.near?dist<3.9:dist<3.1;
   if(E.dead){ E.deadT+=dt; return; }
   if(E.koT&&E.st==='down'&&E.downT<E.koT) E.stun=1; /* out cold */
   /* blood and the heart */
@@ -895,7 +911,7 @@ function kick(){ if(!GAME.started||PL.dead||PL.kickCd>0) return; PL.kickCd=.8; c
   let best=null; for(const E of enemies){ const pel=X_(E.B,PI_.pelvis),d=Math.hypot(pel[0]-PL.x,pel[2]-PL.z),dir=norm3([pel[0]-PL.x,0,pel[2]-PL.z]); if(d<1.45&&v3.dot(dir,fl)>.55&&(!best||d<best.d)) best={E,d}; }
   if(!best){ const D=doorNear(PL.x+fl[0]*.7,PL.z+fl[2]*.7,.95); if(D&&D.state==='closed'){ kickDoor(D); return; } sfx('swish'); return; } const E=best.E; sfx('kick');
   for(const i of [PI_.pelvis,PI_.chest,PI_.hipL,PI_.hipR,PI_.neck]) kickV(E.B,i,v3.add(v3.sc(fl,5.5),[0,.6,0]),H);
-  E.stun=Math.min(1,E.stun+1.1); setAware(E,'kick'); if(E.st==='kneel'){ toDown(E); } }
+  E.stun=Math.min(1,E.stun+1.1); E.shoveT=0; setAware(E,'kick'); if(E.st==='kneel'){ toDown(E); } }
 function hurtPlayer(d){ if(PL.dead) return; PL.hp-=d; PL.hurtT=0; XR.flash=.35; if(XR.on){ buzz('left',1,120); buzz('right',1,120); } $('flash').classList.remove('on'); void $('flash').offsetWidth; $('flash').classList.add('on'); screenBlood(2); sfx('hurt');
   if(PL.hp<=0){ PL.hp=0; PL.dead=true; PL.deadT=0; showMsg('YOU DIED','Back to the start of the level.'); } }
 
