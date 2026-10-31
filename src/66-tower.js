@@ -126,6 +126,8 @@ const TOWER=[
       {kind:'corner',name:'Rui',spots:[[-2.3,-2.95,-Math.PI/2],[-1.9,-3.2,-Math.PI/2-.2]],pose:'watch',extra:'I\'m nineteen, man—'},
       {kind:'corner',name:'Jojo',spots:[[-2.2,-4.15,-Math.PI/2+.25],[-1.6,-4.3,-Math.PI/2+.4]],pose:'idle',extra:'My brother\'s on six— please—'},
       {kind:'corner',name:'Kev',spots:[[2.0,5.22,0],[1.6,5.2,.25]],pose:'phone',extra:'I just held the door— I didn\'t shoot—'},
+      {kind:'abuela',civ:true,fem:true,old:true,name:'Doña Chela',spots:[[-8.5,-4.45,Math.PI],[-7.6,-4.5,Math.PI+.3]],pose:'idle',extra:'I\'m seventy-eight, mijo—'},
+      {kind:'obrero',civ:true,name:'Toño',spots:[[6.7,-4.82,Math.PI],[7.4,-4.85,Math.PI-.3]],pose:'lean',extra:'I work at the plant— I just work—'},
       {kind:'gunman',name:'Tito',spots:[[10.35,.55,-Math.PI/2]],pose:'idle',extra:'They made me look— they made me—',
         hunt:{pts:[[7.2,0],[7.2,3.4],[7.2,0],[-3.0,0],[-3.0,3.4],[-3.0,0],[-7.0,0],[-7.0,-3.4],[-7.0,0],[-10.35,.5],[-6.0,0],[2.4,0],[6.0,0],[6.0,-3.4],[6.0,0],[10.35,.4]],
           calls:['Cop?','Come out, cop.','Landlord says six.','We only counted five.','I know you\'re hurt.','...cop?','You\'re bleeding, man. I can smell it.']}}],
@@ -133,6 +135,8 @@ const TOWER=[
       {who:['Dani'],r:3.8,lines:[['Dani','...the old one kept talking.'],['Dani','His daughter\'s wedding.'],['Dani','In June, he said.'],['Dani','I took his watch.'],['Dani','Eat your rice, Dani.']]},
       {who:['Rui','Jojo'],r:3.8,lines:[['Rui','You were on the stairs?'],['Jojo','Held the light. That\'s all.'],['Rui','Mario\'s keeping the vest.'],['Jojo','Five helmets. There were six.'],['Rui','So where\'s the sixth?'],['Jojo','Tito\'s looking. Turn it up.'],
         ['Jojo','The girl was still breathing.'],['Rui','Don\'t. Not in here.']]},
+      {who:['Doña Chela'],r:3.8,lines:[['Doña Chela','Holy Mary, mother of God...'],['Doña Chela','Five boys. Five.'],['Doña Chela','Dani carried one past my door.'],['Doña Chela','His mother would die.']]},
+      {who:['Toño'],r:3.8,lines:[['Toño','Don\'t open the door, Toño.'],['Toño','I heard it all through the floor.'],['Toño','Kev was crying after.'],['Toño','I just make tortillas. I just...']]},
       {who:['Kev'],r:3.8,lines:[['Kev','Ma. Ma, it\'s me.'],['Kev','I did something, Ma.'],['Kev','I just held the door.'],['Kev','I didn\'t shoot. I swear.'],['Kev','Pick up. Please.']]}],
     loot:[['knife',-7.4,.97,5.5,.4]],
     clear:['FLOOR 01','Five men. All of them were on the stairs.'] },
@@ -172,7 +176,7 @@ const TOWER=[
       {kind:'cutter',name:'Marco',spots:[[-7.4,2.5,0]],pose:'lean',extra:'I don\'t even know you—'},
       {kind:'cutter',name:'Luis',spots:[[-7.4,4.72,Math.PI]],pose:'lean',extra:'It\'s not mine, it\'s his—'},
       {kind:'corner',name:'Felix',spots:[[6.0,3.05,0],[6.3,3.1,-.3]],pose:'watch',extra:'I was a fighter, man—'},
-      {kind:'gunman',name:'Sami',spots:[[-7.2,-4.05,Math.PI],[-6.6,-4.1,Math.PI+.3]],pose:'lean',extra:'I just moved in, man!'},
+      {kind:'vecino2',hidden:true,name:'Sami',spots:[[-7.2,-4.05,Math.PI],[-6.6,-4.1,Math.PI+.3]],pose:'lean',extra:'I just moved in, man!'},
       {kind:'doorman',name:'Nico',spots:[[10.35,.55,-Math.PI/2]],pose:'idle',extra:'It was the Landlord\'s order—',
         hunt:{pts:[[5.2,0],[6.5,-3.4],[5.2,0],[.6,0],[.6,-3.4],[.6,0],[-.6,0],[-1.7,3.4],[-3.6,4.4],[-1.7,3.4],[-.6,0],[-10.35,.5],[-4.0,0],[2.2,0],[2.2,2.6],[2.2,0],[10.35,.4]],
           calls:['Hey. Cop.','Tito\'s not answering.','...Tito?','You\'re on two now, huh?','Come out. I\'ll make it quick.','We left you for dead. Should\'ve checked.']}}],
@@ -180,8 +184,12 @@ const TOWER=[
       {who:['Luis','Marco'],r:3.8,lines:[['Luis','Weigh it again.'],['Marco','Their radio\'s still talking.'],['Luis','So turn it off. Weigh it.'],['Marco','...Ibarra\'s guy said Thursday.'],['Luis','Don\'t say that name.'],
         ['Marco','I\'m just saying. It\'s Tuesday.'],['Luis','They\'re dead. Weigh it.']]},
       {who:['Felix'],r:3.8,lines:[['Felix','Jab. Jab.'],['Felix','The rookie didn\'t hit back.'],['Felix','Three, I hit him.'],['Felix','Pops said I had hands.'],['Felix','Had.']]},
+      {who:['Yesenia'],r:3.8,lines:[['Yesenia','Mamá, it\'s me.'],['Yesenia','Twelve hours. I\'m fine.'],['Yesenia','No, nothing. Some shooting.'],['Yesenia','Nobody called an ambulance.'],['Yesenia','...Nobody.']]},
+      {who:['Don Lalo'],r:3.8,lines:[['Don Lalo','Marisol? Who\'s shooting?'],['Don Lalo','My pills. Where are my pills.'],['Don Lalo','The new boy has a gun now.'],['Don Lalo','Sami. Sweet boy. A gun.']]},
       {who:['Sami'],r:3.8,lines:[['Sami','First week. They give me a door.'],['Sami','Stand here, they said.'],['Sami','Shoot whoever comes up.'],['Sami','Should\'ve stayed at my aunt\'s.']]}],
     loot:[],
+    civ:[{kind:'enfermera',civ:true,fem:true,name:'Yesenia',spots:[[.2,-4.85,Math.PI],[-.5,-4.85,Math.PI+.2]],pose:'phone',extra:'I\'m a nurse— I\'m a nurse!'},
+      {kind:'enfermo',civ:true,old:true,name:'Don Lalo',spots:[[7.4,-4.3,Math.PI],[8.2,-4.0,Math.PI-.4]],pose:'idle',extra:'I\'m sick— I\'m just sick—'}],
     clear:['FLOOR 02','Five men. One of them beat Novak.'] },
 
   { n:3,name:'Floor 03',kit:'pistol',wall:'dark',floor:'parquet',
@@ -216,14 +224,18 @@ const TOWER=[
       A.light([11.5,2.35,0],[1.0,.78,.48],4.5); },
     cast:[
       {kind:'gunman',name:'Paulie',spots:[[-7.0,3.12,0]],pose:'lean',extra:'It\'s just the rent, man—'},
-      {kind:'gunman',name:'Eddie',spots:[[-.4,2.55,0]],pose:'lean',extra:'I got a kid on the way—'},
+      {kind:'vecino1',hidden:true,name:'Eddie',spots:[[-.4,2.55,0]],pose:'lean',extra:'I got a kid on the way—'},
       {kind:'cutter',name:'Tomas',spots:[[-.4,4.65,Math.PI]],pose:'lean',extra:'Take it, take the money—'},
       {kind:'enforcer',name:'Big Mike',spots:[[6.0,-5.2,Math.PI],[5.6,-5.15,Math.PI-.3]],pose:'watch',extra:'I didn\'t shoot nobody—'}],
     talk:[
       {who:['Paulie'],r:3.8,lines:[['Paulie','Two-oh-one. Short. Again.'],['Paulie','Helmets: five.'],['Paulie','Five hundred a helmet.'],['Paulie','Somebody owes me a sixth.']]},
       {who:['Tomas','Eddie'],r:3.8,lines:[['Tomas','Raise.'],['Eddie','With what, cop money?'],['Tomas','With yours.'],['Eddie','...you think they send more?'],['Tomas','Who?'],['Eddie','Kill five, they send fifty.'],['Tomas','Not here they don\'t. Raise.']]},
+      {who:['Marisol'],r:3.8,lines:[['Marisol','Paulie took the rent twice.'],['Marisol','Twice this month.'],['Marisol','And now cops. On our stairs.'],['Marisol','Go to sleep, Marisol.']]},
+      {who:['Don Rafa'],r:3.8,lines:[['Don Rafa','Six went in.'],['Don Rafa','I counted from the window.'],['Don Rafa','Five came out. In bags.'],['Don Rafa','Eddie came up laughing.']]},
       {who:['Big Mike'],r:3.8,lines:[['Big Mike','Their trucks are still there.'],['Big Mike','Lights going. Nobody\'s coming.'],['Big Mike','Nobody\'s ever coming.']]}],
     loot:[['revolver',-6.5,.82,4.3,1.2]],
+    civ:[{kind:'senora',civ:true,fem:true,name:'Marisol',spots:[[-6.2,-4.5,Math.PI],[-5.4,-4.2,Math.PI-.4]],pose:'idle',extra:'I didn\'t see anything! Nothing!'},
+      {kind:'abuelo',civ:true,old:true,name:'Don Rafa',spots:[[6.4,5.1,0],[5.8,5.0,.3]],pose:'watch',extra:'I\'m old, son— I\'m old—'}],
     clear:['FLOOR 03','Twelve floors to go.'] }
 ];
 const TW_WALL={peel:tPeel,paper:tPaper,dark:tDarkPaint}, TW_FLOOR={lino:tLinoStain,carpet:tCarpet,parquet:tParquet};
@@ -379,12 +391,15 @@ function genTower(i){ const D=TOWER[i]; setWorld(14,6);
 /* ---------- the people ---------- */
 function twMirror(P){ const j={}; for(const k in P.j){ const m=k.endsWith('L')?k.slice(0,-1)+'R':k.endsWith('R')?k.slice(0,-1)+'L':k,r=P.j[k]; j[m]=[r[0],-r[1],-r[2]]; } return {hipsY:P.hipsY,j}; }
 function twCast(){ const D=FLOOR.def;
-  for(const c of D.cast||[]){ const s=pick(c.spots);
-    const E=spawnEnemy({maker:TW_MAKERS[c.kind],name:c.name,x:s[0],z:s[1],hd:s[2],extra:c.extra,pre:E=>{
+  for(const c of [...(D.cast||[]),...(D.civ||[])]){ const s=pick(c.spots);
+    const mk_=TW_MAKERS[c.kind]||(typeof ROSTER!=='undefined'&&ROSTER[c.kind]?(h,g)=>makeChar(c.kind,h,g):c.civ?makeCorner:makeGunman); /* tenants and plain clothes come from the cast kit (45c-tenants.js) */
+    const E=spawnEnemy({maker:mk_,name:c.name,x:s[0],z:s[1],hd:s[2],extra:c.extra,pre:E=>{
       if(!c.pose||c.pose==='idle') return; civPoses(E.C); const P=E.C.poses;
       if(c.pose==='phone'){ E.idleP=twMirror(P.phone); mk(box(.016,.12,.062),mBlack,E.J.handL,0,-.075,.0); mk(plane(.05,.1),M(null,{color:0x9ac0e0,unlit:true}),E.J.handL,.0085,-.075,0,0,Math.PI/2,0); }
       else if(P[c.pose]) E.idleP=P[c.pose]; }});
     E.detail=c.extra; enemies.push(E);
+    if(c.civ){ E.civ=true; E.atkCd=1e9; E.extra=c.extra; if(c.fem) E.voice={f0:rnd(195,225),rasp:.08,breath:.6}; else if(c.old) E.voice={f0:rnd(88,100),rasp:.5,breath:.55}; }
+    if(c.hidden&&E.C.wpn){ E.concealed=true; E.C.wpn.vis=false; E.wpnHeld=false; setGrip(E.J,'R',false); } /* plain clothes: the gun stays in his waistband till he knows you're here */
     if(c.hunt){ /* he's looking for the sixth cop: a flashlight and a walk, room to room, ending at the landing you come up to */
       E.hunter=c.hunt; E.patrol={pts:c.hunt.pts,i:0,wait:rnd(2,5)}; E.callT=rnd(3,6); E.torchOn=true;
       const t=N(E.J.handL,0,-.06,.03,Math.PI/2,0,0); mk(cyl(.02,.017,.15,6),[mBlack,M(null,{color:0xfff2c8,unlit:true}),mBlack],t); } }
@@ -445,10 +460,32 @@ function twAnim(){ for(const a of FLOOR.anim||[]){ const c=FLOOR.lights[a.i][1],
 
 function tickTower(dt){ twStairs(dt); document.body.classList.toggle('camp',FLOOR.mode==='camp'); /* no test panel in the campaign */ if(FLOOR.mode!=='camp') return; twAnim();
   if(!GAME.started) return;
-  if(FLOOR.def.pro) proTick(dt); else { twTalk(dt*Math.max(GAME.ts,.3)); twHunt(dt); twRoles(dt*Math.max(GAME.ts,.3)); }
+  if(FLOOR.def.pro) proTick(dt); else { twTalk(dt*Math.max(GAME.ts,.3)); twHunt(dt); twRoles(dt*Math.max(GAME.ts,.3)); twCivTick(dt*Math.max(GAME.ts,.3)); }
   /* the street: now and then a dog, far off */
   GAME.dogT=(GAME.dogT??rnd(12,25))-dt; if(GAME.dogT<=0){ GAME.dogT=rnd(25,50); sfx('dog',.18,[rnd(-9,9),1.5,Math.random()<.5?7.5:-7.5]); } }
 
+
+
+/* ---------- the tenants: people who live here and had nothing to do with it ----------
+   They never fight. When they see you with a gun, hear shooting close by, or get hurt, they panic: close to you they drop to their
+   knees and beg; further off they run for the back of their room first. Their scream carries, and the men on the floor hear it.
+   Plain-clothes men look like tenants until they know you're here; then they draw. The floor's last line counts who you killed. */
+const TW_CIVSCREAM=['No no no no—','Please! Please!','Don\'t shoot!','Oh God— oh God—','I live here! I live here!'];
+function twCivPanic(E,why){ if(E.dead||E.panic) return; E.panic=true; E.aware=true; E.mind='civ'; E.lkp=null;
+  const d=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z);
+  if(GAME.barkGlobal<=0||why==='see'){ bark(E,pick(TW_CIVSCREAM),2.2); GAME.barkGlobal=.8; } vox(E,d<4?'cry':'scream',1); noise([E.pos[0],0,E.pos[1]],8,{from:E});
+  if(d<3.6||E.st!=='idle'&&E.st!=='alert'){ if(E.st==='idle'||E.st==='alert') E.st='kneel'; return; }
+  /* run for the far corner of the room, away from you */
+  const u=twUnitOf(E.pos[0],E.pos[1]); let best=null,bs=-1;
+  for(let k=0;k<30;k++){ const x=u?u.x0+.5+Math.random()*(u.w-1):E.pos[0]+rnd(-3,3),z=u?u.side*(2+Math.random()*3.6):E.pos[1]+rnd(-1,1); if(!twFree(x,z)) continue; const sc=Math.hypot(x-PL.x,z-PL.z)+(sightClear([PL.x,1.5,PL.z],[x,1.2,z])?-3:0); if(sc>bs){ bs=sc; best=[x,z]; } }
+  if(!best){ E.st='kneel'; return; } E.flee=best; E.role='civflee'; E.st='alert'; }
+function twCivTick(dt){ for(const E of enemies){ if(E.dead){ if(E.concealed&&!E.droppedHidden){ E.droppedHidden=true; E.wpnHeld=true; E.C.wpn.vis=true; dropWeapon(E); } continue; }
+    if(E.civ&&E.role==='civflee'&&(E.st!=='alert'||!E.flee)) E.role=null;
+    if(E.civ&&E.panic&&E.st==='kneel'&&E.barkCd<=0&&E.near&&GAME.barkGlobal<=0&&Math.random()<.3){ bark(E,E.extra,2.6); GAME.barkGlobal=1; }
+    /* he knows: out comes the gun */
+    if(E.concealed&&E.aware&&!E.wpnHeld&&(E.st==='alert')){ E.drawT=(E.drawT||0)+dt; if(E.drawT>.6){ E.wpnHeld=true; E.C.wpn.vis=true; setGrip(E.J,'R',true); sfx('click',.9,[E.pos[0],1.1,E.pos[1]]); E.atkCd=Math.max(E.atkCd,.5); } } } }
+function twClearLine(){ const D=FLOOR.def,civ=enemies.filter(E=>E.civ),bad=enemies.filter(E=>!E.civ),cd=civ.filter(E=>E.dead).length;
+  let t=(D.clear&&D.clear[1])||''; if(civ.length) t+=' '+(cd===0?`The ${civ.length===1?'one':civ.length} who weren't there ${civ.length===1?'is':'are'} still breathing.`:cd===1?'You killed one who wasn\'t.':`You killed ${cd} who weren't.`); return t; }
 
 /* ---------- once they know you're here: hunters, holders, ambushers ----------
    Not everyone comes at once. When the floor goes loud each man gets a role:
@@ -485,7 +522,7 @@ function twAmbushSpot(E){ const eye=[PL.x,1.6,PL.z],f=camBasis().f,fl=norm3([f[0
   return best; }
 function twFlank(E){ E.role='flank'; E.fl={ph:'go',t:0,spot:null}; E.silent=true; }
 function twRoles(dt){ if(PL.dead) return;
-  const awake=enemies.filter(E=>E.aware&&twUp(E)&&!E.ally);
+  const awake=enemies.filter(E=>E.aware&&twUp(E)&&!E.ally&&!E.civ);
   for(const E of enemies) if(E.role&&(!E.aware||!twUp(E))){ if(E.role==='flank'&&!E.dead) E.silent=false; if(!E.aware) E.role=null; }
   const live=r=>awake.filter(E=>E.role===r);
   /* new to it: the flashlight men hunt; one blade flanks; two hunt; the rest hold */
@@ -504,6 +541,7 @@ function twRoles(dt){ if(PL.dead) return;
     if(E.role==='flank'){ E.barkCd=Math.max(E.barkCd,2); if(E.fl.ph!=='strike') E.atkCd=Math.max(E.atkCd,.5); } } }
 /* called from think() for anyone aware with a role: {goal,chase} replaces what he'd do, or null for the ordinary hunt */
 function twRoleMove(E,dt,fighting,dist){
+  if(E.role==='civflee'){ const q=E.flee; if(!q) return {goal:null,chase:false}; if(Math.hypot(E.pos[0]-q[0],E.pos[1]-q[1])<.5||dist<2.4||stuck(E,dt)){ E.flee=null; E.role=null; E.st='kneel'; return {goal:null,chase:false}; } return {goal:{x:q[0],z:q[1],sp:2.6},chase:false}; }
   if(E.role==='hold'){ const H=E.hold; if(!H) return {goal:null,chase:false};
     const pu=twUnitOf(PL.x,PL.z); if(pu&&pu===H.u&&dist<4.5) return null; /* you're in his room: he fights */
     if(fighting) return {goal:null,chase:twMelee(E)&&dist<2.2};

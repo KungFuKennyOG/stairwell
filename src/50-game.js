@@ -606,7 +606,8 @@ function rayEnemies(o,d,maxT,pad=0){ let best=null;
 /* damage */
 function bark(E,text,dur=2.6){ if(!text) return; E.barkEl.textContent=text; E.barkT=dur; E.barkCd=dur+rnd(.6,1.6); }
 /* he knows you're here. at: [x,z] where he thinks you are (a noise, a friend's scream); direct contact (seen, hit, kicked, grabbed) means where you actually are */
-function setAware(E,why,at){ if(E.dead||E.ally) return; /* your own team never turns on you */ const p=at||[PL.x,PL.z];
+function setAware(E,why,at){ if(E.dead||E.ally) return; /* your own team never turns on you */
+  if(E.civ){ if(typeof twCivPanic==='function') twCivPanic(E,why); return; } /* tenants panic, they don't fight (66-tower.js) */ const p=at||[PL.x,PL.z];
   if(E.aware){ if(!E.canSee) E.lkp=p; return; }
   E.aware=true; E.mind='hunt'; E.lkp=p; E.lostT=at?.7:0; E.goHome=false; E.spotT=0; freshGoal(E); if(E.st==='idle') E.st='alert';
   if(GAME.barkGlobal<=0&&E.barkCd<=0){ bark(E,pick(LINES.alert)); GAME.barkGlobal=1.2; if(why!=='hit'){ vox(E,'shout'); noise([E.pos[0],0,E.pos[1]],8,{alarm:true,from:E}); } } }
@@ -1087,7 +1088,7 @@ function update(dt,now){
   GAME.acc+=gdt; let n=0; while(GAME.acc>=H&&n<14){ physics(H); GAME.acc-=H; n++; } if(n>=14) GAME.acc=0;
   for(const E of enemies){ if(!E.dormant&&(!E.asleep||E.posed)){ driveRig(E); skinUpdate(E.C); } bleedFx(E,gdt); poolFx(E,gdt); }
   updateBlood(gdt); updatePickups(gdt); updateEmbedded(); updateShells(gdt); tickRack(gdt); tickMap(dt); buildBloodMeshes(); voiceListener();
-  if(!FLOOR.test&&!FLOOR.noClear&&!GAME.clear&&enemies.length&&enemies.every(E=>E.dead)){ GAME.clear=true; setTimeout(()=>{ if(GAME.clear){ showMsg(FLOOR.clearH||'FLOOR 01 CLEAR',FLOOR.clearP||'Three people lived here. Take the stairs, or reset and do it differently.'); if(XR.on) XR.clearT=6; } },2600); }
+  if(!FLOOR.test&&!FLOOR.noClear&&!GAME.clear&&enemies.some(E=>!E.civ)&&enemies.every(E=>E.dead||E.civ)){ GAME.clear=true; setTimeout(()=>{ if(GAME.clear){ showMsg(FLOOR.clearH||'FLOOR 01 CLEAR',FLOOR.camp&&typeof twClearLine==='function'?twClearLine():FLOOR.clearP||'Three people lived here. Take the stairs, or reset and do it differently.'); if(XR.on) XR.clearT=6; } },2600); }
   if(FLOOR.flick){ const on=(Math.sin(GAME.t*23)+Math.sin(GAME.t*7.3)>-.7)||Math.sin(GAME.t*1.3)>.1,fk=on?1:.15,c=FLOOR.lights[0][1]; L.plCol.set([c[0]*fk,c[1]*fk,c[2]*fk],0); FLOOR.flick.mat.color=on?[1,1,1]:[.3,.3,.32]; }
   flash.t-=dt; if(flash.t>0){ L.plPos.set(flash.pos,21); L.plCol.set(flash.big?[5.5,3.6,1.6]:[2.6,1.8,.9],21); L.plDist[7]=flash.big?9:6; } else { L.plCol.set([0,0,0],21); }
   updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt); tickStash(dt); tickWare(dt); tickTower(dt); tickMotel(dt); acousticsTick(dt);
