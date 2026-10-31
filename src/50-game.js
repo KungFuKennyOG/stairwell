@@ -160,6 +160,11 @@ function setPose(E,name,t){
     case 'fight': j=E.wpnHeld&&E.wpnHand==='L'?E.fightJL:E.fightJ; hy=E.fightY; break;
     case 'idle': j=E.idleP?E.idleP.j:C.poses.idle.j; break; /* a man caught mid-moment (on the phone, leaning on a table) stands in his own pose */
     case 'beg': j=C.poses.beg.j; hy=C.poses.beg.hipsY; break;
+    /* the standoff (69-standoff.js). reach: hands come down to the belt first, the split second a surrender looks like a draw */
+    case 'reach': j=Object.assign({},C.poses.idle.j,{spine:[.14,0,0],head:[.05,0,0],armL:[-.3,0,.3],elbowL:[-1.45,0,0],armR:[-.3,0,-.3],elbowR:[-1.45,0,0]}); break;
+    case 'hands': j=Object.assign({},C.poses.idle.j,{spine:[-.04,0,0],head:[-.12,0,0],armL:[-.35,-.5,.55],elbowL:[-1.9,0,0],armR:[-.35,.5,-.55],elbowR:[-1.9,0,0]}); break;
+    case 'freeze': j=Object.assign({},C.poses.idle.j,{spine:[.1,0,0],neck:[.08,0,0],head:[.05,0,0],armL:[-.55,0,.18],elbowL:[-1.75,0,0],armR:[-.55,0,-.18],elbowR:[-1.75,0,0]}); break; /* rigid, hands drawn up to the chest */
+    case 'shield': j=Object.assign({},C.poses.beg.j,{spine:[.8,0,0],neck:[.35,0,0],head:[.3,0,0],armL:[-1.25,0,-.15],elbowL:[-1.5,0,0],armR:[-1.25,0,.15],elbowR:[-1.5,0,0]}); hy=C.poses.beg.hipsY; break; /* on his knees, back to you, wrapped over the one beside him */
     case 'kneel': j=Object.assign({},C.poses.beg.j,{spine:[.5,0,.08],neck:[.15,0,0],head:[.25,0,0],armL:[-.3,0,.2],elbowL:[-1.4,0,0],armR:[-.3,0,-.2],elbowR:[-1.4,0,0]}); hy=C.poses.beg.hipsY; break;
     case 'writhe': { rel=true; c*=PHYS.wr*(.35+.65*Math.exp(-(E.downT||0)/8)); /* thrashing at first, then mostly lying there hurting */
       /* knees drawn up with the feet kept on the floor: the knee bends twice what the hip does (thigh and shin are about the same length), so a
@@ -171,10 +176,10 @@ function setPose(E,name,t){
     case 'downbeg': rel=true; j={spine:[.3,0,0],neck:[.1,0,0],head:[-.2,0,0],thighL:[-.9,0,.15],kneeL:[1.4,0,0],thighR:[-.4,0,-.1],kneeR:[.9,0,0],
       armL:[-1.7+.05*s(ph*5),.2,.3],elbowL:[-.5,0,0],armR:[-1.1,0,-.3],elbowR:[-1.2,0,0]}; break;
     case 'curl': { rel=true; const en=E.energy??1,rk=.08*s(ph*.8)*c*en; /* on his side, knees to his chest, hands on the wound, rocking a little */
-      j={spine:[.85+rk,0,.1*s(ph*.55)*c*en],neck:[.4,0,0],head:[.3,0,0],thighL:[-1.5,0,.1],kneeL:[2.05,0,0],thighR:[-1.3,0,-.1],kneeR:[1.9,0,0],
-      armL:[-.9,0,.5],elbowL:[-1.8,0,0],armR:[-.9,0,-.5],elbowR:[-1.8,0,0]}; break; }
+      j={spine:[.85+rk,0,.1*s(ph*.55)*c*en],neck:[.4,0,0],head:[.3,0,0],thighL:[-1.15,0,.1],kneeL:[2.25,0,0],thighR:[-1.0,0,-.1],kneeR:[2.0,0,0],
+      armL:[-.9,0,.5],elbowL:[-1.8,0,0],armR:[-.9,0,-.5],elbowR:[-1.8,0,0]}; break; } /* knees up but the feet stay down: on his back, knees-to-chest lifted his feet in the air */
     case 'cower': { rel=true; const tr=.03*s(ph*9); /* you're standing over him: he curls up tight with his arms over his head */
-      j={spine:[.9,0,0],neck:[.5,0,0],head:[.4,0,0],thighL:[-1.6,0,.1],kneeL:[2.1,0,0],thighR:[-1.45,0,-.1],kneeR:[2.0,0,0],
+      j={spine:[.9,0,0],neck:[.5,0,0],head:[.4,0,0],thighL:[-1.1,0,.1],kneeL:[2.2,0,0],thighR:[-.95,0,-.1],kneeR:[1.95,0,0],
       armL:[-2.5+tr,0,.55],elbowL:[-2.3,0,0],armR:[-2.5-tr,0,-.55],elbowR:[-2.3,0,0]}; break; }
     case 'gasp': { rel=true; const en=E.energy??1,br=.07*s(ph*4.5)*(.4+.6*en); /* chest wound: head and shoulders up off the floor, fast shallow breaths */
       j={spine:[.42+br,0,0],neck:[.3,0,0],head:[.12,0,0],thighL:[-.5,0,.1],kneeL:[1.04,0,0],thighR:[-.35,0,-.1],kneeR:[.74,0,0],
@@ -204,8 +209,8 @@ function targetsFor(E,t,dt=1){
   const J=E.J,B=E.B; let pose='idle';
   const st=E.st;
   const throat=!E.dead&&E.wounds.some(w=>w.part==='neck'&&!w.piece); /* a man holding his throat shut doesn't beg */
-  if(st==='idle') pose='idle'; else if(st==='alert') pose='fight';
-  else if(st==='kneel') pose=E.near&&!throat?'beg':'kneel';
+  if(st==='idle') pose='idle'; else if(st==='alert') pose=E.surr?(E.surr.ph==='reach'?'reach':'hands'):E.civFreeze?'freeze':'fight';
+  else if(st==='kneel') pose=E.civMode==='shield'&&E.shielder?'shield':(E.near||E.surr)&&!throat?'beg':'kneel';
   else if(st==='down'){ pose=E.fallT>0?'kneel':E.downMode||'writhe'; }
   else pose='writhe';
   if(E.drop){ E.drop.t+=dt; if(E.drop.t>=E.drop.T){ E.drop=null; E.settle=Math.max(E.settle||0,.9); } }
@@ -226,6 +231,10 @@ function targetsFor(E,t,dt=1){
   let M=fkMats(J);
   E.handRot={L:J.handL.r.slice(),R:J.handR.r.slice()};
   if(!E.dead&&E.wounds.length&&(st==='kneel'&&(!E.near||throat)||throat&&st==='down'||st==='down'&&(pose==='writhe'||pose==='downbeg'||pose==='curl'||pose==='gasp'||pose==='still'))){ if(clutch(E,M)) M=fkMats(J); }
+  if(E.gShoot&&!E.dead&&st==='down'){ /* playing dead, now firing from the floor: the gun hand comes round at you. World point -> his hip frame -> pose space */
+    const P0=posePts(J,E.o,M),H0=frameFrom(P0[PI_.hipL],P0[PI_.hipR],P0[PI_.pelvis],P0[PI_.chest]),Hw=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),X_(B,PI_.pelvis),X_(B,PI_.chest)),pw=X_(B,PI_.pelvis),sh=X_(B,PI_.shR);
+    const tgt=v3.add(sh,v3.sc(norm3(v3.sub([PL.x,1.3,PL.z],sh)),.55));
+    ikArm(J,'R',v3.add(P0[PI_.pelvis],mv(H0,mtv(Hw,v3.sub(tgt,pw))))); J.spine.r[1]+=.3; M=fkMats(J); }
   const P=posePts(J,E.o,M);
   const Hp=frameFrom(P[PI_.hipL],P[PI_.hipR],P[PI_.pelvis],P[PI_.chest]),pel=P[PI_.pelvis],Ry=ryM(E.hd);
   /* poses blend over a few frames instead of snapping, so switching from writhing to crawling doesn't flip the body */
@@ -239,7 +248,7 @@ function targetsFor(E,t,dt=1){
   sup*=clamp(c*1.7,0,1)*(1-(st==='down'?Math.min(E.stun,.5):E.stun))*E.rise*(E.grabbed?.35:1); E.sup=sup; /* held: off balance */
   const twitch=E.dead?.008*Math.max(0,1-E.deadT/1.2):0;
   for(let i=0;i<NP;i++){ const limb=PD[i][4]; let s=E.drop?0:E.dead?twitch:c; /* dropping: no tone at all, nothing holds him up */
-    if(!E.dead&&!E.drop){ if(limb==='legL') s*=.2+.8*E.hp.legL; else if(limb==='legR') s*=.2+.8*E.hp.legR; else if(limb==='armL') s*=.12+.88*clamp(E.hp.armL,0,1); else if(limb==='armR') s*=.12+.88*clamp(E.hp.armR,0,1); }
+    if(!E.dead&&!E.drop){ if(limb==='legL') s*=.2+.8*E.hp.legL; else if(limb==='legR') s*=.2+.8*E.hp.legR; else if(limb==='armL') s*=.12+.88*clamp(E.hp.armL,0,1); else if(limb==='armR') s*=(.12+.88*clamp(E.hp.armR,0,1))*(E.gShoot?3:1); } /* firing from the floor: the gun arm comes up hard */
     E.K[i]=E.sevP[i]?0:(sup*.13+(1-sup)*PHYS.k)*s; E.KD[i]=E.sevP[i]?0:E.drop?(limb==='core'?.003:.01):E.dead?.003+.03*clamp((E.deadT-.4)/.8,0,1):(sup>.5?PHYS.kd:PHYS.kdDown)*s+.002; } /* a corpse on the floor: dead weight, its limbs don't keep swinging */
   E.relMode=rel;
 }
@@ -815,8 +824,11 @@ function think(E,dt,t){
   E.crawlF=null; E.walkAmt=lerp(E.walkAmt,0,Math.min(1,dt*6));
   if(E.st==='alert'||E.st==='idle'||E.st==='kneel'){
     const k=Math.min(1,dt*(E.grabbed?6:E.st==='alert'?1:2.5)); E.pos[0]=lerp(E.pos[0],pel[0],k); E.pos[1]=lerp(E.pos[1],pel[2],k);
-    if(E.st==='kneel'){ const want=Math.atan2(toP[0],toP[1]); let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; E.hd+=clamp(dh,-dt,dt); } }
-  if(E.st==='alert'){
+    if(E.st==='kneel'){ const want=Math.atan2(toP[0],toP[1])+(E.shielder&&E.civMode==='shield'?Math.PI:0); /* a shield turns his back to you */ let dh=want-E.hd; while(dh>Math.PI) dh-=Math.PI*2; while(dh<-Math.PI) dh+=Math.PI*2; E.hd+=clamp(dh,-dt,dt); } }
+  if(E.st==='alert'&&(E.surr||E.civFreeze)){ /* hands up, or frozen: no walking, no fighting, turned toward you (69-standoff.js) */
+    E.moveDir=null; E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6)); E.atkCd=Math.max(E.atkCd,.5); E.atkT=-1; E.burstN=0;
+    let dh=Math.atan2(toP[0],toP[1])-E.hd; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); E.hd+=clamp(dh,-1.2*dt,1.2*dt); pushOutXZ(E.pos,.28,'walker'); }
+  else if(E.st==='alert'){
     if(!(E.aware&&E.canSee)){ E.aimYaw=lerp(E.aimYaw||0,0,Math.min(1,dt*2)); E.aimPit=lerp(E.aimPit||0,0,Math.min(1,dt*2)); }
     else if(armed(E)&&!E.oneHand&&E.M){ /* line the gun up on you: blade the body and lean until the barrel, not the chest, points at you */
       const g=gunRay(E),tp=norm3(v3.sub([PL.x,1.45,PL.z],g.mz)); let ye=Math.atan2(tp[0],tp[2])-Math.atan2(g.d[0],g.d[2]); ye=Math.atan2(Math.sin(ye),Math.cos(ye));
@@ -868,7 +880,8 @@ function think(E,dt,t){
     else if(en<.18) mode='still'; /* bled out to the edge: barely moving, shallow breaths */
     else if(dist<2.2&&E.cons>.3){ /* you're over him */
       if(E.temper==='still') mode='still'; else if(wantCrawl&&up<-.2) mode='crawl'; else if(E.temper==='crawl') mode='downbeg'; else mode='cower'; }
-    else if(wantCrawl&&dist<9) mode=up>(E.downMode==='crawl'?.45:.2)?'scoot':up<(E.downMode==='scoot'?-.45:-.2)?'crawl':(E.downMode==='scoot'||E.downMode==='crawl'?E.downMode:'curl');
+    else if(wantCrawl&&dist<9){ mode=up>(E.downMode==='crawl'?.45:.2)?'scoot':up<(E.downMode==='scoot'?-.45:-.2)?'crawl':(E.downMode==='scoot'||E.downMode==='crawl'?E.downMode:'curl');
+      if(mode==='scoot'&&Math.min(E.hp.legL,E.hp.legR)<.5) mode='downbeg'; } /* on his back he pushes with his heels: not on shot legs */
     else if(chestW) mode='gasp';
     else if(E.temper==='still') mode='still';
     else mode='curl';
@@ -885,8 +898,8 @@ function think(E,dt,t){
   else if(E.Rs&&(E.st==='alert'||E.st==='kneel'||E.st==='down')){ const l=mtv(E.Rs,norm3([toP[0],0,toP[1]])); E.lookYaw=lerp(E.lookYaw,clamp(Math.atan2(l[0],l[2]),-1,1),Math.min(1,dt*5)); }
   else E.lookYaw=lerp(E.lookYaw,0,Math.min(1,dt*3));
   /* talking */
-  const playDead=E.st==='down'&&E.downMode==='still'&&E.temper==='still'&&(E.energy??1)>=.18;
-  if(E.barkCd<=0&&GAME.barkGlobal<=0&&!E.ally&&!playDead){ /* playing dead: not a sound */ /* the team only say what the prologue gives them */
+  const playDead=E.st==='down'&&E.downMode==='still'&&E.temper==='still'&&(E.energy??1)>=.18&&!E.gShoot;
+  if(E.barkCd<=0&&GAME.barkGlobal<=0&&!E.ally&&!playDead&&!E.gShoot){ /* playing dead: not a sound */ /* the team only say what the prologue gives them */
     const neck=E.wounds.some(w=>w.part==='neck');
     if(neck&&E.wounds.length) bark(E,pick(LINES.neck));
     else if(E.cons<.4&&E.wounds.length) bark(E,pick(LINES.dying),3.2);
@@ -897,12 +910,14 @@ function think(E,dt,t){
   E.aimK=lerp(E.aimK||0,(E.st==='alert'?1:0)*(1-Math.min(E.stun,.8)*.7),Math.min(1,dt*3.5)); /* bring the long gun up when fighting, drop it when rocked */
   voiceTick(E,dt,dist);
   /* face */
-  let face=E.st==='kneel'&&E.near&&!E.wounds.some(w=>w.part==='neck')||(E.downMode==='downbeg'||E.downMode==='cower')&&E.st==='down'?'beg':(E.wounds.length||E.stun>.35)?'hurt':'fight';
+  let face=E.st==='kneel'&&(E.near||E.surr)&&!E.wounds.some(w=>w.part==='neck')||(E.downMode==='downbeg'||E.downMode==='cower')&&E.st==='down'?'beg':(E.wounds.length||E.stun>.35)?'hurt':'fight';
   if(E.faceHold&&E.faceHold.t>0){ E.faceHold.t-=dt; face=E.faceHold.f; }
   else if(E.impaled>0) face='agony';
   else if(E.grabbed&&E.chokeT>0||E.wounds.some(w=>w.part==='neck'&&!w.piece)) face='choke';
   else if(E.cons<.35&&E.wounds.length) face='shock';
   else if(playDead) face='sleep'; /* eyes shut */
+  else if(E.gShoot) face='fight';
+  else if(E.civFreeze||E.surr&&E.st==='alert') face='shock'; /* frozen, or the moment the hands go up */
   if(face!==E.face){ E.face=face; E.J.headMesh.mesh.mats[0]=E.C.faceM[face]; E.J.headMesh.mesh.runs=null; }
 }
 function switchHand(E,s){ /* the good hand takes the weapon; a two-handed grip becomes one-handed */
@@ -920,7 +935,8 @@ function crawlGoal(E,pel){ const here=Math.hypot(pel[0]-PL.x,pel[2]-PL.z),g=E.cg
     const sc=dp-walk*.35+(sightClear([PL.x,1.5,PL.z],[x,.4,z])?0:2.5); if(sc>bs){ bs=sc; best=[cellX(c%NX),cellZ((c-c%NX)/NX)]; } }
   return E.cg=best; }
 function toDown(E,hard){ /* unless knocked flat, they buckle: held up on the way down to a knee, then let go */
-  E.st='down'; E.downT=0; E.settle=Math.max(E.settle||0,1.4); dropWeapon(E);
+  const faker=!E.dead&&!E.ally&&!E.civ&&armed(E)&&psychOf(E)==='fake'&&Math.random()<.7; /* some go down and play dead with the gun under them (69-standoff.js) */
+  E.st='down'; E.downT=0; E.settle=Math.max(E.settle||0,1.4); E.surr=null; E.civFreeze=false; if(faker) fakeDeadStart(E); else dropWeapon(E);
   const B=E.B,Rh=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),X_(B,PI_.pelvis),X_(B,PI_.chest)),fw=Rh[2];
   E.pos=[B.x[0],B.x[2]]; if(Math.hypot(fw[0],fw[2])>.3){ /* keep the heading he had unless his hips really turned: snapping to a noisy hip frame yanks the whole body round */
     const h2=Math.atan2(fw[0],fw[2]),d=Math.atan2(Math.sin(h2-E.hd),Math.cos(h2-E.hd)); if(Math.abs(d)>.7) E.hd+=d*.5; } E.fallT=hard?0:.8; }
@@ -960,7 +976,7 @@ function kick(){ if(!GAME.started||PL.dead||PL.kickCd>0) return; PL.kickCd=.8; c
   let best=null; for(const E of enemies){ const pel=X_(E.B,PI_.pelvis),d=Math.hypot(pel[0]-PL.x,pel[2]-PL.z),dir=norm3([pel[0]-PL.x,0,pel[2]-PL.z]); if(d<1.45&&v3.dot(dir,fl)>.55&&(!best||d<best.d)) best={E,d}; }
   if(!best){ const D=doorNear(PL.x+fl[0]*.7,PL.z+fl[2]*.7,.95); if(D&&D.state==='closed'){ kickDoor(D); return; } sfx('swish'); return; } const E=best.E; sfx('kick');
   for(const i of [PI_.pelvis,PI_.chest,PI_.hipL,PI_.hipR,PI_.neck]) kickV(E.B,i,v3.add(v3.sc(fl,5.5),[0,.6,0]),H);
-  E.stun=Math.min(1,E.stun+1.1); E.shoveT=0; setAware(E,'kick'); if(E.st==='kneel'){ toDown(E); } }
+  E.stun=Math.min(1,E.stun+1.1); E.shoveT=0; kickedDown(E,fl); setAware(E,'kick'); if(E.st==='kneel'){ toDown(E); } }
 function hurtPlayer(d){ if(PL.dead) return; PL.hp-=d; PL.hurtT=0; XR.flash=.35; if(XR.on){ buzz('left',1,120); buzz('right',1,120); } $('flash').classList.remove('on'); void $('flash').offsetWidth; $('flash').classList.add('on'); screenBlood(2); sfx('hurt');
   if(PL.hp<=0){ PL.hp=0; PL.dead=true; PL.deadT=0; showMsg('YOU DIED','Back to the start of the level.'); } }
 
@@ -1157,7 +1173,7 @@ function update(dt,now){
   if(!FLOOR.test&&!FLOOR.noClear&&!GAME.clear&&enemies.some(E=>!E.civ)&&enemies.every(E=>E.dead||E.civ)){ GAME.clear=true; setTimeout(()=>{ if(GAME.clear){ showMsg(FLOOR.clearH||'FLOOR 01 CLEAR',FLOOR.camp&&typeof twClearLine==='function'?twClearLine():FLOOR.clearP||'Three people lived here. Take the stairs, or reset and do it differently.'); if(XR.on) XR.clearT=6; } },2600); }
   if(FLOOR.flick){ const on=(Math.sin(GAME.t*23)+Math.sin(GAME.t*7.3)>-.7)||Math.sin(GAME.t*1.3)>.1,fk=on?1:.15,c=FLOOR.lights[0][1]; L.plCol.set([c[0]*fk,c[1]*fk,c[2]*fk],0); FLOOR.flick.mat.color=on?[1,1,1]:[.3,.3,.32]; }
   flash.t-=dt; if(flash.t>0){ L.plPos.set(flash.pos,21); L.plCol.set(flash.big?[5.5,3.6,1.6]:[2.6,1.8,.9],21); L.plDist[7]=flash.big?9:6; } else { L.plCol.set([0,0,0],21); }
-  updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt); tickStash(dt); tickWare(dt); tickTower(dt); tickMotel(dt); acousticsTick(dt);
+  updateDoors(gdt); navUpdate(gdt,PL.x,PL.z); tickTunnel(dt); tickStash(dt); tickWare(dt); tickTower(dt); tickMotel(dt); standoffTick(dt); acousticsTick(dt);
   if(GAME.slow){ GAME.beatT=(GAME.beatT||0)-dt; if(GAME.beatT<=0){ GAME.beatT=1.05; sfx('heart'); } } else GAME.beatT=0;
   /* the flight up: walk onto it and you climb to the next floor (saved on the stairs) */
   if(GAME.started&&!PL.dead&&!GAME.climbing){ const S=FLOOR.stairUp; if(S&&PL.x>S.x0+.6&&PL.z>S.z0&&PL.z<S.z1) climb(); }

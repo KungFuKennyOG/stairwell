@@ -486,9 +486,11 @@ function tickTower(dt){ twStairs(dt); document.body.classList.toggle('camp',FLOO
 const TW_CIVSCREAM=['No no no no—','Please! Please!','Don\'t shoot!','Oh God— oh God—','I live here! I live here!'];
 function twCivPanic(E,why){ if(E.dead||E.panic) return; E.panic=true; E.aware=true; E.mind='civ'; E.lkp=null;
   const d=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z);
-  if(GAME.barkGlobal<=0||why==='see'){ bark(E,pick(TW_CIVSCREAM),2.2); GAME.barkGlobal=.8; } vox(E,d<4?'cry':'scream',1); noise([E.pos[0],0,E.pos[1]],8,{from:E});
-  if(d<3.6||E.st!=='idle'&&E.st!=='alert'){ if(E.st==='idle'||E.st==='alert') E.st='kneel'; return; }
-  /* run for the far corner of the room, away from you */
+  /* what they say depends on what they do (69-standoff.js): most go quiet */
+  if(E.st!=='idle'&&E.st!=='alert'){ return; }
+  /* what they do (69-standoff.js): most freeze, some can't believe it, some shield the one beside them, some run if the way out doesn't
+     pass you; the rest hide: the far corner of the room, away from you */
+  const m=civReact(E,window.__civForce); if(m!=='hide') return; if(Math.random()<.5){ bark(E,pick(TW_CIVSCREAM),2.2); GAME.barkGlobal=.8; vox(E,'cry',.8); } /* __civForce: the headless tests pick a reaction */ if(d<3.6){ E.st='kneel'; return; }
   const u=twUnitOf(E.pos[0],E.pos[1]); let best=null,bs=-1;
   for(let k=0;k<30;k++){ const x=u?u.x0+.5+Math.random()*(u.w-1):E.pos[0]+rnd(-3,3),z=u?u.side*(2+Math.random()*3.6):E.pos[1]+rnd(-1,1); if(!twFree(x,z)) continue; const sc=Math.hypot(x-PL.x,z-PL.z)+(sightClear([PL.x,1.5,PL.z],[x,1.2,z])?-3:0); if(sc>bs){ bs=sc; best=[x,z]; } }
   if(!best){ E.st='kneel'; return; } E.flee=best; E.role='civflee'; E.st='alert'; }
@@ -496,7 +498,9 @@ function twCivTick(dt){ for(const E of enemies){ if(E.dead){ if(E.concealed&&!E.
     if(E.civ&&E.role==='civflee'&&(E.st!=='alert'||!E.flee)) E.role=null;
     if(E.civ&&E.panic&&E.st==='kneel'&&E.barkCd<=0&&E.near&&GAME.barkGlobal<=0&&Math.random()<.3){ bark(E,E.extra,2.6); GAME.barkGlobal=1; }
     /* he knows: out comes the gun */
-    if(E.concealed&&E.aware&&!E.wpnHeld&&(E.st==='alert')){ E.drawT=(E.drawT||0)+dt; if(E.drawT>.6){ E.wpnHeld=true; E.C.wpn.vis=true; setGrip(E.J,'R',true); sfx('click',.9,[E.pos[0],1.1,E.pos[1]]); E.atkCd=Math.max(E.atkCd,.5); } } } }
+    if(E.concealed&&E.aware&&!E.wpnHeld&&(E.st==='alert')&&!E.surr){ /* your gun on him from close: a quitter puts his hands up instead (69-standoff.js); a fighter still draws, a beat later */
+      const pinned=E.covered&&Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)<5.5; if(pinned&&psychOf(E)!=='fight') continue;
+      E.drawT=(E.drawT||0)+dt; if(E.drawT>(pinned?.95:.6)){ E.wpnHeld=true; E.C.wpn.vis=true; setGrip(E.J,'R',true); sfx('click',.9,[E.pos[0],1.1,E.pos[1]]); E.atkCd=Math.max(E.atkCd,.5); } } } }
 function twClearLine(){ const D=FLOOR.def,civ=enemies.filter(E=>E.civ),bad=enemies.filter(E=>!E.civ),cd=civ.filter(E=>E.dead).length;
   const W=['none','one','two','three','four','five','six','seven','eight'],w=k=>W[k]||String(k);
   let t=(D.clear&&D.clear[1])||''; if(civ.length) t+=' '+(cd===0?(civ.length===1?'The one who wasn\'t there is still breathing.':`The ${w(civ.length)} who weren't there are still breathing.`):cd===1?'You killed one who wasn\'t.':`You killed ${w(cd)} who weren't.`); return t; }
@@ -512,7 +516,7 @@ const TW_HOLD=['I got the door.','Come on in, cop.','I\'m not coming out there!'
 const TW_UP=['Fine— I\'m coming!','Where is he?!','Okay. Okay. I\'m going.','Cover me—'];
 const TW_JUMP=['AAAAAH!','DIE, COP!','GOT YOU—','HERE!'];
 const twMelee=E=>!RANGED[E.kind]&&!(typeof RANGED[E.kind.replace(/^m/,'')]!=='undefined'&&RANGED[E.kind.replace(/^m/,'')]);
-const twUp=E=>!E.dead&&(E.st==='idle'||E.st==='alert');
+const twUp=E=>!E.dead&&!E.surr&&(E.st==='idle'||E.st==='alert');
 function twUnitOf(x,z){ const c=navCell(x,z),id=c>=0?FLOOR.space[c]:-9; return FLOOR.units.find(u=>u.id===id)||null; }
 function twFree(x,z){ const c=navCell(x,z); if(c<0||FLOOR.nav[c]) return false; const ci=c%NX; for(let a=-1;a<=1;a++) for(let b=-1;b<=1;b++){ const q=c+a*NX+b; if(q<0||q>=FLOOR.nav.length||Math.abs((q%NX)-ci)>1||FLOOR.nav[q]) return false; } return true; } /* open all round: not in a doorway, not against a wall */
 /* where a holder waits: a blade beside the doorway inside, a gun deep in the room looking at it */
