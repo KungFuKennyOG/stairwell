@@ -1291,7 +1291,7 @@ function attachLabels(){ for(const E of enemies) if(!E.label){ E.labelTex=labelT
 async function enterVR(){
   if(!navigator.xr){ return; }
   try{
-    audio(); GAME.started=true; $('intro').hidden=true; document.body.classList.add('playing');
+    audio(); if(MIC.state==='off') setTimeout(()=>vrToast('Mic is off: tap Allow mic on the start page to shout',4),1500); /* not asked here: a permission prompt could fight the VR session */ GAME.started=true; $('intro').hidden=true; document.body.classList.add('playing');
     const session=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor']});
     await gl.makeXRCompatible();
     session.updateRenderState({baseLayer:new XRWebGLLayer(session,gl,{antialias:false,depth:false}),depthNear:.04,depthFar:60});

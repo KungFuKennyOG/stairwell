@@ -106,9 +106,9 @@ function civTick2(E,dt,dist){ if(!E.civ||E.dead||!E.panic) return; E.civT=(E.civ
   /* hiding or kneeling: a gun on them gets hands up */
   if(E.st==='kneel'&&!E.surr&&E.covered&&E.coverT>.6&&!E.shielder) E.surr={ph:'kneel',t:0,why:'civ',hold:0}; }
 
-function standoffTick(dt){ if(!GAME.started) return; const aims=PL.dead?[]:playerAims();
+function standoffTick(dt){ if(!GAME.started) return; micTick(dt); GAME.shoutT=(GAME.shoutT??9)+dt; const aims=PL.dead?[]:playerAims();
   for(const E of enemies){ if(E.dead||E.ally) continue;
     if(E.sprung>0){ E.sprung-=dt; E.atkCd=Math.min(E.atkCd,Math.max(0,E.sprung)); }
     E.covered=aims.length>0&&coveredBy(E,aims); E.coverT=E.covered?(E.coverT||0)+dt:0; E.freeT=E.covered?0:(E.freeT||0)+dt;
     const pel=X_(E.B,PI_.pelvis),dist=Math.hypot(pel[0]-PL.x,pel[2]-PL.z);
-    surrDecide(E,dt,dist); surrTick(E,dt,dist); fakeDeadTick(E,dt,dist); civTick2(E,dt,dist); } }
+    obeyTick(E,dt); surrDecide(E,dt,dist); surrTick(E,dt,dist); fakeDeadTick(E,dt,dist); civTick2(E,dt,dist); } }
