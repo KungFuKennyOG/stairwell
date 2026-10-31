@@ -385,8 +385,9 @@ function collideBody(E){
     if(gr){ p[o]=x[o]-(x[o]-p[o])*PHYS.fric; p[o+2]=x[o+2]-(x[o+2]-p[o+2])*PHYS.fric; }
     B.ground[i]=gr?1:0;
     { const dvx=x[o]-p[o]-v0x,dvy=x[o+1]-p[o+1]-v0y,dvz=x[o+2]-p[o+2]-v0z,im=Math.hypot(dvx,dvy,dvz)/H; if(im>B.imp[i]){ B.imp[i]=im; const vl=Math.hypot(v0x,v0y,v0z)||1; B.impDir[i]=[v0x/vl,v0y/vl,v0z/vl]; } } /* how hard it just hit something */
-    /* the player is a solid cylinder: walking into a body shoves it */
-    if(x[o+1]<1.85){ const dx=x[o]-PL.x,dz=x[o+2]-PL.z,d=Math.hypot(dx,dz),m=.3+r; if(d<m&&d>1e-4){ x[o]=PL.x+dx/d*m; x[o+2]=PL.z+dz/d*m; } } }
+    /* the player is a solid cylinder: walking into a standing man shoves him. Anyone on the floor (crawling, writhing, dead) is stepped over:
+       you don't move them at all. In VR the cylinder follows your head, so leaning over a body used to kick its limbs about */
+    if(E.sup>.5&&x[o+1]<1.85){ const dx=x[o]-PL.x,dz=x[o+2]-PL.z,d=Math.hypot(dx,dz),m=.3+r; if(d<m&&d>1e-4){ x[o]=PL.x+dx/d*m; x[o+2]=PL.z+dz/d*m; } } }
 }
 function collidePair(A,Bd){
   const a=A.B.x,b=Bd.B.x; if(Math.hypot(a[0]-b[0],a[2]-b[2])>2.2) return;
