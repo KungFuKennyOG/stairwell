@@ -7675,7 +7675,7 @@ function twTalk(dt){ for(const C of FLOOR.convos||[]){ if(C.dead) continue;
   if(C.i>=C.lines.length){ C.i=0; C.t=dur+rnd(14,22); } else C.t=dur+rnd(.5,1.1); } }
 
 /* ---------- the run: loading, resetting, the stairs ---------- */
-function towerLoad(i){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genTower(i); buildRack(); buildBoard(); resetGame(); if(XR.on) vrRecenter(); }
+function towerLoad(i){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genTower(i); buildRack(); buildBoard(); resetGame(); if(XR.on) vrRecenter(); }
 /* Novak's pistol, on the floor by his right hand, pushed toward you */
 function proNovakGun(Nv){ if(FLOOR.pro.gun) return; FLOOR.pro.gun=true; const h=X_(Nv.B,PI_.hdR),d=norm3([PL.x-h[0],0,PL.z-h[2]]),p=[h[0]+d[0]*.25,.06,h[2]+d[2]*.25];
   const Mw=m4.compose(m4.make(),p,[0,Math.atan2(d[0],d[2]),Math.PI/2],[1,1,1]); addPickup(newItem('pistol'),Mw,v3.sc(d,.35),[0,0,0]); sfx('bump',.4,p); }
@@ -7830,13 +7830,13 @@ function twStairY(x,z,cy){ const ax=Math.abs(x); if(FLOOR.mode!=='camp'||ax<10||
   const t=clamp((ax-ST_X0)/ST_RUN,0,1); if(z>0) return 1.4*t; return cy<.7?0:1.4+1.4*(1-t); }
 function twStairs(dt){ const target=twStairY(PL.x,PL.z,PL.y||0); PL.y=lerp(PL.y||0,target,Math.min(1,dt*14)); if(Math.abs(PL.y-target)<.004) PL.y=target;
   if(XR.on&&XR.baseY!=null) XR.origin[1]=XR.baseY+PL.y;
-  /* the top of the east flight B: a quick dip to black and you're on the next floor's landing */
+  /* step onto the east landing: fade to black and you're on the next floor's landing (no walking the flights) */
   if(FLOOR.mode!=='camp'||!GAME.started||PL.dead) return;
-  if(!GAME.climbing&&PL.x>10&&PL.x<11.05&&PL.z<0&&PL.y>2.5) towerClimb();
-  if(GAME.atTop&&PL.y<2){ GAME.atTop=false; GAME.climbing=false; }
-  if(GAME.fadeInT!=null){ GAME.fadeInT+=dt; GAME.fade=clamp(GAME.fadeInT/.3,0,1);
-    if(GAME.fadeInT>=.32){ GAME.fadeInT=null; carryInto(()=>towerLoad(FLOOR.next)); GAME.climbing=false; GAME.fade=1; GAME.fadeOut=.45; } }
-  if(GAME.fadeOut>0){ GAME.fadeOut-=dt; GAME.fade=clamp(GAME.fadeOut/.45,0,1); } }
+  if(!GAME.climbing&&PL.x>10.45&&Math.abs(PL.z)<1.9) towerClimb();
+  if(GAME.atTop&&PL.x<10.15){ GAME.atTop=false; GAME.climbing=false; } /* top floor so far: back out into the corridor re-arms it */
+  if(GAME.fadeInT!=null){ GAME.fadeInT+=dt; GAME.fade=clamp(GAME.fadeInT/.4,0,1);
+    if(GAME.fadeInT>=.5){ GAME.fadeInT=null; carryInto(()=>towerLoad(FLOOR.next)); GAME.climbing=false; GAME.fade=1; GAME.fadeOut=.6; } }
+  if(GAME.fadeOut>0){ GAME.fadeOut-=dt; GAME.fade=clamp(GAME.fadeOut/.6,0,1); } }
 
 /* =====================================================================
    THE TOWER, floors 04-06: the cutters. The drug floors. Machetes, more men, and the lab on 06.
