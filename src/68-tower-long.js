@@ -31,22 +31,24 @@ twLong(1,[[1,-16,-10,-13.4,'store','concrete','conc',{win:true}],[-1,-16,-10,-12
 twLong(2,[[1,-16,-10,-12.4,'kitchen','nicotine','tile',{win:true}],[-1,-16,-10,-13.2,'squat','peel','conc',{win:true}],
     [1,10,16,13.0,'store','concrete','conc',{win:true,hole:4.0}],[-1,10,16,12.4,'bed','pink','rug',{win:true}]],{
   cast:[{kind:'cutter',name:'Toro',spots:[[-13.4,2.4,Math.PI],[-12.6,2.3,Math.PI+.3]],pose:'phone',extra:'It\'s just a phone, man— take it—'}],
-  civ:[{kind:'abuela',civ:true,fem:true,old:true,name:'Doña Pili',spots:[[13.8,-3.2,-Math.PI/2],[14.4,-2.6,-Math.PI/2]],pose:'idle',extra:'I\'m old— I\'m old, mijo—'}],
+  civ:[{kind:'obrero',civ:true,look:'any',name:'Pancho',spots:[[13.0,3.8,0],[12.2,3.4,.4]],pose:'phone',extra:'I drive a bus! I drive a bus—'},
+    {kind:'abuela',civ:true,fem:true,old:true,name:'Doña Pili',spots:[[13.8,-3.2,-Math.PI/2],[14.4,-2.6,-Math.PI/2]],pose:'idle',extra:'I\'m old— I\'m old, mijo—'}],
   talk:[{who:['Toro'],r:3.8,lines:[['Toro','The big one\'s phone.'],['Toro','Still playing his music.'],['Toro','Texts from \'Ray\'.'],['Toro','\'Pool closes at six.\''],['Toro','...who\'s Ray?']]},
+    {who:['Pancho'],r:3.8,lines:[['Pancho','No, I\'m not coming in.'],['Pancho','Tell the boss I\'m sick.'],['Pancho','There\'s cops dead downstairs.'],['Pancho','...no, I didn\'t see who.']]},
     {who:['Doña Pili'],r:3.8,lines:[['Doña Pili','Shh. Shh.'],['Doña Pili','They\'ll go away.'],['Doña Pili','Felix used to carry my bags.'],['Doña Pili','Such a good boy, Felix.']]}] });
 
 /* 03 · Chino wants the sixth helmet. Tavo saw Eddie's badge. Two dark flats, one through into Big Mike's */
 twLong(3,[[1,-16,-10,-13.0,'office','panel','oak',{win:true}],[-1,-16,-10,-12.8,'bed','cream','rug',{win:true}],
     [1,10,16,12.6,'living','sage','check',{win:true}],[-1,10,16,13.4,'kitchen','tile','tile',{win:true,hole:3.6}]],{
   cast:[{kind:'gunman',name:'Chino',spots:[[-13.0,2.6,Math.PI],[-13.6,2.8,Math.PI-.3]],pose:'watch',extra:'It\'s just the money, man— just the money—'}],
-  civ:[{kind:'estudiante',civ:true,name:'Tavo',spots:[[12.6,3.6,0],[13.4,3.4,.4]],pose:'phone',extra:'I\'m sixteen— I\'m— please—'}],
+  civ:[{kind:'estudiante',civ:true,look:'any',name:'Tavo',spots:[[12.6,3.6,0],[13.4,3.4,.4]],pose:'phone',extra:'I\'m sixteen— I\'m— please—'}],
   talk:[{who:['Chino'],r:3.8,lines:[['Chino','Five helmets.'],['Chino','Landlord paid for six.'],['Chino','Somebody owes him a helmet.'],['Chino','Somebody\'s getting skinned.']]},
     {who:['Tavo'],r:3.8,lines:[['Tavo','Mom said don\'t go out.'],['Tavo','Eddie showed me a badge.'],['Tavo','Said it was a trophy.'],['Tavo','It had blood on it.']]}] });
 
 /* 04 · Güero drinks his five hundred. Doña Toña's sink was used to wash up after */
 twLong(4,[[1,-16,-10,-12.6,'living','peel','check',{win:true}],[-1,-16,-10,-13.4,'kitchen','tile','tile',{win:true}],
     [1,10,16,12.8,'store','concrete','conc',{win:true}],[-1,10,16,12.2,'squat','nicotine','conc',{win:true,hole:3.0}]],{
-  cast:[{kind:'vecino1',hidden:true,name:'Güero',spots:[[-12.6,3.6,Math.PI],[-13.4,3.2,Math.PI+.3]],pose:'lean',extra:'I was drunk, man— I was drunk—'}],
+  cast:[{kind:'vecino1',hidden:true,look:'any',name:'Güero',spots:[[-12.6,3.6,Math.PI],[-13.4,3.2,Math.PI+.3]],pose:'lean',extra:'I was drunk, man— I was drunk—'}],
   civ:[{kind:'abuela',civ:true,fem:true,old:true,name:'Doña Toña',spots:[[-13.4,-4.85,Math.PI],[-12.8,-4.85,Math.PI+.2]],pose:'lean',extra:'I said nothing! I say nothing!'}],
   talk:[{who:['Güero'],r:3.8,lines:[['Güero','Five hundred.'],['Güero','For one helmet.'],['Güero','Drank half already.'],['Güero','To the cops. Salud.']]},
     {who:['Doña Toña'],r:3.8,lines:[['Doña Toña','They used my sink.'],['Doña Toña','To wash it off.'],['Doña Toña','Blood in my sink.'],['Doña Toña','I said nothing. I say nothing.']]}] });
@@ -55,14 +57,16 @@ twLong(4,[[1,-16,-10,-12.6,'living','peel','check',{win:true}],[-1,-16,-10,-13.4
 twLong(5,[[1,-16,-10,-13.0,'store','dark','conc',{win:true}],[-1,-16,-10,-12.6,'bed','sage','oak',{win:true}],
     [1,10,16,13.2,'squat','peel','conc',{win:true}],[-1,10,16,12.8,'living','cream','rug',{win:true,hole:3.8}]],{
   cast:[{kind:'doorman',name:'Pelón',spots:[[13.2,2.4,Math.PI],[12.6,2.6,Math.PI+.4]],pose:'watch',extra:'I just keep the stairs, man—'}],
-  civ:[{kind:'enfermo',civ:true,old:true,name:'Don Cuco',spots:[[-12.6,-4.4,Math.PI],[-13.4,-4.2,Math.PI-.3]],pose:'idle',extra:'I can\'t breathe— I can\'t—'}],
+  civ:[{kind:'obrero',civ:true,look:'any',name:'Lencho',spots:[[-13.2,3.6,Math.PI],[-12.6,3.8,Math.PI-.3]],pose:'lean',extra:'I just fix the pipes! I fix the pipes—'},
+    {kind:'enfermo',civ:true,old:true,name:'Don Cuco',spots:[[-12.6,-4.4,Math.PI],[-13.4,-4.2,Math.PI-.3]],pose:'idle',extra:'I can\'t breathe— I can\'t—'}],
   talk:[{who:['Pelón'],r:3.8,lines:[['Pelón','Nobody goes up.'],['Pelón','Aurelio\'s orders.'],['Pelón','Not the cooks. Not God.'],['Pelón','Not the sixth cop.']]},
+    {who:['Lencho'],r:3.8,lines:[['Lencho','The lab pipe\'s leaking again.'],['Lencho','They want it fixed tonight.'],['Lencho','Tonight. With all this.'],['Lencho','I fix pipes. That\'s all.']]},
     {who:['Don Cuco'],r:3.8,lines:[['Don Cuco','My oxygen.'],['Don Cuco','They took my tank.'],['Don Cuco','For the lab, they said.'],['Don Cuco','Ask the cops for one.']]}] });
 
 /* 06 · Flaco hauls drums for the truck. Ramiro washes their glass for three hundred a week */
 twLong(6,[[1,-16,-10,-12.8,'store','concrete','conc',{win:true}],[-1,-16,-10,-13.2,'kitchen','tile','tile',{win:true}],
     [1,10,16,12.4,'store','concrete','conc',{win:true}],[-1,10,16,13.0,'squat','peel','conc',{win:true,hole:3.2}]],{
   cast:[{kind:'mcutter',name:'Flaco',spots:[[-12.0,3.2,Math.PI/2],[-13.6,3.4,-Math.PI/2]],pose:'idle',extra:'I just carry the drums—'}],
-  civ:[{kind:'estudiante',civ:true,name:'Ramiro',spots:[[-13.2,-4.85,Math.PI],[-12.6,-4.85,Math.PI+.3]],pose:'lean',extra:'I wash the glass! That\'s all I do!'}],
+  civ:[{kind:'estudiante',civ:true,look:'any',name:'Ramiro',spots:[[-13.2,-4.85,Math.PI],[-12.6,-4.85,Math.PI+.3]],pose:'lean',extra:'I wash the glass! That\'s all I do!'}],
   talk:[{who:['Flaco'],r:3.8,lines:[['Flaco','Two more for the truck.'],['Flaco','El Paso again.'],['Flaco','Who drives them across?'],['Flaco','Nobody asks. Lift.']]},
     {who:['Ramiro'],r:3.8,lines:[['Ramiro','Wash it, they said.'],['Ramiro','Three hundred a week.'],['Ramiro','Mamá thinks it\'s the Oxxo.'],['Ramiro','Smells like the Oxxo, Mamá.']]}] });

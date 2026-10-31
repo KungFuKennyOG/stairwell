@@ -40,7 +40,7 @@ const TN_POST={
   obrero:(I,ex,T)=>{ tnAgeI(I,.7); tnTired(I,.18); stubbleI(I,T,'#1a1210',.32,3051); mustacheI(I,'#120c0a',3052,16,5); const {cx,E}=FP; for(const sx of [-1,1]) blob(I,cx+sx*43,62,4,8,.38,'#7a7672'); },
   estudiante:(I,ex,T)=>{ stubbleI(I,T,'#2a1c14',.1,3061); const {cx,MO}=FP; for(let x=-10;x<=10;x++) softEll(I,cx+x,MO-6,.8,.8,'#3a2a20',.18,.5); },
   enfermo:(I,ex,T)=>{ tnAgeI(I,.75); tnTired(I,.34,'#3e3440'); stubbleI(I,T,'#5a5652',.62,3071); const {cx,E,MO}=FP; for(const sx of [-1,1]) blob(I,cx+sx*26,E+22,10,9,-.12); blob(I,cx,MO+1,10,3,.25,'#b8a8a0'); blob(I,cx,40,30,10,.08,'#e8e4c8'); },
-  vecino1:(I,ex,T)=>{ mustacheI(I,'#0e0a08',3081,12,1); const {cx,E,BR}=FP; softLine(I,cx+16,BR-2,cx+20,E+16,'#d8a080',.35,1.1); },
+  vecino1:(I,ex,T)=>{ const {cx,E,BR}=FP; softLine(I,cx+16,BR-2,cx+20,E+16,'#d8a080',.35,1.1); },
   vecino2:(I,ex,T)=>{ tnAgeI(I,.4); mustacheI(I,'#2a1e16',3091,17,6); },
   vecino3:(I,ex,T)=>{ tnAgeI(I,.35); },
   vecino4:(I,ex,T)=>{ lidLine(I,ex,'#0a0606',.4); }
@@ -53,7 +53,7 @@ Object.assign(HEADS,{
   obrero:{seed:3005,skin:'#9e6a48',skinD:'#704630',hair:'slick',hairC:'#16100c',hairFront:13,sideburn:38,shadow:true,brow:'#16100c',browT:2,iris:'#2a1a10',lip:'#7a4232',post:TN_POST.obrero},
   estudiante:{seed:3006,skin:'#d2a07a',skinD:'#a2725a',hair:'slick',hairC:'#1a120c',hairFront:12,sideburn:32,brow:'#1a120c',iris:'#3a2414',lip:'#b0705e',acne:true,glasses:'#141416',white:'#e6e0d4',post:TN_POST.estudiante},
   enfermo:{seed:3007,skin:'#c4a28a',skinD:'#94786a',hair:'slick',hairC:'#4a4440',hairFront:13,sideburn:38,brow:'#3e3834',iris:'#3a2e24',lip:'#9a7a72',white:'#d8d2c0',post:TN_POST.enfermo},
-  vecino1:{seed:3008,skin:'#8e5c3e',skinD:'#603a26',hair:'buzz',hairC:'#100c0a',hairFront:15,brow:'#100c0a',browT:2,iris:'#1a0e08',lip:'#6a3a2a',beard:'stubble',beardC:'#100c0a',post:TN_POST.vecino1},
+  vecino1:{seed:3008,skin:'#8e5c3e',skinD:'#603a26',hair:'buzz',hairC:'#100c0a',hairFront:15,brow:'#100c0a',browT:2,iris:'#1a0e08',lip:'#6a3a2a',beard:'goatee',beardC:'#100c0a',post:TN_POST.vecino1},
   vecino2:{seed:3009,skin:'#d4a684',skinD:'#a47a5e',hair:'slick',hairC:'#2a1e16',hairFront:13,sideburn:36,shadow:true,brow:'#2a1e16',browT:2,iris:'#3a2a1a',lip:'#a0645a',post:TN_POST.vecino2},
   vecino3:{seed:3010,skin:'#7a4a30',skinD:'#522e1c',hair:'slick',hairC:'#0e0a08',hairFront:13,sideburn:40,brow:'#0e0a08',browT:2,iris:'#1a0e08',lip:'#5a2e22',beard:'full',beardC:'#0e0a08',post:TN_POST.vecino3},
   vecino4:{seed:3012,skin:'#bc8460',skinD:'#8c5a40',hair:'buzz',hairC:'#1a120c',hairFront:14,brow:'#1a120c',iris:'#2a1a10',lip:'#94564a',beard:'goatee',beardC:'#1a120c',post:TN_POST.vecino4}
@@ -175,10 +175,11 @@ const tnTankZ=(x,y)=>{ const dx=Math.abs(x-64),bx=Math.min(x,128-x),sd=Math.min(
   if(y<T3.neck+30&&dx<13*Math.sqrt(Math.max(0,1-((y-T3.neck)/30)**2))) return true;
   if(y<T3.neck+14&&bx<12*Math.sqrt(Math.max(0,1-((y-T3.neck)/14)**2))) return true;
   if(y<T3.sh+36&&sd<15*Math.sqrt(Math.max(0,1-((y-T3.neck)/(T3.sh+36-T3.neck))**2))+(y<T3.sh?6:0)) return true; return false; };
-const tnV1Torso=torsoP('vecino1',3181,(x,y)=>{ if(y>T3.belt+2) return ['#26262a','wool',.6]; if(tnTankZ(x,y)) return sk('vecino1'); return ['#e8e4da','knit',.5]; },{decor:I=>{ neckShadow(I);
-  for(let y=T3.neck;y<T3.belt;y++) for(let x=0;x<128;x++) if(tnTankZ(x,y)!==tnTankZ(x,y+1)||tnTankZ(x,y)!==tnTankZ(x+1,y)) softEll(I,x+.5,y+.5,.9,.9,'#d4cec2',.6,.4);
+const tnV1Neck=(x,y)=>{ const dx=Math.abs(x-64); return y<T3.neck+9&&dx<11*Math.sqrt(Math.max(0,1-((y-T3.neck)/9)**2)); };
+const tnV1Torso=torsoP('vecino1',3181,(x,y)=>{ if(y>T3.belt+2) return ['#26262a','wool',.6]; if(tnV1Neck(x,y)) return sk('vecino1'); return ['#e8e4da','cotton',.7]; },{decor:I=>{ neckShadow(I);
+  for(let x=40;x<88;x++){ const dx=Math.abs(x+.5-64); if(dx<12){ const y=T3.neck+9*Math.sqrt(Math.max(0,1-(dx/11)**2)); softEll(I,x+.5,y+.5,1,1.2,'#cfc9bc',.8,.4); } }
   tnCross(I,'#e0b84a',T3.neck+31); stain(I,60,T3.nav-4,4,'#c8b890',3182); beltI(I,'#141416','#a8a8ac'); seam(I,64,T3.belt+5,64,T3.belt+40); blob(I,64,T3.chest+10,30,20,.06,'#ffffff'); }});
-const tnV1Arm=armP(3183,()=>sk('vecino1'),{decor:I=>{ blob(I,32,6,30,6,.08); const r=rng(3184); for(let i=0;i<9;i++) softEll(I,22+i*2.4,92+Math.sin(i*.8)*2,1,1,'#3a4a5a',.55,.5); softRect(I,41.3,89,1.6,9,'#3a4a5a',.6,.4); softRect(I,39,91.5,6,1.6,'#3a4a5a',.6,.4); }});
+const tnV1Arm=armP(3183,(x,y)=>y<38?['#e8e4da','cotton',.7]:sk('vecino1'),{decor:I=>{ softRect(I,0,35,64,3,'#cfc9bc',.9,.6); blob(I,32,40,30,3,-.12); const r=rng(3184); for(let i=0;i<9;i++) softEll(I,22+i*2.4,92+Math.sin(i*.8)*2,1,1,'#3a4a5a',.55,.5); softRect(I,41.3,89,1.6,9,'#3a4a5a',.6,.4); softRect(I,39,91.5,6,1.6,'#3a4a5a',.6,.4); }});
 const tnV1Leg=legP(3185,()=>['#26262a','wool'],{decor:I=>{ softLine(I,32,0,32,128,'#3a3a40',.6,1); seam(I,48,0,48,128); }});
 
 /* vecino 2: a faded red polo, jeans, a navy cap, worn sneakers */

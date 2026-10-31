@@ -127,7 +127,7 @@ const TOWER=[
       {kind:'corner',name:'Jojo',spots:[[-2.2,-4.15,-Math.PI/2+.25],[-1.6,-4.3,-Math.PI/2+.4]],pose:'idle',extra:'My brother\'s on six— please—'},
       {kind:'corner',name:'Kev',spots:[[2.0,5.22,0],[1.6,5.2,.25]],pose:'phone',extra:'I just held the door— I didn\'t shoot—'},
       {kind:'abuela',civ:true,fem:true,old:true,name:'Doña Chela',spots:[[-8.5,-4.45,Math.PI],[-7.6,-4.5,Math.PI+.3]],pose:'idle',extra:'I\'m seventy-eight, mijo—'},
-      {kind:'obrero',civ:true,name:'Toño',spots:[[6.7,-4.82,Math.PI],[7.4,-4.85,Math.PI-.3]],pose:'lean',extra:'I work at the plant— I just work—'},
+      {kind:'obrero',civ:true,look:'any',name:'Toño',spots:[[6.7,-4.82,Math.PI],[7.4,-4.85,Math.PI-.3]],pose:'lean',extra:'I work at the plant— I just work—'},
       {kind:'gunman',name:'Tito',spots:[[16.35,.55,-Math.PI/2]],pose:'idle',extra:'They made me look— they made me—',
         hunt:{pts:[[7.2,0],[7.2,3.4],[7.2,0],[-3.0,0],[-3.0,3.4],[-3.0,0],[-7.0,0],[-7.0,-3.4],[-7.0,0],[-16.35,.5],[-6.0,0],[2.4,0],[6.0,0],[6.0,-3.4],[6.0,0],[16.35,.4]],
           calls:['Cop?','Come out, cop.','Landlord says six.','We only counted five.','I know you\'re hurt.','...cop?','You\'re bleeding, man. I can smell it.']}}],
@@ -176,7 +176,7 @@ const TOWER=[
       {kind:'cutter',name:'Marco',spots:[[-7.4,2.5,0]],pose:'lean',extra:'I don\'t even know you—'},
       {kind:'cutter',name:'Luis',spots:[[-7.4,4.9,Math.PI]],pose:'lean',extra:'It\'s not mine, it\'s his—'},
       {kind:'corner',name:'Felix',spots:[[6.0,3.05,0],[6.3,3.1,-.3]],pose:'watch',extra:'I was a fighter, man—'},
-      {kind:'vecino2',hidden:true,name:'Sami',spots:[[-7.2,-4.05,Math.PI],[-6.6,-4.1,Math.PI+.3]],pose:'lean',extra:'I just moved in, man!'},
+      {kind:'vecino2',hidden:true,look:'any',name:'Sami',spots:[[-7.2,-4.05,Math.PI],[-6.6,-4.1,Math.PI+.3]],pose:'lean',extra:'I just moved in, man!'},
       {kind:'doorman',name:'Nico',spots:[[16.35,.55,-Math.PI/2]],pose:'idle',extra:'It was the Landlord\'s order—',
         hunt:{pts:[[5.2,0],[6.5,-3.4],[5.2,0],[.6,0],[.6,-3.4],[.6,0],[-.6,0],[-1.7,3.4],[-3.6,4.4],[-1.7,3.4],[-.6,0],[-16.35,.5],[-4.0,0],[2.2,0],[2.2,2.6],[2.2,0],[16.35,.4]],
           calls:['Hey. Cop.','Tito\'s not answering.','...Tito?','You\'re on two now, huh?','Come out. I\'ll make it quick.','We left you for dead. Should\'ve checked.']}}],
@@ -224,7 +224,7 @@ const TOWER=[
       A.light([11.5,2.35,0],[1.0,.78,.48],4.5); },
     cast:[
       {kind:'gunman',name:'Paulie',spots:[[-7.0,3.12,0]],pose:'lean',extra:'It\'s just the rent, man—'},
-      {kind:'vecino1',hidden:true,name:'Eddie',spots:[[-.4,2.55,0]],pose:'lean',extra:'I got a kid on the way—'},
+      {kind:'vecino1',hidden:true,look:'any',name:'Eddie',spots:[[-.4,2.55,0]],pose:'lean',extra:'I got a kid on the way—'},
       {kind:'cutter',name:'Tomas',spots:[[-.4,4.65,Math.PI]],pose:'lean',extra:'Take it, take the money—'},
       {kind:'enforcer',name:'Big Mike',spots:[[6.0,-5.2,Math.PI],[5.6,-5.15,Math.PI-.3]],pose:'watch',extra:'I didn\'t shoot nobody—'}],
     talk:[
@@ -392,14 +392,25 @@ function genTower(i){ const D=TOWER[i]; TL=D.len||10; setWorld(TL+4,6);
 
 /* ---------- the people ---------- */
 function twMirror(P){ const j={}; for(const k in P.j){ const m=k.endsWith('L')?k.slice(0,-1)+'R':k.endsWith('R')?k.slice(0,-1)+'L':k,r=P.j[k]; j[m]=[r[0],-r[1],-r[2]]; } return {hipsY:P.hipsY,j}; }
+const TW_LOOKS=['obrero','estudiante','vecino1','vecino2','vecino3','vecino4'];
+/* what a wardrobe look plays as: a tenant (no weapon), a gunman (a pistol in his waistband) or a blade */
+function twLookOver(c){ if(c.civ) return {as:'corner',side:'civ',prop:null};
+  return c.arm==='machete'?Object.assign({as:'cutter',side:'cartel'},TN_MACHETE):Object.assign({as:'gunman',side:'cartel'},TN_PISTOL); }
 function twCast(){ const D=FLOOR.def;
-  for(const c of [...(D.cast||[]),...(D.civ||[])]){ const s=pick(c.spots);
-    const mk_=TW_MAKERS[c.kind]||(typeof ROSTER!=='undefined'&&ROSTER[c.kind]?(h,g)=>makeChar(c.kind,h,g):c.civ?makeLandlord:makeGunman); /* tenants and plain clothes come from the cast kit (45c-tenants.js); until it's in, a tenant wears the old landlord's cardigan */
+  /* the men's wardrobe: a plain-clothes gunman and a tenant who had nothing to do with it wear the same clothes, dealt out fresh
+     every time the floor loads, so how a man looks never tells you which he is. Only what he says, and what's in his room, does */
+  const pool=TW_LOOKS.slice().sort(()=>Math.random()-.5),used=new Set();
+  for(const c0 of [...(D.cast||[]),...(D.civ||[])]){ let c=c0;
+    if(c.look==='any'&&typeof ROSTER!=='undefined'){ const lk=pool.find(k=>!used.has(k)&&ROSTER[k])||pool[0]; used.add(lk);
+      c=Object.assign({},c0,{kind:lk,wardrobe:true}); }
+    const s=pick(c.spots);
+    const mk_=c.wardrobe?(h,g)=>makeChar(c.kind,h,g,twLookOver(c)):TW_MAKERS[c.kind]||(typeof ROSTER!=='undefined'&&ROSTER[c.kind]?(h,g)=>makeChar(c.kind,h,g):c.civ?makeLandlord:makeGunman); /* tenants and plain clothes come from the cast kit (45c-tenants.js); until it's in, a tenant wears the old landlord's cardigan */
     const E=spawnEnemy({maker:mk_,name:c.name,x:s[0],z:s[1],hd:s[2],extra:c.extra,pre:E=>{
       if(!c.pose||c.pose==='idle') return; civPoses(E.C); const P=E.C.poses;
       if(c.pose==='phone'){ E.idleP=twMirror(P.phone); mk(box(.016,.12,.062),mBlack,E.J.handL,0,-.075,.0); mk(plane(.05,.1),M(null,{color:0x9ac0e0,unlit:true}),E.J.handL,.0085,-.075,0,0,Math.PI/2,0); }
       else if(P[c.pose]) E.idleP=P[c.pose]; }});
     E.detail=c.extra; enemies.push(E);
+    if(c.civ&&E.C.wpn){ E.C.wpn.vis=false; E.wpnHeld=false; setGrip(E.J,'R',false); } /* a tenant in a gunman's clothes has no gun */
     if(c.civ){ E.civ=true; E.atkCd=1e9; E.extra=c.extra; if(c.fem) E.voice={f0:rnd(195,225),rasp:.08,breath:.6}; else if(c.old) E.voice={f0:rnd(88,100),rasp:.5,breath:.55}; }
     if(c.hidden&&E.C.wpn){ E.concealed=true; E.C.wpn.vis=false; E.wpnHeld=false; setGrip(E.J,'R',false); } /* plain clothes: the gun stays in his waistband till he knows you're here */
     if(c.hunt){ /* he's looking for the sixth cop: a flashlight and a walk, room to room, ending at the landing you come up to */

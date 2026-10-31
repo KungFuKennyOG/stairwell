@@ -137,7 +137,7 @@ TOWER.push(
       {kind:'cutter',name:'Chuy',spots:[[-7.4,2.72,0],[-7.2,2.7,-.2]],pose:'lean',extra:'I just cut it, man— I just cut it—'},
       {kind:'cutter',name:'Gordo',spots:[[-8.15,3.75,Math.PI/2]],pose:'lean',extra:'I didn\'t take nothing off them—'},
       {kind:'cutter',name:'Emilio',spots:[[-1.0,4.82,0],[-1.3,4.85,.15]],pose:'lean',extra:'It was my father\'s— please—'},
-      {kind:'vecino4',hidden:true,name:'Beto',spots:[[.3,-4.1,Math.PI],[-.3,-4.2,Math.PI+.2]],pose:'phone',extra:'I\'m a godfather Sunday— please—'},
+      {kind:'vecino4',hidden:true,look:'any',name:'Beto',spots:[[.3,-4.1,Math.PI],[-.3,-4.2,Math.PI+.2]],pose:'phone',extra:'I\'m a godfather Sunday— please—'},
       {kind:'doorman',name:'Lalo',spots:[[16.35,.55,-Math.PI/2]],pose:'idle',extra:'They pay by the helmet, man—',
         hunt:{pts:[[7.0,0],[7.0,3.4],[7.0,0],[6.2,0],[6.2,-3.4],[6.2,0],[2.8,0],[2.8,-2.6],[2.8,0],[-1.2,0],[-1.2,2.6],[-1.2,0],[-4.4,0],[-4.4,-3.2],[-4.4,0],[-16.35,.5],[-5.4,0],[0,0],[16.35,.4]],
           calls:['Cop?','Nico said you\'d come up.','...Nico?','Five hundred a helmet.','Yours is worth more.','You\'re the last one, cop.']}}],
@@ -147,7 +147,7 @@ TOWER.push(
       {who:['Emilio'],r:3.8,lines:[['Emilio','It won\'t come out of the wood.'],['Emilio','Pa cut cane with this.'],['Emilio','Forty years. Never a man.'],['Emilio','I did the one crawling.'],['Emilio','He said a name.'],['Emilio','...I didn\'t catch it.']]},
       {who:['Junior'],r:3.8,lines:[['Junior','Ma says stay in the room.'],['Junior','There\'s blood on the stairs.'],['Junior','Beto\'s got a cop\'s phone.'],['Junior','He keeps showing people.']]},
       {who:['Beto'],r:3.8,lines:[['Beto','Ringing again.'],['Beto','The fed\'s phone. Ibarra\'s.'],['Beto','Nine-one-five. El Paso.'],['Beto','Nine calls.'],['Beto','Who calls a dead man nine times?'],['Beto','Somebody who paid him.'],['Beto','...or his wife.']]}],
-    civ:[{kind:'estudiante',civ:true,name:'Junior',spots:[[6.2,4.5,0],[7.4,4.4,-.3]],pose:'phone',extra:'I\'m in school! I\'m in school—'}],
+    civ:[{kind:'estudiante',civ:true,look:'any',name:'Junior',spots:[[6.2,4.5,0],[7.4,4.4,-.3]],pose:'phone',extra:'I\'m in school! I\'m in school—'}],
     loot:[['knife',-7.25,.86,3.42,.6]],
     clear:['FLOOR 04','Ibarra\'s phone is still ringing.'] },
 
@@ -201,7 +201,7 @@ TOWER.push(
       {kind:'enforcer',name:'Grande',spots:[[-8.7,2.0,1.83]],pose:'watch',extra:'I just stood at the door—'},
       {kind:'cutter',name:'Chato',spots:[[6.4,2.62,0]],pose:'lean',extra:'Take the money— take all of it—'},
       {kind:'doorman',name:'Memo',spots:[[8.6,4.5,-2.0]],pose:'idle',extra:'I never even went down—'},
-      {kind:'vecino3',hidden:true,name:'Rafa',spots:[[-8.0,-5.15,Math.PI],[-7.7,-5.1,Math.PI+.25]],pose:'phone',extra:'She\'s pregnant, man— please—'}],
+      {kind:'vecino3',hidden:true,look:'any',arm:'machete',name:'Rafa',spots:[[-8.0,-5.15,Math.PI],[-7.7,-5.1,Math.PI+.25]],pose:'phone',extra:'She\'s pregnant, man— please—'}],
     talk:[
       {who:['Paco','Grande'],r:3.8,lines:[['Paco','Twenty-five. Twenty-six.'],['Grande','All dollars?'],['Paco','All dollars. New ones.'],['Grande','Aurelio pays in pesos.'],['Paco','This isn\'t Aurelio\'s.'],['Grande','Whose, then?'],['Paco','...twenty-seven. Twenty-eight.']]},
       {who:['Memo','Chato'],r:3.8,lines:[['Memo','Three\'s not answering.'],['Chato','Paulie never answers.'],['Memo','Two\'s not answering.'],['Chato','...one?'],['Memo','Nobody.'],

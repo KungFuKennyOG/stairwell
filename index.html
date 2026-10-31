@@ -1872,7 +1872,7 @@ const TN_POST={
   obrero:(I,ex,T)=>{ tnAgeI(I,.7); tnTired(I,.18); stubbleI(I,T,'#1a1210',.32,3051); mustacheI(I,'#120c0a',3052,16,5); const {cx,E}=FP; for(const sx of [-1,1]) blob(I,cx+sx*43,62,4,8,.38,'#7a7672'); },
   estudiante:(I,ex,T)=>{ stubbleI(I,T,'#2a1c14',.1,3061); const {cx,MO}=FP; for(let x=-10;x<=10;x++) softEll(I,cx+x,MO-6,.8,.8,'#3a2a20',.18,.5); },
   enfermo:(I,ex,T)=>{ tnAgeI(I,.75); tnTired(I,.34,'#3e3440'); stubbleI(I,T,'#5a5652',.62,3071); const {cx,E,MO}=FP; for(const sx of [-1,1]) blob(I,cx+sx*26,E+22,10,9,-.12); blob(I,cx,MO+1,10,3,.25,'#b8a8a0'); blob(I,cx,40,30,10,.08,'#e8e4c8'); },
-  vecino1:(I,ex,T)=>{ mustacheI(I,'#0e0a08',3081,12,1); const {cx,E,BR}=FP; softLine(I,cx+16,BR-2,cx+20,E+16,'#d8a080',.35,1.1); },
+  vecino1:(I,ex,T)=>{ const {cx,E,BR}=FP; softLine(I,cx+16,BR-2,cx+20,E+16,'#d8a080',.35,1.1); },
   vecino2:(I,ex,T)=>{ tnAgeI(I,.4); mustacheI(I,'#2a1e16',3091,17,6); },
   vecino3:(I,ex,T)=>{ tnAgeI(I,.35); },
   vecino4:(I,ex,T)=>{ lidLine(I,ex,'#0a0606',.4); }
@@ -1885,7 +1885,7 @@ Object.assign(HEADS,{
   obrero:{seed:3005,skin:'#9e6a48',skinD:'#704630',hair:'slick',hairC:'#16100c',hairFront:13,sideburn:38,shadow:true,brow:'#16100c',browT:2,iris:'#2a1a10',lip:'#7a4232',post:TN_POST.obrero},
   estudiante:{seed:3006,skin:'#d2a07a',skinD:'#a2725a',hair:'slick',hairC:'#1a120c',hairFront:12,sideburn:32,brow:'#1a120c',iris:'#3a2414',lip:'#b0705e',acne:true,glasses:'#141416',white:'#e6e0d4',post:TN_POST.estudiante},
   enfermo:{seed:3007,skin:'#c4a28a',skinD:'#94786a',hair:'slick',hairC:'#4a4440',hairFront:13,sideburn:38,brow:'#3e3834',iris:'#3a2e24',lip:'#9a7a72',white:'#d8d2c0',post:TN_POST.enfermo},
-  vecino1:{seed:3008,skin:'#8e5c3e',skinD:'#603a26',hair:'buzz',hairC:'#100c0a',hairFront:15,brow:'#100c0a',browT:2,iris:'#1a0e08',lip:'#6a3a2a',beard:'stubble',beardC:'#100c0a',post:TN_POST.vecino1},
+  vecino1:{seed:3008,skin:'#8e5c3e',skinD:'#603a26',hair:'buzz',hairC:'#100c0a',hairFront:15,brow:'#100c0a',browT:2,iris:'#1a0e08',lip:'#6a3a2a',beard:'goatee',beardC:'#100c0a',post:TN_POST.vecino1},
   vecino2:{seed:3009,skin:'#d4a684',skinD:'#a47a5e',hair:'slick',hairC:'#2a1e16',hairFront:13,sideburn:36,shadow:true,brow:'#2a1e16',browT:2,iris:'#3a2a1a',lip:'#a0645a',post:TN_POST.vecino2},
   vecino3:{seed:3010,skin:'#7a4a30',skinD:'#522e1c',hair:'slick',hairC:'#0e0a08',hairFront:13,sideburn:40,brow:'#0e0a08',browT:2,iris:'#1a0e08',lip:'#5a2e22',beard:'full',beardC:'#0e0a08',post:TN_POST.vecino3},
   vecino4:{seed:3012,skin:'#bc8460',skinD:'#8c5a40',hair:'buzz',hairC:'#1a120c',hairFront:14,brow:'#1a120c',iris:'#2a1a10',lip:'#94564a',beard:'goatee',beardC:'#1a120c',post:TN_POST.vecino4}
@@ -2007,10 +2007,11 @@ const tnTankZ=(x,y)=>{ const dx=Math.abs(x-64),bx=Math.min(x,128-x),sd=Math.min(
   if(y<T3.neck+30&&dx<13*Math.sqrt(Math.max(0,1-((y-T3.neck)/30)**2))) return true;
   if(y<T3.neck+14&&bx<12*Math.sqrt(Math.max(0,1-((y-T3.neck)/14)**2))) return true;
   if(y<T3.sh+36&&sd<15*Math.sqrt(Math.max(0,1-((y-T3.neck)/(T3.sh+36-T3.neck))**2))+(y<T3.sh?6:0)) return true; return false; };
-const tnV1Torso=torsoP('vecino1',3181,(x,y)=>{ if(y>T3.belt+2) return ['#26262a','wool',.6]; if(tnTankZ(x,y)) return sk('vecino1'); return ['#e8e4da','knit',.5]; },{decor:I=>{ neckShadow(I);
-  for(let y=T3.neck;y<T3.belt;y++) for(let x=0;x<128;x++) if(tnTankZ(x,y)!==tnTankZ(x,y+1)||tnTankZ(x,y)!==tnTankZ(x+1,y)) softEll(I,x+.5,y+.5,.9,.9,'#d4cec2',.6,.4);
+const tnV1Neck=(x,y)=>{ const dx=Math.abs(x-64); return y<T3.neck+9&&dx<11*Math.sqrt(Math.max(0,1-((y-T3.neck)/9)**2)); };
+const tnV1Torso=torsoP('vecino1',3181,(x,y)=>{ if(y>T3.belt+2) return ['#26262a','wool',.6]; if(tnV1Neck(x,y)) return sk('vecino1'); return ['#e8e4da','cotton',.7]; },{decor:I=>{ neckShadow(I);
+  for(let x=40;x<88;x++){ const dx=Math.abs(x+.5-64); if(dx<12){ const y=T3.neck+9*Math.sqrt(Math.max(0,1-(dx/11)**2)); softEll(I,x+.5,y+.5,1,1.2,'#cfc9bc',.8,.4); } }
   tnCross(I,'#e0b84a',T3.neck+31); stain(I,60,T3.nav-4,4,'#c8b890',3182); beltI(I,'#141416','#a8a8ac'); seam(I,64,T3.belt+5,64,T3.belt+40); blob(I,64,T3.chest+10,30,20,.06,'#ffffff'); }});
-const tnV1Arm=armP(3183,()=>sk('vecino1'),{decor:I=>{ blob(I,32,6,30,6,.08); const r=rng(3184); for(let i=0;i<9;i++) softEll(I,22+i*2.4,92+Math.sin(i*.8)*2,1,1,'#3a4a5a',.55,.5); softRect(I,41.3,89,1.6,9,'#3a4a5a',.6,.4); softRect(I,39,91.5,6,1.6,'#3a4a5a',.6,.4); }});
+const tnV1Arm=armP(3183,(x,y)=>y<38?['#e8e4da','cotton',.7]:sk('vecino1'),{decor:I=>{ softRect(I,0,35,64,3,'#cfc9bc',.9,.6); blob(I,32,40,30,3,-.12); const r=rng(3184); for(let i=0;i<9;i++) softEll(I,22+i*2.4,92+Math.sin(i*.8)*2,1,1,'#3a4a5a',.55,.5); softRect(I,41.3,89,1.6,9,'#3a4a5a',.6,.4); softRect(I,39,91.5,6,1.6,'#3a4a5a',.6,.4); }});
 const tnV1Leg=legP(3185,()=>['#26262a','wool'],{decor:I=>{ softLine(I,32,0,32,128,'#3a3a40',.6,1); seam(I,48,0,48,128); }});
 
 /* vecino 2: a faded red polo, jeans, a navy cap, worn sneakers */
@@ -7652,7 +7653,7 @@ const TOWER=[
       {kind:'corner',name:'Jojo',spots:[[-2.2,-4.15,-Math.PI/2+.25],[-1.6,-4.3,-Math.PI/2+.4]],pose:'idle',extra:'My brother\'s on six— please—'},
       {kind:'corner',name:'Kev',spots:[[2.0,5.22,0],[1.6,5.2,.25]],pose:'phone',extra:'I just held the door— I didn\'t shoot—'},
       {kind:'abuela',civ:true,fem:true,old:true,name:'Doña Chela',spots:[[-8.5,-4.45,Math.PI],[-7.6,-4.5,Math.PI+.3]],pose:'idle',extra:'I\'m seventy-eight, mijo—'},
-      {kind:'obrero',civ:true,name:'Toño',spots:[[6.7,-4.82,Math.PI],[7.4,-4.85,Math.PI-.3]],pose:'lean',extra:'I work at the plant— I just work—'},
+      {kind:'obrero',civ:true,look:'any',name:'Toño',spots:[[6.7,-4.82,Math.PI],[7.4,-4.85,Math.PI-.3]],pose:'lean',extra:'I work at the plant— I just work—'},
       {kind:'gunman',name:'Tito',spots:[[16.35,.55,-Math.PI/2]],pose:'idle',extra:'They made me look— they made me—',
         hunt:{pts:[[7.2,0],[7.2,3.4],[7.2,0],[-3.0,0],[-3.0,3.4],[-3.0,0],[-7.0,0],[-7.0,-3.4],[-7.0,0],[-16.35,.5],[-6.0,0],[2.4,0],[6.0,0],[6.0,-3.4],[6.0,0],[16.35,.4]],
           calls:['Cop?','Come out, cop.','Landlord says six.','We only counted five.','I know you\'re hurt.','...cop?','You\'re bleeding, man. I can smell it.']}}],
@@ -7701,7 +7702,7 @@ const TOWER=[
       {kind:'cutter',name:'Marco',spots:[[-7.4,2.5,0]],pose:'lean',extra:'I don\'t even know you—'},
       {kind:'cutter',name:'Luis',spots:[[-7.4,4.9,Math.PI]],pose:'lean',extra:'It\'s not mine, it\'s his—'},
       {kind:'corner',name:'Felix',spots:[[6.0,3.05,0],[6.3,3.1,-.3]],pose:'watch',extra:'I was a fighter, man—'},
-      {kind:'vecino2',hidden:true,name:'Sami',spots:[[-7.2,-4.05,Math.PI],[-6.6,-4.1,Math.PI+.3]],pose:'lean',extra:'I just moved in, man!'},
+      {kind:'vecino2',hidden:true,look:'any',name:'Sami',spots:[[-7.2,-4.05,Math.PI],[-6.6,-4.1,Math.PI+.3]],pose:'lean',extra:'I just moved in, man!'},
       {kind:'doorman',name:'Nico',spots:[[16.35,.55,-Math.PI/2]],pose:'idle',extra:'It was the Landlord\'s order—',
         hunt:{pts:[[5.2,0],[6.5,-3.4],[5.2,0],[.6,0],[.6,-3.4],[.6,0],[-.6,0],[-1.7,3.4],[-3.6,4.4],[-1.7,3.4],[-.6,0],[-16.35,.5],[-4.0,0],[2.2,0],[2.2,2.6],[2.2,0],[16.35,.4]],
           calls:['Hey. Cop.','Tito\'s not answering.','...Tito?','You\'re on two now, huh?','Come out. I\'ll make it quick.','We left you for dead. Should\'ve checked.']}}],
@@ -7749,7 +7750,7 @@ const TOWER=[
       A.light([11.5,2.35,0],[1.0,.78,.48],4.5); },
     cast:[
       {kind:'gunman',name:'Paulie',spots:[[-7.0,3.12,0]],pose:'lean',extra:'It\'s just the rent, man—'},
-      {kind:'vecino1',hidden:true,name:'Eddie',spots:[[-.4,2.55,0]],pose:'lean',extra:'I got a kid on the way—'},
+      {kind:'vecino1',hidden:true,look:'any',name:'Eddie',spots:[[-.4,2.55,0]],pose:'lean',extra:'I got a kid on the way—'},
       {kind:'cutter',name:'Tomas',spots:[[-.4,4.65,Math.PI]],pose:'lean',extra:'Take it, take the money—'},
       {kind:'enforcer',name:'Big Mike',spots:[[6.0,-5.2,Math.PI],[5.6,-5.15,Math.PI-.3]],pose:'watch',extra:'I didn\'t shoot nobody—'}],
     talk:[
@@ -7917,14 +7918,25 @@ function genTower(i){ const D=TOWER[i]; TL=D.len||10; setWorld(TL+4,6);
 
 /* ---------- the people ---------- */
 function twMirror(P){ const j={}; for(const k in P.j){ const m=k.endsWith('L')?k.slice(0,-1)+'R':k.endsWith('R')?k.slice(0,-1)+'L':k,r=P.j[k]; j[m]=[r[0],-r[1],-r[2]]; } return {hipsY:P.hipsY,j}; }
+const TW_LOOKS=['obrero','estudiante','vecino1','vecino2','vecino3','vecino4'];
+/* what a wardrobe look plays as: a tenant (no weapon), a gunman (a pistol in his waistband) or a blade */
+function twLookOver(c){ if(c.civ) return {as:'corner',side:'civ',prop:null};
+  return c.arm==='machete'?Object.assign({as:'cutter',side:'cartel'},TN_MACHETE):Object.assign({as:'gunman',side:'cartel'},TN_PISTOL); }
 function twCast(){ const D=FLOOR.def;
-  for(const c of [...(D.cast||[]),...(D.civ||[])]){ const s=pick(c.spots);
-    const mk_=TW_MAKERS[c.kind]||(typeof ROSTER!=='undefined'&&ROSTER[c.kind]?(h,g)=>makeChar(c.kind,h,g):c.civ?makeLandlord:makeGunman); /* tenants and plain clothes come from the cast kit (45c-tenants.js); until it's in, a tenant wears the old landlord's cardigan */
+  /* the men's wardrobe: a plain-clothes gunman and a tenant who had nothing to do with it wear the same clothes, dealt out fresh
+     every time the floor loads, so how a man looks never tells you which he is. Only what he says, and what's in his room, does */
+  const pool=TW_LOOKS.slice().sort(()=>Math.random()-.5),used=new Set();
+  for(const c0 of [...(D.cast||[]),...(D.civ||[])]){ let c=c0;
+    if(c.look==='any'&&typeof ROSTER!=='undefined'){ const lk=pool.find(k=>!used.has(k)&&ROSTER[k])||pool[0]; used.add(lk);
+      c=Object.assign({},c0,{kind:lk,wardrobe:true}); }
+    const s=pick(c.spots);
+    const mk_=c.wardrobe?(h,g)=>makeChar(c.kind,h,g,twLookOver(c)):TW_MAKERS[c.kind]||(typeof ROSTER!=='undefined'&&ROSTER[c.kind]?(h,g)=>makeChar(c.kind,h,g):c.civ?makeLandlord:makeGunman); /* tenants and plain clothes come from the cast kit (45c-tenants.js); until it's in, a tenant wears the old landlord's cardigan */
     const E=spawnEnemy({maker:mk_,name:c.name,x:s[0],z:s[1],hd:s[2],extra:c.extra,pre:E=>{
       if(!c.pose||c.pose==='idle') return; civPoses(E.C); const P=E.C.poses;
       if(c.pose==='phone'){ E.idleP=twMirror(P.phone); mk(box(.016,.12,.062),mBlack,E.J.handL,0,-.075,.0); mk(plane(.05,.1),M(null,{color:0x9ac0e0,unlit:true}),E.J.handL,.0085,-.075,0,0,Math.PI/2,0); }
       else if(P[c.pose]) E.idleP=P[c.pose]; }});
     E.detail=c.extra; enemies.push(E);
+    if(c.civ&&E.C.wpn){ E.C.wpn.vis=false; E.wpnHeld=false; setGrip(E.J,'R',false); } /* a tenant in a gunman's clothes has no gun */
     if(c.civ){ E.civ=true; E.atkCd=1e9; E.extra=c.extra; if(c.fem) E.voice={f0:rnd(195,225),rasp:.08,breath:.6}; else if(c.old) E.voice={f0:rnd(88,100),rasp:.5,breath:.55}; }
     if(c.hidden&&E.C.wpn){ E.concealed=true; E.C.wpn.vis=false; E.wpnHeld=false; setGrip(E.J,'R',false); } /* plain clothes: the gun stays in his waistband till he knows you're here */
     if(c.hunt){ /* he's looking for the sixth cop: a flashlight and a walk, room to room, ending at the landing you come up to */
@@ -8348,7 +8360,7 @@ TOWER.push(
       {kind:'cutter',name:'Chuy',spots:[[-7.4,2.72,0],[-7.2,2.7,-.2]],pose:'lean',extra:'I just cut it, man— I just cut it—'},
       {kind:'cutter',name:'Gordo',spots:[[-8.15,3.75,Math.PI/2]],pose:'lean',extra:'I didn\'t take nothing off them—'},
       {kind:'cutter',name:'Emilio',spots:[[-1.0,4.82,0],[-1.3,4.85,.15]],pose:'lean',extra:'It was my father\'s— please—'},
-      {kind:'vecino4',hidden:true,name:'Beto',spots:[[.3,-4.1,Math.PI],[-.3,-4.2,Math.PI+.2]],pose:'phone',extra:'I\'m a godfather Sunday— please—'},
+      {kind:'vecino4',hidden:true,look:'any',name:'Beto',spots:[[.3,-4.1,Math.PI],[-.3,-4.2,Math.PI+.2]],pose:'phone',extra:'I\'m a godfather Sunday— please—'},
       {kind:'doorman',name:'Lalo',spots:[[16.35,.55,-Math.PI/2]],pose:'idle',extra:'They pay by the helmet, man—',
         hunt:{pts:[[7.0,0],[7.0,3.4],[7.0,0],[6.2,0],[6.2,-3.4],[6.2,0],[2.8,0],[2.8,-2.6],[2.8,0],[-1.2,0],[-1.2,2.6],[-1.2,0],[-4.4,0],[-4.4,-3.2],[-4.4,0],[-16.35,.5],[-5.4,0],[0,0],[16.35,.4]],
           calls:['Cop?','Nico said you\'d come up.','...Nico?','Five hundred a helmet.','Yours is worth more.','You\'re the last one, cop.']}}],
@@ -8358,7 +8370,7 @@ TOWER.push(
       {who:['Emilio'],r:3.8,lines:[['Emilio','It won\'t come out of the wood.'],['Emilio','Pa cut cane with this.'],['Emilio','Forty years. Never a man.'],['Emilio','I did the one crawling.'],['Emilio','He said a name.'],['Emilio','...I didn\'t catch it.']]},
       {who:['Junior'],r:3.8,lines:[['Junior','Ma says stay in the room.'],['Junior','There\'s blood on the stairs.'],['Junior','Beto\'s got a cop\'s phone.'],['Junior','He keeps showing people.']]},
       {who:['Beto'],r:3.8,lines:[['Beto','Ringing again.'],['Beto','The fed\'s phone. Ibarra\'s.'],['Beto','Nine-one-five. El Paso.'],['Beto','Nine calls.'],['Beto','Who calls a dead man nine times?'],['Beto','Somebody who paid him.'],['Beto','...or his wife.']]}],
-    civ:[{kind:'estudiante',civ:true,name:'Junior',spots:[[6.2,4.5,0],[7.4,4.4,-.3]],pose:'phone',extra:'I\'m in school! I\'m in school—'}],
+    civ:[{kind:'estudiante',civ:true,look:'any',name:'Junior',spots:[[6.2,4.5,0],[7.4,4.4,-.3]],pose:'phone',extra:'I\'m in school! I\'m in school—'}],
     loot:[['knife',-7.25,.86,3.42,.6]],
     clear:['FLOOR 04','Ibarra\'s phone is still ringing.'] },
 
@@ -8412,7 +8424,7 @@ TOWER.push(
       {kind:'enforcer',name:'Grande',spots:[[-8.7,2.0,1.83]],pose:'watch',extra:'I just stood at the door—'},
       {kind:'cutter',name:'Chato',spots:[[6.4,2.62,0]],pose:'lean',extra:'Take the money— take all of it—'},
       {kind:'doorman',name:'Memo',spots:[[8.6,4.5,-2.0]],pose:'idle',extra:'I never even went down—'},
-      {kind:'vecino3',hidden:true,name:'Rafa',spots:[[-8.0,-5.15,Math.PI],[-7.7,-5.1,Math.PI+.25]],pose:'phone',extra:'She\'s pregnant, man— please—'}],
+      {kind:'vecino3',hidden:true,look:'any',arm:'machete',name:'Rafa',spots:[[-8.0,-5.15,Math.PI],[-7.7,-5.1,Math.PI+.25]],pose:'phone',extra:'She\'s pregnant, man— please—'}],
     talk:[
       {who:['Paco','Grande'],r:3.8,lines:[['Paco','Twenty-five. Twenty-six.'],['Grande','All dollars?'],['Paco','All dollars. New ones.'],['Grande','Aurelio pays in pesos.'],['Paco','This isn\'t Aurelio\'s.'],['Grande','Whose, then?'],['Paco','...twenty-seven. Twenty-eight.']]},
       {who:['Memo','Chato'],r:3.8,lines:[['Memo','Three\'s not answering.'],['Chato','Paulie never answers.'],['Memo','Two\'s not answering.'],['Chato','...one?'],['Memo','Nobody.'],
@@ -8532,22 +8544,24 @@ twLong(1,[[1,-16,-10,-13.4,'store','concrete','conc',{win:true}],[-1,-16,-10,-12
 twLong(2,[[1,-16,-10,-12.4,'kitchen','nicotine','tile',{win:true}],[-1,-16,-10,-13.2,'squat','peel','conc',{win:true}],
     [1,10,16,13.0,'store','concrete','conc',{win:true,hole:4.0}],[-1,10,16,12.4,'bed','pink','rug',{win:true}]],{
   cast:[{kind:'cutter',name:'Toro',spots:[[-13.4,2.4,Math.PI],[-12.6,2.3,Math.PI+.3]],pose:'phone',extra:'It\'s just a phone, man— take it—'}],
-  civ:[{kind:'abuela',civ:true,fem:true,old:true,name:'Doña Pili',spots:[[13.8,-3.2,-Math.PI/2],[14.4,-2.6,-Math.PI/2]],pose:'idle',extra:'I\'m old— I\'m old, mijo—'}],
+  civ:[{kind:'obrero',civ:true,look:'any',name:'Pancho',spots:[[13.0,3.8,0],[12.2,3.4,.4]],pose:'phone',extra:'I drive a bus! I drive a bus—'},
+    {kind:'abuela',civ:true,fem:true,old:true,name:'Doña Pili',spots:[[13.8,-3.2,-Math.PI/2],[14.4,-2.6,-Math.PI/2]],pose:'idle',extra:'I\'m old— I\'m old, mijo—'}],
   talk:[{who:['Toro'],r:3.8,lines:[['Toro','The big one\'s phone.'],['Toro','Still playing his music.'],['Toro','Texts from \'Ray\'.'],['Toro','\'Pool closes at six.\''],['Toro','...who\'s Ray?']]},
+    {who:['Pancho'],r:3.8,lines:[['Pancho','No, I\'m not coming in.'],['Pancho','Tell the boss I\'m sick.'],['Pancho','There\'s cops dead downstairs.'],['Pancho','...no, I didn\'t see who.']]},
     {who:['Doña Pili'],r:3.8,lines:[['Doña Pili','Shh. Shh.'],['Doña Pili','They\'ll go away.'],['Doña Pili','Felix used to carry my bags.'],['Doña Pili','Such a good boy, Felix.']]}] });
 
 /* 03 · Chino wants the sixth helmet. Tavo saw Eddie's badge. Two dark flats, one through into Big Mike's */
 twLong(3,[[1,-16,-10,-13.0,'office','panel','oak',{win:true}],[-1,-16,-10,-12.8,'bed','cream','rug',{win:true}],
     [1,10,16,12.6,'living','sage','check',{win:true}],[-1,10,16,13.4,'kitchen','tile','tile',{win:true,hole:3.6}]],{
   cast:[{kind:'gunman',name:'Chino',spots:[[-13.0,2.6,Math.PI],[-13.6,2.8,Math.PI-.3]],pose:'watch',extra:'It\'s just the money, man— just the money—'}],
-  civ:[{kind:'estudiante',civ:true,name:'Tavo',spots:[[12.6,3.6,0],[13.4,3.4,.4]],pose:'phone',extra:'I\'m sixteen— I\'m— please—'}],
+  civ:[{kind:'estudiante',civ:true,look:'any',name:'Tavo',spots:[[12.6,3.6,0],[13.4,3.4,.4]],pose:'phone',extra:'I\'m sixteen— I\'m— please—'}],
   talk:[{who:['Chino'],r:3.8,lines:[['Chino','Five helmets.'],['Chino','Landlord paid for six.'],['Chino','Somebody owes him a helmet.'],['Chino','Somebody\'s getting skinned.']]},
     {who:['Tavo'],r:3.8,lines:[['Tavo','Mom said don\'t go out.'],['Tavo','Eddie showed me a badge.'],['Tavo','Said it was a trophy.'],['Tavo','It had blood on it.']]}] });
 
 /* 04 · Güero drinks his five hundred. Doña Toña's sink was used to wash up after */
 twLong(4,[[1,-16,-10,-12.6,'living','peel','check',{win:true}],[-1,-16,-10,-13.4,'kitchen','tile','tile',{win:true}],
     [1,10,16,12.8,'store','concrete','conc',{win:true}],[-1,10,16,12.2,'squat','nicotine','conc',{win:true,hole:3.0}]],{
-  cast:[{kind:'vecino1',hidden:true,name:'Güero',spots:[[-12.6,3.6,Math.PI],[-13.4,3.2,Math.PI+.3]],pose:'lean',extra:'I was drunk, man— I was drunk—'}],
+  cast:[{kind:'vecino1',hidden:true,look:'any',name:'Güero',spots:[[-12.6,3.6,Math.PI],[-13.4,3.2,Math.PI+.3]],pose:'lean',extra:'I was drunk, man— I was drunk—'}],
   civ:[{kind:'abuela',civ:true,fem:true,old:true,name:'Doña Toña',spots:[[-13.4,-4.85,Math.PI],[-12.8,-4.85,Math.PI+.2]],pose:'lean',extra:'I said nothing! I say nothing!'}],
   talk:[{who:['Güero'],r:3.8,lines:[['Güero','Five hundred.'],['Güero','For one helmet.'],['Güero','Drank half already.'],['Güero','To the cops. Salud.']]},
     {who:['Doña Toña'],r:3.8,lines:[['Doña Toña','They used my sink.'],['Doña Toña','To wash it off.'],['Doña Toña','Blood in my sink.'],['Doña Toña','I said nothing. I say nothing.']]}] });
@@ -8556,15 +8570,17 @@ twLong(4,[[1,-16,-10,-12.6,'living','peel','check',{win:true}],[-1,-16,-10,-13.4
 twLong(5,[[1,-16,-10,-13.0,'store','dark','conc',{win:true}],[-1,-16,-10,-12.6,'bed','sage','oak',{win:true}],
     [1,10,16,13.2,'squat','peel','conc',{win:true}],[-1,10,16,12.8,'living','cream','rug',{win:true,hole:3.8}]],{
   cast:[{kind:'doorman',name:'Pelón',spots:[[13.2,2.4,Math.PI],[12.6,2.6,Math.PI+.4]],pose:'watch',extra:'I just keep the stairs, man—'}],
-  civ:[{kind:'enfermo',civ:true,old:true,name:'Don Cuco',spots:[[-12.6,-4.4,Math.PI],[-13.4,-4.2,Math.PI-.3]],pose:'idle',extra:'I can\'t breathe— I can\'t—'}],
+  civ:[{kind:'obrero',civ:true,look:'any',name:'Lencho',spots:[[-13.2,3.6,Math.PI],[-12.6,3.8,Math.PI-.3]],pose:'lean',extra:'I just fix the pipes! I fix the pipes—'},
+    {kind:'enfermo',civ:true,old:true,name:'Don Cuco',spots:[[-12.6,-4.4,Math.PI],[-13.4,-4.2,Math.PI-.3]],pose:'idle',extra:'I can\'t breathe— I can\'t—'}],
   talk:[{who:['Pelón'],r:3.8,lines:[['Pelón','Nobody goes up.'],['Pelón','Aurelio\'s orders.'],['Pelón','Not the cooks. Not God.'],['Pelón','Not the sixth cop.']]},
+    {who:['Lencho'],r:3.8,lines:[['Lencho','The lab pipe\'s leaking again.'],['Lencho','They want it fixed tonight.'],['Lencho','Tonight. With all this.'],['Lencho','I fix pipes. That\'s all.']]},
     {who:['Don Cuco'],r:3.8,lines:[['Don Cuco','My oxygen.'],['Don Cuco','They took my tank.'],['Don Cuco','For the lab, they said.'],['Don Cuco','Ask the cops for one.']]}] });
 
 /* 06 · Flaco hauls drums for the truck. Ramiro washes their glass for three hundred a week */
 twLong(6,[[1,-16,-10,-12.8,'store','concrete','conc',{win:true}],[-1,-16,-10,-13.2,'kitchen','tile','tile',{win:true}],
     [1,10,16,12.4,'store','concrete','conc',{win:true}],[-1,10,16,13.0,'squat','peel','conc',{win:true,hole:3.2}]],{
   cast:[{kind:'mcutter',name:'Flaco',spots:[[-12.0,3.2,Math.PI/2],[-13.6,3.4,-Math.PI/2]],pose:'idle',extra:'I just carry the drums—'}],
-  civ:[{kind:'estudiante',civ:true,name:'Ramiro',spots:[[-13.2,-4.85,Math.PI],[-12.6,-4.85,Math.PI+.3]],pose:'lean',extra:'I wash the glass! That\'s all I do!'}],
+  civ:[{kind:'estudiante',civ:true,look:'any',name:'Ramiro',spots:[[-13.2,-4.85,Math.PI],[-12.6,-4.85,Math.PI+.3]],pose:'lean',extra:'I wash the glass! That\'s all I do!'}],
   talk:[{who:['Flaco'],r:3.8,lines:[['Flaco','Two more for the truck.'],['Flaco','El Paso again.'],['Flaco','Who drives them across?'],['Flaco','Nobody asks. Lift.']]},
     {who:['Ramiro'],r:3.8,lines:[['Ramiro','Wash it, they said.'],['Ramiro','Three hundred a week.'],['Ramiro','Mamá thinks it\'s the Oxxo.'],['Ramiro','Smells like the Oxxo, Mamá.']]}] });
 
