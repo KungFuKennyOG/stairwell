@@ -124,8 +124,8 @@ const TOWER=[
     cast:[
       {kind:'corner',name:'Dani',spots:[[-7.9,4.82,0],[-8.5,3.62,Math.PI]],pose:'lean',extra:'I got a daughter— she\'s six—'},
       {kind:'corner',name:'Rui',spots:[[-2.3,-2.95,-Math.PI/2],[-1.9,-3.2,-Math.PI/2-.2]],pose:'watch',extra:'I\'m nineteen, man—'},
-      {kind:'corner',name:'Jojo',spots:[[-2.2,-4.15,-Math.PI/2+.25],[-1.6,-4.3,-Math.PI/2+.4]],pose:'idle',extra:'My brother\'s on six— please—'},
-      {kind:'corner',name:'Kev',spots:[[2.0,5.22,0],[1.6,5.2,.25]],pose:'phone',extra:'I just held the door— I didn\'t shoot—'},
+      {kind:'vecino1',hidden:true,look:'any',name:'Jojo',spots:[[-2.2,-4.15,-Math.PI/2+.25],[-1.6,-4.3,-Math.PI/2+.4]],pose:'idle',extra:'My brother\'s on six— please—'},
+      {kind:'vecino1',hidden:true,look:'any',name:'Kev',spots:[[2.0,5.22,0],[1.6,5.2,.25]],pose:'phone',extra:'I just held the door— I didn\'t shoot—'},
       {kind:'abuela',civ:true,fem:true,old:true,name:'Doña Chela',spots:[[-8.5,-4.45,Math.PI],[-7.6,-4.5,Math.PI+.3]],pose:'idle',extra:'I\'m seventy-eight, mijo—'},
       {kind:'obrero',civ:true,look:'any',name:'Toño',spots:[[6.7,-4.82,Math.PI],[7.4,-4.85,Math.PI-.3]],pose:'lean',extra:'I work at the plant— I just work—'},
       {kind:'gunman',name:'Tito',spots:[[16.35,.55,-Math.PI/2]],pose:'idle',extra:'They made me look— they made me—',
@@ -175,7 +175,7 @@ const TOWER=[
     cast:[
       {kind:'cutter',name:'Marco',spots:[[-7.4,2.5,0]],pose:'lean',extra:'I don\'t even know you—'},
       {kind:'cutter',name:'Luis',spots:[[-7.4,4.9,Math.PI]],pose:'lean',extra:'It\'s not mine, it\'s his—'},
-      {kind:'corner',name:'Felix',spots:[[6.0,3.05,0],[6.3,3.1,-.3]],pose:'watch',extra:'I was a fighter, man—'},
+      {kind:'vecino1',hidden:true,look:'any',name:'Felix',spots:[[6.0,3.05,0],[6.3,3.1,-.3]],pose:'watch',extra:'I was a fighter, man—'},
       {kind:'vecino2',hidden:true,look:'any',name:'Sami',spots:[[-7.2,-4.05,Math.PI],[-6.6,-4.1,Math.PI+.3]],pose:'lean',extra:'I just moved in, man!'},
       {kind:'doorman',name:'Nico',spots:[[16.35,.55,-Math.PI/2]],pose:'idle',extra:'It was the Landlord\'s order—',
         hunt:{pts:[[5.2,0],[6.5,-3.4],[5.2,0],[.6,0],[.6,-3.4],[.6,0],[-.6,0],[-1.7,3.4],[-3.6,4.4],[-1.7,3.4],[-.6,0],[-16.35,.5],[-4.0,0],[2.2,0],[2.2,2.6],[2.2,0],[16.35,.4]],
@@ -225,7 +225,7 @@ const TOWER=[
     cast:[
       {kind:'gunman',name:'Paulie',spots:[[-7.0,3.12,0]],pose:'lean',extra:'It\'s just the rent, man—'},
       {kind:'vecino1',hidden:true,look:'any',name:'Eddie',spots:[[-.4,2.55,0]],pose:'lean',extra:'I got a kid on the way—'},
-      {kind:'cutter',name:'Tomas',spots:[[-.4,4.65,Math.PI]],pose:'lean',extra:'Take it, take the money—'},
+      {kind:'vecino1',hidden:true,look:'any',arm:'machete',name:'Tomas',spots:[[-.4,4.65,Math.PI]],pose:'lean',extra:'Take it, take the money—'},
       {kind:'enforcer',name:'Big Mike',spots:[[6.0,-5.2,Math.PI],[5.6,-5.15,Math.PI-.3]],pose:'watch',extra:'I didn\'t shoot nobody—'}],
     talk:[
       {who:['Paulie'],r:3.8,lines:[['Paulie','Two-oh-one. Short. Again.'],['Paulie','Helmets: five.'],['Paulie','Five hundred a helmet.'],['Paulie','Somebody owes me a sixth.']]},

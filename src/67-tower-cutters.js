@@ -136,7 +136,7 @@ TOWER.push(
     cast:[
       {kind:'cutter',name:'Chuy',spots:[[-7.4,2.72,0],[-7.2,2.7,-.2]],pose:'lean',extra:'I just cut it, man— I just cut it—'},
       {kind:'cutter',name:'Gordo',spots:[[-8.15,3.75,Math.PI/2]],pose:'lean',extra:'I didn\'t take nothing off them—'},
-      {kind:'cutter',name:'Emilio',spots:[[-1.0,4.82,0],[-1.3,4.85,.15]],pose:'lean',extra:'It was my father\'s— please—'},
+      {kind:'vecino1',hidden:true,look:'any',arm:'machete',name:'Emilio',spots:[[-1.0,4.82,0],[-1.3,4.85,.15]],pose:'lean',extra:'It was my father\'s— please—'},
       {kind:'vecino4',hidden:true,look:'any',name:'Beto',spots:[[.3,-4.1,Math.PI],[-.3,-4.2,Math.PI+.2]],pose:'phone',extra:'I\'m a godfather Sunday— please—'},
       {kind:'doorman',name:'Lalo',spots:[[16.35,.55,-Math.PI/2]],pose:'idle',extra:'They pay by the helmet, man—',
         hunt:{pts:[[7.0,0],[7.0,3.4],[7.0,0],[6.2,0],[6.2,-3.4],[6.2,0],[2.8,0],[2.8,-2.6],[2.8,0],[-1.2,0],[-1.2,2.6],[-1.2,0],[-4.4,0],[-4.4,-3.2],[-4.4,0],[-16.35,.5],[-5.4,0],[0,0],[16.35,.4]],
@@ -197,7 +197,7 @@ TOWER.push(
       A.tag(7,-8.0,1.45,1); A.tag(4,3.6,1.5,-1);
       A.light([11.5,2.35,0],[1.0,.78,.48],4.5); },
     cast:[
-      {kind:'gunman',name:'Paco',spots:[[-7.4,3.82,0],[-7.0,3.84,-.15]],pose:'lean',extra:'It\'s not my money— it\'s not even mine—'},
+      {kind:'vecino1',hidden:true,look:'any',name:'Paco',spots:[[-7.4,3.82,0],[-7.0,3.84,-.15]],pose:'lean',extra:'It\'s not my money— it\'s not even mine—'},
       {kind:'enforcer',name:'Grande',spots:[[-8.7,2.0,1.83]],pose:'watch',extra:'I just stood at the door—'},
       {kind:'cutter',name:'Chato',spots:[[6.4,2.62,0]],pose:'lean',extra:'Take the money— take all of it—'},
       {kind:'doorman',name:'Memo',spots:[[8.6,4.5,-2.0]],pose:'idle',extra:'I never even went down—'},
@@ -274,8 +274,8 @@ TOWER.push(
       {kind:'menforcer',name:'Kiko',spots:[[-9.3,1.95,1.2]],pose:'watch',extra:'I just watch the cooks—'},
       {kind:'mgunman',name:'Profe',spots:[[-2.8,3.03,0]],pose:'lean',extra:'I\'m a chemist— I\'m worth more alive—'},
       {kind:'mcutter',name:'Pepe',spots:[[-1.38,3.9,-Math.PI/2]],pose:'lean',extra:'My eyes— I can\'t see—'},
-      {kind:'doorman',name:'Gil',spots:[[6.6,4.15,0]],pose:'lean',extra:'I just fill the generator—'},
-      {kind:'ngunman',name:'Nacho',spots:[[-6.6,-4.75,Math.PI]],pose:'watch',extra:'I was up here the whole time—'}],
+      {kind:'vecino1',hidden:true,look:'any',name:'Gil',spots:[[6.6,4.15,0]],pose:'lean',extra:'I just fill the generator—'},
+      {kind:'vecino1',hidden:true,look:'any',name:'Nacho',spots:[[-6.6,-4.75,Math.PI]],pose:'watch',extra:'I was up here the whole time—'}],
     talk:[
       {who:['Profe','Pepe'],r:3.8,lines:[['Profe','Slower. Slower.'],['Pepe','My eyes are burning.'],['Profe','Then close them and pour.'],['Pepe','You hear shooting down there?'],['Profe','I hear a batch going cold.'],
         ['Pepe','Five cops, Profe.'],['Profe','Five cops is Aurelio\'s problem.'],['Profe','This is mine. Pour.']]},

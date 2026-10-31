@@ -40,7 +40,7 @@ twLong(2,[[1,-16,-10,-12.4,'kitchen','nicotine','tile',{win:true}],[-1,-16,-10,-
 /* 03 · Chino wants the sixth helmet. Tavo saw Eddie's badge. Two dark flats, one through into Big Mike's */
 twLong(3,[[1,-16,-10,-13.0,'office','panel','oak',{win:true}],[-1,-16,-10,-12.8,'bed','cream','rug',{win:true}],
     [1,10,16,12.6,'living','sage','check',{win:true}],[-1,10,16,13.4,'kitchen','tile','tile',{win:true,hole:3.6}]],{
-  cast:[{kind:'gunman',name:'Chino',spots:[[-13.0,2.6,Math.PI],[-13.6,2.8,Math.PI-.3]],pose:'watch',extra:'It\'s just the money, man— just the money—'}],
+  cast:[{kind:'vecino1',hidden:true,look:'any',name:'Chino',spots:[[-13.0,2.6,Math.PI],[-13.6,2.8,Math.PI-.3]],pose:'watch',extra:'It\'s just the money, man— just the money—'}],
   civ:[{kind:'estudiante',civ:true,look:'any',name:'Tavo',spots:[[12.6,3.6,0],[13.4,3.4,.4]],pose:'phone',extra:'I\'m sixteen— I\'m— please—'}],
   talk:[{who:['Chino'],r:3.8,lines:[['Chino','Five helmets.'],['Chino','Landlord paid for six.'],['Chino','Somebody owes him a helmet.'],['Chino','Somebody\'s getting skinned.']]},
     {who:['Tavo'],r:3.8,lines:[['Tavo','Mom said don\'t go out.'],['Tavo','Eddie showed me a badge.'],['Tavo','Said it was a trophy.'],['Tavo','It had blood on it.']]}] });
