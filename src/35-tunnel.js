@@ -93,7 +93,7 @@ const LINES_ES={
   stab:['Hnn—!',es('No, no—','No, no—'),es('Sácalo, sácalo—','Get it out—')],
   beg:[es('Por favor. Por favor.','Please. Please.'),es('Ya, ya, me rindo.','Okay, I give up.'),es('No lo hagas.','Don\'t do it.'),es('Yo no te hice nada—','I didn\'t do anything to you—'),es('Por mi madre, no—','On my mother, no—')],
   crawl:[es('Ayúdenme...','Help me...'),es('No te acerques—','Stay back—'),es('No siento las piernas—','I can\'t feel my legs—')],
-  dying:[es('...tengo frío...','...I\'m cold...'),es('Mamá...','Mom...'),es('No me quiero morir...','I don\'t want to die...'),es('...está oscuro...','...it\'s dark...')],
+  dying:[es('...tengo frío...','...I\'m cold...'),es('Agua... por favor...','Water... please...'),es('Mamá...','Mom...'),es('No me quiero morir...','I don\'t want to die...'),es('...está oscuro...','...it\'s dark...')],
   friend:n=>[`${n}!`,es(`¡${n}! ¡Levántate!`,`${n}! Get up!`),es(`¡Mataron a ${n}!`,`They killed ${n}!`)],
   call:n=>[es(`¡${n}! ¡Ayúdame!`,`${n}! Help me!`),`${n}... please...`] };
 function setLang(spanish){ if(!LINES_EN){ LINES_EN={}; for(const k in LINES) LINES_EN[k]=LINES[k]; } const src=spanish?LINES_ES:LINES_EN; for(const k in src) LINES[k]=src[k]; }

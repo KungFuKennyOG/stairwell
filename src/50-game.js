@@ -118,7 +118,7 @@ const LINES={
   stab:['Hnn—!','No— no—','Get it out— get it out—'],
   beg:['Please. Please, man.','I\'m done, I\'m done!','Don\'t. Don\'t do this.','I didn\'t do nothing to you—','I just live here, man—'],
   crawl:['Somebody... help...','Don\'t— stay back—','I can\'t feel my legs—'],
-  dying:['...cold... so cold...','Mom...','I don\'t wanna die...','...it\'s dark...'],
+  dying:['...cold... so cold...','Mom...','Water... please... water...','I don\'t wanna die...','...it\'s dark...'],
   friend:n=>[`${n}!`,`${n}! Get up!`,`You killed ${n}!`],
   call:n=>[`${n}! ${n}, help me!`,`${n}... please...`] };
 const SPAWNS=[
@@ -184,6 +184,9 @@ function setPose(E,name,t){
     case 'gasp': { rel=true; const en=E.energy??1,br=.07*s(ph*4.5)*(.4+.6*en); /* chest wound: head and shoulders up off the floor, fast shallow breaths */
       j={spine:[.42+br,0,0],neck:[.3,0,0],head:[.12,0,0],thighL:[-.5,0,.1],kneeL:[1.04,0,0],thighR:[-.35,0,-.1],kneeR:[.74,0,0],
       armL:[-.6,0,.4],elbowL:[-1.4,0,0],armR:[-.25,0,-.75],elbowR:[-.5,0,0]}; break; }
+    case 'guard': { rel=true; const tr=.04*s(ph*8); /* on his back with your gun on him: head and shoulders up, both forearms up in front of his face, palms out */
+      j={spine:[.42,0,0],neck:[.3,0,0],head:[.12,0,0],thighL:[-.8,0,.15],kneeL:[1.64,0,0],thighR:[-.65,0,-.15],kneeR:[1.34,0,0],
+      armL:[-1.3+tr,0,.28],elbowL:[-1.15,0,0],armR:[-1.3-tr,0,-.28],elbowR:[-1.15,0,0]}; break; } /* arms out toward you, not back over his head */
     case 'still': { rel=true; const br=.015*s(ph*1.3); /* playing dead, or too far gone to move: flat, slack, just breathing */
       j={spine:[.05+br,0,0],neck:[.05,0,0],head:[0,0,0],thighL:[-.08,0,.08],kneeL:[.15,0,0],thighR:[-.05,0,-.08],kneeR:[.1,0,0],
       armL:[-.25,0,.5],elbowL:[-.35,0,0],armR:[-.2,0,-.45],elbowR:[-.25,0,0]}; break; }
@@ -227,6 +230,7 @@ function targetsFor(E,t,dt=1){
     const s=E.wpnHand,M0=fkMats(J),sh=mulP(M0['arm'+s],[0,0,0]),pt=mtv(ryM(E.hd),[PL.x-E.pos[0],1.42,PL.z-E.pos[1]]),a=norm3(v3.sub(pt,sh));
     ikArm(J,s,v3.add(sh,v3.add(v3.sc(a,.5),[s==='L'?-.05:.05,-.03,0]))); }
   if(st==='idle'){ J.spine.r[0]+=Math.sin(t*1.5+E.t0)*.02; J.head.r[1]+=Math.sin(t*.4+E.t0)*.3; }
+  if(st==='alert') flinchPose(E,J); /* ducking from your shots, a shoulder turned to your gun (70-wounds.js) */
   if(throat&&(st==='kneel'||st==='down'&&pose!=='crawl'&&pose!=='scoot')){ J.neck.r=[.5,0,0]; J.head.r=[.35,0,0]; J.spine.r[0]=Math.max(J.spine.r[0],.45); }
   let M=fkMats(J);
   E.handRot={L:J.handL.r.slice(),R:J.handR.r.slice()};
@@ -703,6 +707,7 @@ function hitEnemy(E,seg,point,dir,weapon,o={}){
   if(key==='neck'&&weapon==='gun'&&!fatal&&!E.dead&&(E.st==='alert'||E.st==='idle')){ E.st='kneel'; E.aware=true; dropWeapon(E); } /* both hands go to his throat */
   if(D.leg) E.hp['leg'+side]=Math.max(0,E.hp['leg'+side]-D.leg);
   if(D.arm) E.hp['arm'+side]=Math.max(0,E.hp['arm'+side]-D.arm);
+  if(key==='uarm'&&weapon==='gun'&&!fatal) armNerve(E,seg,point,side); /* high on the arm: the nerves go, the hand opens (70-wounds.js) */
   E.stun=Math.min(1,E.stun+(D.stun||.3)*(behind?1.6:1)*ost); E.hitT=0;
   /* enough damage to one limb takes it off */
   const limb=key==='head'||key==='neck'?'head':key==='uarm'||key==='farm'?'arm'+side:key==='thigh'||key==='shin'||key==='foot'?'leg'+side:null;
@@ -798,11 +803,12 @@ function dropWeapon(E){ if(E.ally||!E.wpnHeld||!E.C.wpn) return; /* the team kee
 function think(E,dt,t){
   const B=E.B,pel=X_(B,PI_.pelvis),toP=[PL.x-pel[0],PL.z-pel[2]],dist=Math.hypot(toP[0],toP[1]);
   E.settle=Math.max(0,(E.settle||0)-dt); E.barkT-=dt; E.barkCd-=dt; E.stun=Math.max(0,E.stun-dt*(E.dead?0:.9)); E.hitT+=dt; E.shoveT=(E.shoveT??9)+dt; E.near=E.near?dist<3.9:dist<3.1;
-  if(E.dead){ E.deadT+=dt; return; }
+  if(E.dead){ E.deadT+=dt; deadPale(E,dt); return; }
   if(E.koT&&E.st==='down'&&E.downT<E.koT) E.stun=1; /* out cold */
   /* blood and the heart */
   const bleed=E.wounds.reduce((s,w)=>s+(w.piece?0:w.rate),0)*(.3+.7*E.blood/100);
   E.blood=Math.max(0,E.blood-bleed*dt*((kst(E)&&kst(E).tough)||1)); E.cons=clamp((E.blood-12)/46,0,1);
+  shockTick(E,dt); /* shock stages, pallor, flinch timers (70-wounds.js) */
   const hr=1.15+(1-E.blood/100)*1.9+(E.aware?.4:0); E.heartPh+=dt*hr; if(E.heartPh>=1){ E.heartPh-=1; if(E.wounds.some(w=>w.art)) E.spurtT=.13; }
   E.spurtT-=dt;
   if(E.dieT!=null) E.dieT-=dt;
@@ -886,6 +892,7 @@ function think(E,dt,t){
     else if(chestW) mode='gasp';
     else if(E.temper==='still') mode='still';
     else mode='curl';
+    mode=downReact(E,mode,dist,{canMove,lying,up,en,legs}); /* your gun or your shots on him (70-wounds.js) */
     E.downMode=mode;
     if(mode==='crawl'||mode==='scoot'){ /* effort in pulls, then a rest; the rests get longer as he weakens */
       E.pullT=(E.pullT??0)-dt; if(E.pullT<=0){ E.pulling=!E.pulling; E.pullT=E.pulling?rnd(1.6,3.4)*(.5+en*.5):rnd(.7,2)/(en+.35); }
@@ -893,6 +900,7 @@ function think(E,dt,t){
       const g=crawlGoal(E,pel),away=g?navTo(pel[0],pel[2],g[0],g[1]):norm3([-toP[0],0,-toP[1]]),k=Math.sin((t+E.t0)*2.4);
       E.crawlF=[away[0],away[2],Math.max(0,mode==='crawl'?Math.abs(k):Math.abs(Math.sin((t+E.t0)*2.6)))*(.3+.7*en)*E.pullAmp]; }
     if(prevMode&&E.downMode!==prevMode){ if(E.modeT>0) E.downMode=prevMode; else E.modeT=1.6; }
+    if(E.dShot>0&&mode==='cower') E.downMode='cower'; /* a shot doesn't wait for him to finish what he was doing */
     if(E.downMode!=='crawl'&&E.downMode!=='scoot') E.crawlF=null; }
   /* looking at the player */
   if(E.ally&&E.tl&&E.st==='idle'){} /* the team in the lobby: teamLife already set where they look */
@@ -906,13 +914,13 @@ function think(E,dt,t){
     if(neck&&E.wounds.length) bark(E,pick(LINES.neck));
     else if(E.cons<.4&&E.wounds.length) bark(E,pick(LINES.dying),3.2);
     else if((E.st==='kneel'||E.st==='down')&&E.wounds.some(w=>w.part==='neck'&&!w.piece)) bark(E,pick(LINES.neck));
-    else if((E.st==='kneel'||E.st==='down')&&E.near) bark(E,Math.random()<.35?E.extra:pick(LINES.beg));
+    else if((E.st==='kneel'||E.st==='down')&&(E.near||E.st==='down'&&E.covered&&E.coverT>.3)){ bark(E,Math.random()<.35?E.extra:pick(LINES.beg)); if(!E.near) E.barkCd=Math.min(E.barkCd,E.barkT+rnd(.3,.8)); } /* your gun on him: he doesn't stop */
     else if(E.st==='down'&&E.downMode!=='writhe'){ const f=enemies.filter(o=>o!==E); bark(E,Math.random()<.5&&f.length?pick(LINES.call(pick(f).name)):pick(LINES.crawl)); noise([pel[0],0,pel[2]],7,{from:E}); }
     if(E.barkT>0) GAME.barkGlobal=.8; }
   E.aimK=lerp(E.aimK||0,(E.st==='alert'?1:0)*(1-Math.min(E.stun,.8)*.7),Math.min(1,dt*3.5)); /* bring the long gun up when fighting, drop it when rocked */
   voiceTick(E,dt,dist);
   /* face */
-  let face=E.st==='kneel'&&(E.near||E.surr)&&!E.wounds.some(w=>w.part==='neck')||(E.downMode==='downbeg'||E.downMode==='cower')&&E.st==='down'?'beg':(E.wounds.length||E.stun>.35)?'hurt':'fight';
+  let face=E.st==='kneel'&&(E.near||E.surr)&&!E.wounds.some(w=>w.part==='neck')||(E.downMode==='downbeg'||E.downMode==='cower'||E.downMode==='guard')&&E.st==='down'?'beg':(E.wounds.length||E.stun>.35)?'hurt':'fight';
   if(E.faceHold&&E.faceHold.t>0){ E.faceHold.t-=dt; face=E.faceHold.f; }
   else if(E.impaled>0) face='agony';
   else if(E.grabbed&&E.chokeT>0||E.wounds.some(w=>w.part==='neck'&&!w.piece)) face='choke';
@@ -952,7 +960,7 @@ function enemyShoot(E,inBurst){
   GAME.eShots=(GAME.eShots||0)+1; muzzle(mz,g.d,!!KS.shotgun); muzzleSmoke(mz,g.d,!!KS.shotgun,false); sfx(W.snd||'gun',.8,mz); noise([E.pos[0],0,E.pos[1]],14,{alarm:true,from:E}); /* his friends come to the shooting */
   const toPl=Math.hypot(...v3.sub([PL.x,1.45,PL.z],mz)),n=KS.shotgun?6:1,hurtArm=Math.min(E.hp.armL,E.hp.armR)>=.45?1:.55;
   /* how likely a shot finds you: better close, worse far, worse with a hurt arm, worse while you're in bullet time? no: bullet time is yours */
-  const pHit=clamp(KS.acc*hurtArm*(KS.shotgun?clamp(1.6-toPl/5,0,1.4):clamp(1.35-toPl/14,.4,1.2)),0,.95);
+  const pHit=clamp(KS.acc*hurtArm*(E.aimMul??1)*(KS.shotgun?clamp(1.6-toPl/5,0,1.4):clamp(1.35-toPl/14,.4,1.2)),0,.95);
   let dmg=0;
   for(let k=0;k<n;k++){ const tgt=[PL.x+rnd(-.35,.35),1.45+rnd(-.3,.25),PL.z+rnd(-.35,.35)],d=norm3(v3.add(norm3(v3.sub(tgt,mz)),KS.shotgun?[rnd(-.06,.06),rnd(-.05,.05),rnd(-.06,.06)]:[0,0,0]));
     const bl=rayBoxes(mz,d,toPl); if(bl){ const hp=v3.add(v3.add(mz,v3.sc(d,bl.t)),v3.sc(bl.n,.004)); addDecal(DEC.hole,hp,bl.n,.025,140); impactFx(hp,bl.n,!!KS.shotgun); if(k<2) sfx('ric',.7,hp); continue; } /* your cover takes it */

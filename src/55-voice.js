@@ -87,10 +87,11 @@ function voiceTick(E,dt,dist){
   else if(E.impaled>0){ type=Math.random()<.6?'agony':'whimper'; next=rnd(.7,1.4); }
   else if(neck){ type=Math.random()<.65?'gurgle':'choke'; next=rnd(1.2,2.2); }
   else if(E.st==='down'&&E.knocked&&E.stun>.9){ type='breath'; next=rnd(2.6,3.4); }               /* out cold: slow breathing */
+  else if(E.blood<22&&hurt){ type='gasp'; next=rnd(2.4,4.6); }                                       /* the end: agonal gasps, reflex gulps with nothing between */
   else if(E.cons<.4&&hurt){ type=Math.random()<.5?'groan':'breath'; next=rnd(1.8,3); }              /* fading */
   else if(E.st==='down'&&(E.downMode==='crawl'||E.downMode==='scoot')){ type=Math.random()<.7?'strain':'breath'; next=rnd(.5,.9); }
-  else if(E.st==='down'&&E.downMode==='downbeg'||E.st==='kneel'&&E.near){ type=pick(['sob','sob','whimper','plead']); next=rnd(1.4,2.6); }
-  else if(E.st==='down'||E.st==='kneel'){ type=Math.random()<.6?'groan':'breath'; next=rnd(1.6,3.2); }
+  else if(E.st==='down'&&(E.downMode==='downbeg'||E.downMode==='guard'||E.downMode==='cower'&&E.dShot>0)||E.st==='kneel'&&E.near){ type=pick(['sob','sob','whimper','plead']); next=rnd(1.4,2.6); }
+  else if(E.st==='down'||E.st==='kneel'){ type=Math.random()<.6?'groan':'breath'; next=rnd(1.6,3.2)/((E.shock||1)>=3?1.5:1); } /* deeper in shock: faster, shallower */
   else if(E.st==='alert'&&hurt){ type='breath'; next=rnd(.45,.75); }                                  /* hurt and fighting: hard breathing */
   else if(E.st==='alert'&&(E.runAmt||0)>.3){ type='breath'; next=rnd(.5,.8); }
   else if(!E.aware&&dist<2.6){ type='breath'; next=rnd(2.4,3.6); }                                     /* right next to him in the dark: you hear him breathe */
