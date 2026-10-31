@@ -5818,7 +5818,7 @@ function hitEnemy(E,seg,point,dir,weapon,o={}){
   if(limb&&!E.cut[limb]&&(o.pellet||o.chop)){ const near=o.pellet?clamp((8-(o.dist??3))/4,0,1.5):1; /* buckshot only takes limbs up close */
     E.sev[limb]+=(weapon==='gun'?(limb==='head'?.55:key==='foot'?.25:.4):(limb==='head'?(key==='neck'?.36:.12):.3))*os*near; if(E.sev[limb]>=1) sever(E,limb,dir,!!o.pellet); }
   /* what he says */
-  if(!E.headshot&&(!fatal||fatal==='throat')&&E.barkCd<1.2){ const L_=key==='neck'?LINES.neck:weapon==='knife'?LINES.stab:key==='thigh'||key==='shin'||key==='foot'?LINES.leg:key==='uarm'||key==='farm'?LINES.arm:LINES.torso; bark(E,pick(L_),2.2); }
+  if(!E.dead&&!E.headshot&&(!fatal||fatal==='throat')&&E.barkCd<1.2){ const L_=key==='neck'?LINES.neck:weapon==='knife'?LINES.stab:key==='thigh'||key==='shin'||key==='foot'?LINES.leg:key==='uarm'||key==='farm'?LINES.arm:LINES.torso; bark(E,pick(L_),2.2); }
   /* the sound and the face of it */
   if(!E.dead&&!E.headshot){ if(fatal==='heart'){ vox(E,'gasp'); faceHold(E,'shock',3); }
     else if(key==='neck'){ vox(E,'choke'); faceHold(E,'choke',2.5); }
@@ -5826,7 +5826,7 @@ function hitEnemy(E,seg,point,dir,weapon,o={}){
     else { vox(E,weapon==='knife'?(o.chop?'scream':'stabbed'):legHit||Math.random()<.55?'scream':'grunt'); faceHold(E,'agony',weapon==='gun'?.9:1.4); } }
   if(behind){ E.silent=true; if(!E.aware){ E.aware=true; E.st='kneel'; dropWeapon(E); } }
   else setAware(E,'hit');
-  if(!behind){ const pel=X_(E.B,PI_.pelvis); noise([pel[0],0,pel[2]],9,{alarm:true,from:E}); } /* he screams; a knife from behind is silent */
+  if(!behind&&!E.dead){ const pel=X_(E.B,PI_.pelvis); noise([pel[0],0,pel[2]],9,{alarm:true,from:E}); } /* he screams; a knife from behind is silent, and so is a corpse */
 }
 /* blast: a close shotgun load doesn't cut a limb off, it destroys it. Nothing flies away; it's just gone, in pieces, over the wall */
 const PIN_AT={armL:'shL',armR:'shR',legL:'hipL',legR:'hipR',head:'neck'};
