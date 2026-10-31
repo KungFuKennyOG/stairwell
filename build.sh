@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 python3 - <<'PY'
 import glob
 game=sorted(glob.glob('src/*.js'))
-kit=['src/houses/40-helpers.js','src/houses/41-paint.js','src/houses/43-castkit.js','src/houses/44-build.js','src/frontera/45-cast.js','src/frontera/46-places.js','src/frontera/48-vision.js']
+kit=['src/houses/40-helpers.js','src/houses/41-paint.js','src/houses/43-castkit.js','src/houses/44-build.js','src/frontera/45-cast.js','src/frontera/45c-tenants.js','src/frontera/46-places.js','src/frontera/48-vision.js']
 i=game.index('src/20-floor-assets.js')+1
 parts=[open(f).read() for f in game[:i]+kit+game[i:]]
 open('index.html','w').write(open('src/00-head.html').read()+'\n'.join(parts)+'\n</script>\n')
