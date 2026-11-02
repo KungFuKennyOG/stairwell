@@ -13,27 +13,35 @@ const GRABS=[];
 function grabTarget(p,maxD){ let best=null,bd=maxD;
   for(const E of enemies){ if(Math.hypot(E.B.x[0]-p[0],E.B.x[2]-p[2])>2) continue;
     for(const n of GRAB_PTS){ const i=PI_[n]; if(E.sevP[i]) continue; const q=X_(E.B,i),d=Math.hypot(q[0]-p[0],q[1]-p[1],q[2]-p[2])*(n==='neck'?.8:n==='chest'?1.15:1); if(d<bd){ bd=d; best={E,i,name:n}; } } }
+  const gn=gunGrabTarget(p,best?Math.min(bd,maxD)+.02:maxD); if(gn&&(!best||gn.d<bd+.02)) best=gn; /* his gun, if your hand is on it (63-grapple.js) */
   return best; }
 function startGrab(h,g){ const E=g.E,q=X_(E.B,g.i);
   /* from behind: his back is to you */
   const fw=[Math.sin(E.hd),Math.cos(E.hd)],toMe=norm3([PL.x-q[0],0,PL.z-q[2]]),behind=fw[0]*toMe[0]+fw[1]*toMe[2]<-.25;
   const G={E,i:g.i,name:g.name,h,tgt:mulP(h.M,FIST),off:v3.sub(q,mulP(h.M,FIST)),t:0,choke:g.name==='neck'&&behind&&!E.dead,prevTgt:null};
-  if(Math.hypot(...G.off)>.08) G.off=v3.sc(norm3(G.off),.08);
+  const om=g.name==='gun'?.45:.08; if(Math.hypot(...G.off)>om) G.off=v3.sc(norm3(G.off),om); /* on his gun you hold it where you took it: his hand stays at the other end */
   GRABS.push(G); h.grab=G; E.grabbed=(E.grabbed||0)+1; sfx('grab'); if(XR.on) buzz(h.hand,.7,60);
+  if(g.name==='gun'){ wrestleStart(G); return; }
   if(!E.dead){ if(!G.choke) setAware(E,'grab'); E.stun=Math.min(1,E.stun+.25); if(G.choke&&E.barkCd<1.5) bark(E,'—hhk— gk—',1.6); else if(E.barkCd<1.2) bark(E,pick(['Get off me—','Let go!','Hey— HEY—']),1.4); } }
 function endGrab(G,throwV){ const i=GRABS.indexOf(G); if(i>=0) GRABS.splice(i,1); G.h.grab=null; const E=G.E; E.grabbed=Math.max(0,(E.grabbed||0)-1); E.shoveT=0; /* let go or thrown: the floor's grip (50-game.js) waits a moment */
-  if(throwV){ const sp=Math.hypot(...throwV); for(const n of [G.i,PI_.chest,PI_.neck,PI_.pelvis]) kickV(E.B,n,v3.sc(throwV,n===G.i?1:.6),H); if(sp>2.5){ E.slamT=1.5; E.stun=Math.min(1,E.stun+.3); } }
+  if(throwV){ const sp=Math.hypot(...throwV); for(const n of [G.i,PI_.chest,PI_.neck,PI_.pelvis]) kickV(E.B,n,v3.sc(throwV,n===G.i?1:.6),H); if(sp>2.5){ E.slamT=1.5; E.stun=Math.min(1,E.stun+.85); E.shoveT=0; for(let k=0;k<NP;k++){ const y=E.B.x[k*3+1]; kickV(E.B,k,v3.sc(throwV,clamp(y/1.5,.25,.85)),H); } } } /* thrown hard: his feet go out from under him for a moment, so the throw carries him (into a wall, through a window) */
   E.slamT=Math.max(E.slamT||0,.8); }
 /* pull each held point toward the hand, every physics step: the rest of the body follows through its joints */
 function applyGrabs(h){ for(const G of GRABS){ const B=G.E.B,o=G.i*3,t=v3.add(G.tgt,G.off),x=B.x,p=B.p,k=G.E.dead?.5:.32;
   for(let c=0;c<3;c++){ const d=(t[c]-x[o+c])*k; x[o+c]+=d; p[o+c]+=d*.7; } } }
-function updateGrabs(dt){
+function updateGrabs(dt){ GAME.hostageNow=null;
   for(const G of GRABS.slice()){ const E=G.E,h=G.h; G.t+=dt; const tgt=mulP(h.M,FIST);
-    const hv=G.prevTgt?v3.sc(v3.sub(tgt,G.prevTgt),1/Math.max(dt,1e-3)):[0,0,0]; G.prevTgt=G.tgt=tgt;
+    const hv=G.prevTgt?v3.sc(v3.sub(tgt,G.prevTgt),1/Math.max(dt,1e-3)):[0,0,0]; G.prevTgt=G.tgt=tgt; G.hsp=Math.hypot(...hv);
     if(E.dead) continue;
-    /* hands pulled far from the body (or the arm came off): lost him */
-    if(Math.hypot(...v3.sub(X_(E.B,G.i),v3.add(tgt,G.off)))>.75){ endGrab(G); continue; }
+    if(G.name==='gun'&&!E.wpnHeld){ endGrab(G); continue; } /* he dropped it, or it went to your other hand */
+    /* hands pulled far from the body (or the arm came off): lost him. Pushing him into a wall the hand can go further */
+    const gap=v3.sub(v3.add(tgt,G.off),X_(E.B,G.i)),gl=Math.hypot(...gap),pinned=G.name!=='gun'&&pinCheck(E,G,gap,gl);
+    if(gl>(pinned?1.2:G.name==='gun'?.95:.75)){ endGrab(G); continue; }
+    if(drownTick(G,dt)) continue; /* his head in the sink (63-grapple.js) */
+    if(G.name==='gun'){ wrestleTick(G,dt,hv); continue; }
+    if(G.choke&&hostageTick(G,dt)) continue; /* your gun on his head: no choke, he's your shield */
     if(G.choke){ E.stun=1; E.silent=true; E.chokeT=(E.chokeT||0)+dt; if(E.chokeT>3&&E.st!=='down'){ toDown(E,true); E.knocked=true; E.koT=45; bark(E,'',0); } if(E.chokeT>9){ die(E); endGrab(G); } continue; } /* held on long after he went limp */
+    if(pinTick(G,dt,pinned)) continue; /* pinned: he can't fight his way out */
     /* yank the weapon wrist */
     if(E.wpnHeld&&G.name==='hd'+E.wpnHand&&Math.hypot(...hv)>2.2){ dropWeapon(E); sfx('punch',.6); if(E.barkCd<1.2) bark(E,'My— shit—',1.4); }
     /* he fights it */
@@ -42,11 +50,17 @@ function updateGrabs(dt){
   /* slams: anything held, thrown or kicked that hits a wall, the floor or furniture hard enough gets hurt */
   for(const E of enemies){ if(E.slamT>0) E.slamT-=dt; const B=E.B; if(!B.imp) continue;
     E.slamCd=(E.slamCd||0)-dt;
-    if((E.grabbed||E.slamT>0)&&!E.dead&&E.slamCd<=0){ for(const [n,si] of [['head',0],['chest',2],['pelvis',3]]){ const i=PI_[n],v=B.imp[i]; if(v<3.2) continue;
+    if((E.grabbed||E.slamT>0)&&!E.dead&&E.slamCd<=0){ for(const [n,si] of [['head',0],['chest',2],['pelvis',3]]){ const i=PI_[n],v=slamV(E,B.imp[i]); if(v<3.2) continue;
       const q=X_(B,i),dir=B.impDir[i]; hitBlunt(E,SEGS[si],q,dir,n==='head'?'head':n==='chest'?'chest':'belly',{power:clamp((v-2.2)/2.6,.4,1.8)}); sfx('kick',.8);
       if(n==='head'&&v>4.5){ addDecal(DEC.splat,v3.add(q,v3.sc(dir,.08)),norm3(v3.sc(dir,-1)),.14,260); if(!E.cut.head) addWound(E,SEGS[0],q,dir,{rate:.6,art:false,part:'head'}); }
+      if(n==='head'&&v>3.6){ E.skull=(E.skull||0)+clamp((v-2.6)/3,.25,1.4); if(E.skull>=2.4){ crushSkull(E,q,dir); } else if(E.skull>=1.2) sfx('crunch',.45,q); } /* it adds up */
       E.slamCd=.35; break; } }
-    B.imp.fill(0); } }
+    windowImpacts(E,B); fallTick(E,dt); /* 64-environment.js */
+    B.imp.fill(0); }
+  hostageWorld(dt); }
+/* how hard it really hit: a held body pressed into a wall or a counter registers a contact every step (the hand keeps pulling it in),
+   so while he's held, the hit is only as fast as the hand that drove it */
+function slamV(E,v){ if(!E.grabbed) return v; let hs=0; for(const G of GRABS) if(G.E===E) hs=Math.max(hs,G.hsp||0); return Math.min(v,hs*1.35); }
 /* is a body in the way of a shot from a to b? (shields, friends in the line of fire) */
 function bodyInLine(a,b,skip){ const d=v3.sub(b,a),L=Math.hypot(...d); if(L<1e-3) return null; const dir=v3.sc(d,1/L); let best=null;
   for(const E of enemies){ if(E===skip) continue; for(let si=0;si<SEGS.length;si++){ if(E.segOff.has(si)) continue; const sg=SEGS[si],hh=raySeg(a,dir,X_(E.B,sg[0]),X_(E.B,sg[1]),sg[2]); if(hh&&hh.t<L-.2&&(!best||hh.t<best.t)) best={t:hh.t,E,seg:sg,p:v3.add(a,v3.sc(dir,hh.t)),dir}; } }
@@ -55,4 +69,5 @@ function bodyInLine(a,b,skip){ const d=v3.sub(b,a),L=Math.hypot(...d); if(L<1e-3
 function tryGrabBody(h){ const p=mulP(h.M,FIST),g=grabTarget(p,.16); if(!g) return false; startGrab(h,g); return true; }
 function flatGrab(){ const h=HANDS.L; if(h.grab){ endGrab(h.grab); return; } const {f,eye}=camBasis(); let best=null,bd=1.25;
   for(const E of enemies) for(const n of GRAB_PTS){ const i=PI_[n]; if(E.sevP[i]) continue; const q=X_(E.B,i),w=v3.sub(q,eye),t=v3.dot(w,f); if(t<.2||t>1.25) continue; const off=Math.hypot(...v3.sub(w,v3.sc(f,t))); const sc=t+off*3*(n==='neck'?.7:1); if(off<.3&&sc<bd){ bd=sc; best={E,i,name:n}; } }
+  for(const E of enemies){ if(E.ally||E.civ) continue; const g=gunPts(E); if(!g) continue; const q=v3.sc(v3.add(g[0],g[1]),.5),w=v3.sub(q,eye),t=v3.dot(w,f); if(t<.2||t>1.25) continue; const off=Math.hypot(...v3.sub(w,v3.sc(f,t))),sc=t+off*2; if(off<.3&&sc<bd){ bd=sc; best={E,i:PI_['hd'+E.wpnHand],name:'gun'}; } }
   if(best){ if(h.item) equip(h,null); startGrab(h,best); } else sfx('swish',.4); }

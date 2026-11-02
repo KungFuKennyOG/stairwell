@@ -99,9 +99,9 @@ function genFloor(n,seed,test=true){ setWorld(13,6);
   FLOOR.stairUp={x0:10.35,x1:12.9,z0:.2,z1:1.9};
 
   /* no doors: every unit is an open doorway (Kenny, 2026-10-29). The door code below stays for later; FLOOR.doors is empty */
-  /* windows: glass you can't fall through (yet) */
-  for(const u of units) if(u.w>=3.6){ mk(plane(1.4,1.1),M(tNightWin,{unlit:true,color:0x9a9a9a}),G,(u.x0+u.x1)/2,1.45,u.side*5.94,0,u.side>0?Math.PI:0,0);
-    addBox((u.x0+u.x1)/2-.7,(u.x0+u.x1)/2+.7,u.side*6-.07,u.side*6+.07,.9,2.0,'window'); }
+  /* windows: glass a man can go through (64-environment.js) */
+  for(const u of units) if(u.w>=3.6){ const gw=mk(plane(1.4,1.1),M(tNightWin,{unlit:true,color:0x9a9a9a}),G,(u.x0+u.x1)/2,1.45,u.side*5.94,0,u.side>0?Math.PI:0,0); gw.live=true;
+    const wb=addBox((u.x0+u.x1)/2-.7,(u.x0+u.x1)/2+.7,u.side*6-.07,u.side*6+.07,.9,2.0,'window'); wb.glass=gw; wb.side=u.side; }
 
   /* furniture */
   const furn=[]; const seats=[], beds=[];

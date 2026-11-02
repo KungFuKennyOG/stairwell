@@ -355,9 +355,9 @@ function genTower(i){ const D=TOWER[i]; TL=D.len||10; setWorld(TL+4,6);
     const mPl=M(plates);
     units.forEach((u,k)=>{ const z=u.side; for(const sx of [-1,1]) pot.box(mTrim,.08,2.18,.24,u.door+sx*.54,1.09,z); pot.box(mTrim,1.16,.09,.24,u.door,2.145,z);
       const px=u.door+(u.door<(u.x0+u.x1)/2?.82:-.82),pz=z-z*.075; pot.quad(mPl,[px,1.55,pz],[0,0,-z],[z>0?-1:1,0,0],[0,1,0],.16,.04,[0,1-(k+1)/N_,1,1-k/N_]); } ); }
-  /* windows: frame, sill, glass you can't fall through, and a curtain in some */
+  /* windows: frame, sill, glass (a man thrown into it goes through, 64-environment.js), and a curtain in some */
   { const mCurt=[M(null,{color:0x6a2a24}),M(null,{color:0x8a7a52}),M(null,{color:0x3a4a5a})]; for(const u of units) if(u.win){ const x=u.winX??(u.x0+u.x1)/2,z=u.side*5.94;
-    mk(plane(1.4,1.1),M(tNightWin,{unlit:true,color:0x8a8a8a}),G,x,1.45,z,0,u.side>0?Math.PI:0,0); addBox(x-.7,x+.7,u.side*6-.07,u.side*6+.07,.9,2.0,'window');
+    const gw=mk(plane(1.4,1.1),M(tNightWin,{unlit:true,color:0x8a8a8a}),G,x,1.45,z,0,u.side>0?Math.PI:0,0); gw.live=true; const wb=addBox(x-.7,x+.7,u.side*6-.07,u.side*6+.07,.9,2.0,'window'); wb.glass=gw; wb.side=u.side; /* it breaks (64-environment.js) */
     const zi=u.side*(6-.1); pot.box(mTrim,1.56,.05,.22,x,.88,zi); pot.box(mTrim,1.5,.07,.08,x,2.03,u.side*5.95); for(const sx of [-1,1]) pot.box(mTrim,.07,1.15,.08,x+sx*.72,1.45,u.side*5.95); pot.box(mTrim,.04,1.1,.04,x,1.45,u.side*5.93);
     if(r2()<.6){ const c=mCurt[r2()*3|0],sx=r2()<.5?-1:1; pot.box(c,.5,1.35,.04,x+sx*.55,1.35,u.side*5.82,0,0,sx*.03); pot.box(mTrim,1.8,.03,.03,x,2.1,u.side*5.82); } } }
   /* where the party wall was knocked through: plaster and brick on the floor either side */
