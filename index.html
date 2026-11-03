@@ -5778,7 +5778,7 @@ function setAware(E,why,at){ if(E.dead||E.ally) return; /* your own team never t
   if(E.aware){ if(!E.canSee) E.lkp=p; return; }
   E.aware=true; E.mind='hunt'; E.lkp=p; E.lostT=at?.7:0; E.goHome=false; E.spotT=0; freshGoal(E); if(E.st==='idle') E.st='alert';
   if(E.concealed&&!E.wpnHeld) return; /* plain clothes, gun still hidden: he keeps his mouth shut. He shouts when it comes out, or says he just lives here (66-tower.js, 69-standoff.js) */
-  if(GAME.barkGlobal<=0&&E.barkCd<=0){ bark(E,pick(LINES.alert)); GAME.barkGlobal=1.2; if(why!=='hit'){ vox(E,'shout'); noise([E.pos[0],0,E.pos[1]],8,{alarm:true,from:E}); } } }
+  if(GAME.barkGlobal<=0&&E.barkCd<=0){ bark(E,pick(LINES.alert)); GAME.barkGlobal=1.2; if(why!=='hit'){ vox(E,'shout'); noise([E.pos[0],0,E.pos[1]],8,{alarm:why!=='voice',from:E}); } } } /* woken by your shout: he calls out, but his friends only come to look (no chain of alarms down the floor) */
 function faceHold(E,f,t){ if(!E.dead) E.faceHold={f,t}; }
 /* fists and anything blunt: no wound to speak of, but it stuns, and enough to the head puts him out cold */
 const BLUNT={head:{stun:.75,daze:.42},neck:{stun:.85,daze:.22},chest:{stun:.4},belly:{stun:.62},thigh:{stun:.22},shin:{stun:.16},foot:{stun:.1},uarm:{stun:.15},farm:{stun:.12}};
@@ -6642,8 +6642,8 @@ const say=(E,lines,dur)=>{ if(E.barkCd<=0&&GAME.barkGlobal<=0){ bark(E,pick(line
 function noise(src,rad,o={}){ if(!rad||!GAME.started) return;
   for(const E of enemies){ if(E===o.from||!upright(E)||E.ally) continue;
     const d=Math.hypot(E.pos[0]-src[0],E.pos[1]-src[2]); if(d>rad) continue;
-    const r=sightClear([E.pos[0],1.6,E.pos[1]],[src[0],1.2,src[2]])?rad:rad*(o.alarm?.6:.45); if(d>r) continue; /* through a wall: a gunshot still carries, a footstep doesn't */
-    setTimeout(()=>hear(E,src,d/r,o),120+d*45); } }
+    const los=sightClear([E.pos[0],1.6,E.pos[1]],[src[0],1.2,src[2]]),r=los?rad:rad*(o.voice?.4:o.alarm?.6:.45); if(d>r) continue; /* through a wall: a gunshot still carries, a voice or a footstep doesn't */
+    const oo=o.voice?Object.assign({},o,{los}):o; setTimeout(()=>hear(E,src,d/r,oo),120+d*45); } }
 function alertAll(src,rad=12){ noise(src,rad,{alarm:true}); } /* kicked doors */
 
 /* the nearest open floor to (x,z): a bottle that lands against a wall is looked for in front of the wall, not inside it */
@@ -6656,6 +6656,8 @@ const freshGoal=E=>{ E.pgT=0; E.pgP=null; };
 
 function hear(E,src,k,o){ if(!upright(E)) return; const at=navSnap(src[0],src[2]);
   if(E.aware){ if(!E.canSee){ E.lkp=at; E.lostT=Math.max(E.lostT||0,.7); } return; }
+  /* your shout: whoever has a line to you knows it's you; behind a wall only right next to it, the rest of the next room comes to look */
+  if(o.voice){ if(o.los||k<.45||(E.mind&&E.mind!=='calm')) setAware(E,'voice',at); else investigate(E,at); return; }
   if(o.alarm&&(k<.65||(E.mind&&E.mind!=='calm'))) setAware(E,'noise',at);
   else investigate(E,at); }
 
@@ -7044,7 +7046,7 @@ function playerTalk(){ MIC.flash=.25; MIC.flashC='#e2a33d'; noise([PL.x,0,PL.z],
 /* shouting: the command */
 function playerShout(){ MIC.flash=.6; MIC.flashC='#ff3b30'; GAME.shoutT=0;
   if(XR.on){ buzz('left',.25,40); buzz('right',.25,40); }
-  noise([PL.x,0,PL.z],15,{alarm:true}); /* everyone in earshot knows where you are now */
+  noise([PL.x,0,PL.z],10,{alarm:true,voice:true}); /* a voice, not a gunshot: whoever can see you knows where you are; through a wall only the next room hears it, and comes to look (52-senses.js) */
   const eye=[PL.x,1.55,PL.z];
   for(const E of enemies){ if(E.dead||E.ally) continue;
     const pel=X_(E.B,PI_.pelvis),dist=Math.hypot(pel[0]-PL.x,pel[2]-PL.z); if(dist>MIC_CFG.range) continue;

@@ -663,7 +663,7 @@ function setAware(E,why,at){ if(E.dead||E.ally) return; /* your own team never t
   if(E.aware){ if(!E.canSee) E.lkp=p; return; }
   E.aware=true; E.mind='hunt'; E.lkp=p; E.lostT=at?.7:0; E.goHome=false; E.spotT=0; freshGoal(E); if(E.st==='idle') E.st='alert';
   if(E.concealed&&!E.wpnHeld) return; /* plain clothes, gun still hidden: he keeps his mouth shut. He shouts when it comes out, or says he just lives here (66-tower.js, 69-standoff.js) */
-  if(GAME.barkGlobal<=0&&E.barkCd<=0){ bark(E,pick(LINES.alert)); GAME.barkGlobal=1.2; if(why!=='hit'){ vox(E,'shout'); noise([E.pos[0],0,E.pos[1]],8,{alarm:true,from:E}); } } }
+  if(GAME.barkGlobal<=0&&E.barkCd<=0){ bark(E,pick(LINES.alert)); GAME.barkGlobal=1.2; if(why!=='hit'){ vox(E,'shout'); noise([E.pos[0],0,E.pos[1]],8,{alarm:why!=='voice',from:E}); } } } /* woken by your shout: he calls out, but his friends only come to look (no chain of alarms down the floor) */
 function faceHold(E,f,t){ if(!E.dead) E.faceHold={f,t}; }
 /* fists and anything blunt: no wound to speak of, but it stuns, and enough to the head puts him out cold */
 const BLUNT={head:{stun:.75,daze:.42},neck:{stun:.85,daze:.22},chest:{stun:.4},belly:{stun:.62},thigh:{stun:.22},shin:{stun:.16},foot:{stun:.1},uarm:{stun:.15},farm:{stun:.12}};

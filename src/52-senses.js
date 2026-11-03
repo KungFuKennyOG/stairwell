@@ -29,8 +29,8 @@ const say=(E,lines,dur)=>{ if(E.barkCd<=0&&GAME.barkGlobal<=0){ bark(E,pick(line
 function noise(src,rad,o={}){ if(!rad||!GAME.started) return;
   for(const E of enemies){ if(E===o.from||!upright(E)||E.ally) continue;
     const d=Math.hypot(E.pos[0]-src[0],E.pos[1]-src[2]); if(d>rad) continue;
-    const r=sightClear([E.pos[0],1.6,E.pos[1]],[src[0],1.2,src[2]])?rad:rad*(o.alarm?.6:.45); if(d>r) continue; /* through a wall: a gunshot still carries, a footstep doesn't */
-    setTimeout(()=>hear(E,src,d/r,o),120+d*45); } }
+    const los=sightClear([E.pos[0],1.6,E.pos[1]],[src[0],1.2,src[2]]),r=los?rad:rad*(o.voice?.4:o.alarm?.6:.45); if(d>r) continue; /* through a wall: a gunshot still carries, a voice or a footstep doesn't */
+    const oo=o.voice?Object.assign({},o,{los}):o; setTimeout(()=>hear(E,src,d/r,oo),120+d*45); } }
 function alertAll(src,rad=12){ noise(src,rad,{alarm:true}); } /* kicked doors */
 
 /* the nearest open floor to (x,z): a bottle that lands against a wall is looked for in front of the wall, not inside it */
@@ -43,6 +43,8 @@ const freshGoal=E=>{ E.pgT=0; E.pgP=null; };
 
 function hear(E,src,k,o){ if(!upright(E)) return; const at=navSnap(src[0],src[2]);
   if(E.aware){ if(!E.canSee){ E.lkp=at; E.lostT=Math.max(E.lostT||0,.7); } return; }
+  /* your shout: whoever has a line to you knows it's you; behind a wall only right next to it, the rest of the next room comes to look */
+  if(o.voice){ if(o.los||k<.45||(E.mind&&E.mind!=='calm')) setAware(E,'voice',at); else investigate(E,at); return; }
   if(o.alarm&&(k<.65||(E.mind&&E.mind!=='calm'))) setAware(E,'noise',at);
   else investigate(E,at); }
 

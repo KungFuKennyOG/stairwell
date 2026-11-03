@@ -59,7 +59,7 @@ function playerTalk(){ MIC.flash=.25; MIC.flashC='#e2a33d'; noise([PL.x,0,PL.z],
 /* shouting: the command */
 function playerShout(){ MIC.flash=.6; MIC.flashC='#ff3b30'; GAME.shoutT=0;
   if(XR.on){ buzz('left',.25,40); buzz('right',.25,40); }
-  noise([PL.x,0,PL.z],15,{alarm:true}); /* everyone in earshot knows where you are now */
+  noise([PL.x,0,PL.z],10,{alarm:true,voice:true}); /* a voice, not a gunshot: whoever can see you knows where you are; through a wall only the next room hears it, and comes to look (52-senses.js) */
   const eye=[PL.x,1.55,PL.z];
   for(const E of enemies){ if(E.dead||E.ally) continue;
     const pel=X_(E.B,PI_.pelvis),dist=Math.hypot(pel[0]-PL.x,pel[2]-PL.z); if(dist>MIC_CFG.range) continue;
