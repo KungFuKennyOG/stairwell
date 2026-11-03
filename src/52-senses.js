@@ -49,6 +49,7 @@ function hear(E,src,k,o){ if(!upright(E)) return; const at=navSnap(src[0],src[2]
   else investigate(E,at); }
 
 function investigate(E,at){ if(E.dead||E.aware||E.ally) return; if(E.civ) return; /* tenants don't go and look */
+  if(typeof twBrace==='function'&&twBrace(E,at)) return; /* the tower: two go to look, the rest stay put (66-tower.js) */
   if(E.mind==='search'){ E.srcC=at; E.wp=at; E.pauseT=0; E.searchT=Math.max(E.searchT,6); return; }
   if(E.mind!=='investigate') say(E,LINES.huh,2);
   E.mind='investigate'; E.lkp=at; E.goalT=0; freshGoal(E); if(E.st==='idle') E.st='alert'; }

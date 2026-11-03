@@ -6662,6 +6662,7 @@ function hear(E,src,k,o){ if(!upright(E)) return; const at=navSnap(src[0],src[2]
   else investigate(E,at); }
 
 function investigate(E,at){ if(E.dead||E.aware||E.ally) return; if(E.civ) return; /* tenants don't go and look */
+  if(typeof twBrace==='function'&&twBrace(E,at)) return; /* the tower: two go to look, the rest stay put (66-tower.js) */
   if(E.mind==='search'){ E.srcC=at; E.wp=at; E.pauseT=0; E.searchT=Math.max(E.searchT,6); return; }
   if(E.mind!=='investigate') say(E,LINES.huh,2);
   E.mind='investigate'; E.lkp=at; E.goalT=0; freshGoal(E); if(E.st==='idle') E.st='alert'; }
@@ -8394,10 +8395,10 @@ function twTalk(dt){ for(const C of FLOOR.convos||[]){ if(C.dead) continue;
 function towerLoad(i){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genTower(i); buildRack(); buildBoard(); resetGame(); if(XR.on) vrRecenter(); }
 /* Novak's pistol, on the floor by his right hand, pushed toward you */
 function proNovakGun(Nv){ if(FLOOR.pro.gun) return; FLOOR.pro.gun=true; const h=X_(Nv.B,PI_.hdR),d=norm3([PL.x-h[0],0,PL.z-h[2]]),p=[h[0]+d[0]*.25,.06,h[2]+d[2]*.25];
-  const Mw=m4.compose(m4.make(),p,[0,Math.atan2(d[0],d[2]),Math.PI/2],[1,1,1]); addPickup(newItem('pistol'),Mw,v3.sc(d,.35),[0,0,0]); sfx('bump',.4,p); }
+  const Mw=m4.compose(m4.make(),p,[0,Math.atan2(d[0],d[2]),Math.PI/2],[1,1,1]); addPickup(newItem('pistol',undefined,true),Mw,v3.sc(d,.35),[0,0,0]); sfx('bump',.4,p); }
 function towerReset(){ GAME.fade=0;
   if(FLOOR.def.pro){ genTower(FLOOR.idx); proStart(); return; }
-  FLOOR.flanked=false; FLOOR.upT=null; twCast(); twLoot(); if(!GAME.kit&&FLOOR.def.kit) equip(HANDS.R,newItem(FLOOR.def.kit)); /* started here from the card: Novak's pistol */ if(XR.on) vrToast(FLOOR.def.name,2.5); }
+  FLOOR.flanked=false; FLOOR.upT=null; FLOOR.braceUpT=null; twCast(); twLoot(); if(!GAME.kit&&FLOOR.def.kit) equip(HANDS.R,newItem(FLOOR.def.kit,undefined,true)); /* started here from the card: Novak's pistol, can on */ if(XR.on) vrToast(FLOOR.def.name,2.5); }
 function towerClimb(){ if(GAME.climbing) return; GAME.climbing=true;
   if(FLOOR.idx>=twLast()){ const nx=String(FLOOR.def.n+1).padStart(2,'0'); GAME.atTop=true; showMsg('THAT\'S AS FAR AS IT GOES',`Floor ${nx} isn\'t built yet.`); if(XR.on){ vrToast(`Floor ${nx} isn\'t built yet`,4); XR.clearT=5; } return; }
   const next=FLOOR.idx+1; FLOOR.next=next; GAME.fadeInT=0; try{ localStorage.setItem('stairwell.camp',String(next)); }catch(_){} }
@@ -8428,7 +8429,7 @@ function twAnim(){ for(const a of FLOOR.anim||[]){ const c=FLOOR.lights[a.i][1],
 
 function tickTower(dt){ twStairs(dt); document.body.classList.toggle('camp',FLOOR.mode==='camp'); /* no test panel in the campaign */ if(FLOOR.mode!=='camp') return; twAnim();
   if(!GAME.started) return;
-  if(FLOOR.def.pro) proTick(dt); else { twTalk(dt*Math.max(GAME.ts,.3)); twHunt(dt); twRoles(dt*Math.max(GAME.ts,.3)); twCivTick(dt*Math.max(GAME.ts,.3)); }
+  if(FLOOR.def.pro) proTick(dt); else { twTalk(dt*Math.max(GAME.ts,.3)); twHunt(dt); twRoles(dt*Math.max(GAME.ts,.3)); twBraceTick(dt*Math.max(GAME.ts,.3)); twCivTick(dt*Math.max(GAME.ts,.3)); }
   /* the street: now and then a dog, far off */
   GAME.dogT=(GAME.dogT??rnd(12,25))-dt; if(GAME.dogT<=0){ GAME.dogT=rnd(25,50); sfx('dog',.18,[rnd(-9,9),1.5,Math.random()<.5?7.5:-7.5]); } }
 
@@ -8493,6 +8494,29 @@ function twAmbushSpot(E){ const eye=[PL.x,1.6,PL.z],f=camBasis().f,fl=norm3([f[0
       if(Math.hypot(cellX(cc%NX)-PL.x,cellZ((cc-cc%NX)/NX)-PL.z)<2.6) ok=false; }
     if(!ok) continue; const sc=-fw*2+Math.random()*.6-Math.abs(d-110)/120; if(sc>bs){ bs=sc; best=[x,z]; } }
   return best; }
+/* ---------- trouble on the floor, nobody's seen you yet ----------
+   A shot down the hall, a man screaming for help: not everybody comes out. Two go to look at most. The rest brace where they are:
+   up off the wall, turned to where it came from, calling out (a man in plain clothes keeps quiet). When one of the lookers
+   doesn't come back (dead, down, or hunting you) the next braced man goes after a few seconds, the one nearest the trouble. */
+const TW_BRACE=['...Chucho?','Who\'s shooting?','Hey! HEY! What was that?','Somebody answer!','I\'m not going out there.','Stay in the room. Stay in the room.','Is it him?'];
+const twLooking=O=>!O.dead&&!O.civ&&!O.surr&&upright(O)&&(O.mind==='investigate'||O.mind==='search'&&!O.aware);
+const twLookers=X=>enemies.filter(O=>O!==X&&twLooking(O)).length;
+const twOut=X=>twLookers(X)+enemies.filter(O=>O!==X&&!O.dead&&O.aware&&twUp(O)&&(O.role==='hunt'||O.role==='flank')).length;
+/* from investigate() (52-senses.js): true if he braces instead of going to look */
+function twBrace(E,at){ if(FLOOR.mode!=='camp'||FLOOR.def.pro||E.hunter||E.mind==='investigate') return false;
+  if(E.mind==='brace'){ E.braceAt=at; E.braceT=Math.max(E.braceT,8); return true; }
+  if(twOut(E)<2) return false;
+  E.mind='brace'; E.braceAt=at; E.braceT=rnd(14,22); E.braceSay=rnd(.8,2.5); if(E.st==='idle') E.st='alert'; freshGoal(E); return true; }
+function twBraceTick(dt){ if(PL.dead) return; let next=null,nd=1e9;
+  for(const E of enemies){ if(E.mind!=='brace') continue;
+    if(E.dead||E.aware||!twUp(E)){ if(!E.aware&&!E.dead) E.mind='nervous'; continue; }
+    E.braceT-=dt; if(E.braceT<=0){ E.mind='nervous'; continue; } /* nothing more: he settles, still edgy */
+    E.moveDir=null; const a=E.braceAt; if(a){ let dh=Math.atan2(a[0]-E.pos[0],a[1]-E.pos[1])-E.hd; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); E.hd+=clamp(dh,-2.2*dt,2.2*dt); }
+    E.braceSay-=dt; if(E.braceSay<=0){ E.braceSay=rnd(5,9); if(!(E.concealed&&!E.wpnHeld)&&E.barkCd<=0&&GAME.barkGlobal<=0){ bark(E,pick(TW_BRACE),2.2); GAME.barkGlobal=1; vox(E,'shout',.8); } }
+    const d=a?Math.hypot(E.pos[0]-a[0],E.pos[1]-a[1]):9; if(d<nd){ nd=d; next=E; } }
+  /* a looker gone: after a beat the nearest braced man goes */
+  if(next&&twOut(next)<2){ FLOOR.braceUpT=(FLOOR.braceUpT??rnd(3,6))-dt; if(FLOOR.braceUpT<=0){ FLOOR.braceUpT=null; const at=next.braceAt; next.mind='calm'; investigate(next,at||next.pos.slice()); } }
+  else FLOOR.braceUpT=null; }
 function twFlank(E){ E.role='flank'; E.fl={ph:'go',t:0,spot:null}; E.silent=true; }
 function twRoles(dt){ if(PL.dead) return;
   const awake=enemies.filter(E=>E.aware&&twUp(E)&&!E.ally&&!E.civ);
@@ -8502,10 +8526,10 @@ function twRoles(dt){ if(PL.dead) return;
   const fresh=awake.filter(E=>!E.role).sort((a,b)=>Math.hypot(a.pos[0]-PL.x,a.pos[1]-PL.z)-Math.hypot(b.pos[0]-PL.x,b.pos[1]-PL.z));
   for(const E of fresh){ if(E.hunter){ E.role='hunt'; continue; }
     if(!live('flank').length&&twMelee(E)&&Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)>3.5){ twFlank(E); continue; }
-    if(live('hunt').length<2){ E.role='hunt'; continue; }
+    if(live('hunt').length+twLookers()<2){ E.role='hunt'; continue; } /* two out in the open at most, counting the ones gone to look */
     E.role='hold'; E.hold=twHoldSpot(E); E.holdT=rnd(4,9); }
   /* a hunter down: a holder comes out after a beat */
-  if(live('hunt').length+live('flank').length<2){ FLOOR.upT=(FLOOR.upT??rnd(3,5))-dt; if(FLOOR.upT<=0){ FLOOR.upT=null; const H=live('hold').sort((a,b)=>Math.hypot(a.pos[0]-PL.x,a.pos[1]-PL.z)-Math.hypot(b.pos[0]-PL.x,b.pos[1]-PL.z))[0];
+  if(live('hunt').length+live('flank').length+twLookers()<2){ FLOOR.upT=(FLOOR.upT??rnd(3,5))-dt; if(FLOOR.upT<=0){ FLOOR.upT=null; const H=live('hold').sort((a,b)=>Math.hypot(a.pos[0]-PL.x,a.pos[1]-PL.z)-Math.hypot(b.pos[0]-PL.x,b.pos[1]-PL.z))[0];
       if(H){ H.hold=null; if(!live('flank').length&&twMelee(H)) twFlank(H); else { H.role='hunt'; if(H.barkCd<=0) bark(H,pick(TW_UP),2.2); } } } } else FLOOR.upT=null;
   for(const E of awake){
     if(E.role==='hold'||E.role==='flank') E.lostT=0; /* on their toes: they don't drift off to search while they wait */
