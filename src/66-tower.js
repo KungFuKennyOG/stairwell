@@ -398,7 +398,7 @@ const TW_LOOKS=['obrero','estudiante','vecino1','vecino2','vecino3','vecino4'];
 /* what a wardrobe look plays as: a tenant (no weapon), a gunman (a pistol in his waistband) or a blade */
 function twLookOver(c){ if(c.civ) return {as:'corner',side:'civ',prop:null};
   return c.arm==='machete'?Object.assign({as:'cutter',side:'cartel'},TN_MACHETE):Object.assign({as:'gunman',side:'cartel'},TN_PISTOL); }
-function twCast(){ const D=FLOOR.def;
+function twCast(){ const D=FLOOR.def; if(typeof twMusicReset==='function') twMusicReset(); /* the party starts again */
   /* the men's wardrobe: a plain-clothes gunman and a tenant who had nothing to do with it wear the same clothes, dealt out fresh
      every time the floor loads, so how a man looks never tells you which he is. Only what he says, and what's in his room, does */
   const pool=TW_LOOKS.slice().sort(()=>Math.random()-.5),used=new Set();
@@ -411,7 +411,7 @@ function twCast(){ const D=FLOOR.def;
       if(!c.pose||c.pose==='idle') return; civPoses(E.C); const P=E.C.poses;
       if(c.pose==='phone'){ E.idleP=twMirror(P.phone); mk(box(.016,.12,.062),mBlack,E.J.handL,0,-.075,.0); mk(plane(.05,.1),M(null,{color:0x9ac0e0,unlit:true}),E.J.handL,.0085,-.075,0,0,Math.PI/2,0); }
       else if(P[c.pose]) E.idleP=P[c.pose]; }});
-    E.detail=c.extra; enemies.push(E);
+    E.detail=c.extra; enemies.push(E); if(c.stay) E.stay=true;
     if(c.civ&&E.C.wpn){ E.C.wpn.vis=false; E.wpnHeld=false; setGrip(E.J,'R',false); } /* a tenant in a gunman's clothes has no gun */
     if(c.civ){ E.civ=true; E.atkCd=1e9; E.extra=c.extra; if(c.fem) E.voice={f0:rnd(195,225),rasp:.08,breath:.6}; else if(c.old) E.voice={f0:rnd(88,100),rasp:.5,breath:.55}; }
     if(c.hidden&&E.C.wpn){ E.concealed=true; E.C.wpn.vis=false; E.wpnHeld=false; setGrip(E.J,'R',false); } /* plain clothes: the gun stays in his waistband till he knows you're here */
@@ -446,6 +446,7 @@ function towerReset(){ GAME.fade=0;
   if(FLOOR.def.pro){ genTower(FLOOR.idx); proStart(); return; }
   FLOOR.flanked=false; FLOOR.upT=null; FLOOR.braceUpT=null; twCast(); twLoot(); if(!GAME.kit&&FLOOR.def.kit) equip(HANDS.R,newItem(FLOOR.def.kit,undefined,true)); /* started here from the card: Novak's pistol, can on */ if(XR.on) vrToast(FLOOR.def.name,2.5); }
 function towerClimb(){ if(GAME.climbing) return; GAME.climbing=true;
+  if(FLOOR.idx>=twLast()&&FLOOR.def.end){ GAME.atTop=true; const e=FLOOR.def.end(); showMsg(e[0],e[1]); if(typeof twRing==='function') twRing(); if(XR.on){ vrToast(e[1],10); XR.clearT=11; } return; } /* the roof: the end (73-tower-top.js) */
   if(FLOOR.idx>=twLast()){ const nx=String(FLOOR.def.n+1).padStart(2,'0'); GAME.atTop=true; showMsg('THAT\'S AS FAR AS IT GOES',`Floor ${nx} isn\'t built yet.`); if(XR.on){ vrToast(`Floor ${nx} isn\'t built yet`,4); XR.clearT=5; } return; }
   const next=FLOOR.idx+1; FLOOR.next=next; GAME.fadeInT=0; try{ localStorage.setItem('stairwell.camp',String(next)); }catch(_){} }
 function towerSaved(){ const q=new URLSearchParams(location.search); if(q.has('f')) return clamp(parseInt(q.get('f'),10)||0,0,twLast());
@@ -470,12 +471,13 @@ function towerSeen(E,dist){ if(dist<2.2||GAME.t-(GAME.shotT??-99)<1.4&&dist<16) 
 function twAnim(){ for(const a of FLOOR.anim||[]){ const c=FLOOR.lights[a.i][1],t=GAME.t+a.t0; let k=1,col=c;
   if(a.kind==='tv'){ k=.55+.3*Math.sin(t*7.1)+.25*Math.sin(t*17.3+1)+(Math.sin(t*1.3)>.85?.4:0); }
   else if(a.kind==='candle'){ k=.82+.1*Math.sin(t*9.7)+.08*Math.sin(t*23.1); }
+  else if(a.kind==='party'){ const h=t*.45; col=[.95+.75*Math.sin(h),.55+.5*Math.sin(h+2.1),.95+.75*Math.sin(h+4.2)]; k=.8+.2*Math.sin(t*8.1); } /* a party light, turning (72-tower-money.js) */
   else if(a.kind==='police'){ const ph=(t*1.6)%2; col=ph<1?[1.6,.15,.12]:[.15,.3,1.7]; k=.35+.65*Math.max(0,Math.sin((ph%1)*Math.PI)); }
   L.plCol.set([col[0]*k,col[1]*k,col[2]*k],a.i*3); } }
 
-function tickTower(dt){ twStairs(dt); document.body.classList.toggle('camp',FLOOR.mode==='camp'); /* no test panel in the campaign */ if(FLOOR.mode!=='camp') return; twAnim();
+function tickTower(dt){ if(FLOOR.mode!=='camp'&&typeof TW_MUSIC!=='undefined'&&TW_MUSIC.on) twMusicStop(); twStairs(dt); document.body.classList.toggle('camp',FLOOR.mode==='camp'); /* no test panel in the campaign */ if(FLOOR.mode!=='camp') return; twAnim();
   if(!GAME.started) return;
-  if(FLOOR.def.pro) proTick(dt); else { twTalk(dt*Math.max(GAME.ts,.3)); twHunt(dt); twRoles(dt*Math.max(GAME.ts,.3)); twBraceTick(dt*Math.max(GAME.ts,.3)); twCivTick(dt*Math.max(GAME.ts,.3)); }
+  if(FLOOR.def.pro) proTick(dt); else { twTalk(dt*Math.max(GAME.ts,.3)); twHunt(dt); twRoles(dt*Math.max(GAME.ts,.3)); twBraceTick(dt*Math.max(GAME.ts,.3)); if(typeof twMusicTick==='function') twMusicTick(); twCivTick(dt*Math.max(GAME.ts,.3)); }
   /* the street: now and then a dog, far off */
   GAME.dogT=(GAME.dogT??rnd(12,25))-dt; if(GAME.dogT<=0){ GAME.dogT=rnd(25,50); sfx('dog',.18,[rnd(-9,9),1.5,Math.random()<.5?7.5:-7.5]); } }
 
@@ -571,11 +573,12 @@ function twRoles(dt){ if(PL.dead) return;
   /* new to it: the flashlight men hunt; one blade flanks; two hunt; the rest hold */
   const fresh=awake.filter(E=>!E.role).sort((a,b)=>Math.hypot(a.pos[0]-PL.x,a.pos[1]-PL.z)-Math.hypot(b.pos[0]-PL.x,b.pos[1]-PL.z));
   for(const E of fresh){ if(E.hunter){ E.role='hunt'; continue; }
+    if(E.stay&&E.home){ E.role='hold'; E.hold={x:E.home[0],z:E.home[1],hd:E.homeHd??E.hd,u:null}; E.holdT=rnd(4,9); continue; } /* behind a barricade: he holds it (73-tower-top.js) */
     if(!live('flank').length&&twMelee(E)&&Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)>3.5){ twFlank(E); continue; }
     if(live('hunt').length+twLookers()<2){ E.role='hunt'; continue; } /* two out in the open at most, counting the ones gone to look */
     E.role='hold'; E.hold=twHoldSpot(E); E.holdT=rnd(4,9); }
   /* a hunter down: a holder comes out after a beat */
-  if(live('hunt').length+live('flank').length+twLookers()<2){ FLOOR.upT=(FLOOR.upT??rnd(3,5))-dt; if(FLOOR.upT<=0){ FLOOR.upT=null; const H=live('hold').sort((a,b)=>Math.hypot(a.pos[0]-PL.x,a.pos[1]-PL.z)-Math.hypot(b.pos[0]-PL.x,b.pos[1]-PL.z))[0];
+  if(live('hunt').length+live('flank').length+twLookers()<2){ FLOOR.upT=(FLOOR.upT??rnd(3,5))-dt; if(FLOOR.upT<=0){ FLOOR.upT=null; const H=live('hold').filter(O=>!O.stay).sort((a,b)=>Math.hypot(a.pos[0]-PL.x,a.pos[1]-PL.z)-Math.hypot(b.pos[0]-PL.x,b.pos[1]-PL.z))[0];
       if(H){ H.hold=null; if(!live('flank').length&&twMelee(H)) twFlank(H); else { H.role='hunt'; if(H.barkCd<=0) bark(H,pick(TW_UP),2.2); } } } } else FLOOR.upT=null;
   for(const E of awake){
     if(E.role==='hold'||E.role==='flank') E.lostT=0; /* on their toes: they don't drift off to search while they wait */

@@ -26,7 +26,7 @@ const upright=E=>!E.dead&&(E.st==='idle'||E.st==='alert');
 const say=(E,lines,dur)=>{ if(E.barkCd<=0&&GAME.barkGlobal<=0){ bark(E,pick(lines),dur); GAME.barkGlobal=.9; return true; } return false; };
 
 /* a sound at src [x,y,z], heard out to rad metres. o.alarm: gunshot/scream/kick. o.from: the enemy making it (doesn't hear himself) */
-function noise(src,rad,o={}){ if(!rad||!GAME.started) return;
+function noise(src,rad,o={}){ if(!rad||!GAME.started) return; if(typeof twHush==='function') rad*=twHush(src); /* the party music swallows it (72-tower-money.js) */
   for(const E of enemies){ if(E===o.from||!upright(E)||E.ally) continue;
     const d=Math.hypot(E.pos[0]-src[0],E.pos[1]-src[2]); if(d>rad) continue;
     const los=sightClear([E.pos[0],1.6,E.pos[1]],[src[0],1.2,src[2]]),r=los?rad:rad*(o.voice?.4:o.alarm?.6:.45); if(d>r) continue; /* through a wall: a gunshot still carries, a voice or a footstep doesn't */
