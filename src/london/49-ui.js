@@ -111,7 +111,7 @@ function stepWorld(dt){ clock+=dt; wclock+=dt; LOOK.time=clock; /* the freeze-fr
   else { const k=1-Math.exp(-dt*(frozen?9:6)); for(let i=0;i<3;i++) cam.t[i]+=(goal.t[i]-cam.t[i])*k; cam.th+=(goal.th-cam.th)*k; cam.ph+=(goal.ph-cam.ph)*k; cam.r+=(goal.r-cam.r)*k;
     if(state.eye){ const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),s_=(keys.KeyD?1:0)-(keys.KeyA?1:0); if(f||s_) walk(f*1.6*dt,s_*1.6*dt); } }
   for(const id of ORDER){ if(GAME.G.on&&(id==='pcmale'||id==='pcfem')) continue; if(frozen&&state.pick===id) continue; const C=CAST[id]; animateChar(C,wclock); skinUpdate(C); }
-  rainTick(wclock,eyePos()); DRESS.tick(wclock,eyePos()); const fl=Math.sin(wclock*31)>.97&&Math.sin(wclock*3.1)>.6; STREET_LIGHT.pl[1][1]=fl?[.5,.22,.15]:[1.35,.62,.42]; setLights(lightsNear(STREET_LIGHT,eyePos())); }
+  rainTick(wclock,eyePos()); DRESS.tick(wclock,eyePos()); skyTick(eyePos()); const fl=Math.sin(wclock*31)>.97&&Math.sin(wclock*3.1)>.6; STREET_LIGHT.pl[1][1]=fl?[.5,.22,.15]:[1.35,.62,.42]; setLights(lightsNear(STREET_LIGHT,eyePos())); }
 function step(dt){ stepWorld(dt); if(!GAME.G.xr&&!window.__noDraw){ resize(); draw(); } }
 function frame(now){ if(GAME.G.xr) return; const dt=Math.min(.05,(now-lastT)/1000); lastT=now; step(dt); requestAnimationFrame(frame); }
 GAME.setStepWorld(stepWorld); GAME.setResume(()=>{ lastT=performance.now(); requestAnimationFrame(frame); });
@@ -119,7 +119,7 @@ if(window.__CAPTURE) document.body.classList.add('capture');
 place(); renderCard(); updateClock(); setGoal(HOME,true); setLights(lightsNear(STREET_LIGHT,eyePos()));
 const BAKE=bakeStatic(STREET); console.log('[london] baked',BAKE.meshes,'meshes into',BAKE.chunks,'chunks');
 const ld=document.getElementById('loading'); if(ld) ld.hidden=true;
-window.__london={state,CAST,setGoal,freezeOn,unfreeze,place,poseAll,step,cam,goal,setClock:v=>{wclock=v;},GAME,BAKE,PERF};
+window.__london={state,CAST,setGoal,freezeOn,unfreeze,place,poseAll,step,cam,goal,setClock:v=>{wclock=v;},GAME,BAKE,PERF,EMIT,BIDX,hub:()=>HUBX};
 /* the job: start screen buttons */
 { const pb=document.getElementById('gPlay'),vb=document.getElementById('gVR'),again=document.getElementById('gAgain'),look=document.getElementById('gLook');
   if(pb) pb.addEventListener('click',()=>{ document.getElementById('gStart').hidden=true; GAME.start(false); cv.requestPointerLock?.(); cv.focus(); });

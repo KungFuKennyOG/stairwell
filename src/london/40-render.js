@@ -42,6 +42,7 @@ void main(){
 MAIN=program(VS,FS_LDN,['position','normal','uv','aRect']);
 const POST_LDN=program(PVS,PFS_LDN);
 const LOOK={grade:true,freeze:0,time:0};
+texMips=true; /* London: mipmapped nearest texels, so brick and paving don't crawl in the distance (VR) */
 /* name cards are world objects, so they take the palette like everything else; their art is painted to survive it */
 function ungraded(m){ return m; }
 /* draw at state.sharp of the screen into the engine's framebuffer, then the London post pass grades, dithers and scales it up */

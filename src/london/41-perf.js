@@ -6,28 +6,29 @@
    2. lightsNear(src,eye): the shader takes 8 point lights. The hub has dozens; each frame the nearest 8 (by distance minus reach)
       are sent, and the ones near the cut-off fade out as the next one comes in, so nothing pops.
    3. renderLDN(): the engine's renderScene plus frustum and fog-distance culling (London never culled before; the street was small). */
-const CHUNK=24, BAKED=N(world);
-function bakeStatic(root){ updateWorld(world,null); const buckets=new Map(), mid=new Map(); let nMesh=0;
-  const keyOf=m=>{ if(!mid.has(m)) mid.set(m,mid.size); return mid.get(m); };
-  function bucket(m,cx,cz,nv){ const k=keyOf(m)+'|'+cx+'|'+cz; let list=buckets.get(k); if(!list){ list=[]; buckets.set(k,list); }
-    let b=list[list.length-1]; if(!b||b.n+nv>65000){ b={m,n:0,P:[],Nm:[],T:[],R:[],I:[],hasR:false}; list.push(b); } return b; }
+const CHUNK=24, BAKED=N(null), BIDX=new Map(); /* baked chunks live outside the scene tree, found by a grid index */
+/* shared emitter: baked nodes and the hub kit both write straight into chunk buckets; emitFlush() turns them into meshes */
+const EMIT={buckets:new Map(),mid:new Map(),verts:0};
+function emitBucket(m,x,z,nv){ EMIT.by=EMIT.by||new Map(); EMIT.by.set(m,(EMIT.by.get(m)||0)+nv); if(!EMIT.mid.has(m)) EMIT.mid.set(m,EMIT.mid.size); const cx=Math.floor(x/CHUNK),cz=Math.floor(z/CHUNK),k=EMIT.mid.get(m)+'|'+cx+'|'+cz;
+  let list=EMIT.buckets.get(k); if(!list){ list=[]; EMIT.buckets.set(k,list); }
+  let b=list[list.length-1]; if(!b||b.n+nv>65000){ b={m,n:0,P:[],Nm:[],T:[],I:[]}; list.push(b); } EMIT.verts+=nv; return b; }
+function emitFlush(){ let n=0; for(const [k,list] of EMIT.buckets) for(const B of list){ if(!B.I.length) continue; const g=new Geo(); g.P=new Float32Array(B.P); g.Nm=new Float32Array(B.Nm); g.T=new Float32Array(B.T); g.I=new Uint16Array(B.I); const node=mk(g,B.m,BAKED); geoBounds(g);
+    const c=g.bs.c, ck=Math.floor(c[0]/CHUNK)*4096+Math.floor(c[2]/CHUNK); (BIDX.get(ck)||BIDX.set(ck,[]).get(ck)).push(node); n++; }
+  EMIT.buckets.clear(); return n; }
+/* a node's mesh, in world space, into the buckets */
+function emitNodeMesh(g,w,runs){ const b=geoBounds(g), c=b.c, wx=w[0]*c[0]+w[4]*c[1]+w[8]*c[2]+w[12], wz=w[2]*c[0]+w[6]*c[1]+w[10]*c[2]+w[14], nv=g.P.length/3;
+  for(const run of runs){ const B=emitBucket(run.m,wx,wz,nv), map=new Map();
+    for(let i=run.start;i<run.start+run.count;i++){ const vi=g.I[i]; let o=map.get(vi);
+      if(o===undefined){ o=B.n++; map.set(vi,o); const x=g.P[vi*3],y=g.P[vi*3+1],z=g.P[vi*3+2], a=g.Nm[vi*3],bb=g.Nm[vi*3+1],cc=g.Nm[vi*3+2];
+        B.P.push(w[0]*x+w[4]*y+w[8]*z+w[12], w[1]*x+w[5]*y+w[9]*z+w[13], w[2]*x+w[6]*y+w[10]*z+w[14]);
+        const nx=w[0]*a+w[4]*bb+w[8]*cc, ny=w[1]*a+w[5]*bb+w[9]*cc, nz=w[2]*a+w[6]*bb+w[10]*cc, l=Math.hypot(nx,ny,nz)||1; B.Nm.push(nx/l,ny/l,nz/l); B.T.push(g.T[vi*2],g.T[vi*2+1]); }
+      B.I.push(o); } } }
+function bakeStatic(root){ updateWorld(world,null); let nMesh=0;
   function walk(n){ if(!n.vis||n.dyn) return;
-    if(n.mesh){ const g=n.mesh.geo; const runs=runsOf(n.mesh);
-      if(!g.skin&&!g.temp&&g.P.length&&runs.every(r=>!r.m.far&&!r.m.nofog)){
-        const w=n.world, b=geoBounds(g), c=b.c, wx=w[0]*c[0]+w[4]*c[1]+w[8]*c[2]+w[12], wz=w[2]*c[0]+w[6]*c[1]+w[10]*c[2]+w[14];
-        const cx=Math.floor(wx/CHUNK), cz=Math.floor(wz/CHUNK), nv=g.P.length/3;
-        for(const run of runs){ const B=bucket(run.m,cx,cz,nv), base=B.n, map=new Map();
-          for(let i=run.start;i<run.start+run.count;i++){ const vi=g.I[i]; let o=map.get(vi);
-            if(o===undefined){ o=B.n++; map.set(vi,o); const x=g.P[vi*3],y=g.P[vi*3+1],z=g.P[vi*3+2], a=g.Nm[vi*3],bb=g.Nm[vi*3+1],cc=g.Nm[vi*3+2];
-              B.P.push(w[0]*x+w[4]*y+w[8]*z+w[12], w[1]*x+w[5]*y+w[9]*z+w[13], w[2]*x+w[6]*y+w[10]*z+w[14]);
-              let nx=w[0]*a+w[4]*bb+w[8]*cc, ny=w[1]*a+w[5]*bb+w[9]*cc, nz=w[2]*a+w[6]*bb+w[10]*cc; const l=Math.hypot(nx,ny,nz)||1; B.Nm.push(nx/l,ny/l,nz/l);
-              B.T.push(g.T[vi*2],g.T[vi*2+1]); if(g.R){ B.hasR=true; B.R.push(g.R[vi*4],g.R[vi*4+1],g.R[vi*4+2],g.R[vi*4+3]); } else B.R.push(0,0,0,0); }
-            B.I.push(o); } }
-        n.mesh=null; nMesh++; } }
+    if(n.mesh){ const g=n.mesh.geo, runs=runsOf(n.mesh);
+      if(!g.skin&&!g.temp&&!g.R&&g.P.length&&runs.every(r=>!r.m.far&&!r.m.nofog)){ emitNodeMesh(g,n.world,runs); n.mesh=null; nMesh++; } }
     for(const k of n.kids.slice()) walk(k); }
-  walk(root); let nOut=0;
-  for(const list of buckets.values()) for(const B of list){ if(!B.I.length) continue; const g=new Geo(); g.P=B.P; g.Nm=B.Nm; g.T=B.T; if(B.hasR) g.R=B.R; g.I=B.I; mk(g,B.m,BAKED); nOut++; }
-  return {meshes:nMesh, chunks:nOut}; }
+  walk(root); const chunks=emitFlush(); return {meshes:nMesh, chunks, verts:EMIT.verts}; }
 
 function lightsNear(src,eye){ const all=src.pl, sc=[];
   for(let i=0;i<all.length;i++){ const p=all[i][0]; sc.push([Math.hypot(p[0]-eye[0],p[1]-eye[1],p[2]-eye[2])-all[i][2]*.6,i]); }
@@ -49,4 +50,7 @@ function drawWorldLDN(root,w,h,eye){ updateWorld(root,null);
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
   gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0); if(u.uSkyFade) gl.uniform1f(u.uSkyFade,0);
-  setCull(eye||eyeOfView(view),L.fogFar+4); drawTree(root); cullOn=false; gl.bindVertexArray(null); }
+  const e=eye||eyeOfView(view); setCull(e,L.fogFar+4); drawTree(root); drawBaked(e); cullOn=false; gl.bindVertexArray(null); }
+/* only the chunks around the eye are even looked at; each is then frustum- and fog-culled like anything else */
+function drawBaked(e){ const R_=Math.ceil((L.fogFar+CHUNK)/CHUNK), cx=Math.floor(e[0]/CHUNK), cz=Math.floor(e[2]/CHUNK); PERF.draws=0;
+  for(let i=cx-R_;i<=cx+R_;i++) for(let j=cz-R_;j<=cz+R_;j++){ const list=BIDX.get(i*4096+j); if(!list) continue; for(const n of list){ drawTree(n); } } }

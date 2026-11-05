@@ -56,7 +56,7 @@ function segHits(ax,az,bx,bz,r){ /* slab test, 2D */ let t0=0,t1=1; const dx=bx-
   for(const [p,d,lo,hi] of [[ax,dx,r[0],r[2]],[az,dz,r[1],r[3]]]){ if(Math.abs(d)<1e-9){ if(p<lo||p>hi) return false; continue; } let a=(lo-p)/d,b=(hi-p)/d; if(a>b){ const t=a; a=b; b=t; } t0=Math.max(t0,a); t1=Math.min(t1,b); if(t0>t1) return false; } return true; }
 function clearLine(ax,az,bx,bz,high){ for(let i=0;i<SIGHT.length;i++){ if(high&&i<5&&i!==2) continue; /* up on something: cars and the shelter don't hide you */ if(segHits(ax,az,bx,bz,SIGHT[i])) return false; } return true; }
 function moveBody(o,dx,dz,rad){ if(standable(o.x+dx,o.z,rad)) o.x+=dx; if(standable(o.x,o.z+dz,rad)) o.z+=dz; }
-const floorY=(x,z)=>z>KERB_Z&&z<ROAD_Z1?0:PAVE_Y;
+const floorY=(x,z)=>(HUBX&&!inCore(x,z))?HUBX.floor(x,z):(z>KERB_Z&&z<ROAD_Z1?0:PAVE_Y);
 
 /* ---------- Arch 9: the lock-up in the bridge's near abutment, shutter half up, light spilling out ---------- */
 { const A=N(STREET,LOCKUP.x,0,FZ+.02);
@@ -136,7 +136,7 @@ const LINES={
 };
 const tLab=()=>tex(512,96,null,null);
 const labels={};
-function retex(t){ if(t.glt){ gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,t.c); curTex=null; } }
+function retex(t){ t.f=-1; if(t.glt){ gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,t.c); curTex=null; } }
 function drawLabel(t,text){ const g=t.c.getContext('2d'),w=512,h=96; g.clearRect(0,0,w,h); g.font=`bold 30px ${TYPEF}`; const words=text.split(' '); const lines=[]; let ln='';
   for(const wd of words){ const tr=ln?ln+' '+wd:wd; if(g.measureText(tr).width>w-40&&ln){ lines.push(ln); ln=wd; } else ln=tr; } lines.push(ln);
   const lh=36,bh=lines.length*lh+16,y0=h-bh; let mw=0; for(const l of lines) mw=Math.max(mw,g.measureText(l).width);
@@ -387,7 +387,7 @@ function RectHash(list,get){ const H={cell:4,map:new Map(),n:-1,list,get,stamp:0
   H.near=(x0,z0,x1,z1)=>{ H.sync(); H.stamp++; const out=[],c=H.cell; for(let i=Math.floor(x0/c);i<=Math.floor(x1/c);i++) for(let j=Math.floor(z0/c);j<=Math.floor(z1/c);j++){ const a=H.map.get(i*65536+j); if(a) for(const it of a){ if(it._hs!==H.stamp){ it._hs=H.stamp; out.push(it); } } } return out; };
   return H; }
 const WALKO=WALK.map(r=>({r})); const WALKH=RectHash(WALKO,o=>o.r); const addWalk=r=>{ WALK.push(r); WALKO.push({r}); };
-const inWalk=(x,z,rad)=>{ for(const o of WALKH.near(x,z,x,z)) if(inR(o.r,x,z,rad)) return true; return false; };
+const inWalk=(x,z,rad)=>{ if(HUBX&&HUBX.walk(x,z,rad)) return true; for(const o of WALKH.near(x,z,x,z)) if(inR(o.r,x,z,rad)) return true; return false; };
 function solidHit(x,z,rad,feet,head){ for(const s of solNear(x-rad,z-rad,x+rad,z+rad)){ const r=s.r; if(x>r[0]-rad&&x<r[2]+rad&&z>r[1]-rad&&z<r[3]+rad&&s.y1>feet+STEP&&s.y0<head) return s; } return null; }
 function groundAt(x,z,feet){ let g=floorY(x,z); const k=P.r*.5; for(const s of solNear(x-k,z-k,x+k,z+k)){ const r=s.r; if(x>r[0]-k&&x<r[2]+k&&z>r[1]-k&&z<r[3]+k&&s.y1<=feet+STEP+.001&&s.y1>g) g=s.y1; } return g; }
 function free(x,z,feet){ return inWalk(x,z,P.r)&&!solidHit(x,z,P.r,feet,feet+BODY); }
@@ -527,5 +527,5 @@ let stepWorld=()=>{};
 function tick(dt){ if(!G.on) return; if(!G.xr) deskTick(dt); promptTick();
   G.t+=dt; if(G.result){ G.endT+=dt; linesTick(dt); return; }
   for(const c of COPS) copTick(c,dt); jobTick(dt); linesTick(dt); }
-return {G,P,COPS,ACT,SOL,WALK,CASH,BLOCK,LOCKUP,START,setInput:(f,s_,run)=>{ TOUCH.stick=[s_,-f]; TOUCH.run=!!run; },start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
+return {sol,G,P,COPS,ACT,SOL,WALK,CASH,BLOCK,LOCKUP,START,setInput:(f,s_,run)=>{ TOUCH.stick=[s_,-f]; TOUCH.run=!!run; },start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
 })();
