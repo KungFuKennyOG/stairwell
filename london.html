@@ -1944,7 +1944,7 @@ const inR=(r,x,z,m)=>x>r[0]+m&&x<r[2]-m&&z>r[1]+m&&z<r[3]-m;
 function standable(x,z,rad){ if(!WALK.some(r=>inR(r,x,z,rad))) return false; for(const b of BLOCK) if(inR([b[0]-rad,b[1]-rad,b[2]+rad,b[3]+rad],x,z,0)) return false; return true; }
 function segHits(ax,az,bx,bz,r){ /* slab test, 2D */ let t0=0,t1=1; const dx=bx-ax,dz=bz-az;
   for(const [p,d,lo,hi] of [[ax,dx,r[0],r[2]],[az,dz,r[1],r[3]]]){ if(Math.abs(d)<1e-9){ if(p<lo||p>hi) return false; continue; } let a=(lo-p)/d,b=(hi-p)/d; if(a>b){ const t=a; a=b; b=t; } t0=Math.max(t0,a); t1=Math.min(t1,b); if(t0>t1) return false; } return true; }
-function clearLine(ax,az,bx,bz){ for(const r of SIGHT) if(segHits(ax,az,bx,bz,r)) return false; return true; }
+function clearLine(ax,az,bx,bz,high){ for(let i=0;i<SIGHT.length;i++){ if(high&&i<5&&i!==2) continue; /* up on something: cars and the shelter don't hide you */ if(segHits(ax,az,bx,bz,SIGHT[i])) return false; } return true; }
 function moveBody(o,dx,dz,rad){ if(standable(o.x+dx,o.z,rad)) o.x+=dx; if(standable(o.x,o.z+dz,rad)) o.z+=dz; }
 const floorY=(x,z)=>z>KERB_Z&&z<ROAD_Z1?0:PAVE_Y;
 
@@ -1977,12 +1977,12 @@ const floorY=(x,z)=>z>KERB_Z&&z<ROAD_Z1?0:PAVE_Y;
   { const tPost=P2(256,128,(g,w,h)=>{ R(g,'#3a2c1e',0,0,w,h); const r=rng(1681); for(let i=0;i<w;i+=16) R(g,'rgba(0,0,0,.25)',i,0,2,h);
       const posters=[['#e83a8a','#111','RAVE','ROMFORD · SAT'],['#f2d43a','#111','GARAGE','MINISTRY'],['#2a6ac8','#fff','GRIME','CLUB 9'],['#ece8e0','#c8231c','LOST CAT','REWARD'],['#111','#f0a23e','JUNGLE','ALL NITE'],['#58b848','#111','SOUND','SYSTEM']];
       for(let k=0;k<14;k++){ const pp=posters[k%posters.length],x=(k*41+r()*20)%(w-40),y=6+r()*(h-60),pw=34+r()*10,ph=46+r()*8; g.save(); g.translate(x+pw/2,y+ph/2); g.rotate((r()-.5)*.12); R(g,pp[0],-pw/2,-ph/2,pw,ph); g.fillStyle=pp[1]; g.font=`bold 10px ${SANS}`; g.textAlign='center'; g.fillText(pp[2],0,-6); g.font='bold 5px sans-serif'; g.fillText(pp[3],0,6); g.restore(); } },4,1682);
-    wallP(2.9,2.3,tPost,FENCE_X,PAVE_Y+1.15,(z0+z1)/2,Math.PI/2,{parent:B_,whole:true,double:true});
+    for(const sd of [-1,1]) wallP(2.9,2.3,tPost,FENCE_X+sd*.046,PAVE_Y+1.15,(z0+z1)/2,sd*Math.PI/2,{parent:B_,whole:true,unlit:true,color:0x9a9088}); /* both faces, lit by the security lamp above */
     blk(.08,2.36,2.95,col(0x2a2018),FENCE_X,PAVE_Y+1.15,(z0+z1)/2,B_); for(const z of [z0+.05,z1-.05]) blk(.12,2.5,.12,col(0x1a1410),FENCE_X,PAVE_Y+1.25,z,B_);
     for(const z of [FZ-6.2,FZ-6.95]){ blk(.62,1.1,.7,col(0x1a3a2a),FENCE_X-.55,PAVE_Y+.55,z,B_); blk(.66,.06,.74,col(0x111111),FENCE_X-.55,PAVE_Y+1.12,z,B_); } }
   for(const [x,c] of [[15.6,0x1a3a2a],[16.4,0x2a2a2a],[22.8,0x1a3a2a]]){ blk(.62,1.1,.7,col(c),x,PAVE_Y+.55,z0+.42,B_); blk(.66,.06,.74,col(0x111111),x,PAVE_Y+1.12,z0+.42,B_); }
   for(let i=0;i<4;i++) mk(cyl(.2,.24,.4,7),col(0x0d0e10),B_,19.5+i*.4,PAVE_Y+.2,z0+.3+(i%2)*.3,0,i,0);
-  blk(.3,.15,.15,glowC(0xfff0d0),20,PAVE_Y+3.3,z1-.1,B_); { const gm=MM(tGlowSodium,{unlit:true,double:true}); gm.cut=2; mk(plane(1.4,1.4),gm,B_,20,PAVE_Y+3.2,z1-.2,0,Math.PI,0); }
+  blk(.3,.15,.15,glowC(0xfff0d0),FENCE_X-.4,PAVE_Y+3.3,z1-.1,B_); { const gm=MM(tGlowSodium,{unlit:true,double:true}); gm.cut=2; mk(plane(1.4,1.4),gm,B_,FENCE_X-.4,PAVE_Y+3.2,z1-.2,0,Math.PI,0); }
   wallP(1.1,2.2,tShutterL,29.0,PAVE_Y+1.1,BACKDOOR_Z(),-Math.PI/2,{parent:B_,whole:true}); mk(boxW(1.2,.3,.06),MM(signTex(128,32,'#141414','#f0a23e','ARCH 9',null,{seed:1662}),{unlit:true}),B_,28.98,PAVE_Y+2.45,BACKDOOR_Z(),0,-Math.PI/2,0);
   blk(.2,.1,.1,glowC(0xffd090),28.9,PAVE_Y+2.75,BACKDOOR_Z(),B_); }
 function BACKDOOR_Z(){ return FZ-6.9; }
@@ -2057,7 +2057,7 @@ function buildHands(){ const skin=M(null,{color:0xc8906c}),sleeve=M(null,{color:
 /* ---------- start / reset ---------- */
 function reset(){
   G.phase='meet'; G.hasBag=false; G.lostT=0; G.queue=[]; G.line=null; G.said.clear(); G.maxStars=0; G.t=0; G.result=null; G.endT=0; setStars(0);
-  P.x=START.x; P.z=START.z; P.yaw=START.yaw; P.pitch=-.05; P.run=false; ACT.on=false; P.hop=0;
+  P.x=START.x; P.z=START.z; P.yaw=START.yaw; P.pitch=-.05; P.run=false; ACT.on=false; P.hop=0; P.y=PAVE_Y; P.vy=0; P.vx=P.vz=0; P.ground=true; CLIMB.hand=null;
   BAG.p=BAG_HOME.slice(); BAG.r=[0,.1,0]; setParent(BAG,STREET);
   for(const c of COPS){ c.pos[0]=c.post[0]; c.pos[1]=c.post[1]; c.hd=c.post[2]; c.state='post'; c.sus=0; c.pi=0; c.wait=0; c.E.G=null; c.mark.vis=false; }
   for(const k in labels) labels[k].n.vis=false;
@@ -2072,7 +2072,7 @@ function start(vr){ G.on=true; G.xr=!!vr; document.body.classList.add('playing')
 /* ---------- copper brain ---------- */
 function canSee(c){ const dx=P.x-c.pos[0],dz=P.z-c.pos[1],d=Math.hypot(dx,dz); if(d>14) return false;
   const fx=Math.sin(c.hd+c.look),fz=Math.cos(c.hd+c.look),cos=(dx*fx+dz*fz)/(d||1);
-  if(d>2.2&&cos<Math.cos(1.05)) return false; return clearLine(c.pos[0],c.pos[1],P.x,P.z); }
+  if(d>2.2&&cos<Math.cos(1.05)) return false; return clearLine(c.pos[0],c.pos[1],P.x,P.z,P.y-floorY(P.x,P.z)>.6); }
 function copTick(c,dt){ if(frozen&&state.pick===c.id) return;
   const sees=canSee(c), d=Math.hypot(P.x-c.pos[0],P.z-c.pos[1]); c.seeing=sees;
   let goal=null,speed=0,run=0;
@@ -2090,7 +2090,7 @@ function copTick(c,dt){ if(frozen&&state.pick===c.id) return;
       if(sees){ c.target=[P.x,P.z]; }
       goal=c.target; run=G.stars===2?1:0; speed=G.stars===2?3.25:1.95; c.look=0;
       if(goal&&Math.hypot(goal[0]-c.pos[0],goal[1]-c.pos[1])<.4&&!sees){ c.state='search'; c.searchT=3.5; if(!G.said.has('search')){ G.said.add('search'); say('search',2); } }
-      if(d<1.0&&!frozen) busted(c); }
+      if(d<1.0&&P.y-floorY(P.x,P.z)<.7&&!frozen) busted(c); }
     else if(c.state==='search'){ c.searchT-=dt; c.look=Math.sin(G.t*2.2)*1.1; if(sees) c.state='chase'; if(c.searchT<=0){ c.state='search'; c.searchT=2; } }
     else { goal=[c.post[0],c.post[1]]; speed=1.2; }
   }
@@ -2141,34 +2141,72 @@ function tryGrab(handPos){ if(G.hasBag||G.result||G.phase==='meet'||G.phase==='b
   if(handPos){ if(v3.len(v3.sub(handPos,b))>.38) return false; } else if(Math.hypot(P.x-b[0],P.z-b[2])>2.0) return false;
   G.hasBag=true; return true; }
 
-/* ---------- light parkour: vault the low stuff (bollards, the bin, car bonnets), climb the alley hoarding ----------
-   One button: Space on desktop, JUMP on the phone, A or X in the headset. It looks along where you face for something
-   within reach; a vault is a 0.6 s hop over, a climb is up onto the bins, over the top and down the far side (1.5 s).
-   The coppers can't do either: a car or a bollard makes them go round, and the hoarding stops them dead. */
-const PK=[];
-for(const x of [-9.6,-5,0,5,9.8]) PK.push({r:[x-.12,KERB_Z-.52,x+.12,KERB_Z-.28],h:.92,kind:'vault'});
-PK.push({r:[-4.86,KERB_Z-.86,-4.34,KERB_Z-.34],h:.95,kind:'vault'});
-PK.push({r:[-12.55,KERB_Z+.12,-7.85,KERB_Z+1.98],h:1.0,kind:'vault'},{r:[-.75,ROAD_Z1-1.98,3.95,ROAD_Z1-.12],h:1.0,kind:'vault'});
-PK.push({r:[FENCE_X-.08,FZ-8.45,FENCE_X+.08,FZ-5.5],h:2.3,kind:'climb'});
-const ACT={on:false,t:0,dur:0,from:null,to:null,peak:0,kind:''};
+/* ---------- the body: free movement in 3D. Jump any time; anything you can reach, you can get onto ----------
+   Every solid on the street is a box with a top. Walk into something under 0.36 m and you step up (the kerb).
+   Jump (Space / phone JUMP / headset A or X) whenever you like. Jump at something low and thin (a bollard, a bin, the
+   hoarding from the bins) and you vault it; at something higher you can reach (a car bonnet, the bins, the hoarding,
+   the bus shelter roof) and you pull yourself up onto it. Mid-air, run into a ledge in reach and you grab it.
+   In the headset you can also climb with your hands: squeeze grip on a ledge and pull yourself up.
+   The coppers can't do any of it. */
+const STEP=.36, EYE=1.65, BODY=1.7, GRAV=17, JUMPV=4.4, REACH_GROUND=2.65, REACH_AIR=2.1;
+const SOL=[]; const sol=(x0,z0,x1,z1,y1,y0=0)=>{ const o={r:[x0,z0,x1,z1],y0,y1}; SOL.push(o); return o; };
+for(const x of [-9.6,-5,0,5,9.8]) sol(x-.12,KERB_Z-.52,x+.12,KERB_Z-.28,PAVE_Y+.92);              /* bollards */
+sol(-4.86,KERB_Z-.86,-4.34,KERB_Z-.34,PAVE_Y+.95);                                                  /* litter bin */
+sol(-12.5,KERB_Z+.15,-7.9,KERB_Z+1.95,.93); sol(-11.53,KERB_Z+.28,-9.23,KERB_Z+1.82,1.42);          /* Degsy's motor: bonnet/boot, roof */
+sol(-.7,ROAD_Z1-1.95,3.9,ROAD_Z1-.15,.93); sol(.38,ROAD_Z1-1.82,2.68,ROAD_Z1-.28,1.42);             /* the cab */
+sol(-3.7,ROAD_Z1+.75,-2.7,ROAD_Z1+1.75,PAVE_Y+2.9);                                                 /* phone kiosk */
+sol(4.8,ROAD_Z1+1.45,8.4,ROAD_Z1+2.95,PAVE_Y+2.57,PAVE_Y+2.4);                                      /* bus shelter roof (you can walk under it) */
+sol(4.9,ROAD_Z1+2.8,8.3,ROAD_Z1+2.92,PAVE_Y+2.4); sol(4.8,ROAD_Z1+1.6,4.98,ROAD_Z1+2.85,PAVE_Y+2.0); /* its back glass and advert */
+sol(-17,ROAD_Z1+2.98,17,ROAD_Z1+3.24,PAVE_Y+.85);                                                   /* the front-garden wall across the road */
+sol(FENCE_X-.08,FZ-8.45,FENCE_X+.08,FZ-5.5,PAVE_Y+2.3);                                             /* the alley hoarding */
+for(const z of [FZ-6.2,FZ-6.95]) sol(FENCE_X-.86,z-.35,FENCE_X-.24,z+.35,PAVE_Y+1.15);              /* the bins in front of it */
+for(const x of [15.6,16.4,22.8]) sol(x-.31,FZ-8.33,x+.31,FZ-7.63,PAVE_Y+1.15);
+for(const [x,z] of [[3.6,KERB_Z-.35],[-8.6,KERB_Z-.35],[11.9,KERB_Z-.3],[14.9,ROAD_Z1+.3],[16+3,KERB_Z-.35],[16+11,KERB_Z-.35],[16+7,ROAD_Z1+.35]]) sol(x-.12,z-.12,x+.12,z+.12,9); /* lamp columns, beacons */
+WALK.push([-16.9,ROAD_Z1+2.6,16.9,ROAD_Z1+3.85]);                                                    /* the front gardens behind that wall */
+const inWalk=(x,z,rad)=>WALK.some(r=>inR(r,x,z,rad));
+function solidHit(x,z,rad,feet,head){ for(const s of SOL){ const r=s.r; if(x>r[0]-rad&&x<r[2]+rad&&z>r[1]-rad&&z<r[3]+rad&&s.y1>feet+STEP&&s.y0<head) return s; } return null; }
+function groundAt(x,z,feet){ let g=floorY(x,z); const k=P.r*.5; for(const s of SOL){ const r=s.r; if(x>r[0]-k&&x<r[2]+k&&z>r[1]-k&&z<r[3]+k&&s.y1<=feet+STEP+.001&&s.y1>g) g=s.y1; } return g; }
+function free(x,z,feet){ return inWalk(x,z,P.r)&&!solidHit(x,z,P.r,feet,feet+BODY); }
 function rayRect(x,z,fx,fz,r){ let t0=-1e9,t1=1e9; for(const [p,d,lo,hi] of [[x,fx,r[0],r[2]],[z,fz,r[1],r[3]]]){ if(Math.abs(d)<1e-9){ if(p<lo||p>hi) return null; continue; } let a=(lo-p)/d,b=(hi-p)/d; if(a>b){ const t=a; a=b; b=t; } t0=Math.max(t0,a); t1=Math.min(t1,b); } return t0<=t1?[t0,t1]:null; }
-function parkourAhead(){ if(G.result||!G.on) return null; const fx=Math.sin(P.yaw),fz=Math.cos(P.yaw); let best=null;
-  for(const o of PK){ const h=rayRect(P.x,P.z,fx,fz,o.r); if(!h||h[0]<0||h[0]>(o.kind==='climb'?1.3:1.0)) continue; if(o.kind==='vault'&&h[1]-h[0]>2.3) continue;
-    let land=null; for(const extra of [.45,.75,1.05]){ const lx=P.x+fx*(h[1]+extra),lz=P.z+fz*(h[1]+extra); if(standable(lx,lz,P.r)){ land=[lx,lz]; break; } }
-    if(land&&(!best||h[0]<best.d)) best={o,land,d:h[0],edge:[P.x+fx*h[0],P.z+fz*h[0]]}; }
-  return best; }
-function tryParkour(){ if(ACT.on) return false; const a=parkourAhead(); if(!a) return false;
-  Object.assign(ACT,{on:true,t:0,kind:a.o.kind,from:[P.x,P.z],edge:a.edge,to:a.land,dur:a.o.kind==='climb'?1.5:.6,peak:a.o.kind==='climb'?a.o.h+.15:a.o.h*.5+.22}); return true; }
-function actTick(dt){ if(!ACT.on){ P.hop=0; return; } ACT.t+=dt; const k=Math.min(1,ACT.t/ACT.dur), e=x=>x*x*(3-2*x); const bx=P.x,bz=P.z;
-  if(ACT.kind==='vault'){ P.x=lerp(ACT.from[0],ACT.to[0],e(k)); P.z=lerp(ACT.from[1],ACT.to[1],e(k)); P.hop=ACT.peak*Math.sin(Math.PI*k); }
-  else { const up=.55; if(k<up){ const q=e(k/up); P.x=lerp(ACT.from[0],ACT.edge[0],q*.8); P.z=lerp(ACT.from[1],ACT.edge[1],q*.8); P.hop=ACT.peak*q; }
-    else { const q=e((k-up)/(1-up)); const sx=lerp(ACT.from[0],ACT.edge[0],.8),sz=lerp(ACT.from[1],ACT.edge[1],.8); P.x=lerp(sx,ACT.to[0],q); P.z=lerp(sz,ACT.to[1],q); P.hop=ACT.peak*(1-q*q); } }
-  P.running=true; ACT.dx=P.x-bx; ACT.dz=P.z-bz;
-  if(k>=1){ ACT.on=false; P.hop=0; } }
+P.y=PAVE_Y; P.vy=0; P.vx=0; P.vz=0; P.ground=true;
+const ACT={on:false,t:0,dur:0,kind:'',from:null,to:null,peakY:0};
+function startAct(kind,to,peakY,dur){ Object.assign(ACT,{on:true,t:0,kind,from:[P.x,P.y,P.z],to,peakY,dur}); P.vy=0; return true; }
+function actTick(dt){ ACT.t+=dt; const k=Math.min(1,ACT.t/ACT.dur),e=x=>x*x*(3-2*x),[x0,y0,z0]=ACT.from,[x1,y1,z1]=ACT.to;
+  if(ACT.kind==='vault'){ const q=e(k); P.x=lerp(x0,x1,q); P.z=lerp(z0,z1,q); P.y=k<.5?lerp(y0,ACT.peakY,e(k/.5)):lerp(ACT.peakY,y1,e((k-.5)/.5)); }
+  else { const up=.6,mx=lerp(x0,x1,.3),mz=lerp(z0,z1,.3); if(k<up){ const q=e(k/up); P.y=lerp(y0,y1+.06,q); P.x=lerp(x0,mx,q); P.z=lerp(z0,mz,q); } else { const q=e((k-up)/(1-up)); P.y=y1+.06*(1-q); P.x=lerp(mx,x1,q); P.z=lerp(mz,z1,q); } }
+  P.running=true; if(k>=1){ ACT.on=false; P.x=x1; P.y=y1; P.z=z1; P.ground=true; P.vy=0; P.vx=P.vz=0; } }
+/* the nearest solid straight ahead that you'd have to get over */
+function solidAhead(fx,fz,maxD){ let best=null; for(const s of SOL){ if(s.y1<=P.y+STEP||s.y0>P.y+BODY+.9||s.y1>P.y+REACH_GROUND+.5) continue; /* overhead ledges in reach count too */ const r=[s.r[0]-P.r,s.r[1]-P.r,s.r[2]+P.r,s.r[3]+P.r],h=rayRect(P.x,P.z,fx,fz,r);
+  if(!h||h[1]<0||h[0]>maxD) continue; if(!best||h[0]<best.d) best={s,d:Math.max(0,h[0]),t1:h[1],thick:h[1]-h[0]-2*P.r}; } return best; }
+function pathClear(x1,z1,top,skip){ for(const s of SOL){ if(s===skip||s.y1<=top-.02||s.y0>top+BODY) continue; const r=[s.r[0]-P.r*.6,s.r[1]-P.r*.6,s.r[2]+P.r*.6,s.r[3]+P.r*.6]; if(segHits(P.x,P.z,x1,z1,r)) return false; } return true; }
+function vaultLand(a,fx,fz){ for(const e of [.05,.35,.7]){ const x=P.x+fx*(a.t1+e),z=P.z+fz*(a.t1+e),g=groundAt(x,z,a.s.y1); if(g<=a.s.y1&&free(x,z,g)&&pathClear(x,z,a.s.y1+.14,a.s)) return [x,g,z]; } return null; }
+function mantleSpot(s,fx,fz){ const h=rayRect(P.x,P.z,fx,fz,s.r); const t0=h?Math.max(0,h[0]):0;
+  for(const e of [.32,.2,.45,.12]){ const x=h?P.x+fx*(t0+e):clamp(P.x,s.r[0]+.1,s.r[2]-.1),z=h?P.z+fz*(t0+e):clamp(P.z,s.r[1]+.1,s.r[3]-.1);
+    if(Math.abs(groundAt(x,z,s.y1)-s.y1)>.03||!inWalk(x,z,0)||solidHit(x,z,P.r*.5,s.y1,s.y1+BODY)) continue; return [x,s.y1,z]; } return null; }
+function jump(){ if(!G.on||G.result||ACT.on) return false; const fx=Math.sin(P.yaw),fz=Math.cos(P.yaw), a=solidAhead(fx,fz,.8);
+  if(a){ const h=a.s.y1-P.y;
+    if(h<=1.3&&a.thick<=.95){ const land=vaultLand(a,fx,fz); if(land) return startAct('vault',land,a.s.y1+.14,.55); }
+    if(h<=(P.ground?REACH_GROUND:REACH_AIR)){ const sp=mantleSpot(a.s,fx,fz); if(sp) return startAct('mantle',sp,0,clamp(.38+h*.25,.42,1.05)); } }
+  if(P.ground){ P.vy=JUMPV; P.ground=false; return true; } return false; }
+/* one step of the body. f, s: input forward / strafe (-1..1); yaw: which way forward is */
+function bodyTick(dt,f,s,yaw){
+  if(ACT.on){ actTick(dt); return; }
+  const L=Math.hypot(f,s); P.running=false; let vx=0,vz=0;
+  if(L>=.12){ const sp=(P.run?3.5:1.6)*Math.min(1,L)/L; P.running=P.run; const fx=Math.sin(yaw),fz=Math.cos(yaw); vx=(fx*f-fz*s)*sp; vz=(fz*f+fx*s)*sp; }
+  if(P.ground){ P.vx=vx; P.vz=vz; } else { const k=Math.min(1,dt*2.2); P.vx=lerp(P.vx,vx,k); P.vz=lerp(P.vz,vz,k); }
+  const dx=P.vx*dt,dz=P.vz*dt; let hit=null;
+  if(dx){ if(free(P.x+dx,P.z,P.y)) P.x+=dx; else hit=solidHit(P.x+dx,P.z,P.r,P.y,P.y+BODY)||hit; }
+  if(dz){ if(free(P.x,P.z+dz,P.y)) P.z+=dz; else hit=solidHit(P.x,P.z+dz,P.r,P.y,P.y+BODY)||hit; }
+  /* mid-air into a ledge you can reach: grab it */
+  if(!P.ground&&hit&&hit.y1-P.y<=REACH_AIR&&hit.y1>P.y+STEP){ const m=Math.hypot(P.vx,P.vz)||1,sp=mantleSpot(hit,P.vx/m,P.vz/m); if(sp){ startAct('mantle',sp,0,clamp(.35+(hit.y1-P.y)*.25,.38,.9)); return; } }
+  /* standing: stick to the ground, step up kerbs, step down small drops; walk off anything bigger and fall */
+  if(P.ground){ const g=groundAt(P.x,P.z,P.y); if(P.y-g>STEP+.02) P.ground=false; else { P.y=g; P.vy=0; } }
+  if(!P.ground){ const prev=P.y; P.vy-=GRAV*dt; P.y+=P.vy*dt; if(P.vy>0&&solidHit(P.x,P.z,P.r*.6,P.y+BODY-.3,P.y+BODY)) P.vy=0; /* head on the shelter roof */
+    const g=groundAt(P.x,P.z,Math.max(prev,P.y)); if(P.y<=g){ P.y=g; P.vy=0; P.ground=true; } }
+  PL.x=P.x; PL.z=P.z; }
 P.hop=0;
-
 /* ---------- desktop input and camera ---------- */
-const keysG={}; addEventListener('keydown',e=>{ if(!G.on) return; keysG[e.code]=true; if(e.code==='KeyE') tryGrab(null); if(e.code==='Space'){ e.preventDefault(); tryParkour(); } if(e.code==='KeyR'&&G.result) reset(); if(e.code==='Escape'&&G.result) reset(); });
+const keysG={}; addEventListener('keydown',e=>{ if(!G.on) return; keysG[e.code]=true; if(e.code==='KeyE') tryGrab(null); if(e.code==='Space'){ e.preventDefault(); jump(); } if(e.code==='KeyR'&&G.result) reset(); if(e.code==='Escape'&&G.result) reset(); });
 addEventListener('keyup',e=>{ keysG[e.code]=false; });
 addEventListener('mousemove',e=>{ if(!G.on||G.xr||document.pointerLockElement!==cv) return; P.yaw-=e.movementX*.0024; P.pitch=clamp(P.pitch-e.movementY*.0024,-1.3,1.25); });
 cv.addEventListener('click',()=>{ if(G.on&&!G.xr&&document.pointerLockElement!==cv) cv.requestPointerLock?.(); if(G.on&&!G.xr) tryGrab(null); });
@@ -2184,28 +2222,34 @@ const TOUCH={stick:[0,0],sid:null,run:false,look:null};
   const rb=$g('tRun'),gb=$g('tGrab');
   if(rb) rb.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); TOUCH.run=!TOUCH.run; rb.setAttribute('aria-pressed',String(TOUCH.run)); });
   if(gb) gb.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); if(G.result) reset(); else tryGrab(null); });
-  const jb=$g('tJump'); if(jb) jb.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); tryParkour(); });
+  const jb=$g('tJump'); if(jb) jb.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); jump(); });
   /* look: a finger dragged on the view */
   cv.addEventListener('pointerdown',e=>{ if(!G.on||G.xr||e.pointerType==='mouse') return; TOUCH.look={id:e.pointerId,x:e.clientX,y:e.clientY}; });
   cv.addEventListener('pointermove',e=>{ const L_=TOUCH.look; if(!L_||e.pointerId!==L_.id) return; P.yaw-=(e.clientX-L_.x)*.0065; P.pitch=clamp(P.pitch-(e.clientY-L_.y)*.0055,-1.2,1.1); L_.x=e.clientX; L_.y=e.clientY; });
   const lend=e=>{ if(TOUCH.look&&e.pointerId===TOUCH.look.id) TOUCH.look=null; }; cv.addEventListener('pointerup',lend); cv.addEventListener('pointercancel',lend);
   if(matchMedia('(pointer: coarse)').matches||'ontouchstart' in window) document.body.classList.add('touch'); }
 let promptK='';
-function promptTick(){ const a=!ACT.on&&G.on?parkourAhead():null, k=a?a.o.kind:''; if(k===promptK) return; promptK=k;
+function promptTick(){ let k=''; if(G.on&&!ACT.on&&!G.result){ const a=solidAhead(Math.sin(P.yaw),Math.cos(P.yaw),.8); if(a){ const h=a.s.y1-P.y; if(h<=1.3&&a.thick<=.95&&vaultLand(a,Math.sin(P.yaw),Math.cos(P.yaw))) k='vault'; else if(h<=(P.ground?REACH_GROUND:REACH_AIR)&&mantleSpot(a.s,Math.sin(P.yaw),Math.cos(P.yaw))) k='climb'; } }
+  if(k===promptK) return; promptK=k;
   const el=$g('gAct'); if(el){ el.hidden=!k; el.textContent=(document.body.classList.contains('touch')?'JUMP':G.xr?'A':'SPACE')+' · '+(k==='climb'?'CLIMB':'VAULT'); }
   const jb=$g('tJump'); if(jb) jb.dataset.ready=k?'1':''; phoneDirty=true; }
 function deskTick(dt){
   let f=(keysG.KeyW||keysG.ArrowUp?1:0)-(keysG.KeyS||keysG.ArrowDown?1:0), s=(keysG.KeyD||keysG.ArrowRight?1:0)-(keysG.KeyA||keysG.ArrowLeft?1:0);
-  f-=TOUCH.stick[1]; s+=TOUCH.stick[0]; P.run=!!(keysG.ShiftLeft||keysG.ShiftRight||TOUCH.run); if(ACT.on) actTick(dt); else moveP(f,s,P.yaw,dt);
-  const ey=floorY(P.x,P.z)+1.65+(P.hop||0), cp=Math.cos(P.pitch);
+  f-=TOUCH.stick[1]; s+=TOUCH.stick[0]; P.run=!!(keysG.ShiftLeft||keysG.ShiftRight||TOUCH.run); bodyTick(dt,f,s,P.yaw);
+  const ey=P.y+EYE, cp=Math.cos(P.pitch);
   cam.t=[P.x,ey,P.z]; cam.r=.04; cam.th=P.yaw+Math.PI; cam.ph=Math.PI/2+P.pitch; goal.t=cam.t.slice(); goal.th=cam.th; goal.ph=cam.ph; goal.r=cam.r;
   /* the bag in your right hand, low at your side */
   if(G.hasBag){ setParent(BAG,STREET); const fx=Math.sin(P.yaw),fz=Math.cos(P.yaw),rx=-fz,rz=fx; BAG.p=[P.x+fx*.45+rx*-.32,ey-.72,P.z+fz*.45+rz*-.32]; BAG.r=[0,P.yaw+Math.PI/2,0]; } }
-function moveP(f,s,yaw,dt){ const L=Math.hypot(f,s); P.running=false; if(L<.12) return; const sp=(P.run?3.5:1.6)*Math.min(1,L)/L; P.running=P.run;
-  const fx=Math.sin(yaw),fz=Math.cos(yaw); moveBody(P,(fx*f-fz*s)*sp*dt,(fz*f+fx*s)*sp*dt,P.r); PL.x=P.x; PL.z=P.z; }
 
 /* ---------- WebXR ---------- */
-const XR={session:null,space:null,origin:[0,0,0],yaw:0,res:720,btn:{},runToggle:false,snap:false,last:0};
+const XR={session:null,space:null,origin:[0,0,0],yaw:0,res:720,btn:{},runToggle:false,snap:false,last:0,stick:null};
+/* hand climbing: squeeze on a ledge, pull down to go up; let go near the top and you're on it */
+const CLIMB={hand:null,anchor:null,s:null};
+function ledgeNear(p){ for(const s of SOL){ if(s.y1<P.y+.3||s.y1>8) continue; const r=s.r; if(p[1]>s.y1-.2&&p[1]<s.y1+.14&&p[0]>r[0]-.14&&p[0]<r[2]+.14&&p[2]>r[1]-.14&&p[2]<r[3]+.14) return s; } return null; }
+function climbPull(hp){ const d=v3.sub(CLIMB.anchor,hp); const ny=clamp(P.y+d[1],floorY(P.x,P.z),CLIMB.s.y1+.05), nx=P.x+d[0], nz=P.z+d[2];
+  if(free(nx,nz,ny)||ny>=CLIMB.s.y1-STEP){ P.x=nx; P.z=nz; XR.origin[0]+=d[0]; XR.origin[2]+=d[2]; } P.y=ny; P.vy=0; P.ground=false;
+  if(P.y>=CLIMB.s.y1-.05) climbRelease(); }
+function climbRelease(){ const s=CLIMB.s; CLIMB.hand=null; if(!s) return; if(P.y>=s.y1-.45){ const sp=mantleSpot(s,Math.sin(P.yaw),Math.cos(P.yaw)); if(sp){ XR.origin[0]+=sp[0]-P.x; XR.origin[2]+=sp[2]-P.z; P.x=sp[0]; P.y=sp[1]; P.z=sp[2]; P.ground=true; P.vy=0; } } }
 function worldFromLocal(){ const m=m4.make(); m4.compose(m,XR.origin,[0,XR.yaw,0],[1,1,1]); return m; }
 function poseMat(pose){ const m=new Float32Array(16); m.set(pose.transform.matrix); const o=m4.make(); m4.mul(o,worldFromLocal(),m); return o; }
 async function enterVR(){
@@ -2224,18 +2268,21 @@ function xrFrame(t,xf){ const session=xf.session; session.requestAnimationFrame(
   const Hm=poseMat(vp),eye=colOf(Hm,3),f=norm3(v3.sc(colOf(Hm,2),-1));
   const hy=Math.atan2(f[0],f[2]);
   /* the head can walk into walls physically: slide the play space back */
-  { const bx=P.x,bz=P.z; const o={x:P.x,z:P.z}; moveBody(o,eye[0]-P.x,eye[2]-P.z,P.r); XR.origin[0]+=o.x-eye[0]; XR.origin[2]+=o.z-eye[2]; P.x=o.x; P.z=o.z; }
+  { const nx=free(eye[0],P.z,P.y)?eye[0]:P.x, nz=free(nx,eye[2],P.y)?eye[2]:P.z; XR.origin[0]+=nx-eye[0]; XR.origin[2]+=nz-eye[2]; P.x=nx; P.z=nz; }
   P.yaw=hy; P.pitch=Math.asin(clamp(f[1],-1,1));
   for(const src of session.inputSources){ const hand=src.handedness; if(hand!=='left'&&hand!=='right') continue; const H_=HANDS[hand]; if(!H_) continue;
     const gp_=src.gripSpace&&xf.getPose(src.gripSpace,XR.space); if(gp_){ const Mh=poseMat(gp_); setLocal(H_.n,m4.make(),Mh); H_.n.vis=true; H_.pos=colOf(Mh,3); H_.M=Mh; }
     const gp=src.gamepad; if(!gp) continue; const b=gp.buttons,ax=gp.axes,pr=i=>!!(b[i]&&b[i].pressed),edge=i=>{ const k=hand+i,p=pr(i),w=XR.btn[k]; XR.btn[k]=p; return p&&!w; };
     const grip=edge(1),trig=edge(0),stickC=edge(3);
     if((grip||trig)&&!G.hasBag&&tryGrab(H_.pos)) G.bagHand=hand;
-    const ax_=edge(4); if((trig||ax_)&&G.result) reset(); else if(ax_) tryParkour();
-    if(hand==='left'){ const sx=ax[2]||0,sz=ax[3]||0; if(stickC){ XR.runToggle=!XR.runToggle; } P.run=XR.runToggle; const bx=P.x,bz=P.z; if(ACT.on) actTick(dt); else moveP(-sz,sx,hy,dt); if(Math.hypot(sx,sz)<.12) XR.runToggle=false; XR.origin[0]+=P.x-bx; XR.origin[2]+=P.z-bz; }
+    else if(grip&&!(G.hasBag&&G.bagHand===hand)){ const s_=ledgeNear(H_.pos); if(s_){ CLIMB.hand=hand; CLIMB.anchor=H_.pos.slice(); CLIMB.s=s_; ACT.on=false; P.ground=false; P.vy=0; } }
+    if(CLIMB.hand===hand){ if(pr(1)) climbPull(H_.pos); else climbRelease(); }
+    const ax_=edge(4); if((trig||ax_)&&G.result) reset(); else if(ax_) jump();
+    if(hand==='left'){ const sx=ax[2]||0,sz=ax[3]||0; if(stickC){ XR.runToggle=!XR.runToggle; } P.run=XR.runToggle; XR.stick=[-sz,sx]; if(Math.hypot(sx,sz)<.12) XR.runToggle=false; }
     else { const sx=ax[2]||0; if(Math.abs(sx)>.7&&!XR.snap){ XR.snap=true; const a=-Math.sign(sx)*Math.PI/4,c=Math.cos(a),s=Math.sin(a),dx=XR.origin[0]-eye[0],dz=XR.origin[2]-eye[2];
         XR.origin[0]=eye[0]+dx*c+dz*s; XR.origin[2]=eye[2]-dx*s+dz*c; XR.yaw+=a; } else if(Math.abs(sx)<.3) XR.snap=false; } }
-  XR.origin[1]=floorY(P.x,P.z)+XR.floorY+(P.hop||0);
+  if(!CLIMB.hand){ const bx=P.x,bz=P.z; bodyTick(dt,XR.stick?XR.stick[0]:0,XR.stick?XR.stick[1]:0,hy); XR.origin[0]+=P.x-bx; XR.origin[2]+=P.z-bz; }
+  XR.origin[1]=P.y+XR.floorY;
   if(G.hasBag&&G.bagHand&&HANDS[G.bagHand]){ setParent(BAG,HANDS[G.bagHand].n); BAG.p=[0,-.22,.02]; BAG.r=[0,Math.PI/2,0]; }
   if(phoneDirty) drawPhone();
   /* the cam fields drive the freeze-frame gaze test */
@@ -2263,7 +2310,7 @@ let stepWorld=()=>{};
 function tick(dt){ if(!G.on) return; if(!G.xr) deskTick(dt); promptTick();
   G.t+=dt; if(G.result){ G.endT+=dt; linesTick(dt); return; }
   for(const c of COPS) copTick(c,dt); jobTick(dt); linesTick(dt); }
-return {G,P,COPS,ACT,start,reset,tick,enterVR,tryGrab,tryParkour,parkourAhead,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
+return {G,P,COPS,ACT,SOL,start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
 })();
 
 /* =====================================================================================================
