@@ -262,7 +262,7 @@ function tryGrab(handPos){ if(G.hasBag||G.result||G.phase==='meet'||G.phase==='b
    In the headset you can also climb with your hands: squeeze grip on a ledge and pull yourself up.
    The coppers can't do any of it. */
 const STEP=.36, EYE=1.65, BODY=1.7, GRAV=17, JUMPV=4.4, REACH_GROUND=2.65, REACH_AIR=2.1;
-const SOL=[]; const sol=(x0,z0,x1,z1,y1,y0=0)=>{ const o={r:[x0,z0,x1,z1],y0,y1}; SOL.push(o); return o; };
+const SOL=[]; const SOLH=RectHash(SOL,o=>o.r); const solNear=(x0,z0,x1,z1)=>SOLH.near(x0,z0,x1,z1); const sol=(x0,z0,x1,z1,y1,y0=0)=>{ const o={r:[x0,z0,x1,z1],y0,y1}; SOL.push(o); return o; };
 for(const x of [-9.6,-5,0,5,9.8]) sol(x-.12,KERB_Z-.52,x+.12,KERB_Z-.28,PAVE_Y+.92);              /* bollards */
 sol(-4.86,KERB_Z-.86,-4.34,KERB_Z-.34,PAVE_Y+.95);                                                  /* litter bin */
 sol(-12.5,KERB_Z+.15,-7.9,KERB_Z+1.95,.93); sol(-11.53,KERB_Z+.28,-9.23,KERB_Z+1.82,1.42);          /* Degsy's motor: bonnet/boot, roof */
@@ -381,9 +381,15 @@ const CASH=[[-14.1,PAVE_Y+2.35,-17.8],[9.0,ROOF_Y,-6.0],[27.4,ROOF_Y,-7.8],[6.6,
   /* a brown envelope in a knotted carrier bag, tucked where a man hides money: no glow, you have to look */
   const n=N(STREET,x,y+.01,z); n.dyn=true; mk(box(.26,.16,.14,{tw:.8,td:.8}),col(0xe8e4dc),n,0,.08,0); mk(box(.06,.06,.04),col(0xd8d4cc),n,0,.19,0); mk(box(.2,.02,.12),col(0x9a7a4a),n,.02,.17,.02,0,.3,0);
   return {n,got:false,p:[x,y,z]}; });
-const inWalk=(x,z,rad)=>WALK.some(r=>inR(r,x,z,rad));
-function solidHit(x,z,rad,feet,head){ for(const s of SOL){ const r=s.r; if(x>r[0]-rad&&x<r[2]+rad&&z>r[1]-rad&&z<r[3]+rad&&s.y1>feet+STEP&&s.y0<head) return s; } return null; }
-function groundAt(x,z,feet){ let g=floorY(x,z); const k=P.r*.5; for(const s of SOL){ const r=s.r; if(x>r[0]-k&&x<r[2]+k&&z>r[1]-k&&z<r[3]+k&&s.y1<=feet+STEP+.001&&s.y1>g) g=s.y1; } return g; }
+/* spatial hashes: the hub has thousands of solids and hundreds of walk rects; every query only looks at the 4 m cells it touches */
+function RectHash(list,get){ const H={cell:4,map:new Map(),n:-1,list,get,stamp:0};
+  H.sync=()=>{ if(H.n===list.length) return; H.map.clear(); for(const it of list){ const r=get(it),c=H.cell; for(let i=Math.floor(r[0]/c);i<=Math.floor(r[2]/c);i++) for(let j=Math.floor(r[1]/c);j<=Math.floor(r[3]/c);j++){ const k=i*65536+j; let a=H.map.get(k); if(!a){ a=[]; H.map.set(k,a); } a.push(it); } } H.n=list.length; };
+  H.near=(x0,z0,x1,z1)=>{ H.sync(); H.stamp++; const out=[],c=H.cell; for(let i=Math.floor(x0/c);i<=Math.floor(x1/c);i++) for(let j=Math.floor(z0/c);j<=Math.floor(z1/c);j++){ const a=H.map.get(i*65536+j); if(a) for(const it of a){ if(it._hs!==H.stamp){ it._hs=H.stamp; out.push(it); } } } return out; };
+  return H; }
+const WALKO=WALK.map(r=>({r})); const WALKH=RectHash(WALKO,o=>o.r); const addWalk=r=>{ WALK.push(r); WALKO.push({r}); };
+const inWalk=(x,z,rad)=>{ for(const o of WALKH.near(x,z,x,z)) if(inR(o.r,x,z,rad)) return true; return false; };
+function solidHit(x,z,rad,feet,head){ for(const s of solNear(x-rad,z-rad,x+rad,z+rad)){ const r=s.r; if(x>r[0]-rad&&x<r[2]+rad&&z>r[1]-rad&&z<r[3]+rad&&s.y1>feet+STEP&&s.y0<head) return s; } return null; }
+function groundAt(x,z,feet){ let g=floorY(x,z); const k=P.r*.5; for(const s of solNear(x-k,z-k,x+k,z+k)){ const r=s.r; if(x>r[0]-k&&x<r[2]+k&&z>r[1]-k&&z<r[3]+k&&s.y1<=feet+STEP+.001&&s.y1>g) g=s.y1; } return g; }
 function free(x,z,feet){ return inWalk(x,z,P.r)&&!solidHit(x,z,P.r,feet,feet+BODY); }
 function rayRect(x,z,fx,fz,r){ let t0=-1e9,t1=1e9; for(const [p,d,lo,hi] of [[x,fx,r[0],r[2]],[z,fz,r[1],r[3]]]){ if(Math.abs(d)<1e-9){ if(p<lo||p>hi) return null; continue; } let a=(lo-p)/d,b=(hi-p)/d; if(a>b){ const t=a; a=b; b=t; } t0=Math.max(t0,a); t1=Math.min(t1,b); } return t0<=t1?[t0,t1]:null; }
 P.y=PAVE_Y; P.vy=0; P.vx=0; P.vz=0; P.ground=true;
@@ -394,9 +400,9 @@ function actTick(dt){ ACT.t+=dt; const k=Math.min(1,ACT.t/ACT.dur),e=x=>x*x*(3-2
   else { const up=.6,mx=lerp(x0,x1,.3),mz=lerp(z0,z1,.3); if(k<up){ const q=e(k/up); P.y=lerp(y0,y1+.06,q); P.x=lerp(x0,mx,q); P.z=lerp(z0,mz,q); } else { const q=e((k-up)/(1-up)); P.y=y1+.06*(1-q); P.x=lerp(mx,x1,q); P.z=lerp(mz,z1,q); } }
   P.running=true; if(k>=1){ ACT.on=false; P.x=x1; P.y=y1; P.z=z1; P.ground=true; P.vy=0; P.vx=P.vz=0; } }
 /* the nearest solid straight ahead that you'd have to get over */
-function solidAhead(fx,fz,maxD){ let best=null; for(const s of SOL){ if(s.y1<=P.y+STEP||s.y0>P.y+BODY+.9||s.y1>P.y+REACH_GROUND+.5) continue; /* overhead ledges in reach count too */ const r=[s.r[0]-P.r,s.r[1]-P.r,s.r[2]+P.r,s.r[3]+P.r],h=rayRect(P.x,P.z,fx,fz,r);
+function solidAhead(fx,fz,maxD){ let best=null; const e=maxD+P.r+.1; for(const s of solNear(P.x-e,P.z-e,P.x+e,P.z+e)){ if(s.y1<=P.y+STEP||s.y0>P.y+BODY+.9||s.y1>P.y+REACH_GROUND+.5) continue; /* overhead ledges in reach count too */ const r=[s.r[0]-P.r,s.r[1]-P.r,s.r[2]+P.r,s.r[3]+P.r],h=rayRect(P.x,P.z,fx,fz,r);
   if(!h||h[1]<0||h[0]>maxD) continue; if(!best||h[0]<best.d) best={s,d:Math.max(0,h[0]),t1:h[1],thick:h[1]-h[0]-2*P.r}; } return best; }
-function pathClear(x1,z1,top,skip){ for(const s of SOL){ if(s===skip||s.y1<=top-.02||s.y0>top+BODY) continue; const r=[s.r[0]-P.r*.6,s.r[1]-P.r*.6,s.r[2]+P.r*.6,s.r[3]+P.r*.6]; if(segHits(P.x,P.z,x1,z1,r)) return false; } return true; }
+function pathClear(x1,z1,top,skip){ for(const s of solNear(Math.min(P.x,x1)-.3,Math.min(P.z,z1)-.3,Math.max(P.x,x1)+.3,Math.max(P.z,z1)+.3)){ if(s===skip||s.y1<=top-.02||s.y0>top+BODY) continue; const r=[s.r[0]-P.r*.6,s.r[1]-P.r*.6,s.r[2]+P.r*.6,s.r[3]+P.r*.6]; if(segHits(P.x,P.z,x1,z1,r)) return false; } return true; }
 function vaultLand(a,fx,fz){ for(const e of [.05,.35,.7]){ const x=P.x+fx*(a.t1+e),z=P.z+fz*(a.t1+e),g=groundAt(x,z,a.s.y1); if(g<=a.s.y1&&free(x,z,g)&&pathClear(x,z,a.s.y1+.14,a.s)) return [x,g,z]; } return null; }
 function mantleSpot(s,fx,fz){ const h=rayRect(P.x,P.z,fx,fz,s.r); const t0=h?Math.max(0,h[0]):0;
   for(const e of [.32,.2,.45,.12]){ const x=h?P.x+fx*(t0+e):clamp(P.x,s.r[0]+.1,s.r[2]-.1),z=h?P.z+fz*(t0+e):clamp(P.z,s.r[1]+.1,s.r[3]-.1);
@@ -463,7 +469,7 @@ function deskTick(dt){
 const XR={session:null,space:null,origin:[0,0,0],yaw:0,btn:{},runToggle:false,snap:false,last:0,stick:null};
 /* hand climbing: squeeze on a ledge, pull down to go up; let go near the top and you're on it */
 const CLIMB={hand:null,anchor:null,s:null};
-function ledgeNear(p){ for(const s of SOL){ if(s.y1<P.y+.3||s.y1>8) continue; const r=s.r; if(p[1]>s.y1-.2&&p[1]<s.y1+.14&&p[0]>r[0]-.14&&p[0]<r[2]+.14&&p[2]>r[1]-.14&&p[2]<r[3]+.14) return s; } return null; }
+function ledgeNear(p){ for(const s of solNear(p[0]-.2,p[2]-.2,p[0]+.2,p[2]+.2)){ if(s.y1<P.y+.3||s.y1>8) continue; const r=s.r; if(p[1]>s.y1-.2&&p[1]<s.y1+.14&&p[0]>r[0]-.14&&p[0]<r[2]+.14&&p[2]>r[1]-.14&&p[2]<r[3]+.14) return s; } return null; }
 function climbPull(hp){ const d=v3.sub(CLIMB.anchor,hp); const ny=clamp(P.y+d[1],floorY(P.x,P.z),CLIMB.s.y1+.05), nx=P.x+d[0], nz=P.z+d[2];
   if(free(nx,nz,ny)||ny>=CLIMB.s.y1-STEP){ P.x=nx; P.z=nz; XR.origin[0]+=d[0]; XR.origin[2]+=d[2]; } P.y=ny; P.vy=0; P.ground=false;
   if(P.y>=CLIMB.s.y1-.05) climbRelease(); }
@@ -521,5 +527,5 @@ let stepWorld=()=>{};
 function tick(dt){ if(!G.on) return; if(!G.xr) deskTick(dt); promptTick();
   G.t+=dt; if(G.result){ G.endT+=dt; linesTick(dt); return; }
   for(const c of COPS) copTick(c,dt); jobTick(dt); linesTick(dt); }
-return {G,P,COPS,ACT,SOL,setInput:(f,s_,run)=>{ TOUCH.stick=[s_,-f]; TOUCH.run=!!run; },start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
+return {G,P,COPS,ACT,SOL,WALK,CASH,BLOCK,LOCKUP,START,setInput:(f,s_,run)=>{ TOUCH.stick=[s_,-f]; TOUCH.run=!!run; },start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
 })();

@@ -637,12 +637,16 @@ function program(vs,fs,attribs){ const p=gl.createProgram();
 let MAIN,POST;
 try{ MAIN=program(VS,FS,['position','normal','uv','aRect']); POST=program(PVS,PFS); } catch(e){ fail('The renderer could not start: '+e.message); return; }
 const emptyVAO=gl.createVertexArray();
-let texFilter=gl.NEAREST;
+let texFilter=gl.NEAREST; const ANISO=gl.getExtension('EXT_texture_filter_anisotropic');
 function glTex(t){
   if(!t.glt){ t.glt=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,t.c);
     gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT); t.f=-1; }
+  if(t.smooth){ if(t.f!==-2){ gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+      if(ANISO) gl.texParameterf(gl.TEXTURE_2D,ANISO.TEXTURE_MAX_ANISOTROPY_EXT,Math.min(8,gl.getParameter(ANISO.MAX_TEXTURE_MAX_ANISOTROPY_EXT))); t.f=-2; } return t.glt; } /* lettering: mipmapped, so it reads at a distance instead of shimmering */
   if(t.f!==texFilter){ gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,texFilter); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,texFilter); t.f=texFilter; }
   return t.glt; }
+/* repaint a canvas texture in place (the signs, once their fonts have loaded) */
+function retex(t){ if(!t.glt) return; gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,t.c); t.f=-1; }
 function upload(g){ g.vao=gl.createVertexArray(); gl.bindVertexArray(g.vao); g.bufs=[];
   [[g.P,3],[g.Nm,3],[g.T,2],...(g.R?[[g.R,4]]:[])].forEach(([arr,size],i)=>{ const b=gl.createBuffer(); g.bufs.push(b); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(arr),gl.STATIC_DRAW); gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i,size,gl.FLOAT,false,0,0); });
   const ib=gl.createBuffer(); g.bufs.push(ib); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(g.I),gl.STATIC_DRAW); gl.bindVertexArray(null); }

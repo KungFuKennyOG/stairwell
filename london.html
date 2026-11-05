@@ -1457,14 +1457,67 @@ function ungraded(m){ return m; }
    At 95% a nearest-texel upscale would double every twentieth row, so the scene buffer is sampled with linear filtering */
 function fbSmooth(){ gl.bindTexture(gl.TEXTURE_2D,fbTex); for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,gl.LINEAR); }
 function drawLondon(eye,tgt){
-  if(!state.ps1){ gl.bindFramebuffer(gl.FRAMEBUFFER,null); renderScene(world,eye,tgt,cv.width,cv.height,[cv.width,cv.height]); return; }
+  if(!state.ps1){ gl.bindFramebuffer(gl.FRAMEBUFFER,null); renderLDN(world,eye,tgt,cv.width,cv.height); return; }
   const h=Math.max(1,Math.round(cv.height*state.sharp)),w=Math.max(1,Math.round(cv.width*state.sharp)); ensureFB(w,h); fbSmooth(); gl.bindTexture(gl.TEXTURE_2D,null);
-  gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderScene(world,eye,tgt,w,h,[w,h]);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderLDN(world,eye,tgt,w,h);
   gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,cv.width,cv.height); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null; curTex=null;
   gl.useProgram(POST_LDN.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
   gl.uniform1i(POST_LDN.loc.tScene,0); gl.uniform2f(POST_LDN.loc.uRes,w,h); gl.uniform1f(POST_LDN.loc.uDither,state.dither?1:0);
   gl.uniform1f(POST_LDN.loc.uGrade,LOOK.grade?1:0); gl.uniform1f(POST_LDN.loc.uFreeze,LOOK.freeze);
   gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); }
+
+/* ---------- PERF: what lets one hub be ten times the street ----------
+   1. bakeStatic(root): every static mesh under root is copied into world space and merged, per material, into 24 m chunks, so the
+      hub draws as a few hundred chunk meshes instead of tens of thousands of boxes. Anything that moves, hides or animates is
+      marked n.dyn=true where it is made and is left alone (with its subtree). Merged meshes keep the material objects, so a material
+      that changes colour at run time (beacons, hazards) still blinks.
+   2. lightsNear(src,eye): the shader takes 8 point lights. The hub has dozens; each frame the nearest 8 (by distance minus reach)
+      are sent, and the ones near the cut-off fade out as the next one comes in, so nothing pops.
+   3. renderLDN(): the engine's renderScene plus frustum and fog-distance culling (London never culled before; the street was small). */
+const CHUNK=24, BAKED=N(world);
+function bakeStatic(root){ updateWorld(world,null); const buckets=new Map(), mid=new Map(); let nMesh=0;
+  const keyOf=m=>{ if(!mid.has(m)) mid.set(m,mid.size); return mid.get(m); };
+  function bucket(m,cx,cz,nv){ const k=keyOf(m)+'|'+cx+'|'+cz; let list=buckets.get(k); if(!list){ list=[]; buckets.set(k,list); }
+    let b=list[list.length-1]; if(!b||b.n+nv>65000){ b={m,n:0,P:[],Nm:[],T:[],R:[],I:[],hasR:false}; list.push(b); } return b; }
+  function walk(n){ if(!n.vis||n.dyn) return;
+    if(n.mesh){ const g=n.mesh.geo; const runs=runsOf(n.mesh);
+      if(!g.skin&&!g.temp&&g.P.length&&runs.every(r=>!r.m.far&&!r.m.nofog)){
+        const w=n.world, b=geoBounds(g), c=b.c, wx=w[0]*c[0]+w[4]*c[1]+w[8]*c[2]+w[12], wz=w[2]*c[0]+w[6]*c[1]+w[10]*c[2]+w[14];
+        const cx=Math.floor(wx/CHUNK), cz=Math.floor(wz/CHUNK), nv=g.P.length/3;
+        for(const run of runs){ const B=bucket(run.m,cx,cz,nv), base=B.n, map=new Map();
+          for(let i=run.start;i<run.start+run.count;i++){ const vi=g.I[i]; let o=map.get(vi);
+            if(o===undefined){ o=B.n++; map.set(vi,o); const x=g.P[vi*3],y=g.P[vi*3+1],z=g.P[vi*3+2], a=g.Nm[vi*3],bb=g.Nm[vi*3+1],cc=g.Nm[vi*3+2];
+              B.P.push(w[0]*x+w[4]*y+w[8]*z+w[12], w[1]*x+w[5]*y+w[9]*z+w[13], w[2]*x+w[6]*y+w[10]*z+w[14]);
+              let nx=w[0]*a+w[4]*bb+w[8]*cc, ny=w[1]*a+w[5]*bb+w[9]*cc, nz=w[2]*a+w[6]*bb+w[10]*cc; const l=Math.hypot(nx,ny,nz)||1; B.Nm.push(nx/l,ny/l,nz/l);
+              B.T.push(g.T[vi*2],g.T[vi*2+1]); if(g.R){ B.hasR=true; B.R.push(g.R[vi*4],g.R[vi*4+1],g.R[vi*4+2],g.R[vi*4+3]); } else B.R.push(0,0,0,0); }
+            B.I.push(o); } }
+        n.mesh=null; nMesh++; } }
+    for(const k of n.kids.slice()) walk(k); }
+  walk(root); let nOut=0;
+  for(const list of buckets.values()) for(const B of list){ if(!B.I.length) continue; const g=new Geo(); g.P=B.P; g.Nm=B.Nm; g.T=B.T; if(B.hasR) g.R=B.R; g.I=B.I; mk(g,B.m,BAKED); nOut++; }
+  return {meshes:nMesh, chunks:nOut}; }
+
+function lightsNear(src,eye){ const all=src.pl, sc=[];
+  for(let i=0;i<all.length;i++){ const p=all[i][0]; sc.push([Math.hypot(p[0]-eye[0],p[1]-eye[1],p[2]-eye[2])-all[i][2]*.6,i]); }
+  sc.sort((a,b)=>a[0]-b[0]); const cut=sc.length>8?sc[8][0]:1e9, pl=[];
+  for(let k=0;k<Math.min(8,sc.length);k++){ const [d,i]=sc[k], f=Math.min(1,Math.max(0,(cut-d)/6)), L_=all[i]; pl.push([L_[0],[L_[1][0]*f,L_[1][1]*f,L_[1][2]*f],L_[2]]); }
+  return {amb:src.amb,dir:src.dir,dirCol:src.dirCol,fog:src.fog,fogNear:src.fogNear,fogFar:src.fogFar,pl}; }
+
+/* the engine's renderScene, culling on: the fog swallows everything past fogFar, so nothing past it is drawn */
+const PERF={draws:0,tris:0};
+function eyeOfView(v){ return [-(v[0]*v[12]+v[1]*v[13]+v[2]*v[14]), -(v[4]*v[12]+v[5]*v[13]+v[6]*v[14]), -(v[8]*v[12]+v[9]*v[13]+v[10]*v[14])]; }
+function renderLDN(root,eye,target,w,h,snapRes){
+  m4.persp(proj,50*Math.PI/180,w/h,0.05,120); proj[8]=-viewShift[0]; proj[9]=-viewShift[1]; m4.lookAt(view,eye,target,[0,1,0]);
+  drawWorldLDN(root,w,h,eye); }
+function drawWorldLDN(root,w,h,eye){ updateWorld(root,null);
+  gl.viewport(0,0,w,h); gl.clearColor(L.fog[0],L.fog[1],L.fog[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST); gl.useProgram(MAIN.p); curCull=null; curMat=null; curTex=null; gl.activeTexture(gl.TEXTURE0); const u=MAIN.loc;
+  gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
+  gl.uniform1f(u.uSnap,state.ps1&&state.snap?1:0); gl.uniform1f(u.uAffine,state.ps1&&state.affine?1:0); gl.uniform2f(u.uRes,w,h);
+  gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
+  gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
+  gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0); if(u.uSkyFade) gl.uniform1f(u.uSkyFade,0);
+  setCull(eye||eyeOfView(view),L.fogFar+4); drawTree(root); cullOn=false; gl.bindVertexArray(null); }
 
 /* =====================================================================================================
    THE CAST of Bethnal Green Road, on the Stairwell rig: you, the crew you want in with, the people who live
@@ -1828,7 +1881,7 @@ function rainGeo(n,size,height,seed){ const g=new Geo(),r=rng(seed),L=.24,W=.007
   for(let i=0;i<n;i++){ const x=(r()-.5)*size,y=r()*height,z=(r()-.5)*size;
     for(const [ux,uz] of [[1,0],[0,1]]){ const b=g.P.length/3; for(const [a,v] of [[-1,0],[1,0],[1,1],[-1,1]]) g.v([x+ux*a*W,y+v*L,z+uz*a*W],[0,0,1],[(a+1)/2,v]); g.I.push(b,b+1,b+2,b,b+2,b+3); } }
   g.groups.push({start:0,count:g.I.length,mi:0}); g.noCull=true; return g; }
-const RAIN=N(STREET), rainMat=MM(tStreak,{unlit:true,cut:true,double:true});
+const RAIN=N(STREET); RAIN.dyn=true; const rainMat=MM(tStreak,{unlit:true,cut:true,double:true});
 const RAIN_H=7, rainBlocks=[0,1].map(i=>({n:mk(rainGeo(900,16,RAIN_H,1441+i),rainMat,RAIN,0,i*RAIN_H,0),i}));
 function rainTick(t,eye){ RAIN.p=[Math.round(eye[0]),0,Math.round(eye[2])]; const fall=(t*8.5)%RAIN_H; for(const b of rainBlocks){ let y=b.i*RAIN_H-fall; if(y<-1) y+=RAIN_H*2; b.n.p[1]=y; } }
 
@@ -1909,7 +1962,7 @@ const tStreakW=P2(16,64,(g,w,h)=>{ const d=g.createImageData(w,h); for(let y=0;y
 const streaks=[];
 /* flat on the ground, running from the node along +z (v = 0 at the light's foot); ry turns it to the viewer */
 function streak(x,z,y,colr,len,wid){ const g=plane(wid,len,1,4); for(let i=0;i<g.P.length;i+=3){ const py=g.P[i+1]; g.P[i+1]=0; g.P[i+2]=len/2-py; g.Nm[i+1]=1; g.Nm[i+2]=0; }
-  const m=M(tStreakW,{color:colr,unlit:true,double:true}); m.cut=2; const n=mk(g,m,D,x,y,z); const s={n,m,base:colr}; streaks.push(s); return s; }
+  const m=M(tStreakW,{color:colr,unlit:true,double:true}); m.cut=2; const n=mk(g,m,D,x,y,z); n.dyn=true; const s={n,m,base:colr}; streaks.push(s); return s; }
 for(const L_ of [LAMP,LAMP2]) streak(L_[0],L_[2]+1.22,.01,0xff9a40,8,.8);
 streak(-7.3,FZ+.6,PAVE_Y+.006,0xff6050,3.2,1.6); streak(-2.1,FZ+.6,PAVE_Y+.006,0xc8e8d8,3.2,1.5);
 const beaconStreaks=BEACONS.map(([x,z])=>streak(x,z+(z>ROAD_Z1?-.5:.5),.008,0xff9020,4,.4));
@@ -1917,7 +1970,7 @@ const hazardStreaks=[streak(-10.2-2.35,KERB_Z+1.05,.008,0xff9020,2.4,.35),streak
 /* ---------- steam from a manhole in the road ---------- */
 mk(cyl(.34,.34,.02,12),col(0x1a1a1c),D,5.2,.006,6.4);
 const tPuff=P2(32,32,(g,w,h)=>{ g.clearRect(0,0,w,h); radial(g,16,16,16,[[0,'rgba(200,196,190,.55)'],[.5,'rgba(190,186,180,.22)'],[1,'rgba(180,176,170,0)']]); },0,1);
-const puffs=[]; for(let i=0;i<9;i++){ const m=M(tPuff,{color:0xa8a49c,double:true}); m.cut=2; const n=mk(plane(1,1),m,D,5.2,.3,6.4); puffs.push({n,ph:i/9}); }
+const puffs=[]; for(let i=0;i<9;i++){ const m=M(tPuff,{color:0xa8a49c,double:true}); m.cut=2; const n=mk(plane(1,1),m,D,5.2,.3,6.4); n.dyn=true; puffs.push({n,ph:i/9}); }
 /* ---------- the vista east: the road carries on past more lamps and lit windows to the railway bridge, where an
    Overground train crosses every so often, lit windows sliding over the street ---------- */
 const VX0=16, BRX=31;
@@ -1943,7 +1996,7 @@ for(const [x,z,s] of [[VX0+3,KERB_Z-.35,1],[VX0+11,KERB_Z-.35,1],[VX0+7,ROAD_Z1+
   mk(plane(7,.9),MM(tB),D,BRX-1.72,deckY+.65,(KERB_Z+ROAD_Z1)/2,0,-Math.PI/2,0);
   mk(box(.3,.4,.2),glowC(0xfff0d0),D,BRX-1.8,deckY-.3,(KERB_Z+ROAD_Z1)/2); }
 const tTrain=P2(128,32,(g,w,h)=>{ R(g,'#d8d8d4',0,0,w,h); R(g,'#e86a10',0,h-8,w,5); R(g,'#1a1a1c',0,4,w,2); for(let x=4;x<w;x+=16){ R(g,'#ffe8c0',x,9,11,12); R(g,'rgba(60,40,30,.5)',x+7,13,3,8); } R(g,'#2a2a2c',60,8,8,18); },0,1);
-const TRAIN=N(D,BRX,6.2+1.42,0), trainM=MM(tTrain,{unlit:true,nofog:true,repeat:[4,1]});
+const TRAIN=N(D,BRX,6.2+1.42,0); TRAIN.dyn=true; const trainM=MM(tTrain,{unlit:true,nofog:true,repeat:[4,1]});
 for(let c=0;c<3;c++) mk(box(2.8,3.0,19.6),[trainM,trainM,col(0x4a4a4c),col(0x101010),col(0xc8c8c4),col(0xc8c8c4)],TRAIN,0,1.5,c*20);
 /* ---------- the tick ---------- */
 function face(n,eye){ n.r=[0,Math.atan2(eye[0]-n.p[0],eye[2]-n.p[2]),0]; }
@@ -2061,7 +2114,7 @@ function BACKDOOR_Z(){ return FZ-6.9; }
 
 /* ---------- the bag ---------- */
 const tBag=P2(64,32,(g,w,h)=>{ R(g,'#1a2236',0,0,w,h); R(g,'#e8e6e0',0,13,w,4); specks(g,'#0e1220',90,1671,w,h); R(g,'#0a0c14',30,0,4,h); },0,1);
-const BAG=N(STREET,...BAG_HOME);
+const BAG=N(STREET,...BAG_HOME); BAG.dyn=true;
 mk(box(.56,.3,.3),MM(tBag),BAG,0,0,0); for(const s of [-1,1]) mk(box(.04,.14,.03),col(0x0a0c14),BAG,s*.1,.21,0); mk(box(.24,.03,.03),col(0x0a0c14),BAG,0,.28,0);
 BAG.r=[0,.1,0];
 
@@ -2070,7 +2123,7 @@ const tMark=k=>P2(64,64,(g,w,h)=>{ g.clearRect(0,0,w,h); g.font=`bold 56px ${SAN
   g.fillStyle='#000'; g.fillText(k===3?'!':'?',w/2+3,h/2+5); g.fillStyle=k===3?'#ff3a28':k===2?'#ffd040':'#e8e2d4'; g.fillText(k===3?'!':'?',w/2,h/2+2); },0,1);
 const markM=[1,2,3].map(k=>M(tMark(k),{unlit:true,cut:true,double:true}));
 const COPS=[];
-function makeCop(id,post,patrol){ const C=CAST[id],m=mk(plane(.3,.3),markM[0],STREET); m.vis=false;
+function makeCop(id,post,patrol){ const C=CAST[id],m=mk(plane(.3,.3),markM[0],STREET); m.vis=false; m.dyn=true;
   const c={id,C,post,patrol,pi:0,wait:0,state:'post',sus:0,mark:m,hd:post[2],pos:[post[0],post[1]],E:null,seeT:0,target:null,searchT:0,speed:0,look:0};
   c.E={J:C.J,o:C.o,hd:c.hd,pos:c.pos,walkAmt:0,runAmt:0,hp:{legL:1,legR:1,armL:1,armR:1},wpnHeld:false,kind:'pc',aware:false};
   COPS.push(c); return c; }
@@ -2104,7 +2157,7 @@ function drawLabel(t,text){ const g=t.c.getContext('2d'),w=512,h=96; g.clearRect
   const lh=36,bh=lines.length*lh+16,y0=h-bh; let mw=0; for(const l of lines) mw=Math.max(mw,g.measureText(l).width);
   g.fillStyle='rgba(6,6,6,1)'; g.fillRect((w-mw)/2-14,y0,mw+28,bh); g.fillStyle='#f4efe4'; g.textAlign='center'; g.textBaseline='middle';
   lines.forEach((l,i)=>g.fillText(l,w/2,y0+8+lh*(i+.5))); retex(t); }
-function labelFor(who){ if(!labels[who]){ const t=tLab(); const n=mk(plane(1.3,.244),M(t,{unlit:true,cut:true,double:true}),STREET); n.vis=false; labels[who]={t,n}; } return labels[who]; }
+function labelFor(who){ if(!labels[who]){ const t=tLab(); const n=mk(plane(1.3,.244),M(t,{unlit:true,cut:true,double:true}),STREET); n.vis=false; n.dyn=true; labels[who]={t,n}; } return labels[who]; }
 function say(key,dur=3.2){ const [who,text]=LINES[key]; G.queue.push({who,text,dur}); }
 function sayNow(key,dur=3){ G.queue.length=0; G.line=null; say(key,dur); }
 function speakerHead(who){ if(who==='terry') return [LOCKUP.x,PAVE_Y+2.2,FZ-.2]; const C=CAST[who]; if(!C) return null; return v3.add(mulP(C.J.head.world,[0,0,0]),[0,.42,0]); }
@@ -2123,7 +2176,7 @@ function drawPhone(){ const g=tPhone.c.getContext('2d'),w=256,h=448; R(g,'#0b0c1
   g.font=`64px ${SANS}`; g.fillStyle=G.stars?'#ffd040':'#3a3a3a'; g.fillText('★',20,h-40); g.fillStyle=G.stars>1?'#ffd040':'#3a3a3a'; g.fillText('★',110,h-40);
   g.font=`bold 18px ${TYPEF}`; g.fillStyle='#8a857a'; g.fillText('02:14  E2',14,h-110); if(G.cash){ g.fillStyle='#7ad87a'; g.fillText('£'+G.cash+' found',140,h-110); } if(promptK){ g.fillStyle='#f0a23e'; g.font=`bold 22px ${TYPEF}`; g.fillText('A · '+(promptK==='climb'?'CLIMB':'VAULT'),14,h-140); } retex(tPhone); phoneDirty=false; }
 function buildHands(){ const skin=M(null,{color:0xc8906c}),sleeve=M(null,{color:0x111214});
-  for(const s of ['left','right']){ const n=N(STREET); mk(box(.085,.1,.11),skin,n,0,0,.02); mk(box(.03,.05,.06),skin,n,(s==='left'?1:-1)*.05,.02,-.01); mk(cyl(.045,.05,.2,8),sleeve,n,0,-.01,.15,Math.PI/2); n.vis=false; HANDS[s]={n,M:m4.make(),pos:[0,0,0],grip:false,gripEdge:false}; }
+  for(const s of ['left','right']){ const n=N(STREET); n.dyn=true; mk(box(.085,.1,.11),skin,n,0,0,.02); mk(box(.03,.05,.06),skin,n,(s==='left'?1:-1)*.05,.02,-.01); mk(cyl(.045,.05,.2,8),sleeve,n,0,-.01,.15,Math.PI/2); n.vis=false; HANDS[s]={n,M:m4.make(),pos:[0,0,0],grip:false,gripEdge:false}; }
   const ph=N(HANDS.left.n); mk(box(.075,.14,.01),col(0x111111),ph,0,0,0); mk(plane(.066,.116),M(tPhone,{unlit:true}),ph,0,0,.006); ph.p=[0,.07,-.02]; ph.r=[-.9,0,0]; }
 
 /* ---------- start / reset ---------- */
@@ -2224,7 +2277,7 @@ function tryGrab(handPos){ if(G.hasBag||G.result||G.phase==='meet'||G.phase==='b
    In the headset you can also climb with your hands: squeeze grip on a ledge and pull yourself up.
    The coppers can't do any of it. */
 const STEP=.36, EYE=1.65, BODY=1.7, GRAV=17, JUMPV=4.4, REACH_GROUND=2.65, REACH_AIR=2.1;
-const SOL=[]; const sol=(x0,z0,x1,z1,y1,y0=0)=>{ const o={r:[x0,z0,x1,z1],y0,y1}; SOL.push(o); return o; };
+const SOL=[]; const SOLH=RectHash(SOL,o=>o.r); const solNear=(x0,z0,x1,z1)=>SOLH.near(x0,z0,x1,z1); const sol=(x0,z0,x1,z1,y1,y0=0)=>{ const o={r:[x0,z0,x1,z1],y0,y1}; SOL.push(o); return o; };
 for(const x of [-9.6,-5,0,5,9.8]) sol(x-.12,KERB_Z-.52,x+.12,KERB_Z-.28,PAVE_Y+.92);              /* bollards */
 sol(-4.86,KERB_Z-.86,-4.34,KERB_Z-.34,PAVE_Y+.95);                                                  /* litter bin */
 sol(-12.5,KERB_Z+.15,-7.9,KERB_Z+1.95,.93); sol(-11.53,KERB_Z+.28,-9.23,KERB_Z+1.82,1.42);          /* Degsy's motor: bonnet/boot, roof */
@@ -2341,11 +2394,17 @@ WALK.push([-15.9,-9.5,10.4,-8.0],[9.6,-9.5,29.0,-8.0]);
 /* Degsy's cash, stashed up high */
 const CASH=[[-14.1,PAVE_Y+2.35,-17.8],[9.0,ROOF_Y,-6.0],[27.4,ROOF_Y,-7.8],[6.6,PAVE_Y+2.57,ROAD_Z1+2.0],[-15.3,PAVE_Y+2.8,-25.2]].map(([x,y,z])=>{
   /* a brown envelope in a knotted carrier bag, tucked where a man hides money: no glow, you have to look */
-  const n=N(STREET,x,y+.01,z); mk(box(.26,.16,.14,{tw:.8,td:.8}),col(0xe8e4dc),n,0,.08,0); mk(box(.06,.06,.04),col(0xd8d4cc),n,0,.19,0); mk(box(.2,.02,.12),col(0x9a7a4a),n,.02,.17,.02,0,.3,0);
+  const n=N(STREET,x,y+.01,z); n.dyn=true; mk(box(.26,.16,.14,{tw:.8,td:.8}),col(0xe8e4dc),n,0,.08,0); mk(box(.06,.06,.04),col(0xd8d4cc),n,0,.19,0); mk(box(.2,.02,.12),col(0x9a7a4a),n,.02,.17,.02,0,.3,0);
   return {n,got:false,p:[x,y,z]}; });
-const inWalk=(x,z,rad)=>WALK.some(r=>inR(r,x,z,rad));
-function solidHit(x,z,rad,feet,head){ for(const s of SOL){ const r=s.r; if(x>r[0]-rad&&x<r[2]+rad&&z>r[1]-rad&&z<r[3]+rad&&s.y1>feet+STEP&&s.y0<head) return s; } return null; }
-function groundAt(x,z,feet){ let g=floorY(x,z); const k=P.r*.5; for(const s of SOL){ const r=s.r; if(x>r[0]-k&&x<r[2]+k&&z>r[1]-k&&z<r[3]+k&&s.y1<=feet+STEP+.001&&s.y1>g) g=s.y1; } return g; }
+/* spatial hashes: the hub has thousands of solids and hundreds of walk rects; every query only looks at the 4 m cells it touches */
+function RectHash(list,get){ const H={cell:4,map:new Map(),n:-1,list,get,stamp:0};
+  H.sync=()=>{ if(H.n===list.length) return; H.map.clear(); for(const it of list){ const r=get(it),c=H.cell; for(let i=Math.floor(r[0]/c);i<=Math.floor(r[2]/c);i++) for(let j=Math.floor(r[1]/c);j<=Math.floor(r[3]/c);j++){ const k=i*65536+j; let a=H.map.get(k); if(!a){ a=[]; H.map.set(k,a); } a.push(it); } } H.n=list.length; };
+  H.near=(x0,z0,x1,z1)=>{ H.sync(); H.stamp++; const out=[],c=H.cell; for(let i=Math.floor(x0/c);i<=Math.floor(x1/c);i++) for(let j=Math.floor(z0/c);j<=Math.floor(z1/c);j++){ const a=H.map.get(i*65536+j); if(a) for(const it of a){ if(it._hs!==H.stamp){ it._hs=H.stamp; out.push(it); } } } return out; };
+  return H; }
+const WALKO=WALK.map(r=>({r})); const WALKH=RectHash(WALKO,o=>o.r); const addWalk=r=>{ WALK.push(r); WALKO.push({r}); };
+const inWalk=(x,z,rad)=>{ for(const o of WALKH.near(x,z,x,z)) if(inR(o.r,x,z,rad)) return true; return false; };
+function solidHit(x,z,rad,feet,head){ for(const s of solNear(x-rad,z-rad,x+rad,z+rad)){ const r=s.r; if(x>r[0]-rad&&x<r[2]+rad&&z>r[1]-rad&&z<r[3]+rad&&s.y1>feet+STEP&&s.y0<head) return s; } return null; }
+function groundAt(x,z,feet){ let g=floorY(x,z); const k=P.r*.5; for(const s of solNear(x-k,z-k,x+k,z+k)){ const r=s.r; if(x>r[0]-k&&x<r[2]+k&&z>r[1]-k&&z<r[3]+k&&s.y1<=feet+STEP+.001&&s.y1>g) g=s.y1; } return g; }
 function free(x,z,feet){ return inWalk(x,z,P.r)&&!solidHit(x,z,P.r,feet,feet+BODY); }
 function rayRect(x,z,fx,fz,r){ let t0=-1e9,t1=1e9; for(const [p,d,lo,hi] of [[x,fx,r[0],r[2]],[z,fz,r[1],r[3]]]){ if(Math.abs(d)<1e-9){ if(p<lo||p>hi) return null; continue; } let a=(lo-p)/d,b=(hi-p)/d; if(a>b){ const t=a; a=b; b=t; } t0=Math.max(t0,a); t1=Math.min(t1,b); } return t0<=t1?[t0,t1]:null; }
 P.y=PAVE_Y; P.vy=0; P.vx=0; P.vz=0; P.ground=true;
@@ -2356,9 +2415,9 @@ function actTick(dt){ ACT.t+=dt; const k=Math.min(1,ACT.t/ACT.dur),e=x=>x*x*(3-2
   else { const up=.6,mx=lerp(x0,x1,.3),mz=lerp(z0,z1,.3); if(k<up){ const q=e(k/up); P.y=lerp(y0,y1+.06,q); P.x=lerp(x0,mx,q); P.z=lerp(z0,mz,q); } else { const q=e((k-up)/(1-up)); P.y=y1+.06*(1-q); P.x=lerp(mx,x1,q); P.z=lerp(mz,z1,q); } }
   P.running=true; if(k>=1){ ACT.on=false; P.x=x1; P.y=y1; P.z=z1; P.ground=true; P.vy=0; P.vx=P.vz=0; } }
 /* the nearest solid straight ahead that you'd have to get over */
-function solidAhead(fx,fz,maxD){ let best=null; for(const s of SOL){ if(s.y1<=P.y+STEP||s.y0>P.y+BODY+.9||s.y1>P.y+REACH_GROUND+.5) continue; /* overhead ledges in reach count too */ const r=[s.r[0]-P.r,s.r[1]-P.r,s.r[2]+P.r,s.r[3]+P.r],h=rayRect(P.x,P.z,fx,fz,r);
+function solidAhead(fx,fz,maxD){ let best=null; const e=maxD+P.r+.1; for(const s of solNear(P.x-e,P.z-e,P.x+e,P.z+e)){ if(s.y1<=P.y+STEP||s.y0>P.y+BODY+.9||s.y1>P.y+REACH_GROUND+.5) continue; /* overhead ledges in reach count too */ const r=[s.r[0]-P.r,s.r[1]-P.r,s.r[2]+P.r,s.r[3]+P.r],h=rayRect(P.x,P.z,fx,fz,r);
   if(!h||h[1]<0||h[0]>maxD) continue; if(!best||h[0]<best.d) best={s,d:Math.max(0,h[0]),t1:h[1],thick:h[1]-h[0]-2*P.r}; } return best; }
-function pathClear(x1,z1,top,skip){ for(const s of SOL){ if(s===skip||s.y1<=top-.02||s.y0>top+BODY) continue; const r=[s.r[0]-P.r*.6,s.r[1]-P.r*.6,s.r[2]+P.r*.6,s.r[3]+P.r*.6]; if(segHits(P.x,P.z,x1,z1,r)) return false; } return true; }
+function pathClear(x1,z1,top,skip){ for(const s of solNear(Math.min(P.x,x1)-.3,Math.min(P.z,z1)-.3,Math.max(P.x,x1)+.3,Math.max(P.z,z1)+.3)){ if(s===skip||s.y1<=top-.02||s.y0>top+BODY) continue; const r=[s.r[0]-P.r*.6,s.r[1]-P.r*.6,s.r[2]+P.r*.6,s.r[3]+P.r*.6]; if(segHits(P.x,P.z,x1,z1,r)) return false; } return true; }
 function vaultLand(a,fx,fz){ for(const e of [.05,.35,.7]){ const x=P.x+fx*(a.t1+e),z=P.z+fz*(a.t1+e),g=groundAt(x,z,a.s.y1); if(g<=a.s.y1&&free(x,z,g)&&pathClear(x,z,a.s.y1+.14,a.s)) return [x,g,z]; } return null; }
 function mantleSpot(s,fx,fz){ const h=rayRect(P.x,P.z,fx,fz,s.r); const t0=h?Math.max(0,h[0]):0;
   for(const e of [.32,.2,.45,.12]){ const x=h?P.x+fx*(t0+e):clamp(P.x,s.r[0]+.1,s.r[2]-.1),z=h?P.z+fz*(t0+e):clamp(P.z,s.r[1]+.1,s.r[3]-.1);
@@ -2425,7 +2484,7 @@ function deskTick(dt){
 const XR={session:null,space:null,origin:[0,0,0],yaw:0,btn:{},runToggle:false,snap:false,last:0,stick:null};
 /* hand climbing: squeeze on a ledge, pull down to go up; let go near the top and you're on it */
 const CLIMB={hand:null,anchor:null,s:null};
-function ledgeNear(p){ for(const s of SOL){ if(s.y1<P.y+.3||s.y1>8) continue; const r=s.r; if(p[1]>s.y1-.2&&p[1]<s.y1+.14&&p[0]>r[0]-.14&&p[0]<r[2]+.14&&p[2]>r[1]-.14&&p[2]<r[3]+.14) return s; } return null; }
+function ledgeNear(p){ for(const s of solNear(p[0]-.2,p[2]-.2,p[0]+.2,p[2]+.2)){ if(s.y1<P.y+.3||s.y1>8) continue; const r=s.r; if(p[1]>s.y1-.2&&p[1]<s.y1+.14&&p[0]>r[0]-.14&&p[0]<r[2]+.14&&p[2]>r[1]-.14&&p[2]<r[3]+.14) return s; } return null; }
 function climbPull(hp){ const d=v3.sub(CLIMB.anchor,hp); const ny=clamp(P.y+d[1],floorY(P.x,P.z),CLIMB.s.y1+.05), nx=P.x+d[0], nz=P.z+d[2];
   if(free(nx,nz,ny)||ny>=CLIMB.s.y1-STEP){ P.x=nx; P.z=nz; XR.origin[0]+=d[0]; XR.origin[2]+=d[2]; } P.y=ny; P.vy=0; P.ground=false;
   if(P.y>=CLIMB.s.y1-.05) climbRelease(); }
@@ -2472,14 +2531,7 @@ function xrFrame(t,xf){ const session=xf.session; session.requestAnimationFrame(
   for(const v of vp.views){ const vpt=layer.getViewport(v); proj.set(v.projectionMatrix); const em=new Float32Array(16); em.set(v.transform.matrix); const wm=m4.make(); m4.mul(wm,worldFromLocal(),em); view.set(rigidInv(wm));
     const h=Math.max(1,Math.round(vpt.height*state.sharp)),w=Math.max(1,Math.round(vpt.width*state.sharp)); ensureFB(w,h); fbSmooth(); renderMats(w,h); postTo(layer.framebuffer,vpt.x,vpt.y,vpt.width,vpt.height,w,h); } }
 /* renderScene, but with proj and view already set (the headset's own per-eye matrices) */
-function renderMats(w,h){ gl.bindFramebuffer(gl.FRAMEBUFFER,fb); gl.viewport(0,0,w,h); gl.clearColor(L.fog[0],L.fog[1],L.fog[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-  gl.enable(gl.DEPTH_TEST); gl.useProgram(MAIN.p); curCull=null; curMat=null; curTex=null; gl.activeTexture(gl.TEXTURE0); cullOn=false; const u=MAIN.loc;
-  gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
-  gl.uniform1f(u.uSnap,state.ps1&&state.snap?1:0); gl.uniform1f(u.uAffine,state.ps1&&state.affine?1:0); gl.uniform2f(u.uRes,w,h);
-  gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
-  gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
-  gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0); if(u.uSkyFade) gl.uniform1f(u.uSkyFade,0);
-  drawTree(world); gl.bindVertexArray(null); }
+function renderMats(w,h){ gl.bindFramebuffer(gl.FRAMEBUFFER,fb); drawWorldLDN(world,w,h,null); }
 function postTo(target,x,y,w,h,sw,sh){ gl.bindFramebuffer(gl.FRAMEBUFFER,target); gl.viewport(x,y,w,h); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null; curTex=null;
   gl.useProgram(POST_LDN.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
   gl.uniform1i(POST_LDN.loc.tScene,0); gl.uniform2f(POST_LDN.loc.uRes,sw,sh); gl.uniform1f(POST_LDN.loc.uDither,state.dither?1:0); gl.uniform1f(POST_LDN.loc.uGrade,LOOK.grade?1:0); gl.uniform1f(POST_LDN.loc.uFreeze,LOOK.freeze);
@@ -2490,7 +2542,7 @@ let stepWorld=()=>{};
 function tick(dt){ if(!G.on) return; if(!G.xr) deskTick(dt); promptTick();
   G.t+=dt; if(G.result){ G.endT+=dt; linesTick(dt); return; }
   for(const c of COPS) copTick(c,dt); jobTick(dt); linesTick(dt); }
-return {G,P,COPS,ACT,SOL,setInput:(f,s_,run)=>{ TOUCH.stick=[s_,-f]; TOUCH.run=!!run; },start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
+return {G,P,COPS,ACT,SOL,WALK,CASH,BLOCK,LOCKUP,START,setInput:(f,s_,run)=>{ TOUCH.stick=[s_,-f]; TOUCH.run=!!run; },start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
 })();
 
 /* =====================================================================================================
@@ -2525,7 +2577,7 @@ function pan(dx,dy){ const s=goal.r*.0016; const rx=Math.cos(cam.th),rz=-Math.si
 const SPOTS={danny:[-.6,1.1,.15,'stand'],degsy:[-5.6,-.9,.55,'smoke'],kwame:[8.4,-21.0,.25,'stand'],ali:[-7.0,-5.15,0,'watch'],
   maureen:[1.8,.5,-.9,'stand'],piotr:[4.6,1.4,-.5,'phone'],pcmale:[7.4,3.6,-1.1,'stand'],pcfem:[9,4.4,-1.3,'stand']};
 const CAST={};
-for(const id of ORDER){ const n=N(STREET,0,PAVE_Y,0); const C=makeChar(id,n,'cast'); C.node=n; CAST[id]=C;
+for(const id of ORDER){ const n=N(STREET,0,PAVE_Y,0); n.dyn=true; const C=makeChar(id,n,'cast'); C.node=n; CAST[id]=C;
   const P=C.poses, hy=C.o.thigh+C.o.shin+C.o.foot+.05;
   P.smoke={hipsY:hy,wpn:'fight',j:{armR:[-.4,0,.28],elbowR:[-1.55,0,0],armL:[.08,0,.14],elbowL:[-.25,0,0],spine:[.03,0,0],head:[-.05,.25,0],thighL:[-.06,0,.06],thighR:[.05,0,-.04],kneeL:[.08,0,0]}};
   if(id==='maureen') P.fight={hipsY:hy,wpn:'fight',j:{armR:[-.95,0,.12],elbowR:[-1.15,0,0],armL:[.05,0,.12],elbowL:[-.5,0,0],spine:[.08,0,0],head:[.1,0,0]}};
@@ -2545,7 +2597,7 @@ function poseAll(){ for(const id of ORDER){ const C=CAST[id]; const name=poseOf(
    earn the look: within 4 m, looking at them for 0.6 s. It lets go after 3.2 s, on a click, or on Escape. */
 let frozen=false,frozenT=0,pending=null,lookT=0;
 const SEEN=new Set(), KEY_CAST=['degsy','kwame','ali','maureen','piotr','pcmale','pcfem'];
-const CARDS={}, CARD=N(STREET); CARD.vis=false;
+const CARDS={}, CARD=N(STREET); CARD.vis=false; CARD.dyn=true;
 const NAMEF="'Anton','Impact','Arial Narrow',sans-serif", TYPEF="'Courier Prime','Courier New',monospace";
 function cardTex(id){ const R_=ROSTER[id]; return P2(1024,512,(g,w,h)=>{ g.clearRect(0,0,w,h); R(g,'rgba(6,6,6,1)',0,20,w,h-40); R(g,'#c8231c',0,20,w,8);
     const name=R_.name.replace(/ ".*" /,' ').toUpperCase(), role=R_.role.toUpperCase();
@@ -2606,14 +2658,15 @@ function stepWorld(dt){ clock+=dt; wclock+=dt; LOOK.time=clock; /* the freeze-fr
   else { const k=1-Math.exp(-dt*(frozen?9:6)); for(let i=0;i<3;i++) cam.t[i]+=(goal.t[i]-cam.t[i])*k; cam.th+=(goal.th-cam.th)*k; cam.ph+=(goal.ph-cam.ph)*k; cam.r+=(goal.r-cam.r)*k;
     if(state.eye){ const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),s_=(keys.KeyD?1:0)-(keys.KeyA?1:0); if(f||s_) walk(f*1.6*dt,s_*1.6*dt); } }
   for(const id of ORDER){ if(GAME.G.on&&(id==='pcmale'||id==='pcfem')) continue; if(frozen&&state.pick===id) continue; const C=CAST[id]; animateChar(C,wclock); skinUpdate(C); }
-  rainTick(wclock,eyePos()); DRESS.tick(wclock,eyePos()); const fl=Math.sin(wclock*31)>.97&&Math.sin(wclock*3.1)>.6; STREET_LIGHT.pl[1][1]=fl?[.5,.22,.15]:[1.35,.62,.42]; setLights(STREET_LIGHT); }
+  rainTick(wclock,eyePos()); DRESS.tick(wclock,eyePos()); const fl=Math.sin(wclock*31)>.97&&Math.sin(wclock*3.1)>.6; STREET_LIGHT.pl[1][1]=fl?[.5,.22,.15]:[1.35,.62,.42]; setLights(lightsNear(STREET_LIGHT,eyePos())); }
 function step(dt){ stepWorld(dt); if(!GAME.G.xr&&!window.__noDraw){ resize(); draw(); } }
 function frame(now){ if(GAME.G.xr) return; const dt=Math.min(.05,(now-lastT)/1000); lastT=now; step(dt); requestAnimationFrame(frame); }
 GAME.setStepWorld(stepWorld); GAME.setResume(()=>{ lastT=performance.now(); requestAnimationFrame(frame); });
 if(window.__CAPTURE) document.body.classList.add('capture');
-place(); renderCard(); updateClock(); setGoal(HOME,true); setLights(STREET_LIGHT);
+place(); renderCard(); updateClock(); setGoal(HOME,true); setLights(lightsNear(STREET_LIGHT,eyePos()));
+const BAKE=bakeStatic(STREET); console.log('[london] baked',BAKE.meshes,'meshes into',BAKE.chunks,'chunks');
 const ld=document.getElementById('loading'); if(ld) ld.hidden=true;
-window.__london={state,CAST,setGoal,freezeOn,unfreeze,place,poseAll,step,cam,goal,setClock:v=>{wclock=v;},GAME};
+window.__london={state,CAST,setGoal,freezeOn,unfreeze,place,poseAll,step,cam,goal,setClock:v=>{wclock=v;},GAME,BAKE,PERF};
 /* the job: start screen buttons */
 { const pb=document.getElementById('gPlay'),vb=document.getElementById('gVR'),again=document.getElementById('gAgain'),look=document.getElementById('gLook');
   if(pb) pb.addEventListener('click',()=>{ document.getElementById('gStart').hidden=true; GAME.start(false); cv.requestPointerLock?.(); cv.focus(); });
