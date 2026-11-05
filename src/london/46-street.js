@@ -16,10 +16,60 @@ function wallP(w,h,t,x,y,z,ry=0,o={}){ const tw=o.whole?w:(o.tile||1), th=o.whol
 function boxW(w,h,d,tile=1,tileV=tile){ const g=box(w,h,d),S={w,h,d}; FACES.forEach(([n,U,V,ku,kv],fi)=>{ for(let k=0;k<4;k++){ const i=fi*4+k; g.T[i*2]*=S[ku]/tile; g.T[i*2+1]*=S[kv]/tileV; } }); return g; }
 function blk(w,h,d,m,x,y,z,parent=STREET){ return mk(box(w,h,d),m,parent,x,y,z); }
 function blkT(w,h,d,t,x,y,z,o={}){ return mk(boxW(w,h,d,o.tile||1,o.tileV||o.tile||1),MM(t,{color:o.color??0xffffff}),o.parent||STREET,x,y,z,0,o.ry||0,0); }
-const SANS='"Arial Black","Arial Bold",Impact,sans-serif';
-function signTex(w,h,bg,fg,main,sub,o={}){ return P2(w,h,(g)=>{ R(g,bg,0,0,w,h); if(o.edge) { R(g,o.edge,0,0,w,3); R(g,o.edge,0,h-3,w,3); }
-  g.fillStyle=fg; g.textAlign='center'; g.textBaseline='middle'; g.font=`${Math.round(h*(sub?.46:.6))}px ${SANS}`; g.fillText(main,w/2,sub?h*.38:h*.54,w-12);
-  if(sub){ g.font=`bold ${Math.round(h*.2)}px Arial,Helvetica,sans-serif`; g.fillStyle=o.subC||fg; g.fillText(sub,w/2,h*.78,w-12); } },o.grain??4,o.seed||1); }
+const SANS='"LDN Archivo","Arial Black",Arial,sans-serif';
+/* ---------- signs: painted at up to 4x, no grain, real faces (39-fonts.js), text fitted not squashed, mipmapped in the engine ----------
+   w,h are the sign's proportions in the old 1x pixels; o.face picks the lettering: fat (chicken shop), cond (offy, bookie), grot (council,
+   street plates), anton (the arch). o.lit paints it as a backlit lightbox; o.logo draws at the left; o.plate makes a London street nameplate */
+const SFACE={fat:['400','"LDN Lilita","Arial Black",Arial,sans-serif',0], cond:['600','"LDN Oswald","Arial Narrow",Arial,sans-serif',.04],
+  grot:['700','"LDN Archivo",Arial,Helvetica,sans-serif',.01], anton:['400','"LDN Anton",Impact,"Arial Black",sans-serif',.06]};
+const SUBF=['500','"LDN Archivo",Arial,Helvetica,sans-serif'];
+const SIGNS=[];
+function fitText(g,txt,wt,fam,px,maxW,track){ for(let i=0;i<40;i++){ g.font=`${wt} ${Math.round(px)}px ${fam}`; try{ g.letterSpacing=`${(track*px).toFixed(1)}px`; }catch(e){}
+    const m=g.measureText(txt).width; if(m<=maxW) break; px*=Math.max(.6,maxW/m*.995); } return px; }
+function drawSign(g,W,H,bg,fg,main,sub,o){ const K=W/o.w0; g.clearRect(0,0,W,H);
+  if(o.plate){ /* the London street nameplate: white enamel, black keyline, borough on top, name in mixed case, postcode district in red */
+    R(g,'#1a1a1a',0,0,W,H); const m=6*K; g.fillStyle='#f6f4ee'; g.beginPath(); g.roundRect(m*.5,m*.5,W-m,H-m,10*K); g.fill();
+    g.strokeStyle='#161616'; g.lineWidth=3.2*K; g.beginPath(); g.roundRect(m*1.6,m*1.6,W-m*3.2,H-m*3.2,7*K); g.stroke();
+    g.textAlign='center'; g.textBaseline='alphabetic'; g.fillStyle='#161616';
+    let px=fitText(g,o.plate,SUBF[0],SUBF[1],H*.11,W*.8,.06); g.fillText(o.plate,W/2,H*.27);
+    R(g,'#161616',W*.12,H*.33,W*.76,1.6*K);
+    const pc=o.pc||''; px=fitText(g,main,'700',SFACE.grot[1],H*.36,W*(pc?.68:.84),0); const mw=g.measureText(main).width;
+    g.font=`700 ${Math.round(px)}px ${SFACE.grot[1]}`; const pw=pc?g.measureText(' '+pc).width:0, x0=W/2-(mw+pw)/2;
+    g.textAlign='left'; g.fillStyle='#161616'; g.fillText(main,x0,H*.72); if(pc){ g.fillStyle='#c41a1a'; g.fillText(' '+pc,x0+mw,H*.72); }
+    return; }
+  if(o.lit){ const q=g.createLinearGradient(0,0,0,H); q.addColorStop(0,mix(bg,'#000000',.12)); q.addColorStop(.5,mix(bg,'#ffffff',.08)); q.addColorStop(1,mix(bg,'#000000',.18)); g.fillStyle=q; g.fillRect(0,0,W,H);
+    const r=g.createRadialGradient(W/2,H/2,0,W/2,H/2,W*.55); r.addColorStop(0,'rgba(255,255,255,.07)'); r.addColorStop(1,'rgba(0,0,0,.12)'); g.fillStyle=r; g.fillRect(0,0,W,H); }
+  else R(g,bg,0,0,W,H);
+  if(o.edge){ R(g,o.edge,0,0,W,3*K); R(g,o.edge,0,H-3*K,W,3*K); R(g,o.edge,0,5.5*K,W,1*K); R(g,o.edge,0,H-6.5*K,W,1*K); }
+  if(o.frame){ g.strokeStyle=o.frame; g.lineWidth=2*K; g.strokeRect(5*K,5*K,W-10*K,H-10*K); }
+  let L=0,Rr=W; if(o.logo){ const lw=H*.95; o.logo(g,H*.12+lw/2,H/2,lw); L=H*.12+lw; if(o.logoBoth){ g.save(); g.translate(W,0); g.scale(-1,1); o.logo(g,H*.12+lw/2,H/2,lw); g.restore(); Rr=W-L; } }
+  const cx=(L+Rr)/2, room=(Rr-L)*.9, [wt,fam,tr]=SFACE[o.face||'grot'];
+  g.textAlign='center'; g.textBaseline='middle';
+  const mpx=fitText(g,main,wt,fam,H*(sub?.5:.64),room,tr), my=sub?H*.4:H*.53;
+  if(o.shadow){ g.fillStyle=o.shadow; g.fillText(main,cx+mpx*.045,my+mpx*.06); }
+  g.fillStyle=fg; g.fillText(main,cx,my);
+  if(sub){ const spx=fitText(g,sub,SUBF[0],SUBF[1],H*.15,room*.92,.14); g.fillStyle=o.subC||fg; g.fillText(sub,cx,H*.79);
+    if(o.rule){ const sw=Math.min(room,g.measureText(sub).width); R(g,o.subC||fg,cx-sw/2,H*.64,sw,Math.max(1,K*.9)); } }
+  try{ g.letterSpacing='0px'; }catch(e){} }
+function signTex(w,h,bg,fg,main,sub,o={}){ const K=Math.min(4,1600/w), W=Math.round(w*K), H=Math.round(h*K); o.w0=w;
+  const t=tex(W,H,null,g=>drawSign(g,W,H,bg,fg,main,sub,o)); t.smooth=true; SIGNS.push([t,()=>drawSign(t.c.getContext('2d'),W,H,bg,fg,main,sub,o)]); return t; }
+/* the faces arrive a beat after the scene is built: repaint every sign with them and re-upload */
+FONTS_READY.then(()=>{ for(const [t,paint] of SIGNS){ paint(); retex(t); } });
+/* any small painted text, drawn at K times its size with the same code, mipmapped */
+function hiP2(w,h,fn,K=4){ const t=tex(Math.round(w*K),Math.round(h*K),null,g=>{ g.scale(K,K); fn(g,w,h); }); t.smooth=true; return t; }
+/* logos */
+function roosterLogo(col,dark){ return (g,cx,cy,s)=>{ g.save(); g.translate(cx,cy); g.scale(s/100,s/100); g.fillStyle=col;
+  g.beginPath(); g.ellipse(-4,8,30,22,-.15,0,Math.PI*2); g.fill();                                   /* body */
+  g.beginPath(); g.moveTo(-28,0); g.quadraticCurveTo(-48,-30,-34,-40); g.quadraticCurveTo(-30,-20,-22,-8); g.fill();  /* tail */
+  g.beginPath(); g.moveTo(-24,-4); g.quadraticCurveTo(-40,-38,-22,-44); g.quadraticCurveTo(-22,-22,-14,-8); g.fill();
+  g.beginPath(); g.ellipse(18,-16,12,14,0,0,Math.PI*2); g.fill(); g.fillRect(10,-14,14,22);             /* neck and head */
+  g.beginPath(); g.moveTo(12,-28); g.lineTo(15,-40); g.lineTo(19,-31); g.lineTo(23,-42); g.lineTo(26,-29); g.closePath(); g.fill(); /* comb */
+  g.beginPath(); g.moveTo(29,-18); g.lineTo(42,-14); g.lineTo(29,-10); g.fill();                         /* beak */
+  g.beginPath(); g.ellipse(26,-5,3.5,6,0,0,Math.PI*2); g.fill();                                          /* wattle */
+  g.fillRect(-10,28,4,14); g.fillRect(2,28,4,14); g.fillRect(-14,40,10,3); g.fillRect(-2,40,10,3);        /* legs */
+  g.fillStyle=dark; g.beginPath(); g.arc(20,-19,2.6,0,Math.PI*2); g.fill(); g.restore(); }; }
+function starLogo(col){ return (g,cx,cy,s)=>{ g.fillStyle=col; for(const [dx,dy,r] of [[0,-.04,.3],[-.27,.2,.13],[.25,.22,.11]]){ g.beginPath();
+  for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, rr=(i%2?.42:1)*r*s; g.lineTo(cx+dx*s+Math.cos(a)*rr,cy+dy*s+Math.sin(a)*rr); } g.closePath(); g.fill(); } }; }
 
 /* ---------- painted surfaces, eye-level ones at 60-80 px per metre ---------- */
 /* London stock brick, 0.2 x 0.075 m courses: 128 x 120 px = 1.6 x 1.5 m */
@@ -87,7 +137,7 @@ function shopFront(x,w,kind){
     blk(w,.5,.42,col(0x3a3c40),x,3.62,FZ+.05);                                                            /* shutter box */
     wallP(w,3.25,shutterTex(1423+Math.round(x*7)),x,1.78,FZ-.08,0,{tile:w/Math.max(1,Math.round(w/1.6)),tileH:3.25});
     blk(w,.07,.06,col(0x2a2c2e),x,.2,FZ-.04); blk(.08,.12,.04,col(0x8a8a86),x+w*.3,.26,FZ-.02);               /* bottom rail and padlock */
-    if(kind==='bookie') mk(boxW(w,.62,.16),MM(signTex(384,52,'#1d3b6e','#f2d43a','LUCKY STARS','BOOKMAKERS',{seed:1430})),STREET,x,4.0,FZ+.36);
+    if(kind==='bookie') mk(boxW(w,.62,.16,w,.62),MM(signTex(384,54,'#183466','#f6d53a','LUCKY STARS','BOOKMAKERS · LIVE RACING · FOOTBALL',{face:'cond',lit:true,subC:'#ffffff',edge:'#f6d53a',logo:starLogo('#f6d53a'),logoBoth:true}),{unlit:true}),STREET,x,4.0,FZ+.36);
     return; }
   if(kind==='lobby'){ blk(w,.06,SHOP_DEPTH,col(0x1a1c1e),x,PAVE_Y+.03,FZ-SHOP_DEPTH/2);
     for(const s of [-1,1]) wallP(SHOP_DEPTH,3.1,tConc,x+s*(w/2-.02),1.6,FZ-SHOP_DEPTH/2,s*-Math.PI/2,{tile:3});
@@ -96,7 +146,7 @@ function shopFront(x,w,kind){
     for(const s of [-1,1]) blk(.06,2.3,.06,col(0x9aa4aa),x+s*.55,1.27,FZ-1.2); blk(1.16,.06,.06,col(0x9aa4aa),x,2.42,FZ-1.2);
     for(let i=0;i<6;i++) blk(.3,.22,.04,col(0x6a6e72),x-1+(i%3)*.36,1.3+(i>2?.26:0),FZ-SHOP_DEPTH+.03);
     blk(.5,.05,.3,glowC(0xe9f4f8),x,3.05,FZ-1.4);
-    mk(boxW(w,.48,.1),MM(signTex(256,40,'#e8e4da','#1b1b1b','HOLLIS HOUSE','FLATS 1-96 · NO BALL GAMES',{seed:1431})),STREET,x,3.7,FZ+.3); return; }
+    mk(boxW(w,.48,.1,w,.48),MM(signTex(280,48,'#eeebe2','#1b1b1b','HOLLIS HOUSE','FLATS 1–96 · LONDON BOROUGH OF TOWER HAMLETS',{face:'grot',frame:'#1b1b1b',subC:'#2a4a8a'})),STREET,x,3.7,FZ+.3); return; }
   /* an open shop: floor, side walls, back wall, counter, frames, stall riser, sign box */
   slab(w,SHOP_DEPTH,tConc,x,PAVE_Y+.01,FZ-SHOP_DEPTH/2,{tile:.5,cell:1,color:kind==='rooster'?0xd8d0c4:0xb8b4ac});
   for(const s of [-1,1]) wallP(SHOP_DEPTH,3.2,tConc,x+s*(w/2-.02),1.6+PAVE_Y,FZ-SHOP_DEPTH/2,s*-Math.PI/2,{tile:3,color:kind==='rooster'?0xfff4e6:0xeee8da,unlit:true});
@@ -127,17 +177,17 @@ function shopFront(x,w,kind){
   blk(w,.08,.12,col(0x1a1b1d),x,PAVE_Y+.54,front-.06); blk(w,.1,.12,col(0x1a1b1d),x,PAVE_Y+2.62,front-.06); blk(w,.08,.12,col(0x1a1b1d),x,PAVE_Y+3.12,front-.06);
   for(const fx of [x0+.05,x0+w*.4,x1-1.15,x1-.05]) blk(.07,3.12,.12,col(0x1a1b1d),fx,PAVE_Y+1.56,front-.06);
   blk(.95,.1,.1,col(0x1a1b1d),x1-.6,PAVE_Y+2.62,front-.06); blk(.04,.5,.04,col(0xb8bcc0),x1-1.0,PAVE_Y+1.1,front);         /* door head and handle */
-  const sign=kind==='rooster'?signTex(512,80,'#c21b1b','#ffd23a','GOLDEN ROOSTER','FRIED CHICKEN · BURGERS · PERI PERI',{edge:'#ffd23a',seed:1435})
-    :signTex(512,80,'#0f3d2c','#eaf5ee','BETHNAL WINES','OFF LICENCE · GROCERIES · OPEN TIL LATE',{subC:'#9ad8b4',seed:1436});
+  const sign=kind==='rooster'?signTex(512,80,'#c4161c','#ffd23a','GOLDEN ROOSTER','FRIED CHICKEN · BURGERS · PERI PERI',{face:'fat',lit:true,edge:'#ffd23a',subC:'#ffffff',shadow:'#6a0a0c',logo:roosterLogo('#ffd23a','#6a0a0c')})
+    :signTex(472,80,'#0e3a2a','#f3ecd2','BETHNAL WINES','OFF LICENCE · GROCERIES · OPEN TIL LATE',{face:'cond',lit:true,subC:'#c9a54a',edge:'#c9a54a',shadow:'#04160f',rule:true});
   const sm=MM(sign,{unlit:true}),edge=col(kind==='rooster'?0x8a1010:0x0a2a1e);
   mk(box(w,.78,.18),[edge,edge,edge,edge,sm,edge],STREET,x,3.62+PAVE_Y,front+.1);
   /* a projecting sign you can read side-on from up the street */
-  if(kind==='rooster'){ const ps=MM(signTex(128,128,'#c21b1b','#ffd23a','24/7',null,{seed:1437}),{unlit:true}); blk(.04,.04,.7,col(0x2a2a2c),x1-.2,3.3,front+.35); mk(box(.08,.62,.62),[ps,ps,edge,edge,edge,edge],STREET,x1-.2,2.92,front+.5); }
+  if(kind==='rooster'){ const ps=MM(signTex(128,128,'#c4161c','#ffd23a','24/7',null,{face:'fat',lit:true,shadow:'#6a0a0c'}),{unlit:true}); blk(.04,.04,.7,col(0x2a2a2c),x1-.2,3.3,front+.35); mk(box(.08,.62,.62),[ps,ps,edge,edge,edge,edge],STREET,x1-.2,2.92,front+.5); }
 }
 const UNITS=[[-12,2.8,'shut'],[-7.3,5,'rooster'],[-2.1,4.6,'offy'],[2.6,4.2,'shut'],[7.2,4.4,'bookie'],[11.6,2.8,'lobby']];
 for(const [x,w,k] of UNITS) shopFront(x,w,k);
 /* the street name on the pier, at eye height, enamel-sign style */
-mk(boxW(1.9,.48,.03),MM(signTex(320,80,'#f4f1e8','#111111','BETHNAL GREEN RD','LONDON BOROUGH OF TOWER HAMLETS  E2',{subC:'#c41a1a',edge:'#111111',seed:1438})),STREET,-9.9,2.5,FZ+.22);
+mk(boxW(1.9,.48,.03,1.9,.48),MM(signTex(320,80,'#f6f4ee','#161616','Bethnal Green Road',null,{plate:'LONDON BOROUGH OF TOWER HAMLETS',pc:'E2'})),STREET,-9.9,2.5,FZ+.22);
 /* bollards, a litter bin, a bus-stop flag */
 for(const x of [-9.6,-5,0,5,9.8]){ mk(cyl(.075,.09,.92,10),col(0x18191c),STREET,x,PAVE_Y+.46,KERB_Z-.4); mk(cyl(.078,.078,.04,10),col(0xc8a040),STREET,x,PAVE_Y+.78,KERB_Z-.4); }
 mk(cyl(.24,.22,.9,10),col(0x14261a),STREET,-4.6,PAVE_Y+.45,KERB_Z-.6); mk(cyl(.26,.26,.06,10),col(0x0e1a12),STREET,-4.6,PAVE_Y+.92,KERB_Z-.6);
@@ -169,7 +219,7 @@ mk(box(8.4,4.6,.3),col(0x050506),ARCH,0,2.3,.2); mk(cyl(4.2,4.2,.3,14),col(0x050
 { const tLock=P2(256,160,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#3a2a1a'],[1,'#ffb060']]); R(g,'#1a1410',0,0,w,40); for(let i=0;i<5;i++) R(g,'#2a2420',20+i*46,70,30,90);
     R(g,'#c8c0b0',96,46,64,10); ell(g,128,118,26,16,'#2a1a10'); R(g,'#6a6a6a',150,96,60,40); R(g,'#e8a040',0,h-6,w,6); },0,1450);
   wallP(5.6,4.4,tLock,0,2.3,.4,0,{parent:ARCH,whole:true,unlit:true,cell:3});
-  mk(boxW(4.2,.6,.12),MM(signTex(384,56,'#141414','#f0a23e','ARCH 9 · MOTORS','MOT · TYRES · NO QUESTIONS',{seed:1451})),ARCH,0,6.2,.45); }
+  mk(boxW(4.2,.6,.12,4.2,.6),MM(signTex(420,60,'#141414','#f0a23e','ARCH 9 MOTORS','MOT · TYRES · BODYWORK · NO QUESTIONS',{face:'anton',subC:'#e8e2d4',edge:'#f0a23e'}),{unlit:true}),ARCH,0,6.2,.45); }
 const sky=N(STREET); wallP(140,44,tSky,0,20,-44,0,{parent:sky,unlit:true,nofog:true,whole:true,cell:140}); wallP(140,44,tSky,0,20,64,Math.PI,{parent:sky,unlit:true,nofog:true,whole:true,cell:140});
 for(const [x,h] of [[-18,46],[-8,30],[22,38],[30,26]]) mk(box(9,h,9),MM(null,{color:0x0b0c11,nofog:true}),sky,x,h/2,-36);
 

@@ -66,7 +66,7 @@ const floorY=(x,z)=>z>KERB_Z&&z<ROAD_Z1?0:PAVE_Y;
   slab(2.0,1.4,tConc,0,PAVE_Y+.01,-.7,{parent:A,tile:.8,color:0xa08060});
   wallP(2.1,1.2,tShutterL,0,PAVE_Y+2.4,.0,0,{parent:A,whole:true});                     /* the shutter, half up */
   blk(2.3,.4,.4,col(0x2a2c2e),0,PAVE_Y+3.15,.1,A);
-  mk(boxW(2.4,.5,.1),MM(signTex(256,48,'#141414','#f0a23e','ARCH 9','T. MOTORS · CASH ONLY',{seed:1661}),{unlit:true}),A,0,PAVE_Y+3.7,.2);
+  mk(boxW(2.4,.5,.1,2.4,.5),MM(signTex(240,50,'#141414','#f0a23e','ARCH 9','T. MOTORS · CASH ONLY',{face:'anton',subC:'#e8e2d4',edge:'#f0a23e'}),{unlit:true}),A,0,PAVE_Y+3.7,.2);
   blk(.3,.12,.18,glowC(0xffe0a0),0,PAVE_Y+2.95,-.4,A); }
 
 /* ---------- through Hollis House: a passage and the back alley behind the shops, to Arch 9's back door ---------- */
@@ -74,7 +74,7 @@ const floorY=(x,z)=>z>KERB_Z&&z<ROAD_Z1?0:PAVE_Y;
   slab(1.2,3.0,tConc,11.6,PAVE_Y,FZ-4.1,{parent:B_,tile:1,cell:1,color:0x8a8a84});
   for(const x of [11.0,12.2]) wallP(3.0,3.0,tConc,x,PAVE_Y+1.5,FZ-4.1,x<11.6?Math.PI/2:-Math.PI/2,{parent:B_,tile:2,color:0xd8dcd6});
   for(const z of [FZ-3.2,FZ-5.0]) blk(.12,.05,.9,glowC(0xeef6ff),11.6,PAVE_Y+2.94,z,B_);   /* strip lights */
-  mk(boxW(1.0,.22,.03),MM(signTex(160,36,'#e8e4da','#1b1b1b','TO REAR → BINS',null,{seed:1663}),{unlit:true}),B_,11.6,PAVE_Y+2.45,FZ-2.66,0,Math.PI,0);
+  mk(boxW(1.0,.22,.03,1.0,.22),MM(signTex(200,44,'#eeebe2','#1b1b1b','TO REAR & BINS  ›',null,{face:'grot',frame:'#1b1b1b'}),{unlit:true}),B_,11.6,PAVE_Y+2.45,FZ-2.66,0,Math.PI,0);
  blk(.4,.06,.2,glowC(0xe8f0f4),11.6,PAVE_Y+2.95,FZ-4.0,B_);
   slab(18.6,2.8,tPaveW,(10.4+29)/2,PAVE_Y,(z0+z1)/2,{parent:B_,tile:1.2,cell:1.2});
   wallP(18.6,4.2,tSoot,(10.4+29)/2,PAVE_Y+2.1,z0,0,{parent:B_,tile:1.6,tileH:1.5,cell:1.2});                 /* the far wall of the alley */
@@ -93,7 +93,7 @@ const floorY=(x,z)=>z>KERB_Z&&z<ROAD_Z1?0:PAVE_Y;
   for(const [x,c] of [[15.6,0x1a3a2a],[16.4,0x2a2a2a],[22.8,0x1a3a2a]]){ blk(.62,1.1,.7,col(c),x,PAVE_Y+.55,z0+.42,B_); blk(.66,.06,.74,col(0x111111),x,PAVE_Y+1.12,z0+.42,B_); }
   for(let i=0;i<4;i++) mk(cyl(.2,.24,.4,7),col(0x0d0e10),B_,19.5+i*.4,PAVE_Y+.2,z0+.3+(i%2)*.3,0,i,0);
   blk(.3,.15,.15,glowC(0xfff0d0),FENCE_X-.4,PAVE_Y+3.3,z1-.1,B_); { const gm=MM(tGlowSodium,{unlit:true,double:true}); gm.cut=2; mk(plane(1.4,1.4),gm,B_,FENCE_X-.4,PAVE_Y+3.2,z1-.2,0,Math.PI,0); }
-  wallP(1.1,2.2,tShutterL,29.0,PAVE_Y+1.1,BACKDOOR_Z(),-Math.PI/2,{parent:B_,whole:true}); mk(boxW(1.2,.3,.06),MM(signTex(128,32,'#141414','#f0a23e','ARCH 9',null,{seed:1662}),{unlit:true}),B_,28.98,PAVE_Y+2.45,BACKDOOR_Z(),0,-Math.PI/2,0);
+  wallP(1.1,2.2,tShutterL,29.0,PAVE_Y+1.1,BACKDOOR_Z(),-Math.PI/2,{parent:B_,whole:true}); mk(boxW(1.2,.3,.06,1.2,.3),MM(signTex(160,40,'#141414','#f0a23e','ARCH 9',null,{face:'anton',edge:'#f0a23e'}),{unlit:true}),B_,28.98,PAVE_Y+2.45,BACKDOOR_Z(),0,-Math.PI/2,0);
   blk(.2,.1,.1,glowC(0xffd090),28.9,PAVE_Y+2.75,BACKDOOR_Z(),B_); }
 function BACKDOOR_Z(){ return FZ-6.9; }
 
@@ -290,7 +290,7 @@ function eBox(x0,z0,x1,z1,y0,y1,m,o={}){ const w=x1-x0,d=z1-z0,h=y1-y0,cx=(x0+x1
   slab(2.0,5.6,tTarmac,-14.85,PY+.002,-5.8,{parent:EST,tile:2,cell:1.5});                                              /* the gateway's tarmac */
   for(const [x,ry] of [[-15.85,Math.PI/2],[-13.85,-Math.PI/2]]) wallP(5.6,4.2,tConc,x,2.1,-5.8,ry,{parent:EST,tile:3,tileH:3,color:0x9a968e});
   blk(2.0,.25,5.6,col(0x6a6a66),-14.85,4.15,-5.8,EST); blk(.3,.1,.2,glowC(0xffd090),-14.85,3.95,-5.0,EST);
-  mk(boxW(2.1,.4,.06),MM(signTex(256,48,'#1c2a4a','#f0f0e8','HOLLIS ESTATE','GARAGES · NO PARKING · NO BALL GAMES',{seed:1690})),EST,-14.85,3.7,FZ+.03);
+  mk(boxW(2.1,.4,.06,2.1,.4),MM(signTex(252,48,'#1c2f5a','#f4f2ea','HOLLIS ESTATE','GARAGES · NO PARKING · NO BALL GAMES',{face:'grot',frame:'#f4f2ea',subC:'#c8d4ec'})),EST,-14.85,3.7,FZ+.03);
   /* north side: the backs of the shops (ground-floor extensions), the back of the deck block above */
   wallP(CX1+13.85,4.2,tConc,(CX1-13.85)/2,PY+2.1,CZ1,Math.PI,{parent:EST,tile:3,tileH:3,color:0x8e8a82});
   blk(26.4,.2,2.9,col(0x3a3a3c),(CX0+CX1)/2,4.25,-7.15,EST);
@@ -298,7 +298,7 @@ function eBox(x0,z0,x1,z1,y0,y1,m,o={}){ const w=x1-x0,d=z1-z0,h=y1-y0,cx=(x0+x1
     wallP(32,12.3,tBack,0,4.2+6.15,-5.74,Math.PI,{parent:EST,whole:true,cell:2}); }
   /* lock-up garages down the west side: up-and-over doors, flat roofs at 2.4 m */
   for(let k=0;k<6;k++){ const z=-11.2-k*2.25; eBox(-16,z-1.1,-12.2,z+1.1,0,PY+2.35,null,{tex:tConc,tile:2.5,color:0x8a8478,block:true,sight:true});
-    wallP(1.9,1.9,shutterTex(1700+k),-12.18,PY+.95,z,Math.PI/2,{parent:EST,whole:true}); mk(boxW(.4,.18,.03),MM(signTex(64,24,'#e8e4da','#1b1b1b',String(k+1),null,{seed:1710+k})),EST,-12.17,PY+2.1,z,0,Math.PI/2,0); }
+    wallP(1.9,1.9,shutterTex(1700+k),-12.18,PY+.95,z,Math.PI/2,{parent:EST,whole:true}); mk(boxW(.4,.18,.03,.4,.18),MM(signTex(64,28,'#eeebe2','#1b1b1b',String(k+1),null,{face:'grot',frame:'#1b1b1b'})),EST,-12.17,PY+2.1,z,0,Math.PI/2,0); }
   blk(3.9,.12,13.6,col(0x2a2a2c),-14.1,PY+2.41,-16.85,EST);                                                            /* felt roof */
   /* the bin store: a brick pen with the big communal bins; get up on the bins, then the wall */
   eBox(-4.2,-11.6,-.8,-11.4,0,PY+1.8,null,{tex:tStock,block:true,sight:true}); eBox(-4.2,-11.4,-4.0,-9.4,0,PY+1.8,null,{tex:tStock,block:true,sight:true}); eBox(-1.0,-11.4,-.8,-9.4,0,PY+1.8,null,{tex:tStock,block:true,sight:true});
@@ -307,13 +307,13 @@ function eBox(x0,z0,x1,z1,y0,y1,m,o={}){ const w=x1-x0,d=z1-z0,h=y1-y0,cx=(x0+x1
   eBox(-8.4,-17.0,-4.2,-15.3,0,.86,col(0x3a2e26),{block:true}); eBox(-7.2,-16.9,-5.0,-15.4,.86,1.32,col(0x1a1612),{block:true});
   for(const [x,z] of [[-7.6,-17.05],[-5.0,-17.05],[-7.6,-15.25],[-5.0,-15.25]]) mk(cyl(.3,.3,.18,8),col(0x0e0e0e),EST,x,.3,z,Math.PI/2);
   eBox(-11.4,-23.4,-6.0,-21.4,0,PY+2.3,col(0xd8d6d0),{block:true,sight:true}); eBox(-12.3,-23.3,-11.4,-21.5,0,PY+1.1,col(0xd8d6d0),{block:true,sight:true});
-  { const tV=P2(128,32,(g,w,h)=>{ R(g,'#d8d6d0',0,0,w,h); g.fillStyle='#2a4a8a'; g.font=`bold 11px ${SANS}`; g.fillText('K. BAKSHI · PLUMBING',6,14); g.font='bold 8px sans-serif'; g.fillText('07700 900 461',6,26); },0,1);
+  { const tV=hiP2(128,32,(g,w,h)=>{ R(g,'#d8d6d0',0,0,w,h); g.fillStyle='#2a4a8a'; g.font=`bold 11px ${SANS}`; g.fillText('K. BAKSHI · PLUMBING',6,14); g.font=`500 8px ${SANS}`; g.fillText('07700 900 461',6,26); });
     wallP(4.8,1.2,tV,-8.7,PY+1.4,-21.38,0,{parent:EST,whole:true}); }
   /* NO BALL GAMES: a patch of grass inside a low wall you can sit on or hop */
   const gx0=0,gx1=7,gz0=-20,gz1=-14; slab(gx1-gx0,gz1-gz0,null,(gx0+gx1)/2,PY+.01,(gz0+gz1)/2,{parent:EST,color:0x2a3a22,cell:2});
   eBox(gx0,gz1-.2,gx1,gz1,0,PY+.55,null,{tex:tStock,block:true}); eBox(gx0,gz0,gx1,gz0+.2,0,PY+.55,null,{tex:tStock,block:true});
   eBox(gx0,gz0,gx0+.2,gz1,0,PY+.55,null,{tex:tStock,block:true}); eBox(gx1-.2,gz0,gx1,gz1-1.4,0,PY+.55,null,{tex:tStock,block:true});
-  mk(boxW(1.0,.5,.04),MM(signTex(160,80,'#f2f0e8','#c8231c','NO BALL',' GAMES',{seed:1720})),EST,3.5,PY+1.2,gz1+.04); mk(cyl(.03,.03,1.0,6),col(0x2a2a2a),EST,3.5,PY+.5,gz1+.02);
+  mk(boxW(1.0,.5,.04,1.0,.5),MM(signTex(160,80,'#f4f2ea','#c8231c','NO BALL GAMES','BY ORDER · TOWER HAMLETS HOMES',{face:'grot',frame:'#c8231c',subC:'#1b1b1b'})),EST,3.5,PY+1.2,gz1+.04); mk(cyl(.03,.03,1.0,6),col(0x2a2a2a),EST,3.5,PY+.5,gz1+.02);
   eBox(1.0,-13.2,3.2,-12.8,0,PY+.45,col(0x5a3a22),{block:true});                                                          /* bench */
   /* the courtyard lamp */
   mk(cyl(.07,.1,5.6,8),col(0x2a2d33),EST,-3,PY+2.8,-13.2); blk(.5,.18,.34,col(0x2a2d33),-3,5.7,-13.2,EST); blk(.42,.04,.26,glowC(0xffd090),-3,5.6,-13.2,EST);

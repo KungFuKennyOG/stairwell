@@ -16,9 +16,9 @@ const tZebra=P2(16,16,g=>{ R(g,'#d8d4cc',0,0,16,16); specks(g,'#8a8a86',10,1601,
 for(let z=KERB_Z+.2;z<ROAD_Z1-.3;z+=1.0) slab(ZX1-ZX0,.5,tZebra,(ZX0+ZX1)/2,.004,z+.25,{cell:3,tile:.5,tileD:.5,parent:D});
 for(const side of [-1,1]) for(let k=0;k<6;k++){ const x=side<0?ZX0-1.0-k*1.05:ZX1+1.0+k*1.05;
   for(const z of [KERB_Z+.5,ROAD_Z1-.5]) mk(plane(1.18,.09),MM(tWhiteLine),D,x,.004,z,-Math.PI/2,0,(k%2?.32:-.32)); }
-{ const t=P2(128,24,(g,w,h)=>{ g.clearRect(0,0,w,h); g.fillStyle='#e4e0d6'; g.font=`bold 20px ${SANS}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('LOOK RIGHT',w/2,h/2+1); },0,1);
+{ const t=hiP2(128,24,(g,w,h)=>{ g.clearRect(0,0,w,h); g.fillStyle='#e4e0d6'; g.font=`bold 20px ${SANS}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('LOOK RIGHT',w/2,h/2+1); });
   const m=M(t,{cut:true}); mk(plane(2.0,.38),m,D,(ZX0+ZX1)/2,.006,KERB_Z+.5,-Math.PI/2,0,Math.PI);
-  const t2=P2(128,24,(g,w,h)=>{ g.clearRect(0,0,w,h); g.fillStyle='#e4e0d6'; g.font=`bold 20px ${SANS}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('LOOK LEFT',w/2,h/2+1); },0,1);
+  const t2=hiP2(128,24,(g,w,h)=>{ g.clearRect(0,0,w,h); g.fillStyle='#e4e0d6'; g.font=`bold 20px ${SANS}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('LOOK LEFT',w/2,h/2+1); });
   mk(plane(2.0,.38),M(t2,{cut:true}),D,(ZX0+ZX1)/2,.006,ROAD_Z1-.5,-Math.PI/2); }
 const tPole=P2(4,32,(g,w,h)=>{ for(let i=0;i<8;i++) R(g,i%2?'#141414':'#e8e6e0',0,i*4,w,4); },0,1);
 const beaconM=M(null,{color:0xffa020,emissive:0xff8a10}), beaconOff=[.25,.12,.04], beaconOn=[2.2,1.15,.3];
@@ -43,7 +43,7 @@ const cab=car(1.6,ROAD_Z1-1.05,Math.PI,0x0c0d10,{L:4.6,W:1.8,cabX:.25,tail:true}
 { const K=N(D,-3.2,PAVE_Y,ROAD_Z1+1.25,0,Math.PI,0), red=col(0xa8160f), w=.92,h=2.45;
   for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]) mk(box(.09,h,.09),red,K,sx*(w/2-.045),h/2,sz*(w/2-.045));
   mk(box(w+.06,.12,w+.06),red,K,0,.06,0); mk(box(w+.04,.32,w+.04),red,K,0,h+.16,0); mk(cyl(.36,.5,.2,12),red,K,0,h+.42,0,0,Math.PI/4);
-  const tTel=P2(64,12,(g,w2,h2)=>{ R(g,'#141414',0,0,w2,h2); g.fillStyle='#f4f0e2'; g.font=`bold 9px ${SANS}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('TELEPHONE',w2/2,h2/2+1); },0,1);
+  const tTel=hiP2(64,12,(g,w2,h2)=>{ R(g,'#141414',0,0,w2,h2); g.fillStyle='#f4f0e2'; g.font=`bold 9px ${SANS}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('TELEPHONE',w2/2,h2/2+1); });
   const tm=M(tTel,{unlit:true}); for(let k=0;k<4;k++){ const a=k*Math.PI/2; mk(plane(.7,.15),tm,K,Math.sin(a)*(w/2+.025),h+.16,Math.cos(a)*(w/2+.025),0,a,0); }
   const tPane=P2(32,64,(g,w2,h2)=>{ R(g,'rgba(0,0,0,0)',0,0,w2,h2); g.clearRect(0,0,w2,h2); R(g,'#a8160f',0,0,w2,2); R(g,'#a8160f',0,h2-2,w2,2); R(g,'#a8160f',0,0,2,h2); R(g,'#a8160f',w2-2,0,2,h2);
     for(let i=1;i<3;i++) R(g,'#a8160f',i*w2/3-1,0,2,h2); for(let j=1;j<8;j++) R(g,'#a8160f',0,j*h2/8-1,w2,2); },0,1);
@@ -53,9 +53,9 @@ const cab=car(1.6,ROAD_Z1-1.05,Math.PI,0x0c0d10,{L:4.6,W:1.8,cabX:.25,tail:true}
 { const S_=N(D,6.6,PAVE_Y,ROAD_Z1+1.6), steel=col(0x6c7074), w=3.4,d=1.25;
   for(const sx of [-1,1]) for(const sz of [0,1]) mk(box(.07,2.4,.07),steel,S_,sx*w/2,1.2,sz*d);
   mk(box(w+.2,.1,d+.3),steel,S_,0,2.45,d/2); mk(box(2,.05,.28),steel,S_,-.2,.6,d-.25);
-  const ad=P2(64,128,(g,w2,h2)=>{ vfill(g,0,0,w2,h2,[[0,'#0e2a6a'],[1,'#06102e']]); g.fillStyle='#f0f4ff'; g.font=`bold 22px ${SANS}`; g.textAlign='center'; g.fillText('VOLT',w2/2,34); g.font='bold 8px sans-serif'; g.fillText('STAY UP.',w2/2,48); R(g,'#4ac8ff',22,62,20,52); R(g,'#f0f4ff',22,62,20,7); },0,1);
+  const ad=hiP2(64,128,(g,w2,h2)=>{ vfill(g,0,0,w2,h2,[[0,'#0e2a6a'],[1,'#06102e']]); g.fillStyle='#f0f4ff'; g.font=`bold 22px ${SANS}`; g.textAlign='center'; g.fillText('VOLT',w2/2,34); g.font=`500 8px ${SANS}`; g.fillText('STAY UP.',w2/2,48); R(g,'#4ac8ff',22,62,20,52); R(g,'#f0f4ff',22,62,20,7); });
   mk(box(.12,1.9,d-.1),[MM(ad,{unlit:true}),MM(ad,{unlit:true}),col(0x1a1a1a),col(0x1a1a1a),col(0x1a1a1a),col(0x1a1a1a)],S_,-w/2-.06,1.12,d/2);
-  const flag=P2(32,32,(g,w2,h2)=>{ R(g,'#f2f0ea',0,0,w2,h2); R(g,'#c8231c',0,0,w2,11); g.fillStyle='#fff'; g.font=`bold 7px ${SANS}`; g.textAlign='center'; g.fillText('BUS STOP',w2/2,8); g.fillStyle='#c8231c'; g.font='bold 8px sans-serif'; g.fillText('8  388',w2/2,22); },0,1);
+  const flag=hiP2(32,32,(g,w2,h2)=>{ R(g,'#f2f0ea',0,0,w2,h2); R(g,'#c8231c',0,0,w2,11); g.fillStyle='#fff'; g.font=`bold 7px ${SANS}`; g.textAlign='center'; g.fillText('BUS STOP',w2/2,8); g.fillStyle='#c8231c'; g.font=`bold 8px ${SANS}`; g.fillText('8  388',w2/2,22); });
   mk(cyl(.04,.04,2.9,8),steel,S_,w/2+.7,1.45,-.4); mk(box(.5,.5,.03),[col(0xf2f0ea),col(0xf2f0ea),col(0xf2f0ea),col(0xf2f0ea),MM(flag),MM(flag)],S_,w/2+.7,2.55,-.4); }
 /* ---------- rubbish: bin bags by the shut units, chicken boxes, cans, a cone ---------- */
 const bagM=col(0x0d0e10), bagHi=col(0x22252a);
@@ -100,7 +100,7 @@ for(const [x,z,s] of [[VX0+3,KERB_Z-.35,1],[VX0+11,KERB_Z-.35,1],[VX0+7,ROAD_Z1+
   for(const z of [FZ-3.5,TZ+3.5]) blkT(4,deckY,7,tSoot,BRX,deckY/2,z,{tile:1.6,tileV:1.5,parent:D});
   blk(3.4,1.3,z1-z0,col(0x22302a),BRX,deckY+.65,(z0+z1)/2,D); for(let z=z0;z<z1;z+=1.2) blk(3.5,.12,.08,col(0x18221e),BRX,deckY+.2,z,D);
   blk(3.6,.12,z1-z0,col(0x3a4a40),BRX,deckY+1.36,(z0+z1)/2,D);
-  const tB=P2(256,32,(g,w,h)=>{ R(g,'#22302a',0,0,w,h); g.fillStyle='#d8d4c8'; g.font=`bold 20px ${SANS}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('BETHNAL GREEN',w/2,h/2+1); },0,1);
+  const tB=hiP2(256,32,(g,w,h)=>{ R(g,'#22302a',0,0,w,h); g.fillStyle='#d8d4c8'; g.font=`bold 20px ${SANS}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('BETHNAL GREEN',w/2,h/2+1); });
   mk(plane(7,.9),MM(tB),D,BRX-1.72,deckY+.65,(KERB_Z+ROAD_Z1)/2,0,-Math.PI/2,0);
   mk(box(.3,.4,.2),glowC(0xfff0d0),D,BRX-1.8,deckY-.3,(KERB_Z+ROAD_Z1)/2); }
 const tTrain=P2(128,32,(g,w,h)=>{ R(g,'#d8d8d4',0,0,w,h); R(g,'#e86a10',0,h-8,w,5); R(g,'#1a1a1c',0,4,w,2); for(let x=4;x<w;x+=16){ R(g,'#ffe8c0',x,9,11,12); R(g,'rgba(60,40,30,.5)',x+7,13,3,8); } R(g,'#2a2a2c',60,8,8,18); },0,1);
