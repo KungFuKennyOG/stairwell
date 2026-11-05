@@ -124,6 +124,6 @@ window.__london={state,CAST,setGoal,freezeOn,unfreeze,place,poseAll,step,cam,goa
   if(pb) pb.addEventListener('click',()=>{ document.getElementById('gStart').hidden=true; GAME.start(false); cv.requestPointerLock?.(); cv.focus(); });
   if(vb){ if(navigator.xr&&navigator.xr.isSessionSupported) navigator.xr.isSessionSupported('immersive-vr').then(ok=>{ vb.hidden=!ok; }).catch(()=>{}); vb.addEventListener('click',()=>GAME.enterVR()); }
   if(again) again.addEventListener('click',()=>{ GAME.reset(); cv.requestPointerLock?.(); });
-  if(look) look.addEventListener('click',()=>{ document.getElementById('gStart').hidden=true; }); }
+  if(look) look.addEventListener('click',()=>{ document.getElementById('gStart').hidden=true; document.body.classList.add('lookdev'); }); }
 if(!window.__CAPTURE) requestAnimationFrame(frame);
 })();

@@ -97,6 +97,22 @@ body.playing #view{cursor:crosshair}
 .gEnd[data-kind="nicked"] h2{color:var(--red)}
 .gEnd p{margin:0;max-width:60ch;color:var(--ink);font-size:15px}
 .gEnd button{font:400 20px/1 var(--name);text-transform:uppercase;letter-spacing:.04em;padding:12px 20px;border:0;background:var(--ink);color:#0b0b0b;cursor:pointer;pointer-events:auto}
+/* phone controls */
+.touch-ui{display:none}
+body.playing.touch .touch-ui{display:block}
+#tStick{position:fixed;left:max(22px,env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:132px;height:132px;border-radius:50%;background:rgba(236,230,218,.08);border:2px solid rgba(236,230,218,.35);touch-action:none;z-index:7}
+#tKnob{position:absolute;left:41px;top:41px;width:50px;height:50px;border-radius:50%;background:rgba(240,162,62,.85);box-shadow:0 0 0 3px rgba(0,0,0,.4);pointer-events:none}
+.tbtns{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;z-index:7}
+.tbtns button{width:84px;height:84px;border-radius:50%;border:2px solid rgba(236,230,218,.45);background:rgba(14,15,15,.6);color:var(--ink);font:400 18px/1 var(--name);letter-spacing:.04em;text-transform:uppercase;touch-action:none;-webkit-user-select:none;user-select:none}
+.tbtns button[aria-pressed="true"]{background:var(--amber);color:#160f06;border-color:var(--amber)}
+#tGrab{background:rgba(200,38,28,.75)}
+#tJump[data-ready="1"]{background:var(--amber);color:#160f06;border-color:var(--amber)}
+#gAct{position:absolute;left:50%;top:58%;transform:translateX(-50%);margin:0;padding:6px 12px;background:rgba(6,6,6,.85);border:1px solid var(--amber);color:var(--amber);font:700 15px/1 var(--type);letter-spacing:.06em}
+body.playing.touch #gSub{bottom:calc(178px + env(safe-area-inset-bottom,0px))}
+body.playing.touch #gObj{font-size:12.5px;max-width:min(420px,62vw)}
+body.playing.touch .gEnd{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+body:not(.lookdev):not(.capture) .hud{display:none}
+@media (max-height:520px){ .start{gap:8px} .start h2{font-size:clamp(40px,12vh,72px)} .start .pitch{font-size:13px} .start .ctl{display:none} .start .row button{padding:10px 16px;font-size:18px;min-height:44px} }
 body.capture .start,body.capture .ghud,body.capture .gEnd{display:none!important}
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
 </style>
@@ -122,10 +138,11 @@ body.capture .start,body.capture .ghud,body.capture .gEnd{display:none!important
   <p class="file">London VR &middot; the first job &middot; E2, 02:14</p>
   <h2>The <span>Bag</span></h2>
   <p class="pitch">Degsy's got a bag on the boot of his motor that needs to get to Arch 9, under the railway bridge. Two coppers are between you and it. Don't run. Don't let them see it.</p>
-  <div class="row"><button type="button" id="gVR" class="vr" hidden>Enter VR</button><button type="button" id="gPlay">Play on desktop</button><button type="button" id="gLook" class="ghost">Just look around</button></div>
-  <p class="ctl">Desktop: mouse to look, WASD to walk, Shift to run, E or click to grab. Headset: left stick to walk (click it to run), right stick to turn, squeeze or pull the trigger with a hand on the bag to grab it. Look at someone up close to meet them.</p>
+  <div class="row"><button type="button" id="gVR" class="vr" hidden>Enter VR</button><button type="button" id="gPlay">Play</button><button type="button" id="gLook" class="ghost">Just look around</button></div>
+  <p class="ctl">Phone: thumbstick to walk, drag to look, RUN, GRAB and JUMP (landscape works best). Desktop: mouse to look, WASD to walk, Shift to run, E or click to grab, Space to vault or climb. Headset: left stick to walk (click it to run), right stick to turn, squeeze with a hand on the bag to grab it, A or X to vault or climb. Look at someone up close to meet them.</p>
 </section>
-<div class="ghud" aria-live="polite"><p id="gObj"></p><p id="gStars" data-n="0"></p><p id="gSub" hidden></p></div>
+<div class="ghud" aria-live="polite"><p id="gAct" hidden></p><p id="gObj"></p><p id="gStars" data-n="0"></p><p id="gSub" hidden></p></div>
+<div class="touch-ui" aria-label="Touch controls"><div id="tStick" aria-label="Move"><div id="tKnob"></div></div><div class="tbtns"><button type="button" id="tJump">Jump</button><button type="button" id="tRun" aria-pressed="false">Run</button><button type="button" id="tGrab">Grab</button></div></div>
 <section class="gEnd" id="gEnd" hidden><h2 id="gEndH"></h2><p id="gEndP"></p><button type="button" id="gAgain">Run it again</button></section>
 <p id="err" hidden></p>
 <p id="loading">Putting the kettle on&hellip;</p>
@@ -1911,16 +1928,18 @@ const WALK=[[-16.3,FZ+.22,36.4,ROAD_Z1+2.75],
   [10.5,FZ-8.35,29.0,FZ-5.45],                                     /* the back alley, east to the bridge */
   [30.0,FZ-1.6,32.0,FZ+.8]];                                       /* Arch 9 */
 const BACKDOOR={x:28.7,z:FZ-6.9};
+const FENCE_X=20.5;
 const BLOCK=[[-12.55,KERB_Z+.12,-7.85,KERB_Z+1.98],[-.75,ROAD_Z1-1.98,3.95,ROAD_Z1-.12],[-3.72,ROAD_Z1+.73,-2.68,ROAD_Z1+1.77],
   [4.85,ROAD_Z1+2.7,8.35,ROAD_Z1+2.95],[4.8,ROAD_Z1+1.6,4.98,ROAD_Z1+2.85],[-4.86,KERB_Z-.86,-4.34,KERB_Z-.34]];
 for(const x of [-9.6,-5,0,5,9.8]) BLOCK.push([x-.12,KERB_Z-.52,x+.12,KERB_Z-.28]);
+BLOCK.push([FENCE_X-.08,FZ-8.45,FENCE_X+.08,FZ-5.5]); /* the hoarding across the back alley */
 for(const [x,z] of [[3.6,KERB_Z-.35],[-8.6,KERB_Z-.35],[11.9,KERB_Z-.3],[14.9,ROAD_Z1+.3]]) BLOCK.push([x-.15,z-.15,x+.15,z+.15]); /* lamp columns, Belisha beacons */
 /* sight: the cars, the phone box, the shelter's advert, every pier and shop wall along the frontage, the lobby's walls */
 const SIGHT=BLOCK.slice(0,5);
 for(const [x,w] of UNITS.map(u=>[u[0],u[1]])) for(const s of [-1,1]) SIGHT.push([x+s*(w/2+.21)-.21,FZ-2.6,x+s*(w/2+.21)+.21,FZ+.2]);
 for(const x of [10.2,13.0]) SIGHT.push([x-.06,FZ-2.6,x+.06,FZ]);                   /* the lobby's side walls */
 SIGHT.push([-30,FZ-30,40,FZ-8.45],[-30,FZ-5.55,10.95,FZ-2.62],[12.25,FZ-5.55,40,FZ-2.62],[-30,FZ-8.45,10.45,FZ-5.55],[29.05,FZ-8.45,40,FZ-5.55]); /* the buildings, with the passage and the alley carved out */
-SIGHT.push([10.2,FZ-2.68,11.0,FZ-2.55],[12.2,FZ-2.68,13.0,FZ-2.55]);                  /* the lobby's back wall either side of the doorway */
+SIGHT.push([FENCE_X-.08,FZ-8.45,FENCE_X+.08,FZ-5.5],[10.2,FZ-2.68,11.0,FZ-2.55],[12.2,FZ-2.68,13.0,FZ-2.55]);                  /* the lobby's back wall either side of the doorway */
 const inR=(r,x,z,m)=>x>r[0]+m&&x<r[2]-m&&z>r[1]+m&&z<r[3]-m;
 function standable(x,z,rad){ if(!WALK.some(r=>inR(r,x,z,rad))) return false; for(const b of BLOCK) if(inR([b[0]-rad,b[1]-rad,b[2]+rad,b[3]+rad],x,z,0)) return false; return true; }
 function segHits(ax,az,bx,bz,r){ /* slab test, 2D */ let t0=0,t1=1; const dx=bx-ax,dz=bz-az;
@@ -1954,6 +1973,13 @@ const floorY=(x,z)=>z>KERB_Z&&z<ROAD_Z1?0:PAVE_Y;
   wallP(2.8,6.2,tSoot,29.05,PAVE_Y+3.1,(z0+z1)/2,-Math.PI/2,{parent:B_,tile:1.6,tileH:1.5});                /* the bridge abutment */
   /* back windows, bins, pipes, a security light, Arch 9's back door */
   for(const x of [14,17.5,21,24.5]){ wallP(.8,.9,(x|0)%2?tWinLit:tWinDark,x,PAVE_Y+2.6,z1-.03,Math.PI,{parent:B_,whole:true,unlit:(x|0)%2===1}); blk(.06,4.2,.06,col(0x2a2a2a),x+1.2,PAVE_Y+2.1,z1-.06,B_); }
+  /* a hoarding across the alley, plastered with fly-posters; two wheelie bins in front are the way up */
+  { const tPost=P2(256,128,(g,w,h)=>{ R(g,'#3a2c1e',0,0,w,h); const r=rng(1681); for(let i=0;i<w;i+=16) R(g,'rgba(0,0,0,.25)',i,0,2,h);
+      const posters=[['#e83a8a','#111','RAVE','ROMFORD · SAT'],['#f2d43a','#111','GARAGE','MINISTRY'],['#2a6ac8','#fff','GRIME','CLUB 9'],['#ece8e0','#c8231c','LOST CAT','REWARD'],['#111','#f0a23e','JUNGLE','ALL NITE'],['#58b848','#111','SOUND','SYSTEM']];
+      for(let k=0;k<14;k++){ const pp=posters[k%posters.length],x=(k*41+r()*20)%(w-40),y=6+r()*(h-60),pw=34+r()*10,ph=46+r()*8; g.save(); g.translate(x+pw/2,y+ph/2); g.rotate((r()-.5)*.12); R(g,pp[0],-pw/2,-ph/2,pw,ph); g.fillStyle=pp[1]; g.font=`bold 10px ${SANS}`; g.textAlign='center'; g.fillText(pp[2],0,-6); g.font='bold 5px sans-serif'; g.fillText(pp[3],0,6); g.restore(); } },4,1682);
+    wallP(2.9,2.3,tPost,FENCE_X,PAVE_Y+1.15,(z0+z1)/2,Math.PI/2,{parent:B_,whole:true,double:true});
+    blk(.08,2.36,2.95,col(0x2a2018),FENCE_X,PAVE_Y+1.15,(z0+z1)/2,B_); for(const z of [z0+.05,z1-.05]) blk(.12,2.5,.12,col(0x1a1410),FENCE_X,PAVE_Y+1.25,z,B_);
+    for(const z of [FZ-6.2,FZ-6.95]){ blk(.62,1.1,.7,col(0x1a3a2a),FENCE_X-.55,PAVE_Y+.55,z,B_); blk(.66,.06,.74,col(0x111111),FENCE_X-.55,PAVE_Y+1.12,z,B_); } }
   for(const [x,c] of [[15.6,0x1a3a2a],[16.4,0x2a2a2a],[22.8,0x1a3a2a]]){ blk(.62,1.1,.7,col(c),x,PAVE_Y+.55,z0+.42,B_); blk(.66,.06,.74,col(0x111111),x,PAVE_Y+1.12,z0+.42,B_); }
   for(let i=0;i<4;i++) mk(cyl(.2,.24,.4,7),col(0x0d0e10),B_,19.5+i*.4,PAVE_Y+.2,z0+.3+(i%2)*.3,0,i,0);
   blk(.3,.15,.15,glowC(0xfff0d0),20,PAVE_Y+3.3,z1-.1,B_); { const gm=MM(tGlowSodium,{unlit:true,double:true}); gm.cut=2; mk(plane(1.4,1.4),gm,B_,20,PAVE_Y+3.2,z1-.2,0,Math.PI,0); }
@@ -2013,7 +2039,7 @@ function speakerHead(who){ if(who==='terry') return [LOCKUP.x,PAVE_Y+2.2,FZ-.2];
 
 /* ---------- HUD (desktop HTML; in the headset, Danny's phone in the left hand) ---------- */
 const $g=id=>document.getElementById(id);
-function setObj(s){ if(G.obj===s) return; G.obj=s; const e=$g('gObj'); if(e) e.textContent=s; phoneDirty=true; }
+function setObj(s){ if(G.obj===s) return; G.obj=s; const gb=$g('tGrab'); if(gb) gb.textContent=G.result?'Again':'Grab'; const e=$g('gObj'); if(e) e.textContent=s; phoneDirty=true; }
 function setStars(n){ n=clamp(n,0,2); if(G.stars!==n){ G.stars=n; G.maxStars=Math.max(G.maxStars,n); phoneDirty=true; } const e=$g('gStars'); if(e){ e.dataset.n=n; e.textContent=n?'★'.repeat(n)+'☆'.repeat(2-n):''; } }
 let phoneDirty=true;
 
@@ -2023,7 +2049,7 @@ const tPhone=tex(256,448,'#0a0a0c',null);
 function drawPhone(){ const g=tPhone.c.getContext('2d'),w=256,h=448; R(g,'#0b0c10',0,0,w,h); R(g,'#c8231c',0,0,w,46); g.fillStyle='#fff'; g.font=`bold 24px ${TYPEF}`; g.textAlign='left'; g.fillText('DEGSY',14,32);
   g.fillStyle='#f0ece2'; g.font=`bold 22px ${TYPEF}`; const words=G.obj.split(' '); let ln='',y=90; for(const wd of words){ const tr=ln?ln+' '+wd:wd; if(g.measureText(tr).width>w-28&&ln){ g.fillText(ln,14,y); ln=wd; y+=30; } else ln=tr; } g.fillText(ln,14,y);
   g.font=`64px ${SANS}`; g.fillStyle=G.stars?'#ffd040':'#3a3a3a'; g.fillText('★',20,h-40); g.fillStyle=G.stars>1?'#ffd040':'#3a3a3a'; g.fillText('★',110,h-40);
-  g.font=`bold 18px ${TYPEF}`; g.fillStyle='#8a857a'; g.fillText('02:14  E2',14,h-110); retex(tPhone); phoneDirty=false; }
+  g.font=`bold 18px ${TYPEF}`; g.fillStyle='#8a857a'; g.fillText('02:14  E2',14,h-110); if(promptK){ g.fillStyle='#f0a23e'; g.font=`bold 22px ${TYPEF}`; g.fillText('A · '+(promptK==='climb'?'CLIMB':'VAULT'),14,h-140); } retex(tPhone); phoneDirty=false; }
 function buildHands(){ const skin=M(null,{color:0xc8906c}),sleeve=M(null,{color:0x111214});
   for(const s of ['left','right']){ const n=N(STREET); mk(box(.085,.1,.11),skin,n,0,0,.02); mk(box(.03,.05,.06),skin,n,(s==='left'?1:-1)*.05,.02,-.01); mk(cyl(.045,.05,.2,8),sleeve,n,0,-.01,.15,Math.PI/2); n.vis=false; HANDS[s]={n,M:m4.make(),pos:[0,0,0],grip:false,gripEdge:false}; }
   const ph=N(HANDS.left.n); mk(box(.075,.14,.01),col(0x111111),ph,0,0,0); mk(plane(.066,.116),M(tPhone,{unlit:true}),ph,0,0,.006); ph.p=[0,.07,-.02]; ph.r=[-.9,0,0]; }
@@ -2031,7 +2057,7 @@ function buildHands(){ const skin=M(null,{color:0xc8906c}),sleeve=M(null,{color:
 /* ---------- start / reset ---------- */
 function reset(){
   G.phase='meet'; G.hasBag=false; G.lostT=0; G.queue=[]; G.line=null; G.said.clear(); G.maxStars=0; G.t=0; G.result=null; G.endT=0; setStars(0);
-  P.x=START.x; P.z=START.z; P.yaw=START.yaw; P.pitch=-.05; P.run=false;
+  P.x=START.x; P.z=START.z; P.yaw=START.yaw; P.pitch=-.05; P.run=false; ACT.on=false; P.hop=0;
   BAG.p=BAG_HOME.slice(); BAG.r=[0,.1,0]; setParent(BAG,STREET);
   for(const c of COPS){ c.pos[0]=c.post[0]; c.pos[1]=c.post[1]; c.hd=c.post[2]; c.state='post'; c.sus=0; c.pi=0; c.wait=0; c.E.G=null; c.mark.vis=false; }
   for(const k in labels) labels[k].n.vis=false;
@@ -2115,15 +2141,63 @@ function tryGrab(handPos){ if(G.hasBag||G.result||G.phase==='meet'||G.phase==='b
   if(handPos){ if(v3.len(v3.sub(handPos,b))>.38) return false; } else if(Math.hypot(P.x-b[0],P.z-b[2])>2.0) return false;
   G.hasBag=true; return true; }
 
+/* ---------- light parkour: vault the low stuff (bollards, the bin, car bonnets), climb the alley hoarding ----------
+   One button: Space on desktop, JUMP on the phone, A or X in the headset. It looks along where you face for something
+   within reach; a vault is a 0.6 s hop over, a climb is up onto the bins, over the top and down the far side (1.5 s).
+   The coppers can't do either: a car or a bollard makes them go round, and the hoarding stops them dead. */
+const PK=[];
+for(const x of [-9.6,-5,0,5,9.8]) PK.push({r:[x-.12,KERB_Z-.52,x+.12,KERB_Z-.28],h:.92,kind:'vault'});
+PK.push({r:[-4.86,KERB_Z-.86,-4.34,KERB_Z-.34],h:.95,kind:'vault'});
+PK.push({r:[-12.55,KERB_Z+.12,-7.85,KERB_Z+1.98],h:1.0,kind:'vault'},{r:[-.75,ROAD_Z1-1.98,3.95,ROAD_Z1-.12],h:1.0,kind:'vault'});
+PK.push({r:[FENCE_X-.08,FZ-8.45,FENCE_X+.08,FZ-5.5],h:2.3,kind:'climb'});
+const ACT={on:false,t:0,dur:0,from:null,to:null,peak:0,kind:''};
+function rayRect(x,z,fx,fz,r){ let t0=-1e9,t1=1e9; for(const [p,d,lo,hi] of [[x,fx,r[0],r[2]],[z,fz,r[1],r[3]]]){ if(Math.abs(d)<1e-9){ if(p<lo||p>hi) return null; continue; } let a=(lo-p)/d,b=(hi-p)/d; if(a>b){ const t=a; a=b; b=t; } t0=Math.max(t0,a); t1=Math.min(t1,b); } return t0<=t1?[t0,t1]:null; }
+function parkourAhead(){ if(G.result||!G.on) return null; const fx=Math.sin(P.yaw),fz=Math.cos(P.yaw); let best=null;
+  for(const o of PK){ const h=rayRect(P.x,P.z,fx,fz,o.r); if(!h||h[0]<0||h[0]>(o.kind==='climb'?1.3:1.0)) continue; if(o.kind==='vault'&&h[1]-h[0]>2.3) continue;
+    let land=null; for(const extra of [.45,.75,1.05]){ const lx=P.x+fx*(h[1]+extra),lz=P.z+fz*(h[1]+extra); if(standable(lx,lz,P.r)){ land=[lx,lz]; break; } }
+    if(land&&(!best||h[0]<best.d)) best={o,land,d:h[0],edge:[P.x+fx*h[0],P.z+fz*h[0]]}; }
+  return best; }
+function tryParkour(){ if(ACT.on) return false; const a=parkourAhead(); if(!a) return false;
+  Object.assign(ACT,{on:true,t:0,kind:a.o.kind,from:[P.x,P.z],edge:a.edge,to:a.land,dur:a.o.kind==='climb'?1.5:.6,peak:a.o.kind==='climb'?a.o.h+.15:a.o.h*.5+.22}); return true; }
+function actTick(dt){ if(!ACT.on){ P.hop=0; return; } ACT.t+=dt; const k=Math.min(1,ACT.t/ACT.dur), e=x=>x*x*(3-2*x); const bx=P.x,bz=P.z;
+  if(ACT.kind==='vault'){ P.x=lerp(ACT.from[0],ACT.to[0],e(k)); P.z=lerp(ACT.from[1],ACT.to[1],e(k)); P.hop=ACT.peak*Math.sin(Math.PI*k); }
+  else { const up=.55; if(k<up){ const q=e(k/up); P.x=lerp(ACT.from[0],ACT.edge[0],q*.8); P.z=lerp(ACT.from[1],ACT.edge[1],q*.8); P.hop=ACT.peak*q; }
+    else { const q=e((k-up)/(1-up)); const sx=lerp(ACT.from[0],ACT.edge[0],.8),sz=lerp(ACT.from[1],ACT.edge[1],.8); P.x=lerp(sx,ACT.to[0],q); P.z=lerp(sz,ACT.to[1],q); P.hop=ACT.peak*(1-q*q); } }
+  P.running=true; ACT.dx=P.x-bx; ACT.dz=P.z-bz;
+  if(k>=1){ ACT.on=false; P.hop=0; } }
+P.hop=0;
+
 /* ---------- desktop input and camera ---------- */
-const keysG={}; addEventListener('keydown',e=>{ if(!G.on) return; keysG[e.code]=true; if(e.code==='KeyE') tryGrab(null); if(e.code==='KeyR'&&G.result) reset(); if(e.code==='Escape'&&G.result) reset(); });
+const keysG={}; addEventListener('keydown',e=>{ if(!G.on) return; keysG[e.code]=true; if(e.code==='KeyE') tryGrab(null); if(e.code==='Space'){ e.preventDefault(); tryParkour(); } if(e.code==='KeyR'&&G.result) reset(); if(e.code==='Escape'&&G.result) reset(); });
 addEventListener('keyup',e=>{ keysG[e.code]=false; });
 addEventListener('mousemove',e=>{ if(!G.on||G.xr||document.pointerLockElement!==cv) return; P.yaw-=e.movementX*.0024; P.pitch=clamp(P.pitch-e.movementY*.0024,-1.3,1.25); });
 cv.addEventListener('click',()=>{ if(G.on&&!G.xr&&document.pointerLockElement!==cv) cv.requestPointerLock?.(); if(G.on&&!G.xr) tryGrab(null); });
+/* ---------- phone: a thumbstick bottom-left, drag anywhere else to look, RUN and GRAB buttons bottom-right ---------- */
+const TOUCH={stick:[0,0],sid:null,run:false,look:null};
+{ const st=$g('tStick'),kn=$g('tKnob'),R_=52;
+  const setK=(x,y)=>{ if(kn) kn.style.transform=`translate(${x}px,${y}px)`; };
+  if(st){ st.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); TOUCH.sid=e.pointerId; const r=st.getBoundingClientRect(); TOUCH.c=[r.left+r.width/2,r.top+r.height/2]; try{ st.setPointerCapture(e.pointerId); }catch(_){} move(e); });
+    const move=e=>{ if(e.pointerId!==TOUCH.sid) return; let dx=e.clientX-TOUCH.c[0],dy=e.clientY-TOUCH.c[1]; const d=Math.hypot(dx,dy); if(d>R_){ dx*=R_/d; dy*=R_/d; } TOUCH.stick=[dx/R_,dy/R_]; setK(dx,dy); };
+    st.addEventListener('pointermove',e=>{ e.preventDefault(); move(e); });
+    const end=e=>{ if(e.pointerId!==TOUCH.sid) return; TOUCH.sid=null; TOUCH.stick=[0,0]; setK(0,0); };
+    st.addEventListener('pointerup',end); st.addEventListener('pointercancel',end); }
+  const rb=$g('tRun'),gb=$g('tGrab');
+  if(rb) rb.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); TOUCH.run=!TOUCH.run; rb.setAttribute('aria-pressed',String(TOUCH.run)); });
+  if(gb) gb.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); if(G.result) reset(); else tryGrab(null); });
+  const jb=$g('tJump'); if(jb) jb.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); tryParkour(); });
+  /* look: a finger dragged on the view */
+  cv.addEventListener('pointerdown',e=>{ if(!G.on||G.xr||e.pointerType==='mouse') return; TOUCH.look={id:e.pointerId,x:e.clientX,y:e.clientY}; });
+  cv.addEventListener('pointermove',e=>{ const L_=TOUCH.look; if(!L_||e.pointerId!==L_.id) return; P.yaw-=(e.clientX-L_.x)*.0065; P.pitch=clamp(P.pitch-(e.clientY-L_.y)*.0055,-1.2,1.1); L_.x=e.clientX; L_.y=e.clientY; });
+  const lend=e=>{ if(TOUCH.look&&e.pointerId===TOUCH.look.id) TOUCH.look=null; }; cv.addEventListener('pointerup',lend); cv.addEventListener('pointercancel',lend);
+  if(matchMedia('(pointer: coarse)').matches||'ontouchstart' in window) document.body.classList.add('touch'); }
+let promptK='';
+function promptTick(){ const a=!ACT.on&&G.on?parkourAhead():null, k=a?a.o.kind:''; if(k===promptK) return; promptK=k;
+  const el=$g('gAct'); if(el){ el.hidden=!k; el.textContent=(document.body.classList.contains('touch')?'JUMP':G.xr?'A':'SPACE')+' · '+(k==='climb'?'CLIMB':'VAULT'); }
+  const jb=$g('tJump'); if(jb) jb.dataset.ready=k?'1':''; phoneDirty=true; }
 function deskTick(dt){
   let f=(keysG.KeyW||keysG.ArrowUp?1:0)-(keysG.KeyS||keysG.ArrowDown?1:0), s=(keysG.KeyD||keysG.ArrowRight?1:0)-(keysG.KeyA||keysG.ArrowLeft?1:0);
-  P.run=!!(keysG.ShiftLeft||keysG.ShiftRight); moveP(f,s,P.yaw,dt);
-  const ey=floorY(P.x,P.z)+1.65, cp=Math.cos(P.pitch);
+  f-=TOUCH.stick[1]; s+=TOUCH.stick[0]; P.run=!!(keysG.ShiftLeft||keysG.ShiftRight||TOUCH.run); if(ACT.on) actTick(dt); else moveP(f,s,P.yaw,dt);
+  const ey=floorY(P.x,P.z)+1.65+(P.hop||0), cp=Math.cos(P.pitch);
   cam.t=[P.x,ey,P.z]; cam.r=.04; cam.th=P.yaw+Math.PI; cam.ph=Math.PI/2+P.pitch; goal.t=cam.t.slice(); goal.th=cam.th; goal.ph=cam.ph; goal.r=cam.r;
   /* the bag in your right hand, low at your side */
   if(G.hasBag){ setParent(BAG,STREET); const fx=Math.sin(P.yaw),fz=Math.cos(P.yaw),rx=-fz,rz=fx; BAG.p=[P.x+fx*.45+rx*-.32,ey-.72,P.z+fz*.45+rz*-.32]; BAG.r=[0,P.yaw+Math.PI/2,0]; } }
@@ -2157,11 +2231,11 @@ function xrFrame(t,xf){ const session=xf.session; session.requestAnimationFrame(
     const gp=src.gamepad; if(!gp) continue; const b=gp.buttons,ax=gp.axes,pr=i=>!!(b[i]&&b[i].pressed),edge=i=>{ const k=hand+i,p=pr(i),w=XR.btn[k]; XR.btn[k]=p; return p&&!w; };
     const grip=edge(1),trig=edge(0),stickC=edge(3);
     if((grip||trig)&&!G.hasBag&&tryGrab(H_.pos)) G.bagHand=hand;
-    if((trig||edge(4))&&G.result) reset();
-    if(hand==='left'){ const sx=ax[2]||0,sz=ax[3]||0; if(stickC){ XR.runToggle=!XR.runToggle; } P.run=XR.runToggle; const bx=P.x,bz=P.z; moveP(-sz,sx,hy,dt); if(Math.hypot(sx,sz)<.12) XR.runToggle=false; XR.origin[0]+=P.x-bx; XR.origin[2]+=P.z-bz; }
+    const ax_=edge(4); if((trig||ax_)&&G.result) reset(); else if(ax_) tryParkour();
+    if(hand==='left'){ const sx=ax[2]||0,sz=ax[3]||0; if(stickC){ XR.runToggle=!XR.runToggle; } P.run=XR.runToggle; const bx=P.x,bz=P.z; if(ACT.on) actTick(dt); else moveP(-sz,sx,hy,dt); if(Math.hypot(sx,sz)<.12) XR.runToggle=false; XR.origin[0]+=P.x-bx; XR.origin[2]+=P.z-bz; }
     else { const sx=ax[2]||0; if(Math.abs(sx)>.7&&!XR.snap){ XR.snap=true; const a=-Math.sign(sx)*Math.PI/4,c=Math.cos(a),s=Math.sin(a),dx=XR.origin[0]-eye[0],dz=XR.origin[2]-eye[2];
         XR.origin[0]=eye[0]+dx*c+dz*s; XR.origin[2]=eye[2]-dx*s+dz*c; XR.yaw+=a; } else if(Math.abs(sx)<.3) XR.snap=false; } }
-  XR.origin[1]=floorY(P.x,P.z)+XR.floorY;
+  XR.origin[1]=floorY(P.x,P.z)+XR.floorY+(P.hop||0);
   if(G.hasBag&&G.bagHand&&HANDS[G.bagHand]){ setParent(BAG,HANDS[G.bagHand].n); BAG.p=[0,-.22,.02]; BAG.r=[0,Math.PI/2,0]; }
   if(phoneDirty) drawPhone();
   /* the cam fields drive the freeze-frame gaze test */
@@ -2186,10 +2260,10 @@ function postTo(target,x,y,w,h,sw,sh){ gl.bindFramebuffer(gl.FRAMEBUFFER,target)
 
 /* ---------- one step of the game (the art-set loop calls this; the headset loop too) ---------- */
 let stepWorld=()=>{};
-function tick(dt){ if(!G.on) return; if(!G.xr) deskTick(dt);
+function tick(dt){ if(!G.on) return; if(!G.xr) deskTick(dt); promptTick();
   G.t+=dt; if(G.result){ G.endT+=dt; linesTick(dt); return; }
   for(const c of COPS) copTick(c,dt); jobTick(dt); linesTick(dt); }
-return {G,P,COPS,start,reset,tick,enterVR,tryGrab,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
+return {G,P,COPS,ACT,start,reset,tick,enterVR,tryGrab,tryParkour,parkourAhead,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
 })();
 
 /* =====================================================================================================
@@ -2318,7 +2392,7 @@ window.__london={state,CAST,setGoal,freezeOn,unfreeze,place,poseAll,step,cam,goa
   if(pb) pb.addEventListener('click',()=>{ document.getElementById('gStart').hidden=true; GAME.start(false); cv.requestPointerLock?.(); cv.focus(); });
   if(vb){ if(navigator.xr&&navigator.xr.isSessionSupported) navigator.xr.isSessionSupported('immersive-vr').then(ok=>{ vb.hidden=!ok; }).catch(()=>{}); vb.addEventListener('click',()=>GAME.enterVR()); }
   if(again) again.addEventListener('click',()=>{ GAME.reset(); cv.requestPointerLock?.(); });
-  if(look) look.addEventListener('click',()=>{ document.getElementById('gStart').hidden=true; }); }
+  if(look) look.addEventListener('click',()=>{ document.getElementById('gStart').hidden=true; document.body.classList.add('lookdev'); }); }
 if(!window.__CAPTURE) requestAnimationFrame(frame);
 })();
 

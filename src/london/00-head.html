@@ -97,6 +97,22 @@ body.playing #view{cursor:crosshair}
 .gEnd[data-kind="nicked"] h2{color:var(--red)}
 .gEnd p{margin:0;max-width:60ch;color:var(--ink);font-size:15px}
 .gEnd button{font:400 20px/1 var(--name);text-transform:uppercase;letter-spacing:.04em;padding:12px 20px;border:0;background:var(--ink);color:#0b0b0b;cursor:pointer;pointer-events:auto}
+/* phone controls */
+.touch-ui{display:none}
+body.playing.touch .touch-ui{display:block}
+#tStick{position:fixed;left:max(22px,env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:132px;height:132px;border-radius:50%;background:rgba(236,230,218,.08);border:2px solid rgba(236,230,218,.35);touch-action:none;z-index:7}
+#tKnob{position:absolute;left:41px;top:41px;width:50px;height:50px;border-radius:50%;background:rgba(240,162,62,.85);box-shadow:0 0 0 3px rgba(0,0,0,.4);pointer-events:none}
+.tbtns{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;z-index:7}
+.tbtns button{width:84px;height:84px;border-radius:50%;border:2px solid rgba(236,230,218,.45);background:rgba(14,15,15,.6);color:var(--ink);font:400 18px/1 var(--name);letter-spacing:.04em;text-transform:uppercase;touch-action:none;-webkit-user-select:none;user-select:none}
+.tbtns button[aria-pressed="true"]{background:var(--amber);color:#160f06;border-color:var(--amber)}
+#tGrab{background:rgba(200,38,28,.75)}
+#tJump[data-ready="1"]{background:var(--amber);color:#160f06;border-color:var(--amber)}
+#gAct{position:absolute;left:50%;top:58%;transform:translateX(-50%);margin:0;padding:6px 12px;background:rgba(6,6,6,.85);border:1px solid var(--amber);color:var(--amber);font:700 15px/1 var(--type);letter-spacing:.06em}
+body.playing.touch #gSub{bottom:calc(178px + env(safe-area-inset-bottom,0px))}
+body.playing.touch #gObj{font-size:12.5px;max-width:min(420px,62vw)}
+body.playing.touch .gEnd{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+body:not(.lookdev):not(.capture) .hud{display:none}
+@media (max-height:520px){ .start{gap:8px} .start h2{font-size:clamp(40px,12vh,72px)} .start .pitch{font-size:13px} .start .ctl{display:none} .start .row button{padding:10px 16px;font-size:18px;min-height:44px} }
 body.capture .start,body.capture .ghud,body.capture .gEnd{display:none!important}
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
 </style>
@@ -122,10 +138,11 @@ body.capture .start,body.capture .ghud,body.capture .gEnd{display:none!important
   <p class="file">London VR &middot; the first job &middot; E2, 02:14</p>
   <h2>The <span>Bag</span></h2>
   <p class="pitch">Degsy's got a bag on the boot of his motor that needs to get to Arch 9, under the railway bridge. Two coppers are between you and it. Don't run. Don't let them see it.</p>
-  <div class="row"><button type="button" id="gVR" class="vr" hidden>Enter VR</button><button type="button" id="gPlay">Play on desktop</button><button type="button" id="gLook" class="ghost">Just look around</button></div>
-  <p class="ctl">Desktop: mouse to look, WASD to walk, Shift to run, E or click to grab. Headset: left stick to walk (click it to run), right stick to turn, squeeze or pull the trigger with a hand on the bag to grab it. Look at someone up close to meet them.</p>
+  <div class="row"><button type="button" id="gVR" class="vr" hidden>Enter VR</button><button type="button" id="gPlay">Play</button><button type="button" id="gLook" class="ghost">Just look around</button></div>
+  <p class="ctl">Phone: thumbstick to walk, drag to look, RUN, GRAB and JUMP (landscape works best). Desktop: mouse to look, WASD to walk, Shift to run, E or click to grab, Space to vault or climb. Headset: left stick to walk (click it to run), right stick to turn, squeeze with a hand on the bag to grab it, A or X to vault or climb. Look at someone up close to meet them.</p>
 </section>
-<div class="ghud" aria-live="polite"><p id="gObj"></p><p id="gStars" data-n="0"></p><p id="gSub" hidden></p></div>
+<div class="ghud" aria-live="polite"><p id="gAct" hidden></p><p id="gObj"></p><p id="gStars" data-n="0"></p><p id="gSub" hidden></p></div>
+<div class="touch-ui" aria-label="Touch controls"><div id="tStick" aria-label="Move"><div id="tKnob"></div></div><div class="tbtns"><button type="button" id="tJump">Jump</button><button type="button" id="tRun" aria-pressed="false">Run</button><button type="button" id="tGrab">Grab</button></div></div>
 <section class="gEnd" id="gEnd" hidden><h2 id="gEndH"></h2><p id="gEndP"></p><button type="button" id="gAgain">Run it again</button></section>
 <p id="err" hidden></p>
 <p id="loading">Putting the kettle on&hellip;</p>
