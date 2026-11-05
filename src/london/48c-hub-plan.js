@@ -50,6 +50,8 @@ const LANDMARK_BLOCKS=[
   ['gardens',625.6,13.4,750.5,128.9], ['church',625.6,-89.5,750.5,-3], ['petrol',627,-460.5,750.5,-410],
 ];
 const STREET_BY=new Map(STREETS.map(s=>[s[0],s]));
+const RESERVED=[[627,-462,752,-408]]; /* the petrol station sits in a corner of a bigger block */
+const reserved=(x0,z0,x1,z1)=>RESERVED.some(q=>x0<q[2]&&x1>q[0]&&z0<q[3]&&z1>q[1]);
 
 /* ---------------- ground: road and pavement rects ---------------- */
 const ROADR=[], PAVER=[];
@@ -131,7 +133,7 @@ function buildBlock(B,bi){ const [x0,z0,x1,z1]=B.r, r=hr(5000+bi*7919), cx=(x0+x
   /* the yard inside: ground, a garden wall ring, sheds and garages, trees; an alley gate from the longest street side */
   const ix0=x0+(D.w||0)+7, iz0=z0+(D.n||0)+7, ix1=x1-(D.e||0)-7, iz1=z1-(D.s||0)-7;
   eFlat(x0,z0,x1,z1,PAVE_Y-.001,mYard,2,8);
-  if(ix1-ix0>6&&iz1-iz0>6){ for(let n=(ix1-ix0)*(iz1-iz0)/420|0;n>0;n--){ const gx=ix0+2+r()*(ix1-ix0-6), gz=iz0+2+r()*(iz1-iz0-6), gw=3+r()*3, gd=5+r()*2, gh=2.4+r()*.3;
+  if(ix1-ix0>6&&iz1-iz0>6){ for(let n=(ix1-ix0)*(iz1-iz0)/420|0;n>0;n--){ const gx=ix0+2+r()*(ix1-ix0-6), gz=iz0+2+r()*(iz1-iz0-6), gw=3+r()*3, gd=5+r()*2, gh=2.4+r()*.3; if(reserved(gx-2,gz-2,gx+gw+2,gz+gd+2)) continue;
       if(r()<.62){ eBoxF(gx,gz,gx+gw,gz+gd,PAVE_Y,PAVE_Y+gh,{n:mBrickW,s:SHUT[r()*6|0],e:mBrickW,w:mBrickW,t:mFelt},{tu:gw,tv:gh}); hsol(gx,gz,gx+gw,gz+gd,PAVE_Y+gh); }
       else { tree(gx+1.5,gz+1.5,.8+r()*.5); } } }
 }
@@ -139,6 +141,7 @@ function buildBlock(B,bi){ const [x0,z0,x1,z1]=B.r, r=hr(5000+bi*7919), cx=(x0+x
 /* one lot: ground floor by trade, upper floors, roof, chimneys, a rear extension, and a garden wall */
 function buildLot(L,BR,D,r,Z){ const [x0,z0,x1,z1]=BR, k=L.k, d=D[k], horiz=k==='n'||k==='s';
   /* lot rect */ let lx0,lz0,lx1,lz1; if(k==='n'){ lx0=L.a; lx1=L.b; lz0=z0; lz1=z0+d; } else if(k==='s'){ lx0=L.a; lx1=L.b; lz0=z1-d; lz1=z1; } else if(k==='w'){ lz0=L.a; lz1=L.b; lx0=x0; lx1=x0+d; } else { lz0=L.a; lz1=L.b; lx0=x1-d; lx1=x1; }
+  if(reserved(lx0-8,lz0-8,lx1+8,lz1+8)) return;
   const shop=L.f==='shops'||L.f==='curry'||L.f==='market'||L.f==='vintage', st=L.pub?3:L.st, gH=shop||L.pub?3.6:3.2, top=PAVE_Y+gH+(st-1)*HUB.FLOOR, F=facade(L.brick,Z.win,L.fv);
   const front={n:'n',s:'s',w:'w',e:'e'}[k], U=k==='n'?NX:k==='s'?X_:k==='w'?Z_:NZ, out=k==='n'?[0,0,-1]:k==='s'?[0,0,1]:k==='w'?[-1,0,0]:[1,0,0];
   const fx=k==='w'?lx0:k==='e'?lx1:(lx0+lx1)/2, fz=k==='n'?lz0:k==='s'?lz1:(lz0+lz1)/2, fw=horiz?lx1-lx0:lz1-lz0;
@@ -245,4 +248,4 @@ function buildHub(){ const t0=performance.now();
   ARCH.vis=false; sky.vis=false; eBox(-16.6,-27,-16.0,-3.2,PAVE_Y,PAVE_Y+2.4,mBrickW,{tu:1.6,tv:1.5}); hsol(-16.6,-27,-16.0,-3.2,PAVE_Y+2.4);
   HUBX={ floor:(x,z)=>onRoad(x,z)?0:PAVE_Y, walk:(x,z,rad)=>x>HUB.x0+rad&&x<HUB.x1-rad&&z>HUB.z0+rad&&z<HUB.z1-rad&&!inCore(x,z,0), blocks, built:nb, ms:performance.now()-t0 };
   console.log('[london] hub: blocks',blocks.length,'built',nb,'verts',EMIT.verts,'solids',GAME.SOL.length,'lights',STREET_LIGHT.pl.length,'ms',Math.round(HUBX.ms)); }
-buildHub();
+/* built at the end of 48d, once the landmarks are defined */
