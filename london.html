@@ -84,8 +84,8 @@ body.frozen .card,body.frozen .label,body.frozen #clock,body.frozen .hint{opacit
   </header>
   <fieldset class="look" style="margin:0">
     <legend class="seg-label" style="padding:0">Look</legend>
-    <label><input type="checkbox" id="grade" checked> Film grade</label>
-    <label><input type="checkbox" id="grain" checked> Grain</label>
+    <label><input type="checkbox" id="grade" checked> Night grade</label>
+    <label><input type="checkbox" id="ps1" checked> PS1</label>
     <label><input type="checkbox" id="rain" checked> Rain</label>
   </fieldset>
   <p id="clock" aria-live="polite"></p>
@@ -1221,281 +1221,61 @@ function baseMatsLazy(k){ const s=HEADS[k],sk_=skinOf(k); FACE[k]=FACE[k]||{}; F
 
 
 /* =====================================================================================================
-   LONDON VR'S OWN LOOK, on top of the Stairwell renderer, without touching the shared engine.
-   - No PS1 pass: no vertex snap, no affine warp, no 15-bit dither. Textures are mipmapped, linear and anisotropic.
-   - A bleach-bypass grade in the material shader (no screen-space post, so it costs the same in the headset):
-     mid-tones at ~58% saturation, an S-curve, a green-grey shadow floor, sodium-amber highlights, and only the
-     signature colours (chicken-shop red, sodium amber, Met blue) keep full saturation.
-   - Fine film grain per fragment, re-seeded every frame.
-   - uFreeze 0..1: the freeze-frame. The world drains to ~15% saturation, red survives, contrast punches up.
-   On desktop the scene renders supersampled and is box-filtered down (the engine's canvas has no MSAA); in the
-   headset the XR layer's own antialiasing does that job.
+   LONDON VR'S LOOK: the Stairwell PS1 renderer (vertex snap, affine warp, nearest texels, 15-bit dither) with
+   London's own night palette laid over it in the same full-screen pass, so it costs nothing extra in the headset:
+   - sodium night: warm amber highlights, a green-grey shadow floor, mid-tones a touch desaturated;
+   - the signature colours keep their punch: chicken-shop red, phone-box red, sodium amber, Met blue, hi-vis;
+   - LOOK.freeze 0..1 is the Guy Ritchie freeze-frame: the world drains to ~15% saturation, only red survives.
+   The material shader adds screen-door transparency (cut = 2): wet-road light streaks and steamed glass are
+   dithered cut-outs, the way the PS1 did see-through, so there is still no blending anywhere.
    ===================================================================================================== */
-const FS_LDN=`#version 300 es
-precision highp float;
-uniform sampler2D map; uniform float uHasMap, uCut;
-uniform vec3 uColor, uEmissive, uFogCol; uniform vec2 uRepeat; uniform float uNoFog, uFogNear, uFogFar, uSkyFade;
-uniform float uTime, uFreeze, uGrade, uGrain;
-in vec3 vAff; in vec3 vLight; in vec3 vView; in vec4 vRect;
-out vec4 outColor;
-float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-void main(){
-  vec2 uv = vAff.xy / vAff.z * uRepeat;
-  if(vRect.z > 0.0) uv = vRect.xy + fract(uv) * vRect.zw;
-  vec4 t = uHasMap > 0.5 ? texture(map, uv) : vec4(1.0);
-  if(uCut > 0.5 && t.a < 0.5) discard;
-  vec3 c = t.rgb * uColor * vLight + t.rgb * uEmissive;
-  float f = clamp((length(vView) - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0) * (1.0 - min(uNoFog, 1.0));
-  c = mix(c, uFogCol, f);
-  if(uGrade > 0.5 && uNoFog < 1.5){   /* uNoFog = 2: titles and cards, which sit outside the grade */
-    c = clamp(c, 0.0, 1.0);
-    float l = dot(c, vec3(0.299, 0.587, 0.114));
-    float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), s = (mx - mn) / (mx + 1e-4);
-    float red = step(c.g * 1.7, c.r) * step(c.b * 1.7, c.r);
-    float amber = step(c.b * 2.2, c.r) * step(c.r * 0.45, c.g) * step(c.g, c.r);
-    float blue = step(c.r * 1.5, c.b) * step(c.g * 1.05, c.b);
-    float sig = smoothstep(0.42, 0.62, s) * clamp(red + amber + blue, 0.0, 1.0);
-    float skin = step(c.b, c.g) * step(c.g, c.r) * smoothstep(0.12, 0.22, s) * (1.0 - smoothstep(0.55, 0.75, s)) * smoothstep(0.08, 0.2, l);
-    float sat = mix(mix(0.58, 0.86, skin), 1.0, sig);                 /* skin keeps its warmth: bleach bypass, not a corpse */
-    sat = mix(sat, mix(0.14, 0.92, sig * red), uFreeze);                 /* the freeze keeps only the reds */
-    c = mix(vec3(l), c, sat);
-    c = mix(c, c * c * (3.0 - 2.0 * c), 0.42 + 0.25 * uFreeze);          /* S-curve, harder on a freeze */
-    float sh = 1.0 - smoothstep(0.0, 0.32, l);
-    c = c * vec3(0.95, 1.0, 0.97) * (1.0 - sh * 0.04) + vec3(0.014, 0.024, 0.02) * sh;   /* green-grey floor: inky, not crushed */
-    float hi = smoothstep(0.5, 1.0, l);
-    c *= mix(vec3(1.0), vec3(1.06, 1.0, 0.86), hi);                       /* sodium in the highlights */
-  }
-  if(uGrain > 0.5 && uNoFog < 1.5){ float n = hash(floor(gl_FragCoord.xy) + fract(uTime * 7.31) * vec2(91.7, 47.3)); c += (n - 0.5) * (0.05 + 0.03 * uFreeze); }
-  outColor = vec4(c, 1.0 - uSkyFade * smoothstep(0.8, 1.0, f));
-}`;
+const FS_LDN=FS.replace('uniform sampler2D map; uniform float uHasMap, uCut;','uniform sampler2D map; uniform float uHasMap, uCut;\nfloat sdBayer(vec2 a){ a = floor(mod(a, 4.0)); float b2 = fract(dot(floor(a * 0.5), vec2(0.5, floor(a.y * 0.5) * 0.75))); float b1 = fract(dot(a, vec2(0.5, a.y * 0.75))); return b2 * 0.25 + b1; }')
+  .replace('if(uCut > 0.5 && t.a < 0.5) discard;','if(uCut > 1.5){ if(t.a < sdBayer(gl_FragCoord.xy) * 0.94 + 0.03) discard; } else if(uCut > 0.5 && t.a < 0.5) discard;');
 const PFS_LDN=`#version 300 es
 precision highp float;
-uniform sampler2D tScene; uniform vec2 uRes; uniform float uSS;
+uniform sampler2D tScene; uniform vec2 uRes; uniform float uDither, uGrade, uFreeze;
 in vec2 vUv; out vec4 outColor;
-void main(){ vec2 px = gl_FragCoord.xy * uSS; vec3 c = vec3(0.0);
-  for(int j=0;j<2;j++) for(int i=0;i<2;i++) c += texture(tScene, (px + (vec2(float(i), float(j)) - 0.5) * uSS * 0.5 + 0.5) / uRes).rgb;
-  outColor = vec4(c * 0.25, 1.0); }`;
+float bayer2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
+float bayer4(vec2 a){ return bayer2(0.5 * a) * 0.25 + bayer2(a); }
+void main(){
+  vec2 px = floor(vUv * uRes);
+  vec3 c = clamp(texture(tScene, (px + 0.5) / uRes).rgb, 0.0, 1.0);
+  if(uGrade > 0.5){
+    float l = dot(c, vec3(0.299, 0.587, 0.114));
+    float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), s = (mx - mn) / (mx + 1e-4);
+    float red = step(c.g * 1.7, c.r) * step(c.b * 1.5, c.r);
+    float amber = step(c.b * 2.0, c.r) * step(c.r * 0.4, c.g) * step(c.g, c.r * 0.95);
+    float blue = step(c.r * 1.4, c.b) * step(c.g * 1.02, c.b);
+    float hivis = step(c.b * 2.0, c.g) * step(c.r * 0.7, c.g) * step(c.r, c.g * 1.15);
+    float sig = smoothstep(0.35, 0.6, s) * clamp(red + amber + blue + hivis, 0.0, 1.0);
+    float skin = step(c.b, c.g) * step(c.g, c.r) * smoothstep(0.1, 0.2, s) * (1.0 - smoothstep(0.55, 0.75, s)) * (1.0 - red);
+    float sat = mix(mix(0.74, 0.92, skin), 1.12, sig);
+    sat = mix(sat, mix(0.12, 1.0, sig * red), uFreeze);
+    vec3 g = mix(vec3(l), c, sat);
+    g = mix(g, g * g * (3.0 - 2.0 * g), 0.22 + 0.3 * uFreeze);                       /* contrast, harder on a freeze */
+    float sh = 1.0 - smoothstep(0.0, 0.28, l);
+    g = g * mix(vec3(1.0), vec3(0.9, 1.0, 0.97), sh) + vec3(0.012, 0.02, 0.018) * sh;  /* green-grey night floor */
+    g *= mix(vec3(1.0), vec3(1.06, 1.0, 0.86), smoothstep(0.5, 1.0, l));               /* sodium in the highlights */
+    c = g;
+  }
+  if(uDither > 0.5){ float L = 31.0; c += (bayer4(px) - 0.5) / L; c = floor(c * L + 0.5) / L; }
+  outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+}`;
 MAIN=program(VS,FS_LDN,['position','normal','uv','aRect']);
 const POST_LDN=program(PVS,PFS_LDN);
-const ANISO=gl.getExtension('EXT_texture_filter_anisotropic');
-/* every texture mipmapped, trilinear, anisotropic: the opposite of the PS1 pass */
-glTex=function(t){
-  if(!t.glt){ t.glt=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,t.c);
-    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
-    gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-    if(ANISO) gl.texParameterf(gl.TEXTURE_2D,ANISO.TEXTURE_MAX_ANISOTROPY_EXT,Math.min(8,gl.getParameter(ANISO.MAX_TEXTURE_MAX_ANISOTROPY_EXT))); }
-  return t.glt; };
-const LOOK={grade:true,grain:true,freeze:0,time:0};
-/* a material that skips the grade and the fog: name cards, title text */
-function ungraded(m){ m.nofog=2; return m; }
-function setLookUniforms(){ gl.useProgram(MAIN.p); gl.uniform1f(MAIN.loc.uTime,LOOK.time); gl.uniform1f(MAIN.loc.uFreeze,LOOK.freeze); gl.uniform1f(MAIN.loc.uGrade,LOOK.grade?1:0); gl.uniform1f(MAIN.loc.uGrain,LOOK.grain?1:0); }
-/* draw the world supersampled into the engine's framebuffer, then box-filter it onto the canvas */
-function drawLondon(eye,tgt){ const W=cv.width,H=cv.height,ss=Math.max(1,Math.min(2,Math.sqrt(9e6/(W*H)))),w=Math.round(W*ss),h=Math.round(H*ss);
-  ensureFB(w,h); gl.bindTexture(gl.TEXTURE_2D,fbTex); for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,gl.LINEAR); gl.bindTexture(gl.TEXTURE_2D,null);
-  gl.bindFramebuffer(gl.FRAMEBUFFER,fb); setLookUniforms(); renderScene(world,eye,tgt,w,h,[w,h]);
-  gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,W,H); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null; curTex=null;
+const LOOK={grade:true,freeze:0,time:0};
+/* name cards are world objects, so they take the palette like everything else; their art is painted to survive it */
+function ungraded(m){ return m; }
+/* draw at PS1 resolution into the engine's framebuffer, then the London post pass scales it up with nearest texels */
+function drawLondon(eye,tgt){
+  if(!state.ps1){ gl.bindFramebuffer(gl.FRAMEBUFFER,null); renderScene(world,eye,tgt,cv.width,cv.height,[cv.width,cv.height]); return; }
+  const h=state.res,w=Math.max(1,Math.round(h*cv.width/cv.height)); ensureFB(w,h); gl.bindTexture(gl.TEXTURE_2D,null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderScene(world,eye,tgt,w,h,[w,h]);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,cv.width,cv.height); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null; curTex=null;
   gl.useProgram(POST_LDN.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
-  gl.uniform1i(POST_LDN.loc.tScene,0); gl.uniform2f(POST_LDN.loc.uRes,w,h); gl.uniform1f(POST_LDN.loc.uSS,ss); gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); }
-
-/* =====================================================================================================
-   INK TEST: a graphic-novel treatment on top of the London look, to see whether a hard stylisation suits the
-   engine's per-vertex light better than half-realism. Three moves, all in the material shaders:
-   - cel bands: the vertex light is quantised into three steps (shadow, mid, lit), keeping the light's colour;
-   - halftone: the shadow band is broken up by a dot screen;
-   - ink: every lit mesh is drawn a second time as an inverted hull pushed out along its normals, back faces only,
-     in near-black, so outlines stay the same thickness on screen at any distance.
-   ===================================================================================================== */
-const VS_INK=VS.replace('uniform float uSnap, uAffine, uUnlit;','uniform float uSnap, uAffine, uUnlit, uOutline;')
-  .replace('vec4 wp = modelMatrix * vec4(position,1.0);\n  vec3 n = normalize(mat3(modelMatrix) * normal);',
-   'vec4 wp = modelMatrix * vec4(position,1.0);\n  vec3 n = normalize(mat3(modelMatrix) * normal);\n  if(uOutline > 0.5){ float dd = length((viewMatrix * wp).xyz); wp.xyz += n * clamp(dd, 0.4, 40.0) * 0.0042; }');
-const FS_INK=FS_LDN.replace('uniform float uTime, uFreeze, uGrade, uGrain;','uniform float uTime, uFreeze, uGrade, uGrain, uOutline, uInk, uUnlitF;')
-  .replace('void main(){\n  vec2 uv','void main(){\n  if(uOutline > 0.5){ if(gl_FrontFacing || uCut > 0.5 || uNoFog > 0.5 || uUnlitF > 0.5) discard; outColor = vec4(0.03, 0.028, 0.03, 1.0); return; }\n  vec2 uv')
-  .replace('vec3 c = t.rgb * uColor * vLight + t.rgb * uEmissive;',
-   `vec3 Lt = vLight;
-  if(uInk > 0.5 && uUnlitF < 0.5){ float lv = dot(vLight, vec3(0.3333)); float band = lv < 0.16 ? 0.1 : lv < 0.42 ? 0.36 : lv < 0.9 ? 0.74 : 1.15;
-    Lt = vLight / max(lv, 1e-3) * band;
-    if(lv < 0.42){ vec2 q = fract(gl_FragCoord.xy / 5.0) - 0.5; float dotm = smoothstep(0.34, 0.26, length(q)); Lt *= mix(1.0, 0.45, dotm * (lv < 0.16 ? 0.5 : 0.85)); } }
-  vec3 c = t.rgb * uColor * Lt + t.rgb * uEmissive;`);
-MAIN=program(VS_INK,FS_INK,['position','normal','uv','aRect']);
-LOOK.ink=true;
-const renderScenePlain=renderScene;
-/* the engine's drawTree only sends uUnlit to the vertex stage; the fragment stage needs it to keep signs out of the ink */
-const drawTreePlain=drawTree;
-drawTree=function(n){ if(!n.vis) return;
-  if(n.mesh){ const g=n.mesh.geo; if(!culled(n,g)){ if(!g.vao) upload(g); gl.bindVertexArray(g.vao); gl.uniformMatrix4fv(MAIN.loc.modelMatrix,false,n.world);
-    for(const run of runsOf(n.mesh)){ const m=run.m; const cull=!m.dbl; if(cull!==curCull){ cull?gl.enable(gl.CULL_FACE):gl.disable(gl.CULL_FACE); curCull=cull; }
-      if(m!==curMat){ curMat=m; if(m.tex){ const t=glTex(m.tex); if(t!==curTex){ gl.bindTexture(gl.TEXTURE_2D,t); curTex=t; } }
-        gl.uniform1f(MAIN.loc.uHasMap,m.tex?1:0); gl.uniform3fv(MAIN.loc.uColor,m.color); gl.uniform3fv(MAIN.loc.uEmissive,m.emis);
-        gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform1f(MAIN.loc.uUnlitF,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut); gl.uniform1f(MAIN.loc.uNoFog,m.nofog||0); gl.uniform1f(MAIN.loc.uFar,m.far?1:0); }
-      gl.drawElements(gl.TRIANGLES,run.count,gl.UNSIGNED_SHORT,run.start*2); } } }
-  for(const k of n.kids) drawTree(k); };
-renderScene=function(root,eye,target,w,h,snapRes){
-  gl.useProgram(MAIN.p); gl.uniform1f(MAIN.loc.uOutline,0); gl.uniform1f(MAIN.loc.uInk,LOOK.ink?1:0);
-  renderScenePlain(root,eye,target,w,h,snapRes);
-  if(!LOOK.ink) return;
-  gl.useProgram(MAIN.p); gl.uniform1f(MAIN.loc.uOutline,1); curMat=null; curCull=null; drawTree(root); gl.bindVertexArray(null); gl.uniform1f(MAIN.loc.uOutline,0); curMat=null; };
-
-/* =====================================================================================================
-   THE LONDON CHARACTER KIT. Only the skeleton, skin weights and pose system come from the Stairwell rig, so the
-   cast still animates, holds props and works in the headset. Everything you can see is new:
-   - a denser body (16-sided torso resampled every 2.5 cm, 12-sided limbs) with chest, glutes, calves and
-     shoulder slope, and garment volume as geometry: puffer quilting, coat bulk, trouser hems;
-   - a sculpted head: jaw, cheekbones, brow ridge, nose, eye sockets, lips and chin are geometry, with real
-     eyeballs in the sockets and separate ears, painted by a new 512 px face painter;
-   - five-finger hands, relaxed or gripping; chunky trainers and boots with soles.
-   ===================================================================================================== */
-const TORSO_L=[[.82,.1,.085,0],[.86,.142,.106,-.01],[.9,.16,.118,-.016],[.94,.168,.118,-.012],[1.0,.158,.108,-.002],[1.05,.148,.102,.004],[1.1,.146,.104,.008],
-  [1.16,.152,.11,.014],[1.22,.164,.12,.022],[1.28,.172,.124,.024],[1.34,.178,.12,.018],[1.4,.18,.11,.008],[1.44,.17,.098,0],[1.475,.14,.08,-.008],[1.5,.1,.07,-.012],[1.53,.066,.062,-.006],[1.58,.058,.058,.004],[1.62,.052,.054,.008]];
-function profileAt(T,y){ if(y<=T[0][0]) return T[0].slice(); for(let i=1;i<T.length;i++) if(y<=T[i][0]){ const a=T[i-1],b=T[i],f=(y-a[0])/(b[0]-a[0]),s=f*f*(3-2*f); return a.map((v,k)=>v+(b[k]-v)*(k?s:f)); } return T[T.length-1].slice(); }
-function resample(T,step){ const out=[],y0=T[0][0],y1=T[T.length-1][0]; for(let y=y0;y<y1-1e-6;y+=step) out.push(profileAt(T,y)); out.push(T[T.length-1].slice()); return out; }
-
-/* ---------- the sculpted head: an ellipsoid pushed and pulled into a face. Local space: the head joint at the base of
-   the skull, +z forward, ~0.25 m tall. UVs are cylindrical (front at u = .5, top of the canvas = top of the head). ---------- */
-const HEAD_H=.26, HC=[0,.128,.012], HR=[.079,.124,.096];
-const gauss=(x0,y0,sx,sy,x,y)=>Math.exp(-(((x-x0)/sx)**2)-(((y-y0)/sy)**2));
-function faceShape(f,x,y,z){ /* returns the displaced point */
-  const ax=Math.abs(x), front=sst(0,.05,z), w=f.width||1;
-  let X=x*w, Y=y, Z=z;
-  if(y<.1){ const k=(.1-y)/.1; X*=1-(1-(f.jaw??.86))*k; Z+=front*(f.chin??.008)*gauss(0,.03,.02,.025,x,y)*1.6; }
-  /* the jaw line: below the mouth, the sides and the underside tuck in towards the neck, leaving the chin in front */
-  if(y<.08){ const k=sst(.08,.015,y), side=1-front*.75; X*=1-.38*k*side; if(z<.03) Z=Z-(Z-(-.01))*.42*k*(1-front); }
-  if(y<.03){ const k=(.03-y)/.03; X*=1-.25*k; Z=Z*(1-.3*k); }
-  Z+=front*((f.nose??1)*(.03*gauss(0,.1,.012,.026,x,y)+.014*gauss(0,.132,.009,.022,x,y))+.006*gauss(0,.087,.018,.009,x,y));   /* nose ridge, tip, wings */
-  Z+=front*(f.brow??1)*.011*gauss(.03,.157,.03,.011,ax,y);                                                            /* brow ridge */
-  Z-=front*.015*gauss(.032,.137,.017,.012,ax,y);                                                                       /* eye sockets */
-  const ck=(f.cheek??1)*.007*gauss(.05,.112,.02,.02,ax,y); X+=Math.sign(x)*ck*.6; Z+=front*ck;                         /* cheekbones */
-  Z+=front*(.006*gauss(0,.069,.018,.009,x,y)-.003*gauss(0,.074,.02,.0028,x,y));                                         /* lips, mouth line */
-  Z+=front*.004*gauss(.022,.06,.012,.02,ax,y);                                                                          /* the corners of the mouth */
-  if(z<0) Z*=1.06;                                                                                                      /* the back of the skull */
-  return [X,Y,Z]; }
-function headGeo(f){ const g=new Geo(),LAT=34,LON=44;
-  /* longitudes bunch up at the front, where the nose and eyes need the vertices */
-  const phAt=j=>{ const t=j/LON*2-1; return Math.sign(t)*Math.pow(Math.abs(t),1.55)*Math.PI; };
-  for(let i=0;i<=LAT;i++){ const th=i/LAT*Math.PI; for(let j=0;j<=LON;j++){ const ph=phAt(j);
-      const x=HR[0]*Math.sin(th)*Math.sin(ph),y=HC[1]+HR[1]*Math.cos(th),z=HC[2]+HR[2]*Math.sin(th)*Math.cos(ph);
-      const p=faceShape(f,x,y,z-HC[2]); p[2]+=HC[2]; g.v(p,[0,1,0],[ph/(Math.PI*2)+.5,Math.min(.996,Math.max(.004,p[1]/HEAD_H))]); } }
-  for(let i=0;i<LAT;i++) for(let j=0;j<LON;j++){ const a=i*(LON+1)+j,b=a+1,c=a+LON+2,d=a+LON+1; g.I.push(a,d,c,a,c,b); }
-  smoothNormals(g); g.groups.push({start:0,count:g.I.length,mi:0}); return g; }
-/* where a point on the face lands on the 512 x 256 face canvas */
-function facePx(f,x,y){ const z=HR[2]*Math.sqrt(Math.max(.05,1-(x/HR[0])**2-((y-HC[1])/HR[1])**2)); return [(Math.atan2(x,z)/(Math.PI*2)+.5)*512,(1-y/HEAD_H)*256]; }
-function eyeZ(f,x,y){ const z=HR[2]*Math.sqrt(Math.max(0,1-(x/HR[0])**2-((y-HC[1])/HR[1])**2)); return faceShape(f,x,y,z)[2]+HC[2]; }
-function sphereGeo(r,seg=12){ const rings=[]; for(let i=0;i<=seg/2;i++){ const a=-Math.PI/2+i/(seg/2)*Math.PI; rings.push([Math.sin(a)*r,Math.cos(a)*r+1e-4,Math.cos(a)*r+1e-4]); } return lathe(rings,seg,{capB:false,capT:false}); }
-const eyeTex={}; function eyeTexFor(iris){ return eyeTex[iris]||(eyeTex[iris]=P2(32,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#060404'],[.035,'#060404'],[.05,iris],[.11,iris],[.13,'#1a120e'],[.15,'#ece6da'],[1,'#d4ccbe']]); R(g,'rgba(255,255,255,.8)',10,1,3,1); },0,1600)); }
-
-/* ---------- the face painter: skin, hairline, brows, lids, lips, stubble, on the sculpted head's UVs ---------- */
-function paintFaceL(s){ const W=512,H=256,I=Img(W,H),SK=F3(s.skin),SD=F3(s.skinD),seed=s.seed,f=s.shape||{};
-  const P=(x,y)=>facePx(f,x,y);
-  for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const u=Math.abs(x/W-.5)*2; let c=lerp3(SK,SD,Math.min(1,sst(.2,.75,u)*.55+sst(.75,.95,y/H)*.3));
-    const m=1+.04*fbm(x*.06,y*.06,seed)+.02*fbm(x*.4,y*.4,seed+3); const i=(y*W+x)*3; I.d[i]=c[0]*m; I.d[i+1]=c[1]*m; I.d[i+2]=c[2]*m; }
-  const warm='#c4604c';
-  for(const sx of [-1,1]){ const [ex,ey]=P(sx*.031,.136),[cx_,cy_]=P(sx*.05,.108),[bx,by]=P(sx*.031,.158),[tx,ty]=P(sx*.068,.13);
-    blob(I,cx_,cy_,18,12,.09,warm);                                   /* cheeks */
-    blob(I,ex,ey+12,15,6,-.1);                                        /* under the eyes */
-    blob(I,ex,ey-8,16,6,-.12);                                        /* the lid crease */
-    blob(I,ex,ey,20,12,-.14);                                          /* the socket's shadow */
-    softEll(I,ex,ey-1,12,7,'#140a08',.9,.16); softEll(I,ex,ey,10,5.5,'#2a1a14',.55,.3); softLine(I,ex-12,ey-4,ex+12,ey-5,'#0a0504',.9,2.2);   /* lash line, upper lid */
-    blob(I,tx,ty,10,14,-.1);                                          /* temples */
-    const BR=F3(s.brow||'#2a1c12'); const r=rng(seed+sx*7); for(let k=0;k<160;k++){ const t=r(); const x=bx-sx*15+sx*t*32,y=by+1-Math.sin(t*Math.PI)*5+(r()-.5)*(4-t*2); put(I,x,y,BR,.7*(s.browT?1:.85)); put(I,x+1,y-1,BR,.45); put(I,x,y+1,BR,.3); } }
-  const [nx,ny]=P(0,.098),[ntx,nty]=P(0,.09),[nbx,nby]=P(0,.13); blob(I,nx,ny,8,16,.08,warm);
-  for(const sx of [-1,1]){ blob(I,nx+sx*9,ny-6,4,18,-.2); } softLine(I,nbx,nby,nx,ny-4,'#ffffff',.12,3); blob(I,nx,ny-2,5,5,.1);   /* the nose: shaded sides, a lit ridge */ for(const sx of [-1,1]){ const [px,py]=P(sx*.009,.086); softEll(I,px,py,3,2,'#2a1410',.8,.4); }
-  blob(I,ntx,nty+2,10,4,-.15);
-  const [mx,my]=P(0,.072);
-  const [chx,chy]=P(0,.04); blob(I,chx,chy,18,10,.06);
-  if(s.age){ for(const sx of [-1,1]){ const [ex,ey]=P(sx*.04,.136); for(const d of [-3,0,3]) softLine(I,ex+sx*10,ey+d,ex+sx*18,ey+d*1.8,'#000000',.15,1); } const [fx,fy]=P(0,.18); for(const d of [0,6]) softLine(I,fx-30,fy+d,fx+30,fy+d,'#000000',.12,1.2); }
-  if(s.scar){ const [sx_,sy_]=P(.04,.15); softLine(I,sx_,sy_-12,sx_+6,sy_+14,'#e8b8a8',.6,2); }
-  /* beard and stubble on the jaw, chin and upper lip */
-  if(s.beard){ const C=F3(s.beardC),r=rng(seed+21),full=s.beard==='full',goat=s.beard==='goatee',must=s.beard==='mustache';
-    for(let y=Math.floor(P(0,.11)[1]);y<P(0,.0)[1];y++) for(let x=0;x<W;x++){ const u=Math.abs(x/W-.5)*2; if(u>.42) continue; const yy=HEAD_H*(1-y/H);
-      const lips=Math.abs(x-mx)<20&&Math.abs(y-my)<7, upper=yy>.075&&yy<.088&&Math.abs(x-mx)<24, jaw=yy<.075&&!lips&&(u>.1||yy<.06), chin=yy<.06&&Math.abs(x-mx)<22;
-      let d=0; if(must) d=upper?1:0; else if(goat) d=(upper||chin)&&!lips?1:0; else d=(upper||jaw)&&!lips?1:0;
-      if(!d) continue; if(full||goat||must){ const v=.85+.3*fbm(x*.5,y*.5,seed+5); put(I,x,y,[C[0]*v,C[1]*v,C[2]*v],.92); } else if(r()<.5*sst(.42,.25,u)) put(I,x,y,C,.6); } }
-  softEll(I,mx,my+1,22,7,s.lip||'#a8665a',.9,.5); softEll(I,mx,my+4,17,4,mix(s.lip||'#a8665a','#ffffff',.12),.6,.6); softLine(I,mx-21,my,mx+21,my,'#2a1210',.9,1.6); softLine(I,mx-8,my+4,mx+8,my+4,'#ffffff',.12,2);
-  /* hair painted where the hairline runs: buzz, shaved, or the base under a hair shell */
-  if(s.hair&&s.hair!=='none'){ const C=F3(s.hairC||'#1a1410');
-    for(let x=0;x<W;x++){ const u=Math.abs(x/W-.5)*2; const line=u<.16?(s.hairFront??.195):u<.4?.17-.02*sst(.16,.4,u):u<.7?.15:.09; const yl=(1-line/HEAD_H)*H+3*fbm(x*.1,0,seed);
-      for(let y=0;y<yl;y++){ const a=Math.min(1,(yl-y)/3); if(s.hair==='shaved') put(I,x,y,lerp3(SK,[0,0,0],.2),a*.55); else put(I,x,y,lerp3(C,SK,.12+.12*fbm(x*.6,y*.6,seed+1)),a*.93); } } }
-  return toTex(I); }
-
-/* ---------- hands: palm and five fingers, relaxed (open) or gripping (wrap). Palm faces the body (-s x). ---------- */
-function handL(wr,s,m){ const ps=-s;
-  const build=(curl)=>{ const h=N(wr); mk(box(.03,.085,.082,{tw:.92,td:.95,at:[0,-.044,0]}),m,h);
-    [[.028,.07,.046],[.01,.078,.05],[-.008,.075,.046],[-.026,.062,.038]].forEach(([z,len,pl],i)=>{ const k=N(h,0,-.086,z,0,0,ps*curl*.7); mk(box(.017,pl*.62,.017,{at:[0,-pl*.31,0]}),m,k);
-      const k2=N(k,0,-pl*.6,0,0,0,ps*curl); mk(box(.016,len-pl*.6,.016,{tw:.85,td:.85,at:[0,-(len-pl*.6)/2,0]}),m,k2); });
-    const t=N(h,ps*.012,-.03,.042,-.5,0,ps*(.3+curl*.6)); mk(box(.019,.042,.019,{at:[0,-.021,0]}),m,t); const t2=N(t,0,-.04,0,0,0,ps*curl*.5); mk(box(.017,.032,.017,{tw:.85,td:.85,at:[0,-.016,0]}),m,t2);
-    return h; };
-  const open=build(.32), wrap=build(1.35); wrap.vis=false; return {open,wrap}; }
-/* ---------- shoes: a chunky sole and a rounded upper ---------- */
-function shoeL(an,o){ const w=o.shoeW,l=o.shoeL,sole=o.sole||.032;
-  mk(box(w*1.08,sole,l*1.04,{td:1,at:[0,-o.foot+sole/2,l*.2]}),o.soleM||M(null,{color:0xe8e4dc}),an);
-  mk(lathe([[-o.foot+sole,w*.54,l*.48,l*.21],[-o.foot+sole+.025,w*.53,l*.46,l*.2],[-o.foot*.4,w*.48,l*.38,l*.13],[-.008,w*.42,w*.62,.012],[.04,w*.37,w*.44,0]],12),o.footM,an); }
-
-/* ---------- the rig: Stairwell's skeleton and skinning, this kit's body ---------- */
-function rigL(o,parent){
-  const hf=o.hf||1,w=o.w||1,dp=o.depth||1,bl=o.belly||1,lg=o.lg||1,ag=o.ag||1,jk=o.jacket||0,pl=o.pants||.006,puff=o.puff||0;
-  const fem=o.shape==='fem';
-  const base=TORSO_L.map(r=>r.slice()); if(fem){ for(const r of base){ if(r[0]>=.86&&r[0]<=.94){ r[1]*=1.08; r[2]*=1.04; } if(r[0]>=1.0&&r[0]<=1.1) r[1]*=.88; if(r[0]>=1.22&&r[0]<=1.34){ r[2]*=1.12; r[3]+=.012; } if(r[0]>=1.4&&r[0]<=1.475) r[1]*=.88; } }
-  const T=resample(base,.025).map(([y,rx,rz,cz])=>{ const neck=y>=1.5, mid=y>=1.0&&y<=1.28, worn=y>=.93&&y<=1.47;
-    const ridge=worn&&puff?puff*(.55+.45*Math.cos((y-1.0)/.115*Math.PI*2)):0;
-    const kx=neck?(.9+.1*w):w, kz=neck?1:dp*(mid?bl:1);
-    return [y*hf, rx*kx*(mid?(1+(bl-1)*.45):1)+(worn?jk+ridge:y<.93?pl:0), rz*kz+(worn?jk+ridge:y<.93?pl:0), cz+(mid?(bl-1)*.12:0)]; });
-  o.torsoRings=T;
-  o.thigh=.43*hf; o.shin=.42*hf; o.foot=.08*hf; o.legW=.11*lg; o.torso=.41*hf; o.shoeW=o.shoeW||.105; o.shoeL=o.shoeL||.285*Math.min(1.08,hf);
-  const tc=torsoAt(o,1.21*hf); o.torsoD=(tc[2]+tc[3])*2;
-  const P={}; P.hips=[0,.99*hf,0]; P.spine=[0,1.09*hf,0]; P.neck=[0,1.5*hf,0]; P.head=[0,1.57*hf,0];
-  for(const s of [1,-1]){ const L_=s>0?'L':'R';
-    P['thigh'+L_]=[s*.09*w,.93*hf,0]; P['knee'+L_]=[s*.09*w,.5*hf,0]; P['ankle'+L_]=[s*.09*w,.08*hf,0];
-    P['arm'+L_]=[s*.19*w,1.45*hf,0]; P['elbow'+L_]=[s*(.19*w+.032*ag),1.15*hf,0]; P['hand'+L_]=[s*(.19*w+.044*ag),.89*hf,0]; }
-  const root=N(parent),J={root};
-  for(const b of BONES){ const par=BONE_PARENT[b],pp=par?P[par]:[0,0,0]; J[b]=N(par?J[par]:root,P[b][0]-pp[0],P[b][1]-pp[1],P[b][2]-pp[2]); }
-  const g=new Geo(),sk=[]; const y0=T[0][0],yT=T[T.length-1][0];
-  tube(g,sk,T.map(([y,rx,rz,cz])=>({c:[0,y,cz],rx,rz,v:(y-y0)/(yT-y0),w:TORSO_W(y/hf)})),16,0,{capB:true,capT:true});
-  const ARMR=resample(ARM.map(([y,rx,rz])=>[y,rx*(y>1.36&&y<1.47?1.12:1),rz*(y>1.2&&y<1.3?1.06:1),0]),.03);
-  for(const s of [1,-1]){ const L_=s>0?'L':'R',S=P['arm'+L_],E=P['elbow'+L_],H=P['hand'+L_];
-    const ax=y=>y>=S[1]?S[0]:y>=E[1]?E[0]+(S[0]-E[0])*(y-E[1])/(S[1]-E[1]):H[0]+(E[0]-H[0])*(y-H[1])/(E[1]-H[1]);
-    tube(g,sk,ARMR.map(([y,rx,rz])=>{ const Y=y*hf,cuff=y<.95?(o.cuff||0):0; return {c:[ax(Y),Y,0],rx:rx*ag+jk*.6+(puff&&y>.95?puff*.5:0)+cuff,rz:rz*ag+jk*.6+(puff&&y>.95?puff*.5:0)+cuff,v:(y-.9)/.6,w:ARM_W(y,L_)}; }),12,s>0?1:2,{capB:true,capT:true}); }
-  const LEGR=resample(LEG.map(r=>r.slice()),.03);
-  for(const s of [1,-1]){ const L_=s>0?'L':'R';
-    tube(g,sk,LEGR.map(([y,rx,rz,cz])=>{ const hem=y<.14?(o.hem||0)*(1-(y-.09)/.05):0; return {c:[s*.09*w,y*hf,cz],rx:rx*lg+pl+hem,rz:rz*lg+pl+hem,v:(y-.09)/.89,w:LEG_W(y,L_)}; }),12,s>0?3:4,{capB:true,capT:true}); }
-  smoothNormals(g);
-  const n=g.P.length/3,bi=new Uint8Array(n*2),bw=new Float32Array(n*2);
-  sk.forEach((ws,i)=>{ ws.slice(0,2).forEach(([b,wt],k)=>{ bi[i*2+k]=BONES.indexOf(b); bw[i*2+k]=wt; }); });
-  J.body=mk(g,[o.torsoM,o.armLM||o.armM,o.armM,o.legM,o.legM],root);
-  g.noCull=true; J.skin={geo:g,bi,bw,bindP:new Float32Array(g.P),bindN:new Float32Array(g.Nm),P:new Float32Array(g.P),N:new Float32Array(g.Nm),bpos:BONES.map(b=>P[b]),rel:BONES.map(()=>m4.make()),loc:m4.make()};
-  /* the head, its eyes and ears */
-  const hs=(o.headS||1)*1.05, f=o.faceShape||{}; const head=N(J.head); head.s=[hs,hs,hs];
-  J.headMesh=mk(headGeo(f),o.headM,head);
-  for(const s of [1,-1]){ const ex=s*.031,ey=.136,ez=eyeZ(f,ex,ey)-.0068; mk(sphereGeo(.0118,10),M(eyeTexFor(o.iris||'#4a3a2a')),head,ex*(f.width||1),ey,ez,Math.PI/2,0,0);
-    mk(lathe([[-.026,.003,.008],[-.012,.011,.016],[.012,.012,.017],[.028,.004,.008]],8),o.earM,head,s*.074*(f.width||1),.125,-.006,0,0,s*.12); }
-  for(const s of [1,-1]){ const L_=s>0?'L':'R'; const h=handL(J['hand'+L_],s,(s>0&&o.handML)||o.handM); J['open'+L_]=h.open; J['wrap'+L_]=h.wrap; shoeL(J['ankle'+L_],o); }
-  return J; }
-
-/* a hair shell over the skull (slick, long) and a hood that frames the face, built on the same ellipsoid */
-function shellGeo(f,scale,keep,LAT=16,LON=24){ const g=new Geo(),idx=[];
-  for(let i=0;i<=LAT;i++){ const th=i/LAT*Math.PI; idx.push([]); for(let j=0;j<=LON;j++){ const ph=(j/LON-.5)*Math.PI*2; const x=HR[0]*Math.sin(th)*Math.sin(ph),y=HC[1]+HR[1]*Math.cos(th),z=HR[2]*Math.sin(th)*Math.cos(ph);
-      const p=faceShape(f,x,y,z); idx[i].push(keep(x,y,z,ph)?g.v([p[0]*scale[0],(p[1]-HC[1])*scale[1]+HC[1],p[2]*scale[2]+HC[2]],[0,1,0],[j/LON,i/LAT]):-1); } }
-  for(let i=0;i<LAT;i++) for(let j=0;j<LON;j++){ const a=idx[i][j],b=idx[i][j+1],c=idx[i+1][j+1],d=idx[i+1][j]; if(a<0||b<0||c<0||d<0) continue; g.I.push(a,d,c,a,c,b); }
-  smoothNormals(g); g.groups.push({start:0,count:g.I.length,mi:0}); return g; }
-function hairShell(J,f,col,o={}){ const front=o.front??.19,back=o.back??.07,len=o.len||0;
-  const keep=(x,y,z,ph)=>{ const a=Math.abs(ph)/Math.PI; const line=a<.18?front:a<.45?front-.04*sst(.18,.45,a):back-len; return y>=line-.004; };
-  const m=M(P2(64,64,(g,w,h)=>{ R(g,col,0,0,w,h); for(let i=0;i<120;i++){ const x=Math.random()*w; vfill(g,x,0,1,h,[[0,'rgba(255,255,255,.12)'],[1,'rgba(0,0,0,.25)']]); } },6,1610),{double:true});
-  return mk(shellGeo(f,[1.06,1.04,1.08],keep),m,J.headMesh.par); }
-function hoodL(J,f,tex){ const keep=(x,y,z,ph)=>{ const a=Math.abs(ph)/Math.PI; return !(a<.3&&y<.2&&y>.02)&&y>-.02; };
-  return mk(shellGeo(f,[1.32,1.22,1.3],keep,18,26),M(tex,{double:true}),J.headMesh.par); }
-function capL(J,col,f){ const m=M(null,{color:hexInt(col)}); const g=shellGeo(f,[1.08,1.02,1.1],(x,y)=>y>.17); const n=mk(g,m,J.headMesh.par);
-  const b=new Geo(); for(let i=0;i<=8;i++){ const a=(i/8-.5)*2.2; for(const r of [.09,.16]) b.v([Math.sin(a)*r*.9,.184-r*.12+(r>.1?-.006:0),Math.cos(a)*r*.75+.04],[0,1,0],[i/8,r>.1?1:0]); }
-  for(let i=0;i<8;i++){ const a=i*2; b.I.push(a,a+1,a+3,a,a+3,a+2); } b.groups.push({start:0,count:b.I.length,mi:0}); smoothNormals(b); mk(b,M(null,{color:hexInt(col),double:true}),J.headMesh.par); return n; }
-
-/* ---------- making a London character from a ROSTER entry ---------- */
-const FACE_L={};
-function makeCharL(id,parent){ const R_=ROSTER[id],s=HEADS[id],f=s.shape||{};
-  const ft=FACE_L[id]||(FACE_L[id]=paintFaceL(s)), sk_=flat(32,32,s.seed+43,s.skin,'skin',{grime:0});
-  const o=Object.assign({headM:M(ft),earM:M(null,{color:hexInt(mix(s.skin,s.skinD,.3))}),handM:M(sk_),iris:s.iris,faceShape:f},R_.o,
-    {torsoM:M(R_.torso),armM:M(R_.arm),legM:M(R_.leg),footM:M(R_.foot),soleM:M(null,{color:hexInt(R_.sole||'#e6e2da')})});
-  if(R_.hand) o.handM=M(R_.hand);
-  const J=rigL(o,parent); if(R_.extra) R_.extra(J,o);
-  const sp={kind:id,faces:{fight:ft,hurt:ft,beg:ft,sleep:ft,shock:ft,agony:ft,choke:ft},grp:'cast',fight:R_.fight||{},showDrop:false,gripHand:R_.gripHand};
-  if(R_.prop) Object.assign(sp,{prop:R_.prop,wFight:R_.wFight||{p:[0,-.06,.02],r:[1.3,0,0]},twoHand:R_.twoHand,support:R_.support});
-  const C=finish(parent,J,o,sp); C.id=id; civPoses(C); return C; }
+  gl.uniform1i(POST_LDN.loc.tScene,0); gl.uniform2f(POST_LDN.loc.uRes,w,h); gl.uniform1f(POST_LDN.loc.uDither,state.dither?1:0);
+  gl.uniform1f(POST_LDN.loc.uGrade,LOOK.grade?1:0); gl.uniform1f(POST_LDN.loc.uFreeze,LOOK.freeze);
+  gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); }
 
 /* =====================================================================================================
    THE CAST of Bethnal Green Road, on the Stairwell rig: you, the crew you want in with, the people who live
@@ -1511,10 +1291,6 @@ Object.assign(HEADS,{
   pcmale:{seed:1206,skin:'#d8a486',skinD:'#a8765c',hair:'slick',hairC:'#3a2a1c',hairFront:13,sideburn:36,brow:'#3a2a1c',iris:'#4a5a6a',lip:'#a86a5e',beard:'mustache',beardC:'#3a2a1c'},
   pcfem:{seed:1207,skin:'#b88462',skinD:'#8a5a40',hair:'long',hairC:'#1a120c',hairFront:13,sideburn:44,behind:48,nape:50,brow:'#1a120c',iris:'#2a1a10',lip:'#8a4a3a'}
 });
-
-/* the London kit's heads: face shape as geometry, hairline in metres */
-Object.assign(HEADS.danny,{shape:{jaw:.84,nose:.92,brow:.8,cheek:1.12,chin:.006,width:.97},hairFront:.2});
-Object.assign(HEADS.degsy,{shape:{jaw:.96,nose:1.28,brow:1.35,cheek:.9,chin:.013,width:1.05},hairFront:.198});
 
 /* ---------- shared bits ---------- */
 const tTrainerW=garment(64,32,1290,()=>['#ece8e2','leather',.2],{folds:2,grime:.14,decor:I=>{ softRect(I,0,23,64,9,'#c4c0b6',1,1); for(const y of [8,13]) softLine(I,26,y,38,y,'#3a3a3c',.8,1); softRect(I,46,11,10,4,'#2a2a2c',.8,.8); }});
@@ -1607,10 +1383,10 @@ const SIDES={you:['you','You'],crew:['crew','The crew'],local:['civ','Lives here
 const ROSTER={
   danny:{side:'you',name:'Danny "Two Sugars" Doyle',role:'You · 19, Hollis House',color:'#e8a33d',card:'Wants in. Hasn\'t thought much past that.',
     note:'Grew up on the fourth floor of Hollis House. Takes his tea with two sugars and his chances with none. Wants to be somebody on this street by Christmas.',
-    kit:'L',o:{hf:.98,w:.95,depth:.94,lg:.96,ag:.95,jacket:.01,pants:.012,cuff:.004,hem:.006},torso:tDanTorso,arm:tDanArm,leg:tDanLeg,foot:tTrainerW,extra:(J,o)=>collar(J,o,M(flat(64,16,1307,'#0e0f11','knit'),{double:true}),.05,.012)},
+    o:{hf:.98,w:.95,depth:.94,lg:.96,ag:.95,jacket:.01,pants:.012},torso:tDanTorso,arm:tDanArm,leg:tDanLeg,foot:tTrainerW,extra:(J,o)=>collar(J,o,M(flat(64,16,1307,'#0e0f11','knit'),{double:true}),.05,.012)},
   degsy:{side:'crew',name:'Degsy',role:'The crew · runs errands for the old firm',color:'#2f6a4e',card:'Knows a bloke. Can\'t remember which one.',
     note:'Outside the Golden Rooster most nights, smoking, hazards on. Hands out the jobs nobody else wants, and the bag that starts all this.',
-    kit:'L',o:{hf:1.0,w:1.06,depth:1.1,belly:1.08,lg:1.0,ag:1.04,jacket:.018,pants:.012,puff:.012,hem:.004},torso:tDegTorso,arm:tDegArm,leg:tDegLeg,foot:tTrainerW,prop:pFag,wFight:{p:[0,-.07,.02],r:[1.2,0,0]},extra:J=>capL(J,'#141416',HEADS.degsy.shape)},
+    o:{hf:1.0,w:1.06,depth:1.1,belly:1.08,lg:1.0,ag:1.04,jacket:.03,pants:.012},torso:tDegTorso,arm:tDegArm,leg:tDegLeg,foot:tTrainerW,prop:pFag,wFight:{p:[0,-.07,.02],r:[1.2,0,0]},extra:J=>cap(J,'#141416','#141416')},
   kwame:{side:'crew',name:'Kwame',role:'The crew · Degsy\'s shadow',color:'#2a3462',card:'Says nothing. Remembers everything.',
     note:'Never more than two metres from Degsy and never without a box of wings. The one who actually knows the bloke.',
     o:{hf:1.03,w:1.0,depth:.98,lg:1.04,ag:1.02,jacket:.012,pants:.014},torso:tKwaTorso,arm:tKwaArm,leg:tKwaLeg,foot:tTrainerW,prop:pChickenBox,wFight:{p:[0,-.04,.02],r:[0,0,0]},extra:J=>hoodUp(J,LNAVY)},
@@ -1812,15 +1588,138 @@ const RAIN_H=7, rainBlocks=[0,1].map(i=>({n:mk(rainGeo(900,16,RAIN_H,1441+i),rai
 function rainTick(t,eye){ RAIN.p=[Math.round(eye[0]),0,Math.round(eye[2])]; const fall=(t*8.5)%RAIN_H; for(const b of rainBlocks){ let y=b.i*RAIN_H-fall; if(y<-1) y+=RAIN_H*2; b.n.p[1]=y; } }
 
 /* ---------- light ---------- */
-const STREET_LIGHT={amb:[.15,.18,.17],dir:[-.3,1,.4],dirCol:[.1,.12,.13],fog:[.042,.05,.048],fogNear:12,fogFar:42,
+const STREET_LIGHT={amb:[.2,.22,.22],dir:[-.3,1,.4],dirCol:[.16,.15,.14],fog:[.042,.05,.048],fogNear:12,fogFar:42,
   pl:[[[LAMP[0],5.2,LAMP[2]+1.0],[2.3,1.3,.5],13],[[-7.3,2.6,-1.4],[1.25,.6,.42],6],[[-2.1,2.6,-1.4],[.75,.9,.8],5],[[11.6,2.4,-3.6],[.45,.58,.62],4],
       [[LAMP2[0],5.2,LAMP2[2]+1.0],[2.3,1.3,.5],13],[[-17,2.6,4],[1.1,.7,.4],7],[[-1,2.6,5.4],[.62,.68,.7],10],[[-7.3,2.8,-4.4],[1.1,.92,.72],4.5]]};
+
+/* =====================================================================================================
+   STREET DRESSING: what makes it London at 2 a.m. and not just a street.
+   - A zebra crossing with zig-zags, LOOK RIGHT, and two Belisha beacons blinking amber.
+   - Degsy's motor at the kerb, hazards going, and a black cab dropping off across the road.
+   - A red phone kiosk, a bus shelter with a lit advert, bin bags, chicken boxes, cans, a traffic cone.
+   - Wet-road reflections: the lights streak down the tarmac towards you (screen-door cut-outs that turn to
+     face the viewer, so they read in stereo), and steam rolls out of a manhole in the middle of the road.
+   DRESS.tick(t, eye) runs every frame (frozen time stops all of it).
+   ===================================================================================================== */
+const DRESS=(()=>{
+const D=N(STREET), ticks=[];
+const once=(c,o={})=>M(null,Object.assign({color:c},o));
+/* ---------- the zebra and its beacons ---------- */
+const ZX0=12.2, ZX1=14.6;
+const tZebra=P2(16,16,g=>{ R(g,'#d8d4cc',0,0,16,16); specks(g,'#8a8a86',10,1601,16,16); },0,1);
+for(let z=KERB_Z+.2;z<ROAD_Z1-.3;z+=1.0) slab(ZX1-ZX0,.5,tZebra,(ZX0+ZX1)/2,.004,z+.25,{cell:3,tile:.5,tileD:.5,parent:D});
+for(const side of [-1,1]) for(let k=0;k<6;k++){ const x=side<0?ZX0-1.0-k*1.05:ZX1+1.0+k*1.05;
+  for(const z of [KERB_Z+.5,ROAD_Z1-.5]) mk(plane(1.18,.09),MM(tWhiteLine),D,x,.004,z,-Math.PI/2,0,(k%2?.32:-.32)); }
+{ const t=P2(128,24,(g,w,h)=>{ g.clearRect(0,0,w,h); g.fillStyle='#e4e0d6'; g.font=`bold 20px ${SANS}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('LOOK RIGHT',w/2,h/2+1); },0,1);
+  const m=M(t,{cut:true}); mk(plane(2.0,.38),m,D,(ZX0+ZX1)/2,.006,KERB_Z+.5,-Math.PI/2,0,Math.PI);
+  const t2=P2(128,24,(g,w,h)=>{ g.clearRect(0,0,w,h); g.fillStyle='#e4e0d6'; g.font=`bold 20px ${SANS}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('LOOK LEFT',w/2,h/2+1); },0,1);
+  mk(plane(2.0,.38),M(t2,{cut:true}),D,(ZX0+ZX1)/2,.006,ROAD_Z1-.5,-Math.PI/2); }
+const tPole=P2(4,32,(g,w,h)=>{ for(let i=0;i<8;i++) R(g,i%2?'#141414':'#e8e6e0',0,i*4,w,4); },0,1);
+const beaconM=M(null,{color:0xffa020,emissive:0xff8a10}), beaconOff=[.25,.12,.04], beaconOn=[2.2,1.15,.3];
+const BEACONS=[[ZX0-.3,KERB_Z-.3],[ZX1+.3,ROAD_Z1+.3]];
+for(const [x,z] of BEACONS){ const y0=z>ROAD_Z1?PAVE_Y:PAVE_Y; mk(cyl(.05,.05,2.4,8),MM(tPole,{repeat:[1,1]}),D,x,y0+1.2,z); mk(cyl(.17,.17,.32,12),beaconM,D,x,y0+2.56,z); mk(cyl(.07,.07,.06,8),col(0x141414),D,x,y0+2.75,z); }
+/* ---------- Degsy's motor, hazards going; a black cab across the road ---------- */
+function car(x,z,ry,body,o={}){ const n=N(D,x,0,z,0,ry,0), b=col(body), dark=col(0x0b0c0e), glass=MM(null,{color:0x14181e}), chrome=col(0x8a8e92);
+  const L=o.L||4.4,W=o.W||1.78;
+  mk(box(L,.62,W,{tw:.98,td:.97}),b,n,0,.62,0); mk(box(L*.96,.18,W*.98),dark,n,0,.28,0);
+  mk(box(L*.5,.5,W*.86,{tw:.82,td:.86}),[glass,glass,b,b,glass,glass],n,-L*.04+(o.cabX||0),1.17,0);
+  for(const sx of [-1,1]) for(const sz of [-1,1]){ mk(cyl(.31,.31,.2,10),dark,n,sx*L*.33,.31,sz*W*.47,Math.PI/2); mk(cyl(.17,.17,.21,8),chrome,n,sx*L*.33,.31,sz*W*.47,Math.PI/2); }
+  const tail=M(null,{color:0x8a1010,emissive:o.tail?0x9a1408:0x2a0402}), head=M(null,{color:0xd8d8cc,emissive:o.head?0xfff0d0:0x202020});
+  for(const sz of [-1,1]){ mk(box(.06,.14,.34),tail,n,L/2,.74,sz*W*.34); mk(box(.06,.14,.34),head,n,-L/2,.74,sz*W*.34); }
+  const ind=[]; for(const sx of [-1,1]) for(const sz of [-1,1]){ const m=M(null,{color:0xff9a20,emissive:0x000000}); mk(box(.08,.08,.12),m,n,sx*(L/2+.01),.62,sz*W*.44); ind.push(m); }
+  mk(box(.06,.12,.52),[chrome],n,-L/2-.02,.5,0); mk(box(.06,.12,.52),[chrome],n,L/2+.02,.5,0); /* number plates */
+  return {n,ind}; }
+const degsyCar=car(-10.2,KERB_Z+1.05,0,0x6a6e76,{L:4.6,W:1.8});           /* a tired silver saloon, nose east */
+const cab=car(1.6,ROAD_Z1-1.05,Math.PI,0x0c0d10,{L:4.6,W:1.8,cabX:.25,tail:true});
+{ const sign=M(P2(32,8,(g,w,h)=>{ R(g,'#ffc020',0,0,w,h); g.fillStyle='#1a1408'; g.font='bold 7px sans-serif'; g.textAlign='center'; g.fillText('TAXI',w/2,7); },0,1),{unlit:true});
+  mk(box(.42,.13,.18),[sign,sign,col(0x1a1408),col(0x1a1408),sign,sign],cab.n,.2,1.5,0); }
+/* ---------- a red phone kiosk and a bus shelter across the road ---------- */
+{ const K=N(D,-3.2,PAVE_Y,ROAD_Z1+1.25,0,Math.PI,0), red=col(0xa8160f), w=.92,h=2.45;
+  for(const [sx,sz] of [[-1,-1],[1,-1],[-1,1],[1,1]]) mk(box(.09,h,.09),red,K,sx*(w/2-.045),h/2,sz*(w/2-.045));
+  mk(box(w+.06,.12,w+.06),red,K,0,.06,0); mk(box(w+.04,.32,w+.04),red,K,0,h+.16,0); mk(cyl(.36,.5,.2,12),red,K,0,h+.42,0,0,Math.PI/4);
+  const tTel=P2(64,12,(g,w2,h2)=>{ R(g,'#141414',0,0,w2,h2); g.fillStyle='#f4f0e2'; g.font=`bold 9px ${SANS}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('TELEPHONE',w2/2,h2/2+1); },0,1);
+  const tm=M(tTel,{unlit:true}); for(let k=0;k<4;k++){ const a=k*Math.PI/2; mk(plane(.7,.15),tm,K,Math.sin(a)*(w/2+.025),h+.16,Math.cos(a)*(w/2+.025),0,a,0); }
+  const tPane=P2(32,64,(g,w2,h2)=>{ R(g,'rgba(0,0,0,0)',0,0,w2,h2); g.clearRect(0,0,w2,h2); R(g,'#a8160f',0,0,w2,2); R(g,'#a8160f',0,h2-2,w2,2); R(g,'#a8160f',0,0,2,h2); R(g,'#a8160f',w2-2,0,2,h2);
+    for(let i=1;i<3;i++) R(g,'#a8160f',i*w2/3-1,0,2,h2); for(let j=1;j<8;j++) R(g,'#a8160f',0,j*h2/8-1,w2,2); },0,1);
+  const pane=M(tPane,{cut:true,double:true}); for(let k=0;k<4;k++){ const a=k*Math.PI/2; mk(plane(w-.1,1.55,1,2),pane,K,Math.sin(a)*(w/2-.04),.95+.78,Math.cos(a)*(w/2-.04),0,a,0);
+    mk(plane(w-.1,.8),red,K,Math.sin(a)*(w/2-.04),.5,Math.cos(a)*(w/2-.04),0,a,0); }
+  mk(box(.3,.4,.16),col(0x1a1a1a),K,0,1.45,-w/2+.12); mk(box(.2,.06,.1),glowC(0xfff2d0),K,0,h-.1,0); }
+{ const S_=N(D,6.6,PAVE_Y,ROAD_Z1+1.6), steel=col(0x6c7074), w=3.4,d=1.25;
+  for(const sx of [-1,1]) for(const sz of [0,1]) mk(box(.07,2.4,.07),steel,S_,sx*w/2,1.2,sz*d);
+  mk(box(w+.2,.1,d+.3),steel,S_,0,2.45,d/2); mk(box(2,.05,.28),steel,S_,-.2,.6,d-.25);
+  const ad=P2(64,128,(g,w2,h2)=>{ vfill(g,0,0,w2,h2,[[0,'#0e2a6a'],[1,'#06102e']]); g.fillStyle='#f0f4ff'; g.font=`bold 22px ${SANS}`; g.textAlign='center'; g.fillText('VOLT',w2/2,34); g.font='bold 8px sans-serif'; g.fillText('STAY UP.',w2/2,48); R(g,'#4ac8ff',22,62,20,52); R(g,'#f0f4ff',22,62,20,7); },0,1);
+  mk(box(.12,1.9,d-.1),[MM(ad,{unlit:true}),MM(ad,{unlit:true}),col(0x1a1a1a),col(0x1a1a1a),col(0x1a1a1a),col(0x1a1a1a)],S_,-w/2-.06,1.12,d/2);
+  const flag=P2(32,32,(g,w2,h2)=>{ R(g,'#f2f0ea',0,0,w2,h2); R(g,'#c8231c',0,0,w2,11); g.fillStyle='#fff'; g.font=`bold 7px ${SANS}`; g.textAlign='center'; g.fillText('BUS STOP',w2/2,8); g.fillStyle='#c8231c'; g.font='bold 8px sans-serif'; g.fillText('8  388',w2/2,22); },0,1);
+  mk(cyl(.04,.04,2.9,8),steel,S_,w/2+.7,1.45,-.4); mk(box(.5,.5,.03),[col(0xf2f0ea),col(0xf2f0ea),col(0xf2f0ea),col(0xf2f0ea),MM(flag),MM(flag)],S_,w/2+.7,2.55,-.4); }
+/* ---------- rubbish: bin bags by the shut units, chicken boxes, cans, a cone ---------- */
+const bagM=col(0x0d0e10), bagHi=col(0x22252a);
+for(const [x,z,n] of [[-12.6,FZ+.45,6],[1.9,FZ+.4,4],[8.3,FZ+.42,3]]){ const r=rng(x*13+7); for(let i=0;i<n;i++){ const s=.42+r()*.16; mk(cyl(s*.62,s*.7,s*(.9+r()*.3),7),i%3?bagM:bagHi,D,x+(r()-.5)*1.3,PAVE_Y+s*.48,z+r()*.45,(r()-.5)*.3,r()*3,(r()-.5)*.3); } }
+{ const tBox=P2(16,16,(g,w,h)=>{ R(g,'#c21b1b',0,0,w,h); R(g,'#ffd23a',0,6,w,3); },0,1), bm=MM(tBox), can=[col(0xc8c8c8),col(0x2a6ab8),col(0x9a1a1a)], r=rng(1607);
+  for(let i=0;i<7;i++) mk(box(.2,.07,.13),bm,D,-8.8+r()*3.4,PAVE_Y+.035,FZ+.4+r()*2.6,0,r()*3,(r()<.3?.4:0));
+  for(let i=0;i<9;i++) mk(cyl(.033,.033,.12,6),can[i%3],D,-13+r()*24,PAVE_Y+.033,FZ+.3+r()*3.5,Math.PI/2,r()*3,0);
+  for(let i=0;i<4;i++) mk(cyl(.033,.033,.12,6),can[i%3],D,-12+r()*22,.033,KERB_Z+.15+r()*.2,Math.PI/2,r()*3,0);
+  mk(cyl(.03,.17,.62,8),col(0xe8601a),D,9.6,PAVE_Y+.33,KERB_Z-.25,.25,0,0); mk(box(.36,.04,.36),col(0x1a1a1a),D,9.6,PAVE_Y+.02,KERB_Z-.25); }
+/* ---------- wet-road reflections: streaks that run from each light's foot towards the viewer ---------- */
+const tStreakW=P2(16,64,(g,w,h)=>{ const d=g.createImageData(w,h); for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const u=(x/(w-1))*2-1,v=y/(h-1),a=Math.exp(-u*u*(4+10*v))*Math.pow(1-v,1.3)*(.75+.25*Math.sin(v*40+x)); const k=(y*w+x)*4; d.data[k]=255; d.data[k+1]=255; d.data[k+2]=255; d.data[k+3]=Math.max(0,Math.min(255,a*255)); } g.putImageData(d,0,0); },0,1);
+const streaks=[];
+/* flat on the ground, running from the node along +z (v = 0 at the light's foot); ry turns it to the viewer */
+function streak(x,z,y,colr,len,wid){ const g=plane(wid,len,1,4); for(let i=0;i<g.P.length;i+=3){ const py=g.P[i+1]; g.P[i+1]=0; g.P[i+2]=len/2-py; g.Nm[i+1]=1; g.Nm[i+2]=0; }
+  const m=M(tStreakW,{color:colr,unlit:true,double:true}); m.cut=2; const n=mk(g,m,D,x,y,z); const s={n,m,base:colr}; streaks.push(s); return s; }
+for(const L_ of [LAMP,LAMP2]) streak(L_[0],L_[2]+1.22,.01,0xff9a40,8,.8);
+streak(-7.3,FZ+.6,PAVE_Y+.006,0xff6050,3.2,1.6); streak(-2.1,FZ+.6,PAVE_Y+.006,0xc8e8d8,3.2,1.5);
+const beaconStreaks=BEACONS.map(([x,z])=>streak(x,z+(z>ROAD_Z1?-.5:.5),.008,0xff9020,4,.4));
+const hazardStreaks=[streak(-10.2-2.35,KERB_Z+1.05,.008,0xff9020,2.4,.35),streak(-10.2+2.35,KERB_Z+1.05,.008,0xff9020,2.4,.35)];
+/* ---------- steam from a manhole in the road ---------- */
+mk(cyl(.34,.34,.02,12),col(0x1a1a1c),D,5.2,.006,6.4);
+const tPuff=P2(32,32,(g,w,h)=>{ g.clearRect(0,0,w,h); radial(g,16,16,16,[[0,'rgba(200,196,190,.55)'],[.5,'rgba(190,186,180,.22)'],[1,'rgba(180,176,170,0)']]); },0,1);
+const puffs=[]; for(let i=0;i<9;i++){ const m=M(tPuff,{color:0xa8a49c,double:true}); m.cut=2; const n=mk(plane(1,1),m,D,5.2,.3,6.4); puffs.push({n,ph:i/9}); }
+/* ---------- the vista east: the road carries on past more lamps and lit windows to the railway bridge, where an
+   Overground train crosses every so often, lit windows sliding over the street ---------- */
+const VX0=16, BRX=31;
+slab(BRX+6-VX0,KERB_Z-FZ+1,tPaveW,(VX0+BRX+6)/2,PAVE_Y,(KERB_Z+FZ-1)/2,{tile:1.2,cell:3,parent:D});
+slab(BRX+6-VX0,ROAD_Z1-KERB_Z,tTarmac,(VX0+BRX+6)/2,0,(KERB_Z+ROAD_Z1)/2,{tile:2,cell:3,parent:D});
+slab(BRX+6-VX0,4,tPaveW,(VX0+BRX+6)/2,PAVE_Y,ROAD_Z1+2,{tile:1.2,cell:3,parent:D});
+const tLitW=P2(64,64,(g,w,h)=>{ g.clearRect(0,0,w,h); const r=rng(1621); for(let y=0;y<4;y++) for(let x=0;x<4;x++){ if(r()<.42) continue; const c=r()<.8?['#ffc070','#ffd8a0','#ff9a50'][r()*3|0]:'#9ab8ff'; R(g,c,x*16+4,y*16+3,8,10); if(r()<.5) R(g,'rgba(80,30,20,.6)',x*16+4,y*16+3,3,10); } },0,1);
+const litM=M(tLitW,{unlit:true,cut:true,nofog:false});
+for(const [x0,w,h,side] of [[VX0,5,11,1],[VX0+5.4,4.6,13,1],[VX0+10.4,5.2,10,1],[VX0,4.4,9,-1],[VX0+4.8,6,10.5,-1],[VX0+11.2,4.2,12,-1]]){
+  const z=side>0?FZ-2:TZ+2, cx=x0+w/2; blkT(w,h,4,tSoot,cx,h/2,z,{tile:1.6,tileV:1.5,parent:D,color:0x8a8078});
+  wallP(w-.6,h-3.4,tLitW,cx,h/2+1.2,z+side*2.02,side>0?0:Math.PI,{tile:3,tileH:3,unlit:true,cut:true,parent:D});
+  if(side>0) wallP(w-.8,2.6,shutterTex(1630+x0|0),cx,1.4,z+2.02,0,{whole:true,parent:D}); }
+for(const [x,z,s] of [[VX0+3,KERB_Z-.35,1],[VX0+11,KERB_Z-.35,1],[VX0+7,ROAD_Z1+.35,-1]]){
+  mk(cyl(.07,.11,6.8,8),col(0x2a2d33),D,x,PAVE_Y+3.4,z); blk(.08,.08,1.3,col(0x2a2d33),x,6.95,z+s*.62,D); blk(.42,.06,.26,glowC(0xffd090),x,6.9,z+s*1.22,D);
+  const gm=MM(tGlowSodium,{unlit:true,double:true,nofog:true}); gm.cut=2; mk(plane(1.6,1.6),gm,D,x,6.75,z+s*1.3);
+  streak(x,z+s*1.22,.01,0xff9a40,7,.7); }
+/* the bridge: brick abutments, a girder deck across the road, and the train */
+{ const deckY=6.2,z0=FZ-6,z1=TZ+6;
+  for(const z of [FZ-3.5,TZ+3.5]) blkT(4,deckY,7,tSoot,BRX,deckY/2,z,{tile:1.6,tileV:1.5,parent:D});
+  blk(3.4,1.3,z1-z0,col(0x22302a),BRX,deckY+.65,(z0+z1)/2,D); for(let z=z0;z<z1;z+=1.2) blk(3.5,.12,.08,col(0x18221e),BRX,deckY+.2,z,D);
+  blk(3.6,.12,z1-z0,col(0x3a4a40),BRX,deckY+1.36,(z0+z1)/2,D);
+  const tB=P2(256,32,(g,w,h)=>{ R(g,'#22302a',0,0,w,h); g.fillStyle='#d8d4c8'; g.font=`bold 20px ${SANS}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('BETHNAL GREEN',w/2,h/2+1); },0,1);
+  mk(plane(7,.9),MM(tB),D,BRX-1.72,deckY+.65,(KERB_Z+ROAD_Z1)/2,0,-Math.PI/2,0);
+  mk(box(.3,.4,.2),glowC(0xfff0d0),D,BRX-1.8,deckY-.3,(KERB_Z+ROAD_Z1)/2); }
+const tTrain=P2(128,32,(g,w,h)=>{ R(g,'#d8d8d4',0,0,w,h); R(g,'#e86a10',0,h-8,w,5); R(g,'#1a1a1c',0,4,w,2); for(let x=4;x<w;x+=16){ R(g,'#ffe8c0',x,9,11,12); R(g,'rgba(60,40,30,.5)',x+7,13,3,8); } R(g,'#2a2a2c',60,8,8,18); },0,1);
+const TRAIN=N(D,BRX,6.2+1.42,0), trainM=MM(tTrain,{unlit:true,nofog:true,repeat:[4,1]});
+for(let c=0;c<3;c++) mk(box(2.8,3.0,19.6),[trainM,trainM,col(0x4a4a4c),col(0x101010),col(0xc8c8c4),col(0xc8c8c4)],TRAIN,0,1.5,c*20);
+/* ---------- the tick ---------- */
+function face(n,eye){ n.r=[0,Math.atan2(eye[0]-n.p[0],eye[2]-n.p[2]),0]; }
+const sc=(c,k)=>[((c>>16)&255)/255*k,((c>>8)&255)/255*k,(c&255)/255*k];
+return { tick(t,eye){
+  const bOn=(Math.floor(t/.75)%2)===0; beaconM.emis=bOn?beaconOn:beaconOff;
+  for(const s of beaconStreaks){ s.m.color=sc(s.base,bOn?1:.0); }
+  const hz=(Math.floor(t/.55)%2)===0; for(const m of degsyCar.ind) m.emis=hz?[1.6,.8,.15]:[0,0,0];
+  for(const s of hazardStreaks) s.m.color=sc(s.base,hz?.8:0);
+  for(const s of streaks){ const n=s.n; n.r=[0,Math.atan2(eye[0]-n.p[0],eye[2]-n.p[2]),0]; }
+  { const per=26, k=(t%per)/per; TRAIN.vis=k<.42; TRAIN.p[2]=-70+k/.42*170; }
+  for(const p of puffs){ const k=(t*.22+p.ph)%1, s=.35+k*1.1; p.n.p=[5.2+k*.7+Math.sin(t+p.ph*9)*.12,.2+k*2.0,6.4+k*.3]; p.n.s=[s,s,s]; face(p.n,eye);
+    if(k>.8){ const q=1-(k-.8)/.2; p.n.s=[s*q,s*q,s*q]; } }
+} };
+})();
 
 /* =====================================================================================================
    VIEW, CAST, FREEZE-FRAMES, LOOP. One view of the street. The cast stands where they'd be at 02:14, or in a
    line-up along the kerb. Pick someone and you walk up to them and the world freezes, with their name card beside them.
    ===================================================================================================== */
-const state={ps1:false,snap:false,affine:false,dither:false,rain:true,layout:'street',pose:'stand',pick:null,eye:false};
+const state={ps1:true,res:480,snap:true,affine:true,dither:true,rain:true,layout:'street',pose:'stand',pick:null,eye:false};
 const cam={t:[0,1.4,0],th:.32,ph:1.32,r:11},goal={t:[0,1.4,0],th:.32,ph:1.32,r:11};
 const HOME={t:[-1.2,1.6,0],th:.28,ph:1.36,r:11.5};
 function setGoal(c,instant){ goal.t=c.t.slice(); goal.ph=c.ph; goal.r=c.r; let th=c.th; while(th-cam.th>Math.PI) th-=Math.PI*2; while(th-cam.th<-Math.PI) th+=Math.PI*2; goal.th=th; if(instant){ cam.t=goal.t.slice(); cam.th=goal.th; cam.ph=goal.ph; cam.r=goal.r; } }
@@ -1848,7 +1747,7 @@ function pan(dx,dy){ const s=goal.r*.0016; const rx=Math.cos(cam.th),rz=-Math.si
 const SPOTS={danny:[-.6,1.1,.15,'stand'],degsy:[-5.6,-.9,.55,'smoke'],kwame:[-4.4,-1.5,-.25,'stand'],ali:[-7.8,-2.2,.1,'watch'],
   maureen:[1.8,.5,-.9,'stand'],piotr:[4.6,1.4,-.5,'phone'],pcmale:[7.4,3.6,-1.1,'stand'],pcfem:[9,4.4,-1.3,'stand']};
 const CAST={};
-for(const id of ORDER){ const n=N(STREET,0,PAVE_Y,0); const C=ROSTER[id].kit==='L'?makeCharL(id,n):makeChar(id,n,'cast'); C.node=n; CAST[id]=C;
+for(const id of ORDER){ const n=N(STREET,0,PAVE_Y,0); const C=makeChar(id,n,'cast'); C.node=n; CAST[id]=C;
   const P=C.poses, hy=C.o.thigh+C.o.shin+C.o.foot+.05;
   P.smoke={hipsY:hy,wpn:'fight',j:{armR:[-.4,0,.28],elbowR:[-1.55,0,0],armL:[.08,0,.14],elbowL:[-.25,0,0],spine:[.03,0,0],head:[-.05,.25,0],thighL:[-.06,0,.06],thighR:[.05,0,-.04],kneeL:[.08,0,0]}};
   if(id==='maureen') P.fight={hipsY:hy,wpn:'fight',j:{armR:[-.95,0,.12],elbowR:[-1.15,0,0],armL:[.05,0,.12],elbowL:[-.5,0,0],spine:[.08,0,0],head:[.1,0,0]}};
@@ -1912,7 +1811,7 @@ function renderCard(){ card.innerHTML='';
 function updateClock(){ clockEl.innerHTML=''; clockEl.append(el('b',null,'02:14'),'Bethnal Green Rd · E2'); }
 
 const $=id=>document.getElementById(id);
-function syncLook(){ LOOK.grade=$('grade').checked; LOOK.grain=$('grain').checked; state.rain=$('rain').checked; RAIN.vis=state.rain; }
+function syncLook(){ LOOK.grade=$('grade').checked; state.ps1=$('ps1').checked; state.rain=$('rain').checked; RAIN.vis=state.rain; }
 document.querySelectorAll('.look input').forEach(i=>i.addEventListener('change',syncLook));
 syncLook();
 
@@ -1928,13 +1827,13 @@ function step(dt){ clock+=dt; if(!frozen) wclock+=dt; LOOK.time=clock;
   const k=1-Math.exp(-dt*(frozen?9:6)); for(let i=0;i<3;i++) cam.t[i]+=(goal.t[i]-cam.t[i])*k; cam.th+=(goal.th-cam.th)*k; cam.ph+=(goal.ph-cam.ph)*k; cam.r+=(goal.r-cam.r)*k;
   if(!frozen) for(const id of ORDER){ const C=CAST[id]; animateChar(C,wclock); skinUpdate(C); }
   if(state.eye){ const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),s_=(keys.KeyD?1:0)-(keys.KeyA?1:0); if(f||s_) walk(f*1.6*dt,s_*1.6*dt); }
-  rainTick(wclock,eyePos()); const fl=Math.sin(wclock*31)>.97&&Math.sin(wclock*3.1)>.6; STREET_LIGHT.pl[1][1]=fl?[.5,.22,.15]:[1.35,.62,.42]; setLights(STREET_LIGHT);
+  rainTick(wclock,eyePos()); DRESS.tick(wclock,eyePos()); const fl=Math.sin(wclock*31)>.97&&Math.sin(wclock*3.1)>.6; STREET_LIGHT.pl[1][1]=fl?[.5,.22,.15]:[1.35,.62,.42]; setLights(STREET_LIGHT);
   resize(); draw(); }
 function frame(now){ const dt=Math.min(.05,(now-lastT)/1000); lastT=now; step(dt); requestAnimationFrame(frame); }
 if(window.__CAPTURE) document.body.classList.add('capture');
 place(); renderCard(); updateClock(); setGoal(HOME,true); setLights(STREET_LIGHT);
 const ld=document.getElementById('loading'); if(ld) ld.hidden=true;
-window.__london={state,CAST,setGoal,freezeOn,unfreeze,place,poseAll,step,cam,goal};
+window.__london={state,CAST,setGoal,freezeOn,unfreeze,place,poseAll,step,cam,goal,setClock:v=>{wclock=v;}};
 if(!window.__CAPTURE) requestAnimationFrame(frame);
 })();
 

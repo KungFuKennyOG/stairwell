@@ -13,10 +13,6 @@ Object.assign(HEADS,{
   pcfem:{seed:1207,skin:'#b88462',skinD:'#8a5a40',hair:'long',hairC:'#1a120c',hairFront:13,sideburn:44,behind:48,nape:50,brow:'#1a120c',iris:'#2a1a10',lip:'#8a4a3a'}
 });
 
-/* the London kit's heads: face shape as geometry, hairline in metres */
-Object.assign(HEADS.danny,{shape:{jaw:.84,nose:.92,brow:.8,cheek:1.12,chin:.006,width:.97},hairFront:.2});
-Object.assign(HEADS.degsy,{shape:{jaw:.96,nose:1.28,brow:1.35,cheek:.9,chin:.013,width:1.05},hairFront:.198});
-
 /* ---------- shared bits ---------- */
 const tTrainerW=garment(64,32,1290,()=>['#ece8e2','leather',.2],{folds:2,grime:.14,decor:I=>{ softRect(I,0,23,64,9,'#c4c0b6',1,1); for(const y of [8,13]) softLine(I,26,y,38,y,'#3a3a3c',.8,1); softRect(I,46,11,10,4,'#2a2a2c',.8,.8); }});
 const tBootBlk=garment(64,32,1291,()=>['#17181a','leather',.3],{folds:3,decor:I=>{ softRect(I,0,22,64,10,'#0b0b0c',1,1); for(const y of [4,9,14]) softLine(I,26,y,38,y,'#3a3a3e',.8,1); }});
@@ -108,10 +104,10 @@ const SIDES={you:['you','You'],crew:['crew','The crew'],local:['civ','Lives here
 const ROSTER={
   danny:{side:'you',name:'Danny "Two Sugars" Doyle',role:'You · 19, Hollis House',color:'#e8a33d',card:'Wants in. Hasn\'t thought much past that.',
     note:'Grew up on the fourth floor of Hollis House. Takes his tea with two sugars and his chances with none. Wants to be somebody on this street by Christmas.',
-    kit:'L',o:{hf:.98,w:.95,depth:.94,lg:.96,ag:.95,jacket:.01,pants:.012,cuff:.004,hem:.006},torso:tDanTorso,arm:tDanArm,leg:tDanLeg,foot:tTrainerW,extra:(J,o)=>collar(J,o,M(flat(64,16,1307,'#0e0f11','knit'),{double:true}),.05,.012)},
+    o:{hf:.98,w:.95,depth:.94,lg:.96,ag:.95,jacket:.01,pants:.012},torso:tDanTorso,arm:tDanArm,leg:tDanLeg,foot:tTrainerW,extra:(J,o)=>collar(J,o,M(flat(64,16,1307,'#0e0f11','knit'),{double:true}),.05,.012)},
   degsy:{side:'crew',name:'Degsy',role:'The crew · runs errands for the old firm',color:'#2f6a4e',card:'Knows a bloke. Can\'t remember which one.',
     note:'Outside the Golden Rooster most nights, smoking, hazards on. Hands out the jobs nobody else wants, and the bag that starts all this.',
-    kit:'L',o:{hf:1.0,w:1.06,depth:1.1,belly:1.08,lg:1.0,ag:1.04,jacket:.018,pants:.012,puff:.012,hem:.004},torso:tDegTorso,arm:tDegArm,leg:tDegLeg,foot:tTrainerW,prop:pFag,wFight:{p:[0,-.07,.02],r:[1.2,0,0]},extra:J=>capL(J,'#141416',HEADS.degsy.shape)},
+    o:{hf:1.0,w:1.06,depth:1.1,belly:1.08,lg:1.0,ag:1.04,jacket:.03,pants:.012},torso:tDegTorso,arm:tDegArm,leg:tDegLeg,foot:tTrainerW,prop:pFag,wFight:{p:[0,-.07,.02],r:[1.2,0,0]},extra:J=>cap(J,'#141416','#141416')},
   kwame:{side:'crew',name:'Kwame',role:'The crew · Degsy\'s shadow',color:'#2a3462',card:'Says nothing. Remembers everything.',
     note:'Never more than two metres from Degsy and never without a box of wings. The one who actually knows the bloke.',
     o:{hf:1.03,w:1.0,depth:.98,lg:1.04,ag:1.02,jacket:.012,pants:.014},torso:tKwaTorso,arm:tKwaArm,leg:tKwaLeg,foot:tTrainerW,prop:pChickenBox,wFight:{p:[0,-.04,.02],r:[0,0,0]},extra:J=>hoodUp(J,LNAVY)},

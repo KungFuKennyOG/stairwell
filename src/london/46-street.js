@@ -178,6 +178,6 @@ const RAIN_H=7, rainBlocks=[0,1].map(i=>({n:mk(rainGeo(900,16,RAIN_H,1441+i),rai
 function rainTick(t,eye){ RAIN.p=[Math.round(eye[0]),0,Math.round(eye[2])]; const fall=(t*8.5)%RAIN_H; for(const b of rainBlocks){ let y=b.i*RAIN_H-fall; if(y<-1) y+=RAIN_H*2; b.n.p[1]=y; } }
 
 /* ---------- light ---------- */
-const STREET_LIGHT={amb:[.15,.18,.17],dir:[-.3,1,.4],dirCol:[.1,.12,.13],fog:[.042,.05,.048],fogNear:12,fogFar:42,
+const STREET_LIGHT={amb:[.2,.22,.22],dir:[-.3,1,.4],dirCol:[.16,.15,.14],fog:[.042,.05,.048],fogNear:12,fogFar:42,
   pl:[[[LAMP[0],5.2,LAMP[2]+1.0],[2.3,1.3,.5],13],[[-7.3,2.6,-1.4],[1.25,.6,.42],6],[[-2.1,2.6,-1.4],[.75,.9,.8],5],[[11.6,2.4,-3.6],[.45,.58,.62],4],
       [[LAMP2[0],5.2,LAMP2[2]+1.0],[2.3,1.3,.5],13],[[-17,2.6,4],[1.1,.7,.4],7],[[-1,2.6,5.4],[.62,.68,.7],10],[[-7.3,2.8,-4.4],[1.1,.92,.72],4.5]]};
