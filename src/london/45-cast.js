@@ -33,7 +33,9 @@ const tDegTorso=torsoP('degsy',1311,(x,y)=>{ if(y>T3.belt+10) return ['#1c1d20',
   softRect(I,38,T3.chest+8,8,2,'#0a1410',.9,.5); }});
 const tDegArm=armP(1313,(x,y)=>y<118?[LGREEN,'nylon',.35]:['#141416','knit',.3],{decor:I=>{ for(let y=14;y<118;y+=18){ softLine(I,0,y,64,y,'#122219',.85,1.4); softLine(I,0,y-8,64,y-8,'#ffffff',.08,5); } }});
 const tDegLeg=legP(1315,(x,y)=>y<118?['#1c1d20','knit',.6]:['#141416','knit',.3],{decor:I=>{ softLine(I,0,0,0,118,'#3a3a3e',.6,1.4); blob(I,32,64,10,6,.1); }});
-function pFag(g){ mk(box(.007,.007,.055),M(null,{color:0xe8e4dc}),g,0,-.02,.03); mk(box(.008,.008,.008),M(null,{color:0xff6020,unlit:true}),g,0,-.02,.06); return g; }
+/* a roll-up held between the fingers: filter, paper, ash, the coal. Built to be looked at from 30 cm. */
+function pFag(g){ const c=N(g,.012,-.07,.03,.15,0,0); mk(cyl(.0042,.0042,.018,8),M(null,{color:0xd8a868}),c,0,0,-.012,Math.PI/2); mk(cyl(.004,.004,.05,8),M(null,{color:0xeee8dc}),c,0,0,.022,Math.PI/2);
+  mk(cyl(.0043,.0043,.007,8),M(null,{color:0x5a5652}),c,0,0,.05,Math.PI/2); mk(cyl(.0038,.0038,.003,8),M(null,{color:0xff5a18,unlit:true}),c,0,0,.055,Math.PI/2); return g; }
 
 /* Kwame: navy tracksuit, hood up, chicken box in hand. Says nothing, misses nothing. */
 const LNAVY='#1d2547';
@@ -41,8 +43,10 @@ const tKwaTorso=torsoP('kwame',1321,(x,y)=>{ if(crewNeck(x,y,12,9)) return sk('k
   softRect(I,40,T3.nav-30,48,28,'#161d3a',.9,1.2); softLine(I,40,T3.nav-30,88,T3.nav-30,'#2a3462',.6,1); for(const s of [-1,1]) softLine(I,64+s*5,T3.neck+8,64+s*6,T3.neck+44,'#d8d4cc',.9,1); softRect(I,0,T3.belt-8,128,10,'#161d3a',.9,2); }});
 const tKwaArm=armP(1323,()=>[LNAVY,'knit',.7],{decor:I=>softRect(I,0,114,64,14,'#161d3a',.9,2)});
 const tKwaLeg=legP(1325,(x,y)=>[LNAVY,'knit',.7],{decor:I=>{ softRect(I,0,114,64,14,'#161d3a',.9,2); softLine(I,0,0,0,114,'#d8d4cc',.7,1.4); }});
-const tChickBox=P2(32,32,(g,w,h)=>{ R(g,'#c21b1b',0,0,w,h); R(g,'#ffd23a',0,12,w,8); R(g,'#8a1010',0,0,w,2); },6,1327);
-function pChickenBox(g){ mk(box(.16,.09,.12),M(tChickBox),g,0,-.07,.05); return g; }
+const tChickBox=P2(64,64,(g,w,h)=>{ R(g,'#c21b1b',0,0,w,h); R(g,'#ffd23a',0,22,w,14); R(g,'#8a1010',0,0,w,3); ell(g,32,48,9,7,'#ffd23a'); ell(g,32,48,5,4,'#c21b1b'); g.fillStyle='#c21b1b'; g.font='bold 9px Arial,sans-serif'; g.textAlign='center'; g.fillText('GOLDEN ROOSTER',32,32); specks(g,'#ffcf9a',30,1328,w,22); },4,1327);
+const tGrease=P2(16,16,(g,w,h)=>{ R(g,'#c21b1b',0,0,w,h); ell(g,6,9,4,3,'rgba(90,30,10,.5)'); },3,1329);
+/* the box of wings: lid and base with a seam, the logo printed on top, a grease spot, held by the side */
+function pChickenBox(g){ const b=N(g,0,-.05,.06); const t=M(tChickBox),gr=M(tGrease); mk(box(.17,.05,.12),[gr,gr,gr,gr,gr,gr],b,0,-.026,0); mk(box(.172,.045,.122),[t,t,t,gr,t,t],b,0,.022,0); mk(box(.174,.004,.124),M(null,{color:0x7a0c0c}),b,0,-.0005,0); return g; }
 function hoodUp(J,col){ hairBack(J,col,.04); const m=M(null,{color:hexInt(col),double:true}); crown(J,[[.12,.092,.112],[.2,.094,.114],[.25,.072,.094],[.275,.02,.03]],m,-.03); }
 
 /* Maureen: burgundy mac, headscarf, umbrella. Seventy-eight. Has seen it all on this street, twice. */
@@ -52,7 +56,12 @@ const tMauTorso=torsoP('maureen',1331,(x,y)=>{ if(crewNeck(x,y,13,9)) return sk(
 const tMauArm=armP(1333,(x,y)=>y<112?['#5a2630','poly',.5]:sk('maureen'),{decor:I=>softRect(I,0,104,64,8,'#4a1c24',.9,1)});
 const tMauLeg=legP(1335,()=>['#3a2c2c','knit',.2],{decor:I=>blob(I,32,60,8,6,.08)});
 const tMacSkirt=garment(64,64,1337,()=>['#5a2630','poly',.5],{folds:6,decor:I=>{ softLine(I,32,0,32,64,'#3a1218',.8,1.4); buttons(I,[28,36],8,60,20,'#2a1014'); }});
-function pBrolly(g){ const m=M(null,{color:0x111214,double:true}); mk(box(.012,.012,.7),M(null,{color:0x2a2a2c}),g,0,-.02,.3); mk(lathe([[0,.5,.5],[.12,.38,.38],[.24,.08,.08],[.25,.01,.01]],8,{capB:false}),m,g,0,-.02,.62,Math.PI/2); return g; }
+/* a proper umbrella: crook handle, shaft, eight ribs under the canopy, the ferrule on top */
+function pBrolly(g){ const m=M(null,{color:0x16171a,double:true}),steel=M(null,{color:0x8a8e94}),dk=M(null,{color:0x2a2a2c});
+  mk(cyl(.006,.006,.72,6),steel,g,0,-.02,.3,Math.PI/2); mk(cyl(.016,.014,.12,8),M(null,{color:0x4a2c1a}),g,0,-.02,-.06,Math.PI/2); mk(box(.024,.06,.024),M(null,{color:0x4a2c1a}),g,0,-.05,-.12);
+  mk(lathe([[0,.52,.52],[.1,.44,.44],[.2,.26,.26],[.25,.06,.06],[.26,.012,.012]],8,{capB:false}),m,g,0,-.02,.62,Math.PI/2);
+  for(let i=0;i<8;i++){ const a=i/8*Math.PI*2+Math.PI/8; const rib=N(g,0,-.02,.62,0,0,a); mk(box(.004,.5,.004,{at:[0,.25,0]}),dk,rib,0,0,.02,-.42,0,0); }
+  mk(cyl(.004,.004,.06,6),steel,g,0,-.02,.9,Math.PI/2); return g; }
 function headscarf(J){ const m=M(P2(16,16,(g,w,h)=>{ R(g,'#2e4a6a',0,0,w,h); for(let i=0;i<w;i+=4){ R(g,'#c8a050',i,0,1,h); R(g,'#c8a050',0,i,w,1); } },4,1338),{double:true});
   crown(J,[[.12,.088,.106],[.19,.09,.108],[.24,.07,.088],[.265,.015,.02]],m,-.02); }
 
@@ -81,6 +90,12 @@ function helmetMet(J){ const m=M(P2(16,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#1a1c2
   mk(box(.05,.06,.01),M(null,{color:0xc8ccd0}),J.head,0,.21,.115,-.25); }
 function flatCap(J){ const band=M(P2(32,8,(g,w,h)=>{ for(let x=0;x<w;x+=4) for(let y=0;y<h;y+=4) R(g,((x+y)>>2)%2?'#e8e6e0':'#1e3a8a',x,y,4,4); },0,1370),{repeat:[4,1]});
   crown(J,[[.16,.09,.108],[.2,.092,.11]],band,-.01); crown(J,[[.2,.096,.114],[.23,.11,.13],[.245,.1,.12],[.25,0,0]],M(null,{color:0x111216}),-.01); mk(box(.15,.01,.07),M(null,{color:0x0a0a0c}),J.head,0,.165,.12,.25); }
+/* kit on the vest and belt, as geometry: radio with its aerial and the red button, body-worn camera, cuffs and the CS pouch */
+function metKit(J,o){ const sy=1.09*o.hf,blk_=M(null,{color:0x0c0c0e}),grey=M(null,{color:0x2a2c30});
+  const zf=y=>frontAt(o,y)+.034;
+  mk(box(.06,.11,.034),blk_,J.spine,.075,1.33*o.hf-sy,zf(1.33)); mk(box(.008,.07,.008),grey,J.spine,.092,1.43*o.hf-sy,zf(1.33)); mk(box(.012,.01,.006),M(null,{color:0xd02020}),J.spine,.06,1.39*o.hf-sy,zf(1.33)+.018);
+  mk(box(.055,.075,.03),blk_,J.spine,0,1.26*o.hf-sy,zf(1.26)); mk(cyl(.011,.011,.006,10),M(null,{color:0x3a5a8a,unlit:true}),J.spine,0,1.27*o.hf-sy,zf(1.26)+.016,Math.PI/2); mk(box(.006,.006,.004),M(null,{color:0xff2020,unlit:true}),J.spine,.018,1.29*o.hf-sy,zf(1.26)+.016);
+  const t=torsoAt(o,.97*o.hf); for(const [ang,w,h] of [[.9,.07,.09],[-.9,.05,.12],[2.3,.07,.07]]){ const r=Math.hypot(t[1],t[2])*.95; mk(box(w,h,.04),blk_,J.hips,Math.sin(ang)*t[1]*1.08,-.03,Math.cos(ang)*t[2]*1.1+t[3],0,ang,0); } }
 function pBaton(g){ mk(cyl(.012,.012,.2,6),M(null,{color:0x1a1a1c}),g,0,0,.02,Math.PI/2); mk(cyl(.008,.008,.34,6),M(null,{color:0x2a2c30}),g,0,0,.29,Math.PI/2); mk(box(.018,.018,.018),M(null,{color:0x2a2c30}),g,0,0,.46); return g; }
 const BATON={prop:pBaton,gripHand:true,wFight:{p:[0,-.075,0],r:[1.4,0,0]},fight:{armR:[-.55,0,.2],elbowR:[-.9,0,0],armL:[-.35,0,-.2],elbowL:[-1.1,0,0],spine:[.08,0,0],thighL:[-.15,0,.06],kneeL:[.15,0,0],thighR:[.12,0,-.05]}};
 
@@ -107,9 +122,9 @@ const ROSTER={
     o:{hf:.98,w:1.02,depth:1.04,belly:1.12,lg:.98,ag:1.0,jacket:.004,pants:.01},torso:tAliTorso,arm:tAliArm,leg:tAliLeg,foot:tShoeFlat,extra:J=>cap(J,'#b8161c','#9a1015')},
   pcmale:Object.assign({side:'law',name:'PC Hughes',role:'Old Bill · Met response, Bethnal Green',color:'#1e3a8a',card:'Twenty-two years in. Still walks the beat.',
     note:'First on scene at one star: on foot, helmet on, in no hurry. Knows half the street by name and the other half by reputation.',
-    o:{hf:1.02,w:1.06,depth:1.06,belly:1.08,lg:1.04,ag:1.06,jacket:.004,pants:.01},torso:tMetTorso('pcmale'),arm:tMetArm,leg:tMetLeg,foot:tBootBlk,extra:(J,o)=>{ vest(J,o,M(tStab,{double:true}),.024); helmetMet(J); }},BATON),
+    o:{hf:1.02,w:1.06,depth:1.06,belly:1.08,lg:1.04,ag:1.06,jacket:.004,pants:.01},torso:tMetTorso('pcmale'),arm:tMetArm,leg:tMetLeg,foot:tBootBlk,extra:(J,o)=>{ vest(J,o,M(tStab,{double:true}),.024); helmetMet(J); metKit(J,o); }},BATON),
   pcfem:Object.assign({side:'law',name:'PC Okafor',role:'Old Bill · Met response, Bethnal Green',color:'#2e4a8a',card:'Faster than you. Has been since school.',
     note:'Arrives at two stars in the response car and gets out running. Doesn\'t stop at the fence you just climbed.',
-    o:Object.assign({jacket:.004,pants:.01},FEM,{hf:.97}),torso:tMetTorso('pcfem'),arm:tMetArm,leg:tMetLeg,foot:tBootBlk,extra:(J,o)=>{ vest(J,o,M(tStab,{double:true}),.024); bun(J,'#1a120c'); flatCap(J); }},BATON)
+    o:Object.assign({jacket:.004,pants:.01},FEM,{hf:.97}),torso:tMetTorso('pcfem'),arm:tMetArm,leg:tMetLeg,foot:tBootBlk,extra:(J,o)=>{ vest(J,o,M(tStab,{double:true}),.024); bun(J,'#1a120c'); flatCap(J); metKit(J,o); }},BATON)
 };
 const ORDER=['danny','degsy','kwame','maureen','piotr','ali','pcmale','pcfem'];

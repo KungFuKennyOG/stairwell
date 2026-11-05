@@ -2,21 +2,25 @@
    VIEW, CAST, FREEZE-FRAMES, LOOP. One view of the street. The cast stands where they'd be at 02:14, or in a
    line-up along the kerb. Pick someone and the frame freezes on them with their name card, Ritchie style.
    ===================================================================================================== */
-const state={ps1:true,res:480,snap:true,affine:true,dither:true,rain:true,layout:'street',pose:'stand',pick:null};
+const state={ps1:true,res:480,snap:true,affine:true,dither:true,rain:true,layout:'street',pose:'stand',pick:null,eye:false};
 const cam={t:[0,1.4,0],th:.32,ph:1.32,r:11},goal={t:[0,1.4,0],th:.32,ph:1.32,r:11};
 const HOME={t:[-1.2,1.6,0],th:.28,ph:1.36,r:11.5};
 function setGoal(c,instant){ goal.t=c.t.slice(); goal.ph=c.ph; goal.r=c.r; let th=c.th; while(th-cam.th>Math.PI) th-=Math.PI*2; while(th-cam.th<-Math.PI) th+=Math.PI*2; goal.th=th; if(instant){ cam.t=goal.t.slice(); cam.th=goal.th; cam.ph=goal.ph; cam.r=goal.r; } }
 function effR(){ const asp=cv.width/Math.max(1,cv.height); return cam.r*Math.max(1,(asp<.8?.82:1.1)/asp); }
 function eyePos(){ const r=effR(); return [cam.t[0]+r*Math.sin(cam.ph)*Math.sin(cam.th),cam.t[1]+r*Math.cos(cam.ph),cam.t[2]+r*Math.sin(cam.ph)*Math.cos(cam.th)]; }
-const clampGoal=()=>{ goal.ph=Math.min(1.62,Math.max(.25,goal.ph)); goal.r=Math.min(22,Math.max(1.4,goal.r)); };
+const clampGoal=()=>{ if(state.eye){ goal.ph=Math.min(2.7,Math.max(.45,goal.ph)); goal.r=.04; return; } goal.ph=Math.min(1.62,Math.max(.25,goal.ph)); goal.r=Math.min(22,Math.max(1.4,goal.r)); };
 const ptrs=new Map(); let lastPinch=0,panMode=false;
 cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); panMode=e.button===2||e.shiftKey; if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; lastPinch=Math.hypot(a.x-b.x,a.y-b.y); } unfreeze(); });
 cv.addEventListener('pointermove',e=>{ const p=ptrs.get(e.pointerId); if(!p) return; const dx=e.clientX-p.x,dy=e.clientY-p.y; p.x=e.clientX; p.y=e.clientY;
   if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); if(lastPinch) goal.r*=lastPinch/d; lastPinch=d; pan(dx/2,dy/2); }
-  else if(panMode) pan(dx,dy); else { goal.th-=dx*.006; goal.ph-=dy*.005; } clampGoal(); });
+  else if(panMode&&!state.eye) pan(dx,dy); else { goal.th+=(state.eye?1:-1)*dx*.006; goal.ph+=(state.eye?1:-1)*dy*.005; } clampGoal(); });
 const endPtr=e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2) lastPinch=0; };
 cv.addEventListener('pointerup',endPtr); cv.addEventListener('pointercancel',endPtr); cv.addEventListener('contextmenu',e=>e.preventDefault());
-cv.addEventListener('wheel',e=>{ e.preventDefault(); goal.r*=Math.exp(e.deltaY*.0012); clampGoal(); },{passive:false});
+cv.addEventListener('wheel',e=>{ e.preventDefault(); if(state.eye){ walk(-e.deltaY*.004,0); return; } goal.r*=Math.exp(e.deltaY*.0012); clampGoal(); },{passive:false});
+const keys={}; addEventListener('keydown',e=>{ keys[e.code]=true; }); addEventListener('keyup',e=>{ keys[e.code]=false; });
+/* eye level: you stand on the pavement at 1.65 m, as in the headset. Drag to look, WASD or the wheel to walk. */
+function walk(f,s){ const fx=-Math.sin(goal.th),fz=-Math.cos(goal.th); goal.t[0]+=fx*f+fz*s*-1; goal.t[2]+=fz*f+fx*s; goal.t[0]=Math.max(-15,Math.min(15,goal.t[0])); goal.t[2]=Math.max(FZ-2.3,Math.min(ROAD_Z1+3,goal.t[2])); goal.t[1]=(goal.t[2]>KERB_Z&&goal.t[2]<ROAD_Z1?0:PAVE_Y)+1.65; }
+function setEye(on){ state.eye=on; unfreeze(); if(on){ const e=eyePos(); setGoal({t:[Math.max(-14,Math.min(14,e[0])),PAVE_Y+1.65,Math.min(KERB_Z-.4,Math.max(FZ+.6,1.8))],th:cam.th+Math.PI,ph:Math.PI/2,r:.04}); if(state.layout==='street') setGoal({t:[1.2,PAVE_Y+1.65,2],th:-1.15+Math.PI*0+1.15+.9,ph:1.6,r:.04}); } else setGoal(state.layout==='lineup'?{t:[0,1.05,1.4],th:0,ph:1.42,r:innerWidth>760?7.4:9.6}:HOME); renderCard(); }
 cv.addEventListener('keydown',e=>{ const k={ArrowLeft:[.12,0],ArrowRight:[-.12,0],ArrowUp:[0,-.08],ArrowDown:[0,.08]}[e.key];
   if(k){ e.preventDefault(); goal.th+=k[0]; goal.ph+=k[1]; clampGoal(); } if(e.key==='+'||e.key==='='){ goal.r*=.9; clampGoal(); } if(e.key==='-'){ goal.r*=1.1; clampGoal(); } if(e.key==='Escape') unfreeze(); });
 function pan(dx,dy){ const s=goal.r*.0016; const rx=Math.cos(cam.th),rz=-Math.sin(cam.th); goal.t[0]-=rx*dx*s; goal.t[2]-=rz*dx*s; goal.t[1]+=dy*s; goal.t[1]=Math.max(.3,Math.min(8,goal.t[1])); goal.t[0]=Math.max(-14,Math.min(14,goal.t[0])); goal.t[2]=Math.max(-2.5,Math.min(12,goal.t[2])); }
@@ -44,7 +48,7 @@ function poseAll(){ for(const id of ORDER){ const C=CAST[id]; const name=poseOf(
 const freezeEl=document.getElementById('freeze'), fName=document.getElementById('fName'), fTag=document.getElementById('fTag'), fRole=document.getElementById('fRole');
 let frozen=false;
 function freezeOn(id){ const C=CAST[id],R_=ROSTER[id]; const p=C.node.p, h=C.node.r[1];
-  setGoal({t:[p[0],p[1]+1.5,p[2]],th:h+.28,ph:1.52,r:2.4});
+  if(state.eye) state.eye=false; setGoal({t:[p[0],p[1]+1.5,p[2]],th:h+.28,ph:1.55,r:1.6});
   state.pick=id; fName.textContent=R_.name.replace(/ ".*" /,' ').toUpperCase(); fRole.textContent=R_.role; fTag.textContent=R_.card;
   freezeEl.hidden=false; freezeEl.classList.remove('slam'); void freezeEl.offsetWidth; freezeEl.classList.add('slam'); frozen=true; cv.classList.add('frozen'); document.body.classList.add('frozen'); renderCard(); }
 function unfreeze(){ if(!frozen) return; frozen=false; freezeEl.hidden=true; cv.classList.remove('frozen'); document.body.classList.remove('frozen'); }
@@ -57,6 +61,7 @@ function renderCard(){ card.innerHTML='';
   card.append(el('p','sub','The cast · on the Stairwell rig'),el('h2',null,'Who\'s out at 2 a.m.'));
   card.append(el('p','body','Pick someone for their freeze-frame. Same skinned body, painted faces and gun holds as the tower cast, dressed for East London.'));
   const row=el('div','row'); card.append(row);
+  const eb=el('button','btn'+(state.eye?'':' ghost'),state.eye?'Back to orbit':'Eye level (VR height)'); eb.type='button'; eb.setAttribute('aria-pressed',String(state.eye)); eb.addEventListener('click',()=>setEye(!state.eye)); row.append(eb);
   row.append(segOf([['street','On the street'],['lineup','Line-up']],state.layout,v=>{ state.layout=v; unfreeze(); place(); setGoal(v==='lineup'?{t:[0,1.05,1.4],th:0,ph:1.42,r:innerWidth>760?7.4:9.6}:HOME); }));
   card.append(el('p','seg-label','Show them'),segOf([['stand','As they are'],['handsup','Hands up'],['scared','Scared'],['hurt','Hurt']],state.pose,p=>{ state.pose=p; poseAll(); }));
   const ul=el('ul','list');
@@ -88,7 +93,8 @@ function draw(){ const eye=eyePos(), tgt=cam.t;
 function step(dt){ clock+=dt; if(!frozen) wclock+=dt;
   const k=1-Math.exp(-dt*(frozen?9:6)); for(let i=0;i<3;i++) cam.t[i]+=(goal.t[i]-cam.t[i])*k; cam.th+=(goal.th-cam.th)*k; cam.ph+=(goal.ph-cam.ph)*k; cam.r+=(goal.r-cam.r)*k;
   if(!frozen) for(const id of ORDER){ const C=CAST[id]; animateChar(C,wclock); skinUpdate(C); }
-  rainTick(wclock,cam); const fl=Math.sin(wclock*31)>.97&&Math.sin(wclock*3.1)>.6; STREET_LIGHT.pl[1][1]=fl?[.5,.22,.15]:[1.35,.62,.42]; setLights(STREET_LIGHT);
+  if(state.eye){ const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),s_=(keys.KeyD?1:0)-(keys.KeyA?1:0); if(f||s_) walk(f*1.6*dt,s_*1.6*dt); }
+  rainTick(wclock,eyePos()); const fl=Math.sin(wclock*31)>.97&&Math.sin(wclock*3.1)>.6; STREET_LIGHT.pl[1][1]=fl?[.5,.22,.15]:[1.35,.62,.42]; setLights(STREET_LIGHT);
   resize(); draw(); }
 function frame(now){ const dt=Math.min(.05,(now-lastT)/1000); lastT=now; step(dt); requestAnimationFrame(frame); }
 place(); renderCard(); updateClock(); setGoal(HOME,true); setLights(STREET_LIGHT);
