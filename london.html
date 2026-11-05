@@ -90,6 +90,7 @@ body.playing #view{cursor:crosshair}
 #gObj{position:absolute;left:max(16px,env(safe-area-inset-left,0px));top:calc(14px + env(safe-area-inset-top,0px));margin:0;max-width:min(520px,70vw);padding:8px 12px;background:var(--paper);border-left:3px solid var(--amber);font:700 14px/1.4 var(--type)}
 #gStars{position:absolute;right:max(16px,env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));margin:0;font:400 44px/1 var(--name);color:#ffd040;text-shadow:3px 3px 0 #000;letter-spacing:.08em}
 #gStars[data-n="2"]{color:#ff5a3a}
+#gCash{position:absolute;right:max(16px,env(safe-area-inset-right,0px));top:calc(62px + env(safe-area-inset-top,0px));margin:0;padding:3px 8px;background:var(--paper);color:#7ad87a;font:700 13px/1.3 var(--type)}
 #gSub{position:absolute;left:50%;bottom:calc(34px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);margin:0;max-width:min(760px,90vw);padding:8px 14px;background:rgba(6,6,6,.92);font:700 17px/1.45 var(--type);text-align:center}
 #gSub b{color:var(--amber);margin-right:6px}
 .gEnd{position:fixed;inset:auto 0 0 0;z-index:6;display:grid;gap:10px;justify-items:start;padding-block:22px max(26px,env(safe-area-inset-bottom,0px));padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));background:linear-gradient(0deg,rgba(5,5,5,.96),rgba(5,5,5,.75) 70%,rgba(5,5,5,0))}
@@ -141,7 +142,7 @@ body.capture .start,body.capture .ghud,body.capture .gEnd{display:none!important
   <div class="row"><button type="button" id="gVR" class="vr" hidden>Enter VR</button><button type="button" id="gPlay">Play</button><button type="button" id="gLook" class="ghost">Just look around</button></div>
   <p class="ctl">Phone: thumbstick to walk, drag to look, RUN, GRAB and JUMP (landscape works best). Desktop: mouse to look, WASD to walk, Shift to run, E or click to grab, Space to vault or climb. Headset: left stick to walk (click it to run), right stick to turn, squeeze with a hand on the bag to grab it, A or X to vault or climb. Look at someone up close to meet them.</p>
 </section>
-<div class="ghud" aria-live="polite"><p id="gAct" hidden></p><p id="gObj"></p><p id="gStars" data-n="0"></p><p id="gSub" hidden></p></div>
+<div class="ghud" aria-live="polite"><p id="gAct" hidden></p><p id="gObj"></p><p id="gStars" data-n="0"></p><p id="gCash" hidden></p><p id="gSub" hidden></p></div>
 <div class="touch-ui" aria-label="Touch controls"><div id="tStick" aria-label="Move"><div id="tKnob"></div></div><div class="tbtns"><button type="button" id="tJump">Jump</button><button type="button" id="tRun" aria-pressed="false">Run</button><button type="button" id="tGrab">Grab</button></div></div>
 <section class="gEnd" id="gEnd" hidden><h2 id="gEndH"></h2><p id="gEndP"></p><button type="button" id="gAgain">Run it again</button></section>
 <p id="err" hidden></p>
@@ -1968,7 +1969,7 @@ const floorY=(x,z)=>z>KERB_Z&&z<ROAD_Z1?0:PAVE_Y;
   for(const x of [11.0,12.2]) wallP(3.0,3.0,tConc,x,PAVE_Y+1.5,FZ-4.1,x<11.6?Math.PI/2:-Math.PI/2,{parent:B_,tile:2,color:0xd8dcd6});
   for(const z of [FZ-3.2,FZ-5.0]) blk(.12,.05,.9,glowC(0xeef6ff),11.6,PAVE_Y+2.94,z,B_);   /* strip lights */
   mk(boxW(1.0,.22,.03),MM(signTex(160,36,'#e8e4da','#1b1b1b','TO REAR → BINS',null,{seed:1663}),{unlit:true}),B_,11.6,PAVE_Y+2.45,FZ-2.66,0,Math.PI,0);
-  blk(1.3,.1,3.0,col(0x6a6a66),11.6,PAVE_Y+3.0,FZ-4.1,B_); blk(.4,.06,.2,glowC(0xe8f0f4),11.6,PAVE_Y+2.95,FZ-4.0,B_);
+ blk(.4,.06,.2,glowC(0xe8f0f4),11.6,PAVE_Y+2.95,FZ-4.0,B_);
   slab(18.6,2.8,tPaveW,(10.4+29)/2,PAVE_Y,(z0+z1)/2,{parent:B_,tile:1.2,cell:1.2});
   wallP(18.6,4.2,tSoot,(10.4+29)/2,PAVE_Y+2.1,z0,0,{parent:B_,tile:1.6,tileH:1.5,cell:1.2});                 /* the far wall of the alley */
   wallP(15.4,4.2,tSoot,10.4,PAVE_Y+2.1,z0-7.3,-Math.PI/2,{parent:B_,tile:1.6,tileH:1.5,cell:1.5});                    /* the courtyard's east wall, south of the alley mouth */
@@ -2052,7 +2053,7 @@ const tPhone=tex(256,448,'#0a0a0c',null);
 function drawPhone(){ const g=tPhone.c.getContext('2d'),w=256,h=448; R(g,'#0b0c10',0,0,w,h); R(g,'#c8231c',0,0,w,46); g.fillStyle='#fff'; g.font=`bold 24px ${TYPEF}`; g.textAlign='left'; g.fillText('DEGSY',14,32);
   g.fillStyle='#f0ece2'; g.font=`bold 22px ${TYPEF}`; const words=G.obj.split(' '); let ln='',y=90; for(const wd of words){ const tr=ln?ln+' '+wd:wd; if(g.measureText(tr).width>w-28&&ln){ g.fillText(ln,14,y); ln=wd; y+=30; } else ln=tr; } g.fillText(ln,14,y);
   g.font=`64px ${SANS}`; g.fillStyle=G.stars?'#ffd040':'#3a3a3a'; g.fillText('★',20,h-40); g.fillStyle=G.stars>1?'#ffd040':'#3a3a3a'; g.fillText('★',110,h-40);
-  g.font=`bold 18px ${TYPEF}`; g.fillStyle='#8a857a'; g.fillText('02:14  E2',14,h-110); if(promptK){ g.fillStyle='#f0a23e'; g.font=`bold 22px ${TYPEF}`; g.fillText('A · '+(promptK==='climb'?'CLIMB':'VAULT'),14,h-140); } retex(tPhone); phoneDirty=false; }
+  g.font=`bold 18px ${TYPEF}`; g.fillStyle='#8a857a'; g.fillText('02:14  E2',14,h-110); if(G.cash){ g.fillStyle='#7ad87a'; g.fillText('£'+G.cash+' found',140,h-110); } if(promptK){ g.fillStyle='#f0a23e'; g.font=`bold 22px ${TYPEF}`; g.fillText('A · '+(promptK==='climb'?'CLIMB':'VAULT'),14,h-140); } retex(tPhone); phoneDirty=false; }
 function buildHands(){ const skin=M(null,{color:0xc8906c}),sleeve=M(null,{color:0x111214});
   for(const s of ['left','right']){ const n=N(STREET); mk(box(.085,.1,.11),skin,n,0,0,.02); mk(box(.03,.05,.06),skin,n,(s==='left'?1:-1)*.05,.02,-.01); mk(cyl(.045,.05,.2,8),sleeve,n,0,-.01,.15,Math.PI/2); n.vis=false; HANDS[s]={n,M:m4.make(),pos:[0,0,0],grip:false,gripEdge:false}; }
   const ph=N(HANDS.left.n); mk(box(.075,.14,.01),col(0x111111),ph,0,0,0); mk(plane(.066,.116),M(tPhone,{unlit:true}),ph,0,0,.006); ph.p=[0,.07,-.02]; ph.r=[-.9,0,0]; }
@@ -2065,6 +2066,7 @@ function reset(){
   for(const c of COPS){ c.pos[0]=c.post[0]; c.pos[1]=c.post[1]; c.hd=c.post[2]; c.state='post'; c.sus=0; c.pi=0; c.wait=0; c.E.G=null; c.mark.vis=false; }
   for(const k in labels) labels[k].n.vis=false;
   if(typeof SEEN!=='undefined') SEEN.clear(); if(frozen) unfreeze();
+  G.cash=0; for(const c of CASH){ c.got=false; c.n.vis=true; } { const e=$g('gCash'); if(e) e.hidden=true; }
   setObj('Degsy wants a word. He\'s outside the Golden Rooster, up the road to the west.');
   const end=$g('gEnd'); if(end) end.hidden=true; }
 function start(vr){ G.on=true; G.xr=!!vr; document.body.classList.add('playing'); state.eye=true; state.layout='street'; place();
@@ -2117,9 +2119,11 @@ function copTick(c,dt){ if(frozen&&state.pick===c.id) return;
 function bark(id,key,r){ if(G.said.has(key)) return; const C=CAST[id]; if(!C) return; const p=C.node.p; if(Math.hypot(P.x-p[0],P.z-p[2])<r){ G.said.add(key); say(key,2.6); } }
 function busted(c){ if(G.result) return; G.result='nicked'; G.endT=0; sayNow(c.id==='pcmale'?'nicked':'nickedO',3); setObj('Nicked.'); if(KEY_CAST.includes(c.id)) freezeOn(c.id,false); showEnd('NICKED','PC '+(c.id==='pcmale'?'Hughes':'Okafor')+' had you bang to rights. The bag goes in an evidence locker; Degsy goes very quiet.'); }
 function done(){ if(G.result) return; G.result='done'; G.endT=0; sayNow('terryYes',3.4); setObj('Job done.'); setParent(BAG,STREET); BAG.p=[LOCKUP.x-.4,PAVE_Y+.15,FZ-.9]; BAG.r=[0,.6,0]; G.hasBag=false;
-  showEnd('JOB DONE','£200 in your pocket. Degsy owes you £150 of it. '+(G.maxStars?'The Old Bill clocked you, and Ali\'s camera saw everything.':'Clean. Not even Ali\'s camera saw you.')); }
+  showEnd('JOB DONE','£200 in your pocket. Degsy owes you £150 of it. '+(G.cash?'Plus £'+G.cash+' of his you found on the rooftops, which he doesn\'t need to know about. ':'')+(G.maxStars?'The Old Bill clocked you, and Ali\'s camera saw everything.':'Clean. Not even Ali\'s camera saw you.')); }
 function showEnd(h,p){ const e=$g('gEnd'); if(!e) return; if(document.pointerLockElement) document.exitPointerLock?.(); $g('gEndH').textContent=h; $g('gEndP').textContent=p; e.hidden=false; e.dataset.kind=G.result; }
-function jobTick(dt){
+function cashTick(){ for(const c of CASH){ if(c.got) continue;
+    if(Math.hypot(P.x-c.p[0],P.z-c.p[2])<.75&&Math.abs(P.y-c.p[1])<.8){ c.got=true; c.n.vis=false; G.cash=(G.cash||0)+20; const e=$g('gCash'); if(e){ e.textContent='£'+G.cash+' found'; e.hidden=false; } phoneDirty=true; } } }
+function jobTick(dt){ cashTick();
   const deg=CAST.degsy.node.p, dDeg=Math.hypot(P.x-deg[0],P.z-deg[2]);
   if(G.phase==='meet'){ if(dDeg<9) bark('degsy','degsyWave',9); if(dDeg<2.6){ G.phase='brief'; G.queue=[]; G.line=null; say('d1',2.6); say('d2',4.4); say('d3',3.6); G.briefT=10.6; } }
   else if(G.phase==='brief'){ G.briefT-=dt; if(G.briefT<=0){ G.phase='getbag'; setObj('Grab the bag off the boot of Degsy\'s silver motor.'); } }
@@ -2224,6 +2228,53 @@ function eBox(x0,z0,x1,z1,y0,y1,m,o={}){ const w=x1-x0,d=z1-z0,h=y1-y0,cx=(x0+x1
   for(const [x,f] of [[-12,2],[-4,1],[3,3],[6,2]]) mk(cyl(.28,.05,.08,10),col(0xd8d8d4),EST,x,PY+f*2.8+2.0,CZ0+.12,Math.PI/2.4);
   for(const [x,f] of [[-9,1],[-1,2]]){ blk(1.6,.02,.02,col(0xd8d8d8),x,PY+f*2.8+1.9,CZ0+1.2,EST); for(let i=0;i<4;i++) blk(.28,.4,.02,col([0xc8231c,0xe8e4d8,0x2a4a8a,0xd8b840][i]),x-.6+i*.4,PY+f*2.8+1.68,CZ0+1.2,EST); }
 }
+
+/* ---------- THE LINES: routes built for the parkour, all of them places the coppers can't follow.
+   1. The rooftop run. From the courtyard, jump-grab the air-con unit on the back wall (or run and leap to it off the
+      north end of the garage roofs), pull up onto the shops' rear extension roofs at 4.3 m, run east across vents and
+      skylights, clear the 1.4 m gap over the Hollis House passage at a run (miss it and you land on the canopy), then
+      along the narrow ledge behind the bridge-end buildings and drop into the alley right by Arch 9's back door.
+   2. The deck: up the stair to Hollis House's first-floor walkway, along it, and hop across onto the garage roofs.
+   3. The kerb: guard railings either side of the zebra, which you vault at speed and the coppers have to go round.
+   Up there: five carrier bags of Degsy's money (£20 each), stashed where a man hides cash: behind a chimney, on a
+   garage roof, on a bus shelter. No glow; you find them by looking. ---------- */
+const ROOF_Y=PAVE_Y+4.23;
+sol(-13.85,-8.6,10.95,-5.75,ROOF_Y); sol(12.2,-8.6,29.0,-5.6,ROOF_Y);                                                    /* the extension roofs */
+sol(11.0,-8.6,12.2,-5.6,PAVE_Y+3.05,PAVE_Y+2.95);                                                                        /* the passage canopy (miss the gap: you land here) */
+for(const [x0,x1,h] of [[16,21,11],[21.4,26,13],[26.4,31.6,10]]) sol(x0,-7.0,x1,-3,h);                                    /* the bridge-end buildings: the roof narrows to a ledge */
+sol(-13.2,-8.9,-12.4,-8.6,PAVE_Y+2.5,PAVE_Y+1.85);                                                                      /* the air-con unit on the back wall */
+WALK.push([-13.85,-8.7,10.95,-5.75],[12.2,-8.7,29.0,-5.6],[10.4,-8.7,12.8,-5.6]);
+/* let the roof edges overhang the ground below, so you can step off a roof into the courtyard or the alley */
+WALK.push([-15.9,-9.5,10.4,-8.0],[9.6,-9.5,29.0,-8.0]);
+{ const RF=N(STREET), tFelt=P2(64,64,(g,w,h)=>{ R(g,'#2a2b2e',0,0,w,h); specks(g,'#3a3b3f',220,1740,w,h); specks(g,'#1a1b1d',160,1741,w,h); for(let i=0;i<4;i++) R(g,'rgba(70,80,90,.25)',(i*17)%w,(i*29)%h,14,9); },4,1742);
+  slab(24.95,2.85,tFelt,(-13.85+10.95)/2+.0,ROOF_Y+.005,-7.175,{parent:RF,tile:2,cell:2,color:0x8a8e94});
+  slab(16.8,3.0,tFelt,(12.2+29)/2,ROOF_Y+.005,-7.1,{parent:RF,tile:2,cell:2,color:0x8a8e94});
+  blk(16.8,.2,3.0,col(0x3a3a3c),(12.2+29)/2,ROOF_Y-.1,-7.1,RF);
+  /* the back wall under roof B (the alley's north side already has it); a lip along the roof edges */
+  for(const [x0,x1] of [[-13.85,10.95],[12.2,29.0]]) blk(x1-x0,.14,.14,col(0x5a5a58),(x0+x1)/2,ROOF_Y+.07,-8.55,RF);
+  /* clutter to vault and climb: vents, an air-con condenser, skylights, a water tank, chimney stacks, a dish */
+  const vent=(x,z)=>{ eBox(x-.3,z-.3,x+.3,z+.3,ROOF_Y,ROOF_Y+.62,col(0x8a8c90),{}); blk(.7,.06,.7,col(0x6a6c70),x,ROOF_Y+.66,z,RF); };
+  vent(-9.5,-6.6); vent(-2.2,-7.6); vent(6.2,-6.4); vent(14.5,-7.2); vent(23.6,-7.9);
+  eBox(-6.0,-7.0,-4.8,-6.2,ROOF_Y,ROOF_Y+1.05,col(0xb8bab8),{});                                                         /* condenser */
+  for(const x of [0.8,3.6]){ blk(1.4,.28,1.0,col(0x9aa2a8),x,ROOF_Y+.14,-6.8,RF); blk(1.3,.04,.9,glowC(0x8ac0e0),x,ROOF_Y+.3,-6.8,RF); sol(x-.7,-7.3,x+.7,-6.3,ROOF_Y+.28); }
+  eBox(18.2,-6.95,19.6,-5.75,ROOF_Y,ROOF_Y+1.6,col(0x4a5a6a),{});                                                         /* water tank */
+  eBox(8.6,-6.6,9.4,-5.8,ROOF_Y,ROOF_Y+2.2,null,{tex:tStock});                                                            /* chimney stack */
+  mk(cyl(.32,.06,.1,10),col(0xd8d8d4),RF,-11.4,ROOF_Y+1.0,-6.0,-1.0,0,0); mk(cyl(.03,.03,1.0,6),col(0x8a8a8a),RF,-11.4,ROOF_Y+.5,-6.0);
+  /* the air-con unit and a drainpipe on the courtyard wall */
+  blk(.8,.65,.3,col(0xc8c8c4),-12.8,PAVE_Y+2.17,-8.75,RF); for(let i=0;i<5;i++) blk(.6,.02,.02,col(0x6a6a6a),-12.8,PAVE_Y+1.95+i*.1,-8.91,RF);
+  blk(.08,4.2,.08,col(0x2a2a2a),-11.9,PAVE_Y+2.1,-8.66,RF);
+  /* the passage canopy as something you can land on */
+  blk(1.2,.1,3.0,col(0x5a5a58),11.6,PAVE_Y+3.0,-7.1,RF); }
+/* kerbside guard railings either side of the zebra */
+{ const tRail=P2(32,16,(g,w,h)=>{ R(g,'#c8ccd0',0,0,w,h); R(g,'#1a1a1a',0,0,w,2); R(g,'#1a1a1a',0,h-2,w,2); for(let x=3;x<w;x+=5) R(g,'#5a5e62',x,2,1,h-4); },0,1);
+  for(const [x0,x1,z] of [[9.95,12.05,KERB_Z-.2],[14.75,16.9,KERB_Z-.2],[9.95,12.05,ROAD_Z1+.2],[14.75,16.9,ROAD_Z1+.2]]){
+    eBox(x0,z-.03,x1,z+.03,0,PAVE_Y+1.0,null,{block:true}); mk(plane(x1-x0,.75),MM(tRail,{double:true,repeat:[(x1-x0)/1.2,1]}),STREET,(x0+x1)/2,PAVE_Y+.55,z);
+    for(let x=x0;x<=x1+.01;x+=(x1-x0)/2) mk(cyl(.025,.025,1.0,6),col(0x2a2a2a),STREET,x,PAVE_Y+.5,z); } }
+/* Degsy's cash, stashed up high */
+const CASH=[[-14.1,PAVE_Y+2.35,-17.8],[9.0,ROOF_Y,-6.0],[27.4,ROOF_Y,-7.8],[6.6,PAVE_Y+2.57,ROAD_Z1+2.0],[-15.3,PAVE_Y+2.8,-25.2]].map(([x,y,z])=>{
+  /* a brown envelope in a knotted carrier bag, tucked where a man hides money: no glow, you have to look */
+  const n=N(STREET,x,y+.01,z); mk(box(.26,.16,.14,{tw:.8,td:.8}),col(0xe8e4dc),n,0,.08,0); mk(box(.06,.06,.04),col(0xd8d4cc),n,0,.19,0); mk(box(.2,.02,.12),col(0x9a7a4a),n,.02,.17,.02,0,.3,0);
+  return {n,got:false,p:[x,y,z]}; });
 const inWalk=(x,z,rad)=>WALK.some(r=>inR(r,x,z,rad));
 function solidHit(x,z,rad,feet,head){ for(const s of SOL){ const r=s.r; if(x>r[0]-rad&&x<r[2]+rad&&z>r[1]-rad&&z<r[3]+rad&&s.y1>feet+STEP&&s.y0<head) return s; } return null; }
 function groundAt(x,z,feet){ let g=floorY(x,z); const k=P.r*.5; for(const s of SOL){ const r=s.r; if(x>r[0]-k&&x<r[2]+k&&z>r[1]-k&&z<r[3]+k&&s.y1<=feet+STEP+.001&&s.y1>g) g=s.y1; } return g; }
@@ -2371,7 +2422,7 @@ let stepWorld=()=>{};
 function tick(dt){ if(!G.on) return; if(!G.xr) deskTick(dt); promptTick();
   G.t+=dt; if(G.result){ G.endT+=dt; linesTick(dt); return; }
   for(const c of COPS) copTick(c,dt); jobTick(dt); linesTick(dt); }
-return {G,P,COPS,ACT,SOL,start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
+return {G,P,COPS,ACT,SOL,setInput:(f,s_,run)=>{ TOUCH.stick=[s_,-f]; TOUCH.run=!!run; },start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
 })();
 
 /* =====================================================================================================
