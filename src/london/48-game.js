@@ -460,7 +460,7 @@ function deskTick(dt){
   if(G.hasBag){ setParent(BAG,STREET); const fx=Math.sin(P.yaw),fz=Math.cos(P.yaw),rx=-fz,rz=fx; BAG.p=[P.x+fx*.45+rx*-.32,ey-.72,P.z+fz*.45+rz*-.32]; BAG.r=[0,P.yaw+Math.PI/2,0]; } }
 
 /* ---------- WebXR ---------- */
-const XR={session:null,space:null,origin:[0,0,0],yaw:0,res:720,btn:{},runToggle:false,snap:false,last:0,stick:null};
+const XR={session:null,space:null,origin:[0,0,0],yaw:0,btn:{},runToggle:false,snap:false,last:0,stick:null};
 /* hand climbing: squeeze on a ledge, pull down to go up; let go near the top and you're on it */
 const CLIMB={hand:null,anchor:null,s:null};
 function ledgeNear(p){ for(const s of SOL){ if(s.y1<P.y+.3||s.y1>8) continue; const r=s.r; if(p[1]>s.y1-.2&&p[1]<s.y1+.14&&p[0]>r[0]-.14&&p[0]<r[2]+.14&&p[2]>r[1]-.14&&p[2]<r[3]+.14) return s; } return null; }
@@ -508,7 +508,7 @@ function xrFrame(t,xf){ const session=xf.session; session.requestAnimationFrame(
   stepWorld(dt);
   const layer=session.renderState.baseLayer; updateWorld(world,null);
   for(const v of vp.views){ const vpt=layer.getViewport(v); proj.set(v.projectionMatrix); const em=new Float32Array(16); em.set(v.transform.matrix); const wm=m4.make(); m4.mul(wm,worldFromLocal(),em); view.set(rigidInv(wm));
-    const w=Math.max(1,Math.round(XR.res*vpt.width/vpt.height)); ensureFB(w,XR.res); renderMats(w,XR.res); postTo(layer.framebuffer,vpt.x,vpt.y,vpt.width,vpt.height,w,XR.res); } }
+    const h=Math.max(1,Math.round(vpt.height*state.sharp)),w=Math.max(1,Math.round(vpt.width*state.sharp)); ensureFB(w,h); fbSmooth(); renderMats(w,h); postTo(layer.framebuffer,vpt.x,vpt.y,vpt.width,vpt.height,w,h); } }
 /* renderScene, but with proj and view already set (the headset's own per-eye matrices) */
 function renderMats(w,h){ gl.bindFramebuffer(gl.FRAMEBUFFER,fb); gl.viewport(0,0,w,h); gl.clearColor(L.fog[0],L.fog[1],L.fog[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST); gl.useProgram(MAIN.p); curCull=null; curMat=null; curTex=null; gl.activeTexture(gl.TEXTURE0); cullOn=false; const u=MAIN.loc;

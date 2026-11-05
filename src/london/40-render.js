@@ -16,8 +16,8 @@ in vec2 vUv; out vec4 outColor;
 float bayer2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
 float bayer4(vec2 a){ return bayer2(0.5 * a) * 0.25 + bayer2(a); }
 void main(){
-  vec2 px = floor(vUv * uRes);
-  vec3 c = clamp(texture(tScene, (px + 0.5) / uRes).rgb, 0.0, 1.0);
+  vec2 px = floor(gl_FragCoord.xy);                       /* dither on screen pixels, so it stays fine at any scale */
+  vec3 c = clamp(texture(tScene, vUv).rgb, 0.0, 1.0);
   if(uGrade > 0.5){
     float l = dot(c, vec3(0.299, 0.587, 0.114));
     float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), s = (mx - mn) / (mx + 1e-4);
@@ -44,10 +44,13 @@ const POST_LDN=program(PVS,PFS_LDN);
 const LOOK={grade:true,freeze:0,time:0};
 /* name cards are world objects, so they take the palette like everything else; their art is painted to survive it */
 function ungraded(m){ return m; }
-/* draw at PS1 resolution into the engine's framebuffer, then the London post pass scales it up with nearest texels */
+/* draw at state.sharp of the screen into the engine's framebuffer, then the London post pass grades, dithers and scales it up */
+/* Kenny, before the first Quest test: no wobble (no vertex snap, no affine warp) and the picture at 95% of native.
+   At 95% a nearest-texel upscale would double every twentieth row, so the scene buffer is sampled with linear filtering */
+function fbSmooth(){ gl.bindTexture(gl.TEXTURE_2D,fbTex); for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,gl.LINEAR); }
 function drawLondon(eye,tgt){
   if(!state.ps1){ gl.bindFramebuffer(gl.FRAMEBUFFER,null); renderScene(world,eye,tgt,cv.width,cv.height,[cv.width,cv.height]); return; }
-  const h=state.res,w=Math.max(1,Math.round(h*cv.width/cv.height)); ensureFB(w,h); gl.bindTexture(gl.TEXTURE_2D,null);
+  const h=Math.max(1,Math.round(cv.height*state.sharp)),w=Math.max(1,Math.round(cv.width*state.sharp)); ensureFB(w,h); fbSmooth(); gl.bindTexture(gl.TEXTURE_2D,null);
   gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderScene(world,eye,tgt,w,h,[w,h]);
   gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,cv.width,cv.height); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null; curTex=null;
   gl.useProgram(POST_LDN.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);

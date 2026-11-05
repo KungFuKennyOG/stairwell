@@ -2,7 +2,7 @@
    VIEW, CAST, FREEZE-FRAMES, LOOP. One view of the street. The cast stands where they'd be at 02:14, or in a
    line-up along the kerb. Pick someone and you walk up to them and the world freezes, with their name card beside them.
    ===================================================================================================== */
-const state={ps1:true,res:480,snap:true,affine:true,dither:true,rain:true,layout:'street',pose:'stand',pick:null,eye:false};
+const state={ps1:true,res:480,sharp:.95,snap:false,affine:false,dither:true,rain:true,layout:'street',pose:'stand',pick:null,eye:false};
 const cam={t:[0,1.4,0],th:.32,ph:1.32,r:11},goal={t:[0,1.4,0],th:.32,ph:1.32,r:11};
 const HOME={t:[-1.2,1.6,0],th:.28,ph:1.36,r:11.5};
 function setGoal(c,instant){ goal.t=c.t.slice(); goal.ph=c.ph; goal.r=c.r; let th=c.th; while(th-cam.th>Math.PI) th-=Math.PI*2; while(th-cam.th<-Math.PI) th+=Math.PI*2; goal.th=th; if(instant){ cam.t=goal.t.slice(); cam.th=goal.th; cam.ph=goal.ph; cam.r=goal.r; } }
