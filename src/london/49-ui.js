@@ -27,7 +27,7 @@ function pan(dx,dy){ const s=goal.r*.0016; const rx=Math.cos(cam.th),rz=-Math.si
 
 /* ---------- the cast on the street ---------- */
 /* where each of them is at 02:14: [x, z, heading, pose] */
-const SPOTS={danny:[-.6,1.1,.15,'stand'],degsy:[-5.6,-.9,.55,'smoke'],kwame:[-4.4,-1.5,-.25,'stand'],ali:[-7.0,-5.15,0,'watch'],
+const SPOTS={danny:[-.6,1.1,.15,'stand'],degsy:[-5.6,-.9,.55,'smoke'],kwame:[8.4,-21.0,.25,'stand'],ali:[-7.0,-5.15,0,'watch'],
   maureen:[1.8,.5,-.9,'stand'],piotr:[4.6,1.4,-.5,'phone'],pcmale:[7.4,3.6,-1.1,'stand'],pcfem:[9,4.4,-1.3,'stand']};
 const CAST={};
 for(const id of ORDER){ const n=N(STREET,0,PAVE_Y,0); const C=makeChar(id,n,'cast'); C.node=n; CAST[id]=C;

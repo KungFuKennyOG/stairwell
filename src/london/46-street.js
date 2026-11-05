@@ -65,7 +65,7 @@ slab(32,4,tPaveW,0,PAVE_Y,ROAD_Z1+2,{tile:1.2});
 for(let x=-16;x<16;x+=.9) mk(boxW(.88,PAVE_Y+.02,.16,.9,.16),MM(tKerb),STREET,x+.45,(PAVE_Y+.02)/2,ROAD_Z1+.08);
 
 /* ---------- the deck block: walkways above, shops at street level ---------- */
-wallP(32,4.2,tConc,0,2.1,FZ-2.7,0,{tile:3,tileH:3});
+wallP(29.85,4.2,tConc,1.075,2.1,FZ-2.7,0,{tile:3,tileH:3}); /* the shops' back wall; the gap at the west end is the estate's vehicle gateway */
 blkT(32,.32,.6,tConc,0,4.2,FZ-.1,{tile:3});                     /* the slab over the shopfronts */
 for(let f=0;f<4;f++){ const b=4.36+f*3;
   blkT(32,.3,2.1,tConc,0,b+.15,FZ+.75,{tile:3,color:0xb0aca4});
@@ -186,4 +186,4 @@ function rainTick(t,eye){ RAIN.p=[Math.round(eye[0]),0,Math.round(eye[2])]; cons
 /* ---------- light ---------- */
 const STREET_LIGHT={amb:[.2,.22,.22],dir:[-.3,1,.4],dirCol:[.16,.15,.14],fog:[.042,.05,.048],fogNear:12,fogFar:42,
   pl:[[[LAMP[0],5.2,LAMP[2]+1.0],[2.3,1.3,.5],13],[[-7.3,2.6,-1.4],[1.25,.6,.42],6],[[-2.1,2.6,-1.4],[.75,.9,.8],5],[[11.6,2.6,FZ-4.6],[1.0,1.1,1.2],8],
-      [[LAMP2[0],5.2,LAMP2[2]+1.0],[2.3,1.3,.5],13],[[-17,2.6,4],[1.1,.7,.4],7],[[-1,2.6,5.4],[.62,.68,.7],10],[[-7.3,2.8,-4.4],[1.1,.92,.72],4.5]]};
+      [[LAMP2[0],5.2,LAMP2[2]+1.0],[2.3,1.3,.5],13],[[-3,6.2,-17],[2.1,1.25,.55],17],[[-1,2.6,5.4],[.62,.68,.7],10],[[-7.3,2.8,-4.4],[1.1,.92,.72],4.5]]};

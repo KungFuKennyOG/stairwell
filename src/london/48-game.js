@@ -31,8 +31,10 @@ const WALK=[[-16.3,FZ+.22,36.4,ROAD_Z1+2.75],
   [-9.65,FZ-1.2,-4.95,FZ-.12],[-5.95,FZ-.4,-4.9,FZ+.8],           /* the Golden Rooster and its door */
   [-4.25,FZ-1.0,.05,FZ-.12],[-.95,FZ-.4,.15,FZ+.8],               /* Bethnal Wines */
   [10.45,FZ-2.75,12.75,FZ+.8],                                     /* Hollis House lobby */
-  [11.0,FZ-6.0,12.2,FZ-2.3],                                       /* the passage through */
-  [10.5,FZ-8.35,29.0,FZ-5.45],                                     /* the back alley, east to the bridge */
+  [11.0,FZ-6.0,12.2,FZ-2.0],                                       /* the passage through */
+  [9.6,FZ-8.35,29.0,FZ-5.45],                                     /* the back alley, east to the bridge */
+  [-15.8,-9.5,-13.9,FZ+.9],                                       /* the estate's vehicle gateway off the street */
+  [-15.9,-25.95,10.4,-8.65],                                       /* the Hollis Estate courtyard */
   [30.0,FZ-1.6,32.0,FZ+.8]];                                       /* Arch 9 */
 const BACKDOOR={x:28.7,z:FZ-6.9};
 const FENCE_X=20.5;
@@ -45,7 +47,8 @@ for(const [x,z] of [[3.6,KERB_Z-.35],[-8.6,KERB_Z-.35],[11.9,KERB_Z-.3],[14.9,RO
 const SIGHT=BLOCK.slice(0,5);
 for(const [x,w] of UNITS.map(u=>[u[0],u[1]])) for(const s of [-1,1]) SIGHT.push([x+s*(w/2+.21)-.21,FZ-2.6,x+s*(w/2+.21)+.21,FZ+.2]);
 for(const x of [10.2,13.0]) SIGHT.push([x-.06,FZ-2.6,x+.06,FZ]);                   /* the lobby's side walls */
-SIGHT.push([-30,FZ-30,40,FZ-8.45],[-30,FZ-5.55,10.95,FZ-2.62],[12.25,FZ-5.55,40,FZ-2.62],[-30,FZ-8.45,10.45,FZ-5.55],[29.05,FZ-8.45,40,FZ-5.55]); /* the buildings, with the passage and the alley carved out */
+/* the buildings, with the gateway, the passage, the alley and the estate courtyard carved out */
+SIGHT.push([-40,-60,-15.9,FZ-2.62],[-13.8,-8.6,10.95,FZ-2.62],[12.25,FZ-5.55,40,FZ-2.62],[10.45,-60,40,FZ-8.45],[-40,-60,10.45,-26.0],[29.05,FZ-8.45,40,FZ-5.55]);
 SIGHT.push([FENCE_X-.08,FZ-8.45,FENCE_X+.08,FZ-5.5],[10.2,FZ-2.68,11.0,FZ-2.55],[12.2,FZ-2.68,13.0,FZ-2.55]);                  /* the lobby's back wall either side of the doorway */
 const inR=(r,x,z,m)=>x>r[0]+m&&x<r[2]-m&&z>r[1]+m&&z<r[3]-m;
 function standable(x,z,rad){ if(!WALK.some(r=>inR(r,x,z,rad))) return false; for(const b of BLOCK) if(inR([b[0]-rad,b[1]-rad,b[2]+rad,b[3]+rad],x,z,0)) return false; return true; }
@@ -75,8 +78,8 @@ const floorY=(x,z)=>z>KERB_Z&&z<ROAD_Z1?0:PAVE_Y;
   blk(1.3,.1,3.0,col(0x6a6a66),11.6,PAVE_Y+3.0,FZ-4.1,B_); blk(.4,.06,.2,glowC(0xe8f0f4),11.6,PAVE_Y+2.95,FZ-4.0,B_);
   slab(18.6,2.8,tPaveW,(10.4+29)/2,PAVE_Y,(z0+z1)/2,{parent:B_,tile:1.2,cell:1.2});
   wallP(18.6,4.2,tSoot,(10.4+29)/2,PAVE_Y+2.1,z0,0,{parent:B_,tile:1.6,tileH:1.5,cell:1.2});                 /* the far wall of the alley */
-  wallP(11.0-10.4,4.2,tConc,10.7,PAVE_Y+2.1,z1,Math.PI,{parent:B_,tile:2}); wallP(29-12.2,4.2,tConc,(12.2+29)/2,PAVE_Y+2.1,z1,Math.PI,{parent:B_,tile:2,color:0x9a968e}); /* the backs of the shops */
-  wallP(2.8,4.2,tSoot,10.4,PAVE_Y+2.1,(z0+z1)/2,Math.PI/2,{parent:B_,tile:1.6,tileH:1.5});
+  wallP(15.4,4.2,tSoot,10.4,PAVE_Y+2.1,z0-7.3,-Math.PI/2,{parent:B_,tile:1.6,tileH:1.5,cell:1.5});                    /* the courtyard's east wall, south of the alley mouth */
+  wallP(11.0-10.0,4.2,tConc,10.5,PAVE_Y+2.1,z1,Math.PI,{parent:B_,tile:2}); wallP(29-12.2,4.2,tConc,(12.2+29)/2,PAVE_Y+2.1,z1,Math.PI,{parent:B_,tile:2,color:0x9a968e}); /* the backs of the shops */
   wallP(2.8,6.2,tSoot,29.05,PAVE_Y+3.1,(z0+z1)/2,-Math.PI/2,{parent:B_,tile:1.6,tileH:1.5});                /* the bridge abutment */
   /* back windows, bins, pipes, a security light, Arch 9's back door */
   for(const x of [14,17.5,21,24.5]){ wallP(.8,.9,(x|0)%2?tWinLit:tWinDark,x,PAVE_Y+2.6,z1-.03,Math.PI,{parent:B_,whole:true,unlit:(x|0)%2===1}); blk(.06,4.2,.06,col(0x2a2a2a),x+1.2,PAVE_Y+2.1,z1-.06,B_); }
@@ -116,7 +119,7 @@ const LINES={
   d1:['degsy','Just the man. Got a little job for you.'],
   d2:['degsy','Bag\'s on the boot of my motor. Take it to Arch 9, under the bridge. Terry\'s expecting it.'],
   d3:['degsy','Don\'t open it. Don\'t run. And don\'t let the Old Bill see it.'],
-  dGo:['degsy','Bridge is east. Old Bill about? Cut through Hollis House. The back alley comes out at the arch.'],
+  dGo:['degsy','Bridge is east. Old Bill about? Go round the back: through Hollis House, or the estate gates at the end there. The back alley comes out at the arch.'],
   oi:['pcmale','Oi! You! What\'s in the bag?'],
   oiO:['pcfem','Stop right there!'],
   run2:['pcfem','Control, I\'m in foot pursuit, Bethnal Green Road!'],
@@ -129,7 +132,7 @@ const LINES={
   maureen:['maureen','Bit late for you, isn\'t it, Danny?'],
   ali:['ali','Wings are fresh, Danny. Two for three quid.'],
   piotr:['piotr','Night, mate.'],
-  kwame:['kwame','...'],
+  kwame:['kwame','Stairs are mine, Two Sugars. You never came this way.'],
 };
 const tLab=()=>tex(512,96,null,null);
 const labels={};
@@ -227,7 +230,7 @@ function jobTick(dt){
   const deg=CAST.degsy.node.p, dDeg=Math.hypot(P.x-deg[0],P.z-deg[2]);
   if(G.phase==='meet'){ if(dDeg<9) bark('degsy','degsyWave',9); if(dDeg<2.6){ G.phase='brief'; G.queue=[]; G.line=null; say('d1',2.6); say('d2',4.4); say('d3',3.6); G.briefT=10.6; } }
   else if(G.phase==='brief'){ G.briefT-=dt; if(G.briefT<=0){ G.phase='getbag'; setObj('Grab the bag off the boot of Degsy\'s silver motor.'); } }
-  if(G.phase==='getbag'&&G.hasBag){ G.phase='deliver'; say('dGo',2.6); setObj('Get the bag to Arch 9, under the railway bridge at the east end. Keep it away from the coppers. Hollis House runs through to a back alley.'); }
+  if(G.phase==='getbag'&&G.hasBag){ G.phase='deliver'; say('dGo',2.6); setObj('Get the bag to Arch 9, under the railway bridge at the east end. Keep it away from the coppers. The estate round the back (Hollis House, or the gates at the west end) joins the back alley.'); }
   if(G.phase==='deliver'&&!G.result){
     const dL=Math.min(Math.hypot(P.x-LOCKUP.x,P.z-(FZ-.4)),Math.hypot(P.x-BACKDOOR.x,P.z-BACKDOOR.z)+.4);
     if(dL<2.0){ if(G.stars===0) done(); else if(!G.said.has('terryNo')){ G.said.add('terryNo'); say('terryNo',3); } } else if(dL>4) G.said.delete('terryNo');
@@ -235,7 +238,7 @@ function jobTick(dt){
       if(seen){ G.lostT=0; if(G.stars===1&&(P.running||G.chaseT>14)){ setStars(2); sayNow('run2',3); } }
       else { G.lostT+=dt; if(G.lostT>(G.stars===1?5:8)){ setStars(0); for(const c of COPS){ c.sus=0; if(c.state==='chase'||c.state==='search'){ c.state='search'; c.searchT=3; } } say('lost',2.4); G.said.delete('search'); setObj('Lost \'em. Get the bag to Arch 9, under the railway bridge at the east end.'); } } }
     setObj(G.stars?(G.stars===1?'The Old Bill\'s onto you. Break their line of sight and lose them.':'Two coppers on your tail. Get out of sight and stay there.'):G.obj); }
-  bark('maureen','maureen',2.8); bark('ali','ali',3.2); bark('piotr','piotr',2.6); bark('kwame','kwame',2.4);
+  bark('maureen','maureen',2.8); bark('ali','ali',3.2); bark('piotr','piotr',2.6); bark('kwame','kwame',3.0);
 }
 function linesTick(dt){
   if(!G.line&&G.queue.length){ G.line=G.queue.shift(); G.lineT=G.line.dur; const L=labelFor(G.line.who); drawLabel(L.t,G.line.text); const s=$g('gSub'); if(s){ const nm={degsy:'DEGSY',pcmale:'PC HUGHES',pcfem:'PC OKAFOR',terry:'TERRY (inside)',maureen:'MAUREEN',ali:'ALI',piotr:'PIOTR',kwame:'KWAME'}[G.line.who]||''; s.innerHTML=''; const b=document.createElement('b'); b.textContent=nm; s.append(b,document.createTextNode(' '+G.line.text)); s.hidden=false; } }
@@ -270,6 +273,64 @@ for(const z of [FZ-6.2,FZ-6.95]) sol(FENCE_X-.86,z-.35,FENCE_X-.24,z+.35,PAVE_Y+
 for(const x of [15.6,16.4,22.8]) sol(x-.31,FZ-8.33,x+.31,FZ-7.63,PAVE_Y+1.15);
 for(const [x,z] of [[3.6,KERB_Z-.35],[-8.6,KERB_Z-.35],[11.9,KERB_Z-.3],[14.9,ROAD_Z1+.3],[16+3,KERB_Z-.35],[16+11,KERB_Z-.35],[16+7,ROAD_Z1+.35]]) sol(x-.12,z-.12,x+.12,z+.12,9); /* lamp columns, beacons */
 WALK.push([-16.9,ROAD_Z1+2.6,16.9,ROAD_Z1+3.85]);                                                    /* the front gardens behind that wall */
+
+/* ---------- THE HOLLIS ESTATE: through the gateway at the west end, or out of the back alley. A courtyard with
+   lock-up garages along one side (flat roofs you can get onto), a bin store, a burnt-out Escort, a works van, a
+   fenced patch of grass with NO BALL GAMES, and Hollis House itself: four floors of deck-access flats with a stair
+   up to the first-floor walkway. Kwame runs the stairwell. ---------- */
+const EST=N(STREET);
+function eBox(x0,z0,x1,z1,y0,y1,m,o={}){ const w=x1-x0,d=z1-z0,h=y1-y0,cx=(x0+x1)/2,cy=(y0+y1)/2,cz=(z0+z1)/2;
+  if(o.tex) blkT(w,h,d,o.tex,cx,cy,cz,{tile:o.tile||1.6,tileV:o.tileV||o.tile||1.5,color:o.color??0xffffff,parent:EST}); else if(m) blk(w,h,d,m,cx,cy,cz,EST);
+  if(o.solid!==false) sol(x0,z0,x1,z1,y1,y0); if(o.block) BLOCK.push([x0,z0,x1,z1]); if(o.sight) SIGHT.push([x0,z0,x1,z1]); }
+{ const PY=PAVE_Y, CZ0=-26, CZ1=-8.6, CX0=-16, CX1=10.4;
+  slab(CX1-CX0,CZ1-CZ0,tPaveW,(CX0+CX1)/2,PY,(CZ0+CZ1)/2,{parent:EST,tile:1.2,cell:1.5});
+  slab(2.0,5.6,tTarmac,-14.85,PY+.002,-5.8,{parent:EST,tile:2,cell:1.5});                                              /* the gateway's tarmac */
+  for(const [x,ry] of [[-15.85,Math.PI/2],[-13.85,-Math.PI/2]]) wallP(5.6,4.2,tConc,x,2.1,-5.8,ry,{parent:EST,tile:3,tileH:3,color:0x9a968e});
+  blk(2.0,.25,5.6,col(0x6a6a66),-14.85,4.15,-5.8,EST); blk(.3,.1,.2,glowC(0xffd090),-14.85,3.95,-5.0,EST);
+  mk(boxW(2.1,.4,.06),MM(signTex(256,48,'#1c2a4a','#f0f0e8','HOLLIS ESTATE','GARAGES · NO PARKING · NO BALL GAMES',{seed:1690})),EST,-14.85,3.7,FZ+.03);
+  /* north side: the backs of the shops (ground-floor extensions), the back of the deck block above */
+  wallP(CX1+13.85,4.2,tConc,(CX1-13.85)/2,PY+2.1,CZ1,Math.PI,{parent:EST,tile:3,tileH:3,color:0x8e8a82});
+  blk(26.4,.2,2.9,col(0x3a3a3c),(CX0+CX1)/2,4.25,-7.15,EST);
+  { const tBack=P2(256,128,(g,w,h)=>{ R(g,'#6e6a62',0,0,w,h); const r=rng(1691); for(let f=0;f<4;f++) for(let i=0;i<8;i++){ const lit=r()<.3; R(g,lit?'#ffcc80':'#14161a',i*32+8,f*32+8,16,14); R(g,'#5a564e',i*32+6,f*32+23,20,2); if(r()<.2) R(g,'#c8c8c4',i*32+26,f*32+6,4,4); } for(let i=0;i<w;i+=64) R(g,'rgba(20,18,16,.4)',i,0,3,h); },6,1692);
+    wallP(32,12.3,tBack,0,4.2+6.15,-5.74,Math.PI,{parent:EST,whole:true,cell:2}); }
+  /* lock-up garages down the west side: up-and-over doors, flat roofs at 2.4 m */
+  for(let k=0;k<6;k++){ const z=-11.2-k*2.25; eBox(-16,z-1.1,-12.2,z+1.1,0,PY+2.35,null,{tex:tConc,tile:2.5,color:0x8a8478,block:true,sight:true});
+    wallP(1.9,1.9,shutterTex(1700+k),-12.18,PY+.95,z,Math.PI/2,{parent:EST,whole:true}); mk(boxW(.4,.18,.03),MM(signTex(64,24,'#e8e4da','#1b1b1b',String(k+1),null,{seed:1710+k})),EST,-12.17,PY+2.1,z,0,Math.PI/2,0); }
+  blk(3.9,.12,13.6,col(0x2a2a2c),-14.1,PY+2.41,-16.85,EST);                                                            /* felt roof */
+  /* the bin store: a brick pen with the big communal bins; get up on the bins, then the wall */
+  eBox(-4.2,-11.6,-.8,-11.4,0,PY+1.8,null,{tex:tStock,block:true,sight:true}); eBox(-4.2,-11.4,-4.0,-9.4,0,PY+1.8,null,{tex:tStock,block:true,sight:true}); eBox(-1.0,-11.4,-.8,-9.4,0,PY+1.8,null,{tex:tStock,block:true,sight:true});
+  for(const x of [-3.3,-1.8]) eBox(x-.6,-11.3,x+.6,-10.2,0,PY+1.3,col(0x2e3a30),{block:true,sight:true});
+  /* the burnt-out Escort and the works van */
+  eBox(-8.4,-17.0,-4.2,-15.3,0,.86,col(0x3a2e26),{block:true}); eBox(-7.2,-16.9,-5.0,-15.4,.86,1.32,col(0x1a1612),{block:true});
+  for(const [x,z] of [[-7.6,-17.05],[-5.0,-17.05],[-7.6,-15.25],[-5.0,-15.25]]) mk(cyl(.3,.3,.18,8),col(0x0e0e0e),EST,x,.3,z,Math.PI/2);
+  eBox(-11.4,-23.4,-6.0,-21.4,0,PY+2.3,col(0xd8d6d0),{block:true,sight:true}); eBox(-12.3,-23.3,-11.4,-21.5,0,PY+1.1,col(0xd8d6d0),{block:true,sight:true});
+  { const tV=P2(128,32,(g,w,h)=>{ R(g,'#d8d6d0',0,0,w,h); g.fillStyle='#2a4a8a'; g.font=`bold 11px ${SANS}`; g.fillText('K. BAKSHI · PLUMBING',6,14); g.font='bold 8px sans-serif'; g.fillText('07700 900 461',6,26); },0,1);
+    wallP(4.8,1.2,tV,-8.7,PY+1.4,-21.38,0,{parent:EST,whole:true}); }
+  /* NO BALL GAMES: a patch of grass inside a low wall you can sit on or hop */
+  const gx0=0,gx1=7,gz0=-20,gz1=-14; slab(gx1-gx0,gz1-gz0,null,(gx0+gx1)/2,PY+.01,(gz0+gz1)/2,{parent:EST,color:0x2a3a22,cell:2});
+  eBox(gx0,gz1-.2,gx1,gz1,0,PY+.55,null,{tex:tStock,block:true}); eBox(gx0,gz0,gx1,gz0+.2,0,PY+.55,null,{tex:tStock,block:true});
+  eBox(gx0,gz0,gx0+.2,gz1,0,PY+.55,null,{tex:tStock,block:true}); eBox(gx1-.2,gz0,gx1,gz1-1.4,0,PY+.55,null,{tex:tStock,block:true});
+  mk(boxW(1.0,.5,.04),MM(signTex(160,80,'#f2f0e8','#c8231c','NO BALL',' GAMES',{seed:1720})),EST,3.5,PY+1.2,gz1+.04); mk(cyl(.03,.03,1.0,6),col(0x2a2a2a),EST,3.5,PY+.5,gz1+.02);
+  eBox(1.0,-13.2,3.2,-12.8,0,PY+.45,col(0x5a3a22),{block:true});                                                          /* bench */
+  /* the courtyard lamp */
+  mk(cyl(.07,.1,5.6,8),col(0x2a2d33),EST,-3,PY+2.8,-13.2); blk(.5,.18,.34,col(0x2a2d33),-3,5.7,-13.2,EST); blk(.42,.04,.26,glowC(0xffd090),-3,5.6,-13.2,EST);
+  { const gm=MM(tGlowSodium,{unlit:true,double:true}); gm.cut=2; mk(plane(1.6,1.6),gm,EST,-3,5.45,-13.1); } sol(-3.12,-13.32,-2.88,-13.08,8); BLOCK.push([-3.12,-13.32,-2.88,-13.08]);
+  /* Hollis House: four floors of deck-access flats along the south side */
+  const tFlats=P2(256,64,(g,w,h)=>{ R(g,'#8a867c',0,0,w,h); const r=rng(1730); for(let i=0;i<8;i++){ const x=i*32; R(g,['#1c2a4a','#5a1a1a','#1a3a2a','#2a2a2a','#6a4a1a'][i%5],x+4,14,10,46); R(g,'#c8c4b8',x+12,30,2,3);
+      const lit=r()<.35; R(g,lit?'#ffc878':'#14161a',x+18,18,12,22); if(lit) R(g,'rgba(120,40,30,.5)',x+18,18,4,22); R(g,'#d8d4c8',x+17,40,14,2); } R(g,'#6a665e',0,0,w,6); },6,1731);
+  for(let f=0;f<4;f++){ const y=PY+f*2.8;
+    wallP(26.4,2.8,tFlats,(CX0+CX1)/2,y+1.4,CZ0,0,{parent:EST,tile:8.8,tileH:2.8,cell:2.2});
+    if(f>0){ blk(26.4,.22,1.6,col(0x8a8680),(CX0+CX1)/2,y-.11,CZ0+.8,EST); eBox(CX0,CZ0+1.45,7.6,CZ0+1.6,y,y+1.0,null,{tex:tConc,tile:2.5,color:0xa8a49c,solid:f===1}); if(f===1) eBox(9.6,CZ0+1.45,CX1,CZ0+1.6,y,y+1.0,null,{tex:tConc,tile:2.5,color:0xa8a49c}); } }
+  blk(26.6,.4,2.0,col(0x6a665e),(CX0+CX1)/2,PY+11.4,CZ0+.4,EST);
+  sol(CX0,CZ0,CX1,CZ0+1.6,PY+2.8,PY+2.58);                                                                            /* the first-floor deck: walk along it */
+  for(let f=2;f<4;f++) sol(CX0,CZ0,CX1,CZ0+1.6,PY+f*2.8,PY+f*2.8-.22);
+  /* the stair up to the first-floor deck, at the east end */
+  for(let k=0;k<13;k++){ const y1=PY+(k+1)*(2.8/13), z0=-22.0-k*.2; eBox(7.6,z0-.2,9.6,z0,0,y1,col(k%2?0x8a8680:0x7e7a74),{block:k===0}); }
+  eBox(7.45,-24.6,7.6,-21.9,0,PY+3.8,col(0x6a665e),{block:true}); eBox(9.6,-24.6,9.75,-21.9,0,PY+3.8,col(0x6a665e),{block:true});
+  /* satellite dishes and washing on the decks; a few lit kitchens */
+  for(const [x,f] of [[-12,2],[-4,1],[3,3],[6,2]]) mk(cyl(.28,.05,.08,10),col(0xd8d8d4),EST,x,PY+f*2.8+2.0,CZ0+.12,Math.PI/2.4);
+  for(const [x,f] of [[-9,1],[-1,2]]){ blk(1.6,.02,.02,col(0xd8d8d8),x,PY+f*2.8+1.9,CZ0+1.2,EST); for(let i=0;i<4;i++) blk(.28,.4,.02,col([0xc8231c,0xe8e4d8,0x2a4a8a,0xd8b840][i]),x-.6+i*.4,PY+f*2.8+1.68,CZ0+1.2,EST); }
+}
 const inWalk=(x,z,rad)=>WALK.some(r=>inR(r,x,z,rad));
 function solidHit(x,z,rad,feet,head){ for(const s of SOL){ const r=s.r; if(x>r[0]-rad&&x<r[2]+rad&&z>r[1]-rad&&z<r[3]+rad&&s.y1>feet+STEP&&s.y0<head) return s; } return null; }
 function groundAt(x,z,feet){ let g=floorY(x,z); const k=P.r*.5; for(const s of SOL){ const r=s.r; if(x>r[0]-k&&x<r[2]+k&&z>r[1]-k&&z<r[3]+k&&s.y1<=feet+STEP+.001&&s.y1>g) g=s.y1; } return g; }
