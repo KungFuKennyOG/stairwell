@@ -229,7 +229,7 @@ function rainGeo(n,size,height,seed){ const g=new Geo(),r=rng(seed),L=.24,W=.007
   for(let i=0;i<n;i++){ const x=(r()-.5)*size,y=r()*height,z=(r()-.5)*size;
     for(const [ux,uz] of [[1,0],[0,1]]){ const b=g.P.length/3; for(const [a,v] of [[-1,0],[1,0],[1,1],[-1,1]]) g.v([x+ux*a*W,y+v*L,z+uz*a*W],[0,0,1],[(a+1)/2,v]); g.I.push(b,b+1,b+2,b,b+2,b+3); } }
   g.groups.push({start:0,count:g.I.length,mi:0}); g.noCull=true; return g; }
-const RAIN=N(STREET), rainMat=MM(tStreak,{unlit:true,cut:true,double:true});
+const RAIN=N(STREET); RAIN.dyn=true; const rainMat=MM(tStreak,{unlit:true,cut:true,double:true});
 const RAIN_H=7, rainBlocks=[0,1].map(i=>({n:mk(rainGeo(900,16,RAIN_H,1441+i),rainMat,RAIN,0,i*RAIN_H,0),i}));
 function rainTick(t,eye){ RAIN.p=[Math.round(eye[0]),0,Math.round(eye[2])]; const fall=(t*8.5)%RAIN_H; for(const b of rainBlocks){ let y=b.i*RAIN_H-fall; if(y<-1) y+=RAIN_H*2; b.n.p[1]=y; } }
 

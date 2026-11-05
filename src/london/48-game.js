@@ -99,7 +99,7 @@ function BACKDOOR_Z(){ return FZ-6.9; }
 
 /* ---------- the bag ---------- */
 const tBag=P2(64,32,(g,w,h)=>{ R(g,'#1a2236',0,0,w,h); R(g,'#e8e6e0',0,13,w,4); specks(g,'#0e1220',90,1671,w,h); R(g,'#0a0c14',30,0,4,h); },0,1);
-const BAG=N(STREET,...BAG_HOME);
+const BAG=N(STREET,...BAG_HOME); BAG.dyn=true;
 mk(box(.56,.3,.3),MM(tBag),BAG,0,0,0); for(const s of [-1,1]) mk(box(.04,.14,.03),col(0x0a0c14),BAG,s*.1,.21,0); mk(box(.24,.03,.03),col(0x0a0c14),BAG,0,.28,0);
 BAG.r=[0,.1,0];
 
@@ -108,7 +108,7 @@ const tMark=k=>P2(64,64,(g,w,h)=>{ g.clearRect(0,0,w,h); g.font=`bold 56px ${SAN
   g.fillStyle='#000'; g.fillText(k===3?'!':'?',w/2+3,h/2+5); g.fillStyle=k===3?'#ff3a28':k===2?'#ffd040':'#e8e2d4'; g.fillText(k===3?'!':'?',w/2,h/2+2); },0,1);
 const markM=[1,2,3].map(k=>M(tMark(k),{unlit:true,cut:true,double:true}));
 const COPS=[];
-function makeCop(id,post,patrol){ const C=CAST[id],m=mk(plane(.3,.3),markM[0],STREET); m.vis=false;
+function makeCop(id,post,patrol){ const C=CAST[id],m=mk(plane(.3,.3),markM[0],STREET); m.vis=false; m.dyn=true;
   const c={id,C,post,patrol,pi:0,wait:0,state:'post',sus:0,mark:m,hd:post[2],pos:[post[0],post[1]],E:null,seeT:0,target:null,searchT:0,speed:0,look:0};
   c.E={J:C.J,o:C.o,hd:c.hd,pos:c.pos,walkAmt:0,runAmt:0,hp:{legL:1,legR:1,armL:1,armR:1},wpnHeld:false,kind:'pc',aware:false};
   COPS.push(c); return c; }
@@ -142,7 +142,7 @@ function drawLabel(t,text){ const g=t.c.getContext('2d'),w=512,h=96; g.clearRect
   const lh=36,bh=lines.length*lh+16,y0=h-bh; let mw=0; for(const l of lines) mw=Math.max(mw,g.measureText(l).width);
   g.fillStyle='rgba(6,6,6,1)'; g.fillRect((w-mw)/2-14,y0,mw+28,bh); g.fillStyle='#f4efe4'; g.textAlign='center'; g.textBaseline='middle';
   lines.forEach((l,i)=>g.fillText(l,w/2,y0+8+lh*(i+.5))); retex(t); }
-function labelFor(who){ if(!labels[who]){ const t=tLab(); const n=mk(plane(1.3,.244),M(t,{unlit:true,cut:true,double:true}),STREET); n.vis=false; labels[who]={t,n}; } return labels[who]; }
+function labelFor(who){ if(!labels[who]){ const t=tLab(); const n=mk(plane(1.3,.244),M(t,{unlit:true,cut:true,double:true}),STREET); n.vis=false; n.dyn=true; labels[who]={t,n}; } return labels[who]; }
 function say(key,dur=3.2){ const [who,text]=LINES[key]; G.queue.push({who,text,dur}); }
 function sayNow(key,dur=3){ G.queue.length=0; G.line=null; say(key,dur); }
 function speakerHead(who){ if(who==='terry') return [LOCKUP.x,PAVE_Y+2.2,FZ-.2]; const C=CAST[who]; if(!C) return null; return v3.add(mulP(C.J.head.world,[0,0,0]),[0,.42,0]); }
@@ -161,7 +161,7 @@ function drawPhone(){ const g=tPhone.c.getContext('2d'),w=256,h=448; R(g,'#0b0c1
   g.font=`64px ${SANS}`; g.fillStyle=G.stars?'#ffd040':'#3a3a3a'; g.fillText('★',20,h-40); g.fillStyle=G.stars>1?'#ffd040':'#3a3a3a'; g.fillText('★',110,h-40);
   g.font=`bold 18px ${TYPEF}`; g.fillStyle='#8a857a'; g.fillText('02:14  E2',14,h-110); if(G.cash){ g.fillStyle='#7ad87a'; g.fillText('£'+G.cash+' found',140,h-110); } if(promptK){ g.fillStyle='#f0a23e'; g.font=`bold 22px ${TYPEF}`; g.fillText('A · '+(promptK==='climb'?'CLIMB':'VAULT'),14,h-140); } retex(tPhone); phoneDirty=false; }
 function buildHands(){ const skin=M(null,{color:0xc8906c}),sleeve=M(null,{color:0x111214});
-  for(const s of ['left','right']){ const n=N(STREET); mk(box(.085,.1,.11),skin,n,0,0,.02); mk(box(.03,.05,.06),skin,n,(s==='left'?1:-1)*.05,.02,-.01); mk(cyl(.045,.05,.2,8),sleeve,n,0,-.01,.15,Math.PI/2); n.vis=false; HANDS[s]={n,M:m4.make(),pos:[0,0,0],grip:false,gripEdge:false}; }
+  for(const s of ['left','right']){ const n=N(STREET); n.dyn=true; mk(box(.085,.1,.11),skin,n,0,0,.02); mk(box(.03,.05,.06),skin,n,(s==='left'?1:-1)*.05,.02,-.01); mk(cyl(.045,.05,.2,8),sleeve,n,0,-.01,.15,Math.PI/2); n.vis=false; HANDS[s]={n,M:m4.make(),pos:[0,0,0],grip:false,gripEdge:false}; }
   const ph=N(HANDS.left.n); mk(box(.075,.14,.01),col(0x111111),ph,0,0,0); mk(plane(.066,.116),M(tPhone,{unlit:true}),ph,0,0,.006); ph.p=[0,.07,-.02]; ph.r=[-.9,0,0]; }
 
 /* ---------- start / reset ---------- */
@@ -379,7 +379,7 @@ WALK.push([-15.9,-9.5,10.4,-8.0],[9.6,-9.5,29.0,-8.0]);
 /* Degsy's cash, stashed up high */
 const CASH=[[-14.1,PAVE_Y+2.35,-17.8],[9.0,ROOF_Y,-6.0],[27.4,ROOF_Y,-7.8],[6.6,PAVE_Y+2.57,ROAD_Z1+2.0],[-15.3,PAVE_Y+2.8,-25.2]].map(([x,y,z])=>{
   /* a brown envelope in a knotted carrier bag, tucked where a man hides money: no glow, you have to look */
-  const n=N(STREET,x,y+.01,z); mk(box(.26,.16,.14,{tw:.8,td:.8}),col(0xe8e4dc),n,0,.08,0); mk(box(.06,.06,.04),col(0xd8d4cc),n,0,.19,0); mk(box(.2,.02,.12),col(0x9a7a4a),n,.02,.17,.02,0,.3,0);
+  const n=N(STREET,x,y+.01,z); n.dyn=true; mk(box(.26,.16,.14,{tw:.8,td:.8}),col(0xe8e4dc),n,0,.08,0); mk(box(.06,.06,.04),col(0xd8d4cc),n,0,.19,0); mk(box(.2,.02,.12),col(0x9a7a4a),n,.02,.17,.02,0,.3,0);
   return {n,got:false,p:[x,y,z]}; });
 const inWalk=(x,z,rad)=>WALK.some(r=>inR(r,x,z,rad));
 function solidHit(x,z,rad,feet,head){ for(const s of SOL){ const r=s.r; if(x>r[0]-rad&&x<r[2]+rad&&z>r[1]-rad&&z<r[3]+rad&&s.y1>feet+STEP&&s.y0<head) return s; } return null; }
@@ -510,14 +510,7 @@ function xrFrame(t,xf){ const session=xf.session; session.requestAnimationFrame(
   for(const v of vp.views){ const vpt=layer.getViewport(v); proj.set(v.projectionMatrix); const em=new Float32Array(16); em.set(v.transform.matrix); const wm=m4.make(); m4.mul(wm,worldFromLocal(),em); view.set(rigidInv(wm));
     const h=Math.max(1,Math.round(vpt.height*state.sharp)),w=Math.max(1,Math.round(vpt.width*state.sharp)); ensureFB(w,h); fbSmooth(); renderMats(w,h); postTo(layer.framebuffer,vpt.x,vpt.y,vpt.width,vpt.height,w,h); } }
 /* renderScene, but with proj and view already set (the headset's own per-eye matrices) */
-function renderMats(w,h){ gl.bindFramebuffer(gl.FRAMEBUFFER,fb); gl.viewport(0,0,w,h); gl.clearColor(L.fog[0],L.fog[1],L.fog[2],1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-  gl.enable(gl.DEPTH_TEST); gl.useProgram(MAIN.p); curCull=null; curMat=null; curTex=null; gl.activeTexture(gl.TEXTURE0); cullOn=false; const u=MAIN.loc;
-  gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
-  gl.uniform1f(u.uSnap,state.ps1&&state.snap?1:0); gl.uniform1f(u.uAffine,state.ps1&&state.affine?1:0); gl.uniform2f(u.uRes,w,h);
-  gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
-  gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
-  gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0); if(u.uSkyFade) gl.uniform1f(u.uSkyFade,0);
-  drawTree(world); gl.bindVertexArray(null); }
+function renderMats(w,h){ gl.bindFramebuffer(gl.FRAMEBUFFER,fb); drawWorldLDN(world,w,h,null); }
 function postTo(target,x,y,w,h,sw,sh){ gl.bindFramebuffer(gl.FRAMEBUFFER,target); gl.viewport(x,y,w,h); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null; curTex=null;
   gl.useProgram(POST_LDN.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
   gl.uniform1i(POST_LDN.loc.tScene,0); gl.uniform2f(POST_LDN.loc.uRes,sw,sh); gl.uniform1f(POST_LDN.loc.uDither,state.dither?1:0); gl.uniform1f(POST_LDN.loc.uGrade,LOOK.grade?1:0); gl.uniform1f(POST_LDN.loc.uFreeze,LOOK.freeze);

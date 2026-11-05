@@ -70,7 +70,7 @@ const tStreakW=P2(16,64,(g,w,h)=>{ const d=g.createImageData(w,h); for(let y=0;y
 const streaks=[];
 /* flat on the ground, running from the node along +z (v = 0 at the light's foot); ry turns it to the viewer */
 function streak(x,z,y,colr,len,wid){ const g=plane(wid,len,1,4); for(let i=0;i<g.P.length;i+=3){ const py=g.P[i+1]; g.P[i+1]=0; g.P[i+2]=len/2-py; g.Nm[i+1]=1; g.Nm[i+2]=0; }
-  const m=M(tStreakW,{color:colr,unlit:true,double:true}); m.cut=2; const n=mk(g,m,D,x,y,z); const s={n,m,base:colr}; streaks.push(s); return s; }
+  const m=M(tStreakW,{color:colr,unlit:true,double:true}); m.cut=2; const n=mk(g,m,D,x,y,z); n.dyn=true; const s={n,m,base:colr}; streaks.push(s); return s; }
 for(const L_ of [LAMP,LAMP2]) streak(L_[0],L_[2]+1.22,.01,0xff9a40,8,.8);
 streak(-7.3,FZ+.6,PAVE_Y+.006,0xff6050,3.2,1.6); streak(-2.1,FZ+.6,PAVE_Y+.006,0xc8e8d8,3.2,1.5);
 const beaconStreaks=BEACONS.map(([x,z])=>streak(x,z+(z>ROAD_Z1?-.5:.5),.008,0xff9020,4,.4));
@@ -78,7 +78,7 @@ const hazardStreaks=[streak(-10.2-2.35,KERB_Z+1.05,.008,0xff9020,2.4,.35),streak
 /* ---------- steam from a manhole in the road ---------- */
 mk(cyl(.34,.34,.02,12),col(0x1a1a1c),D,5.2,.006,6.4);
 const tPuff=P2(32,32,(g,w,h)=>{ g.clearRect(0,0,w,h); radial(g,16,16,16,[[0,'rgba(200,196,190,.55)'],[.5,'rgba(190,186,180,.22)'],[1,'rgba(180,176,170,0)']]); },0,1);
-const puffs=[]; for(let i=0;i<9;i++){ const m=M(tPuff,{color:0xa8a49c,double:true}); m.cut=2; const n=mk(plane(1,1),m,D,5.2,.3,6.4); puffs.push({n,ph:i/9}); }
+const puffs=[]; for(let i=0;i<9;i++){ const m=M(tPuff,{color:0xa8a49c,double:true}); m.cut=2; const n=mk(plane(1,1),m,D,5.2,.3,6.4); n.dyn=true; puffs.push({n,ph:i/9}); }
 /* ---------- the vista east: the road carries on past more lamps and lit windows to the railway bridge, where an
    Overground train crosses every so often, lit windows sliding over the street ---------- */
 const VX0=16, BRX=31;
@@ -104,7 +104,7 @@ for(const [x,z,s] of [[VX0+3,KERB_Z-.35,1],[VX0+11,KERB_Z-.35,1],[VX0+7,ROAD_Z1+
   mk(plane(7,.9),MM(tB),D,BRX-1.72,deckY+.65,(KERB_Z+ROAD_Z1)/2,0,-Math.PI/2,0);
   mk(box(.3,.4,.2),glowC(0xfff0d0),D,BRX-1.8,deckY-.3,(KERB_Z+ROAD_Z1)/2); }
 const tTrain=P2(128,32,(g,w,h)=>{ R(g,'#d8d8d4',0,0,w,h); R(g,'#e86a10',0,h-8,w,5); R(g,'#1a1a1c',0,4,w,2); for(let x=4;x<w;x+=16){ R(g,'#ffe8c0',x,9,11,12); R(g,'rgba(60,40,30,.5)',x+7,13,3,8); } R(g,'#2a2a2c',60,8,8,18); },0,1);
-const TRAIN=N(D,BRX,6.2+1.42,0), trainM=MM(tTrain,{unlit:true,nofog:true,repeat:[4,1]});
+const TRAIN=N(D,BRX,6.2+1.42,0); TRAIN.dyn=true; const trainM=MM(tTrain,{unlit:true,nofog:true,repeat:[4,1]});
 for(let c=0;c<3;c++) mk(box(2.8,3.0,19.6),[trainM,trainM,col(0x4a4a4c),col(0x101010),col(0xc8c8c4),col(0xc8c8c4)],TRAIN,0,1.5,c*20);
 /* ---------- the tick ---------- */
 function face(n,eye){ n.r=[0,Math.atan2(eye[0]-n.p[0],eye[2]-n.p[2]),0]; }

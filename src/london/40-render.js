@@ -49,9 +49,9 @@ function ungraded(m){ return m; }
    At 95% a nearest-texel upscale would double every twentieth row, so the scene buffer is sampled with linear filtering */
 function fbSmooth(){ gl.bindTexture(gl.TEXTURE_2D,fbTex); for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,gl.LINEAR); }
 function drawLondon(eye,tgt){
-  if(!state.ps1){ gl.bindFramebuffer(gl.FRAMEBUFFER,null); renderScene(world,eye,tgt,cv.width,cv.height,[cv.width,cv.height]); return; }
+  if(!state.ps1){ gl.bindFramebuffer(gl.FRAMEBUFFER,null); renderLDN(world,eye,tgt,cv.width,cv.height); return; }
   const h=Math.max(1,Math.round(cv.height*state.sharp)),w=Math.max(1,Math.round(cv.width*state.sharp)); ensureFB(w,h); fbSmooth(); gl.bindTexture(gl.TEXTURE_2D,null);
-  gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderScene(world,eye,tgt,w,h,[w,h]);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderLDN(world,eye,tgt,w,h);
   gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,cv.width,cv.height); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null; curTex=null;
   gl.useProgram(POST_LDN.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
   gl.uniform1i(POST_LDN.loc.tScene,0); gl.uniform2f(POST_LDN.loc.uRes,w,h); gl.uniform1f(POST_LDN.loc.uDither,state.dither?1:0);
