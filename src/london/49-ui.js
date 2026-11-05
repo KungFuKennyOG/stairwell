@@ -27,7 +27,7 @@ function pan(dx,dy){ const s=goal.r*.0016; const rx=Math.cos(cam.th),rz=-Math.si
 
 /* ---------- the cast on the street ---------- */
 /* where each of them is at 02:14: [x, z, heading, pose] */
-const SPOTS={danny:[-.6,1.1,.15,'stand'],degsy:[-5.6,-.9,.55,'smoke'],kwame:[-4.4,-1.5,-.25,'stand'],ali:[-7.8,-2.2,.1,'watch'],
+const SPOTS={danny:[-.6,1.1,.15,'stand'],degsy:[-5.6,-.9,.55,'smoke'],kwame:[-4.4,-1.5,-.25,'stand'],ali:[-7.0,-5.15,0,'watch'],
   maureen:[1.8,.5,-.9,'stand'],piotr:[4.6,1.4,-.5,'phone'],pcmale:[7.4,3.6,-1.1,'stand'],pcfem:[9,4.4,-1.3,'stand']};
 const CAST={};
 for(const id of ORDER){ const n=N(STREET,0,PAVE_Y,0); const C=makeChar(id,n,'cast'); C.node=n; CAST[id]=C;
@@ -52,20 +52,20 @@ let frozen=false,frozenT=0,pending=null,lookT=0;
 const SEEN=new Set(), KEY_CAST=['degsy','kwame','ali','maureen','piotr','pcmale','pcfem'];
 const CARDS={}, CARD=N(STREET); CARD.vis=false;
 const NAMEF="'Anton','Impact','Arial Narrow',sans-serif", TYPEF="'Courier Prime','Courier New',monospace";
-function cardTex(id){ const R_=ROSTER[id]; return P2(1024,512,(g,w,h)=>{ g.clearRect(0,0,w,h);
+function cardTex(id){ const R_=ROSTER[id]; return P2(1024,512,(g,w,h)=>{ g.clearRect(0,0,w,h); R(g,'rgba(6,6,6,1)',0,20,w,h-40); R(g,'#c8231c',0,20,w,8);
     const name=R_.name.replace(/ ".*" /,' ').toUpperCase(), role=R_.role.toUpperCase();
-    g.font=`700 34px ${TYPEF}`; g.fillStyle='#000'; g.fillText(role,18,74); g.fillStyle='#f4efe4'; g.fillText(role,14,70);
+    g.font=`700 34px ${TYPEF}`; g.fillStyle='#f4efe4'; g.fillText(role,24,76,w-48);
     g.save(); g.scale(.82,1); const fs=name.length>12?150:196; g.font=`400 ${fs}px ${NAMEF}`; g.fillStyle='#000'; g.fillText(name,24/.82,96+fs*.86+8); g.fillStyle='#f5d02e'; g.fillText(name,14/.82,96+fs*.86); g.restore();
-    g.font=`700 36px ${TYPEF}`; const tw=Math.min(w-20,g.measureText(R_.card).width+36); g.fillStyle='#050505'; g.fillRect(10,388,tw,62); g.fillStyle='#ffffff'; g.fillText(R_.card,28,431,w-50); },0,1500); }
-function cardFor(id){ if(!CARDS[id]){ CARDS[id]=mk(plane(1.5,.75,2,1),ungraded(M(cardTex(id),{unlit:true,cut:true,double:true})),CARD); } return CARDS[id]; }
+    g.font=`700 40px ${TYPEF}`; g.fillStyle='#e8a040'; const words=R_.card.split(' '); let line='',y=410; for(const wd of words){ const tr=line?line+' '+wd:wd; if(g.measureText(tr).width>w-60&&line){ g.fillText(line,24,y); line=wd; y+=44; } else line=tr; } g.fillText(line,24,y); },0,1500); }
+function cardFor(id){ if(!CARDS[id]){ CARDS[id]=mk(plane(.76,.38,2,1),ungraded(M(cardTex(id),{unlit:true,cut:true,double:true})),CARD); } return CARDS[id]; }
 const FILL=6, FILL0=STREET_LIGHT.pl[FILL].map(v=>Array.isArray(v)?v.slice():v);
 function headOf(id){ const p=CAST[id].node.p; return [p[0],p[1]+1.62,p[2]]; }
-function freezeOn(id,walkUp){ if(walkUp!==false){ const C=CAST[id],p=C.node.p,h=C.node.r[1]+.35,d=2.1;
+function freezeOn(id,walkUp){ if(walkUp!==false){ const C=CAST[id],p=C.node.p,h=C.node.r[1]+.3,d=1.5;
     /* the viewer walks up to them: eye height, 2.1 m in front and a little to one side, then the world stops */
     state.eye=true; setGoal({t:[p[0]+Math.sin(h)*d,PAVE_Y+1.65,Math.min(KERB_Z+1.2,p[2]+Math.cos(h)*d)],th:h,ph:1.6,r:.04}); renderCard(); pending={id,t:.7}; return; }
   const th=cam.th,right=[Math.cos(th),0,-Math.sin(th)],hd=headOf(id);
   for(const k in CARDS) CARDS[k].vis=false; const c=cardFor(id); c.vis=true; CARD.vis=true;
-  CARD.p=[hd[0]+right[0]*.95+Math.sin(th)*.25,hd[1]-.05,hd[2]+right[2]*.95+Math.cos(th)*.25]; CARD.r=[0,th,-.05];
+  CARD.p=[hd[0]+right[0]*.44+Math.sin(th)*.3,hd[1]-.14,hd[2]+right[2]*.44+Math.cos(th)*.3]; CARD.r=[0,th,-.05];
   STREET_LIGHT.pl[FILL]=[[hd[0]+Math.sin(th)*1.3,hd[1]+.35,hd[2]+Math.cos(th)*1.3],[1.0,.95,.88],4.2];
   state.pick=id; SEEN.add(id); frozen=true; frozenT=0; document.body.classList.add('frozen'); renderCard(); }
 function unfreeze(){ pending=null; if(!frozen) return; frozen=false; CARD.vis=false; STREET_LIGHT.pl[FILL]=FILL0.map(v=>Array.isArray(v)?v.slice():v); document.body.classList.remove('frozen'); renderCard(); }

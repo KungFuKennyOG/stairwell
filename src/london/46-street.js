@@ -49,7 +49,7 @@ function shutterTex(seed){ return P2(128,128,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#72
 const tShutterL=shutterTex(1423);
 const tWinLit=P2(32,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#ffd9a0'],[1,'#ffb866']]); R(g,'rgba(110,40,30,.55)',0,0,6,h); R(g,'rgba(110,40,30,.55)',w-6,0,6,h); R(g,'#4a4038',0,15,w,2); R(g,'#4a4038',15,0,2,h); ell(g,20,24,4,6,'rgba(60,30,20,.5)'); },0,1425);
 const tWinDark=P2(32,32,(g,w,h)=>{ R(g,'#0d1014',0,0,w,h); R(g,'rgba(120,130,150,.16)',3,3,10,8); R(g,'#b9b2a5',0,15,w,2); R(g,'#b9b2a5',15,0,2,h); R(g,'#b9b2a5',0,0,w,2); R(g,'#b9b2a5',0,h-2,w,2); R(g,'#b9b2a5',0,0,2,h); R(g,'#b9b2a5',w-2,0,2,h); },0,1426);
-const tSky=P2(4,64,(g,w,h)=>vfill(g,0,0,w,h,[[0,'#06070c'],[.65,'#1c1720'],[1,'#3a2a28']]),0,1);
+const tSky=P2(4,64,(g,w,h)=>vfill(g,0,0,w,h,[[0,'#08080c'],[.5,'#221a1a'],[.8,'#4a3022'],[1,'#6a4226']]),0,1); /* low cloud lit sodium-orange from below */
 const tGlowSodium=P2(32,32,(g,w,h)=>{ g.clearRect(0,0,w,h); radial(g,16,16,16,[[0,'rgba(255,220,160,1)'],[.45,'rgba(255,165,70,.95)'],[.62,'rgba(255,140,40,0)']]); },0,1427);
 
 /* ---------- ground ---------- */
@@ -71,7 +71,7 @@ for(let f=0;f<4;f++){ const b=4.36+f*3;
   blkT(32,.3,2.1,tConc,0,b+.15,FZ+.75,{tile:3,color:0xb0aca4});
   blkT(32,1.1,.18,tConc,0,b+.85,FZ+1.71,{tile:3,color:0xb0aca4});
   wallP(32,2.7,tConc,0,b+1.65,FZ-.3,0,{tile:3,tileH:2.7,color:0x8a8680});
-  for(let x=-14;x<15;x+=4){ const lit=((x*7+f*13+100)%5)===0;
+  for(let x=-14;x<15;x+=4){ const lit=((x*7+f*13+100)%5)<2;
     blk(1.32,1.12,.08,col(0xd8d2c4),x+1.4,b+1.9,FZ-.27); wallP(1.2,1,lit?tWinLit:tWinDark,x+1.4,b+1.9,FZ-.22,0,{unlit:lit,whole:true,cell:2});
     blk(.98,2.08,.08,col(0x1a1a1c),x,b+1.34,FZ-.28); blk(.9,2,.06,col([0x24364f,0x4b1a1a,0x1d3a2c,0x2a2a2a,0x5a3b17][(x+20+f)%5]),x,b+1.3,FZ-.24); blk(.03,.03,.06,col(0xb8b4a8),x+.34,b+1.25,FZ-.18);
     blk(.3,.06,.4,glowC(0xfff0cf),x+2.2,b+2.96,FZ+.6); } }
@@ -102,9 +102,14 @@ function shopFront(x,w,kind){
   blk(w,.06,SHOP_DEPTH,col(0xece6da),x,3.2+PAVE_Y,FZ-SHOP_DEPTH/2);
   blk(w*.7,.05,.5,glowC(0xffffff),x,3.14+PAVE_Y,FZ-1.2);
   if(kind==='rooster'){
-    backWall(P2(256,128,(g,w2,h)=>{ vfill(g,0,0,w2,h,[[0,'#fff6e8'],[1,'#ffe0bc']]);
-        for(let k=0;k<4;k++){ const bx=10+k*60; R(g,'#c21b1b',bx,8,54,40); ell(g,bx+16,26,10,8,'#ffa02a'); ell(g,bx+14,24,4,3,'#ffd27a'); g.fillStyle='#ffd23a'; g.font=`bold 7px Arial,sans-serif`; g.textAlign='left'; g.fillText(['2 PC MEAL','WINGS x6','BURGER','CHIPS'][k],bx+30,20); g.fillText(['£4.49','£3.99','£2.99','£1.50'][k],bx+30,32); }
-        R(g,'#9aa0a6',0,70,w2,6); R(g,'#c8ccd0',16,52,70,18); ell(g,51,60,26,6,'rgba(255,170,60,.7)'); R(g,'#3a2a20',140,56,28,14); },0,1432),x,w,true);
+    backWall(P2(512,256,(g,w2,h)=>{ R(g,'#f4efe6',0,0,w2,h); for(let ty=0;ty<h;ty+=16) R(g,'#c8c2b6',0,ty,w2,1); for(let tx=0;tx<w2;tx+=16) R(g,'#c8c2b6',tx,0,1,h); /* white tiles */
+        R(g,'#c21b1b',0,0,w2,10); R(g,'#ffd23a',0,10,w2,3);
+        for(let k=0;k<4;k++){ const bx=14+k*122; R(g,'#1a1a1a',bx-3,19,114,92); R(g,'#c21b1b',bx,22,108,86); ell(g,bx+28,62,20,16,'#ffa02a'); ell(g,bx+24,57,8,6,'#ffd27a');
+          g.fillStyle='#ffd23a'; g.textAlign='left'; g.textBaseline='middle'; const nm=['2 PC MEAL','6 WINGS','BURGER','CHIPS'][k]; let fs=17; g.font=`bold ${fs}px Arial,sans-serif`; while(g.measureText(nm).width>56&&fs>9){ fs--; g.font=`bold ${fs}px Arial,sans-serif`; } g.fillText(nm,bx+50,46);
+          g.font='bold 20px Arial,sans-serif'; g.fillStyle='#ffffff'; g.fillText(['£4.49','£3.99','£2.99','£1.50'][k],bx+50,76); }
+        g.save(); g.translate(w2/2,170); g.scale(1.3,1.3); g.fillStyle='#c21b1b'; ell(g,0,0,30,22,'#c21b1b'); ell(g,22,-20,10,11,'#c21b1b'); R(g,'#ffd23a',28,-24,9,4); g.restore(); /* rooster logo */
+        g.fillStyle='#c21b1b'; g.font='bold 22px Arial,sans-serif'; g.textAlign='center'; g.fillText('GOLDEN ROOSTER',w2/2,212);
+        R(g,'#9aa0a6',0,232,w2,8); R(g,'#c8ccd0',30,222,150,22); ell(g,105,232,50,8,'rgba(255,170,60,.8)'); R(g,'#3a2a20',360,220,56,24); },0,1432),x,w,true);
     blkT(w*.78,1.0,.6,tConc,x,PAVE_Y+.5,FZ-1.65,{color:0xb81419}); blk(w*.8,.05,.66,col(0xc8ccd0),x,PAVE_Y+1.02,FZ-1.65);
     blk(.9,.36,.5,glowC(0xffc070),x-.9,PAVE_Y+1.22,FZ-1.65); for(let i=0;i<3;i++) blk(.22,.12,.18,col(0xc8a050),x-1.2+i*.3,PAVE_Y+1.12,FZ-1.65);
     blk(.38,.3,.32,col(0x2a2a2c),x+1.1,PAVE_Y+1.2,FZ-1.65); blk(.3,.02,.24,glowC(0x9ad0ff),x+1.1,PAVE_Y+1.36,FZ-1.65);   /* till */
