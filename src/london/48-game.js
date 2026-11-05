@@ -50,11 +50,12 @@ for(const x of [10.2,13.0]) SIGHT.push([x-.06,FZ-2.6,x+.06,FZ]);                
 /* the buildings, with the gateway, the passage, the alley and the estate courtyard carved out */
 SIGHT.push([-40,-60,-15.9,FZ-2.62],[-13.8,-8.6,10.95,FZ-2.62],[12.25,FZ-5.55,40,FZ-2.62],[10.45,-60,40,FZ-8.45],[-40,-60,10.45,-26.0],[29.05,FZ-8.45,40,FZ-5.55]);
 SIGHT.push([FENCE_X-.08,FZ-8.45,FENCE_X+.08,FZ-5.5],[10.2,FZ-2.68,11.0,FZ-2.55],[12.2,FZ-2.68,13.0,FZ-2.55]);                  /* the lobby's back wall either side of the doorway */
+for(let i=0;i<SIGHT.length;i++){ const r=SIGHT[i]; SIGHT[i]=[Math.max(r[0],-16.6),Math.max(r[1],-27.2),Math.min(r[2],36.5),Math.min(r[3],15.2)]; } /* the hub's own buildings hide you via the nav grid */
 const inR=(r,x,z,m)=>x>r[0]+m&&x<r[2]-m&&z>r[1]+m&&z<r[3]-m;
-function standable(x,z,rad){ if(!WALK.some(r=>inR(r,x,z,rad))) return false; for(const b of BLOCK) if(inR([b[0]-rad,b[1]-rad,b[2]+rad,b[3]+rad],x,z,0)) return false; return true; }
+function standable(x,z,rad){ if(NAV) return navWalk(x,z,rad); if(!WALK.some(r=>inR(r,x,z,rad))) return false; for(const b of BLOCK) if(inR([b[0]-rad,b[1]-rad,b[2]+rad,b[3]+rad],x,z,0)) return false; return true; }
 function segHits(ax,az,bx,bz,r){ /* slab test, 2D */ let t0=0,t1=1; const dx=bx-ax,dz=bz-az;
   for(const [p,d,lo,hi] of [[ax,dx,r[0],r[2]],[az,dz,r[1],r[3]]]){ if(Math.abs(d)<1e-9){ if(p<lo||p>hi) return false; continue; } let a=(lo-p)/d,b=(hi-p)/d; if(a>b){ const t=a; a=b; b=t; } t0=Math.max(t0,a); t1=Math.min(t1,b); if(t0>t1) return false; } return true; }
-function clearLine(ax,az,bx,bz,high){ for(let i=0;i<SIGHT.length;i++){ if(high&&i<5&&i!==2) continue; /* up on something: cars and the shelter don't hide you */ if(segHits(ax,az,bx,bz,SIGHT[i])) return false; } return true; }
+function clearLine(ax,az,bx,bz,high){ for(let i=0;i<SIGHT.length;i++){ if(high&&i<5&&i!==2) continue; /* up on something: cars and the shelter don't hide you */ if(segHits(ax,az,bx,bz,SIGHT[i])) return false; } if(NAV&&!navSight(ax,az,bx,bz)) return false; return true; }
 function moveBody(o,dx,dz,rad){ if(standable(o.x+dx,o.z,rad)) o.x+=dx; if(standable(o.x,o.z+dz,rad)) o.z+=dz; }
 const floorY=(x,z)=>(HUBX&&!inCore(x,z))?HUBX.floor(x,z):(z>KERB_Z&&z<ROAD_Z1?0:PAVE_Y);
 
@@ -207,6 +208,9 @@ function copTick(c,dt){ if(frozen&&state.pick===c.id) return;
   }
   /* move: straight at the goal, sliding along whatever is in the way */
   c.E.walkAmt=0; c.E.runAmt=lerp(c.E.runAmt,run,Math.min(1,dt*4));
+  /* round corners: follow the nav field to the goal, re-planned as the goal moves */
+  if(goal&&speed>0&&NAV){ c.fT=(c.fT||0)-dt; if(!c.fld||c.fT<=0||Math.hypot(goal[0]-c.fld.gx,goal[1]-c.fld.gz)>1.5){ c.fld=fieldTo(goal[0],goal[1],c.pos[0],c.pos[1]); c.fT=.6; }
+    const wp=Math.hypot(goal[0]-c.pos[0],goal[1]-c.pos[1])>1.2?c.fld.next(c.pos[0],c.pos[1]):null; if(wp) goal=wp; }
   if(goal&&speed>0){ const gx=goal[0]-c.pos[0],gz=goal[1]-c.pos[1],gd=Math.hypot(gx,gz);
     if(gd>.05){ const st=Math.min(gd,speed*dt),o={x:c.pos[0],z:c.pos[1]}; moveBody(o,gx/gd*st,gz/gd*st,.22);
       if(Math.hypot(o.x-c.pos[0],o.z-c.pos[1])<st*.3){ moveBody(o,gz/gd*st*(c.id==='pcmale'?1:-1),-gx/gd*st*(c.id==='pcmale'?1:-1),.22); } /* stuck: step round it */
