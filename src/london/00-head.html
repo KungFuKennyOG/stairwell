@@ -103,6 +103,7 @@ a:focus-visible,button:focus-visible,summary:focus-visible,#view:focus-visible{o
 .freeze .frole{margin:0;font:600 11px/1.3 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:#fff;text-shadow:0 0 8px #000}
 .freeze .ftag{margin:0;background:#000;color:#fff;font:500 clamp(13px,2.4vw,16px)/1.4 var(--mono);padding:7px 11px}
 .freeze .btn{pointer-events:auto;transform:rotate(3deg)}
+body.capture .hud,body.capture #loading{display:none!important}
 body.frozen .card,body.frozen .brand,body.frozen #clock,body.frozen .hint{opacity:0;pointer-events:none;transition:opacity .2s}
 @media (prefers-reduced-motion:no-preference){.freeze.slam{animation:slam .34s cubic-bezier(.2,1.6,.4,1)}}
 @keyframes slam{from{transform:rotate(-3deg) scale(1.3);opacity:0}to{transform:rotate(-3deg) scale(1);opacity:1}}

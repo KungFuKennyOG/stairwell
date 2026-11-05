@@ -97,6 +97,7 @@ function step(dt){ clock+=dt; if(!frozen) wclock+=dt;
   rainTick(wclock,eyePos()); const fl=Math.sin(wclock*31)>.97&&Math.sin(wclock*3.1)>.6; STREET_LIGHT.pl[1][1]=fl?[.5,.22,.15]:[1.35,.62,.42]; setLights(STREET_LIGHT);
   resize(); draw(); }
 function frame(now){ const dt=Math.min(.05,(now-lastT)/1000); lastT=now; step(dt); requestAnimationFrame(frame); }
+if(window.__CAPTURE) document.body.classList.add('capture');
 place(); renderCard(); updateClock(); setGoal(HOME,true); setLights(STREET_LIGHT);
 const ld=document.getElementById('loading'); if(ld) ld.hidden=true;
 window.__london={state,CAST,setGoal,freezeOn,unfreeze,place,poseAll,step,cam,goal};
