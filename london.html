@@ -3,149 +3,96 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:wght@400;700&display=swap">
 <style>
-/* Layout: a full-bleed low-res 3D viewport. Title top-left, look settings top-right, the cast card bottom-left, a freeze-frame name card over the picture.
-   One look: East London at 2 a.m. Sodium amber on wet black, chicken-shop red, Met blue, and a freeze-frame yellow. */
+/* Layout: a full-bleed 3D view. A case-file label top-left, look switches top-right, the cast file bottom-left.
+   London VR's own kit: Anton for names (the freeze-frame type), Courier Prime for everything else, like a typed
+   police file. Wet black, sodium amber, chicken-shop red; nothing borrowed from Stairwell. */
 :root{
-  --bg:#0a0b0d; --panel:rgba(10,11,13,.9); --line:#2c2e33; --ink:#ece6da; --ink2:#c6c0b4; --muted:#8a867e;
-  --brass:#f0a23e; --sakura:#f0a23e; --signal:#d0453a; --jade:#7fa8d8; --met:#3a5ab8; --card:#f5d02e;
-  --display:'Big Shoulders Display','Arial Narrow','Impact',sans-serif;
-  --body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
-  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --ink:#ece6da; --ink2:#bdb6a8; --muted:#8c857a; --bg:#090a0b; --paper:rgba(14,15,15,.88); --rule:#33302b;
+  --amber:#f0a23e; --red:#c8261c; --met:#3a5ab8;
+  --name:'Anton','Impact','Arial Narrow',sans-serif;
+  --type:'Courier Prime','Courier New',ui-monospace,monospace;
   color-scheme:dark;
 }
 html,body{height:100%}
 [hidden]{display:none!important}
-body{background:var(--bg);color:var(--ink);font-family:var(--body);overflow:hidden;margin:0}
-#view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;image-rendering:pixelated;outline:none}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 14px/1.5 var(--type);overflow:hidden}
+#view{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;outline:none}
 #view:active{cursor:grabbing}
 .hud{position:fixed;inset:0;pointer-events:none;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr) auto;gap:12px;
   padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-bottom,0px));
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .hud>*{pointer-events:auto;box-sizing:border-box}
-.brand{grid-column:1;grid-row:1;align-self:start;justify-self:start;display:grid;gap:10px;min-width:0}
-.kick{margin:0;font:600 11px/1.3 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--ink2);text-shadow:0 0 8px #000}
-.kick b{color:var(--brass);font-weight:600}
-.brand h1{margin:0;font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:clamp(40px,7vw,78px);line-height:.86;letter-spacing:.01em;text-shadow:0 2px 0 #000,0 0 24px rgba(0,0,0,.6)}
-.brand h1 span{color:var(--sakura)}
-.tabs{display:flex;gap:4px;flex-wrap:wrap}
-.tabs a{font:600 12px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink);text-decoration:none;padding:10px 14px;border:1px solid var(--line);background:var(--panel)}
-.tabs a:hover{border-color:var(--brass)}
-.tabs a[aria-current="page"]{background:var(--brass);color:#14100a;border-color:var(--brass)}
-.look{grid-column:2;grid-row:1;align-self:start;background:var(--panel);border:1px solid var(--line);width:240px;max-width:100%}
-.look summary{cursor:pointer;padding:11px 14px;font:600 12px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;list-style:none;display:flex;justify-content:space-between;gap:16px}
-.look summary::-webkit-details-marker{display:none}
-.look summary::after{content:'+';color:var(--muted)}
-.look[open] summary::after{content:'\2013'}
-.look-body{display:grid;gap:10px;padding:2px 14px 14px;font-size:13px}
+.label{grid-column:1;grid-row:1;align-self:start;justify-self:start;display:grid;gap:2px;min-width:0}
+.label .file{margin:0;font:700 12px/1.2 var(--type);color:var(--amber);letter-spacing:.04em}
+.label h1{margin:0;font:400 clamp(34px,5.6vw,60px)/.92 var(--name);letter-spacing:.005em;text-transform:uppercase;text-shadow:3px 3px 0 #000}
+.label .links{display:flex;gap:14px;margin-top:6px;font-size:12.5px}
+.label a{color:var(--ink2);text-underline-offset:3px}
+.look{grid-column:2;grid-row:1;align-self:start;background:var(--paper);border-left:3px solid var(--amber);padding:10px 14px;display:grid;gap:7px;font-size:13px}
 .look label{display:flex;gap:9px;align-items:center;cursor:pointer}
-.look input[type=checkbox]{accent-color:var(--brass);width:15px;height:15px;margin:0}
-.look .master{font-weight:700;padding-bottom:10px;border-bottom:1px solid var(--line)}
-.look .dim{opacity:.4;pointer-events:none}
-.seg{display:flex;min-width:0;flex-wrap:wrap}
-.seg button{flex:1;font:600 11.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink);background:none;border:1px solid var(--line);margin:0 -1px -1px 0;padding:9px 6px;cursor:pointer;white-space:nowrap}
-.seg button:hover{border-color:var(--brass)}
-.seg button[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:#14100a;position:relative}
-.seg-label{font:600 10.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0 0 7px}
-.card{grid-column:1;grid-row:3;align-self:end;justify-self:start;width:min(470px,100%);background:var(--panel);border:1px solid var(--line);padding:16px 18px 12px;display:grid;gap:12px;max-height:56vh;overflow:auto}
-.card .sub{margin:0;font:600 10.5px/1.3 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--brass)}
-.card h2{margin:0;font-family:var(--display);font-weight:800;text-transform:uppercase;font-size:34px;line-height:.95;letter-spacing:.01em;text-wrap:balance}
-.card .body{margin:0;font-size:13.5px;line-height:1.6;color:var(--ink2);max-width:62ch}
-.card .body b{color:var(--ink);font-weight:700}
-.chips{display:flex;flex-wrap:wrap;gap:6px 10px;margin:0;padding:0;list-style:none}
-.chips li{display:flex;gap:6px;align-items:center;font:500 11px/1 var(--mono);color:var(--ink2);letter-spacing:.04em}
-.chips i{display:inline-block;width:18px;height:18px;border:1px solid rgba(255,255,255,.18)}
+.look input{accent-color:var(--amber);width:15px;height:15px;margin:0}
+#clock{grid-column:2;grid-row:2;align-self:start;justify-self:end;text-align:right;color:var(--ink2);font-size:12.5px;text-shadow:0 0 8px #000}
+#clock b{display:block;font:400 40px/1 var(--name);color:var(--ink);letter-spacing:.02em}
+.card{grid-column:1;grid-row:3;align-self:end;justify-self:start;width:min(460px,100%);max-height:54vh;overflow:auto;background:var(--paper);border-left:3px solid var(--amber);padding:14px 16px 10px;display:grid;gap:10px}
+.card .sub{margin:0;font-weight:700;font-size:12px;color:var(--amber)}
+.card h2{margin:0;font:400 30px/1 var(--name);text-transform:uppercase;letter-spacing:.01em}
+.card .body{margin:0;color:var(--ink2);font-size:13.5px;max-width:60ch}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:stretch}
+.btn,.seg button{font:700 13px/1 var(--type);color:var(--ink);background:none;border:1px solid var(--rule);padding:9px 11px;cursor:pointer;min-height:36px}
+.btn:hover,.seg button:hover{border-color:var(--amber)}
+.btn[aria-pressed="true"],.seg button[aria-pressed="true"]{background:var(--amber);border-color:var(--amber);color:#160f06}
+.seg{display:flex;flex-wrap:wrap;gap:0}
+.seg button{margin-right:-1px}
+.seg-label{margin:0 0 5px;font-size:12px;color:var(--muted)}
 .card ul.list{list-style:none;margin:0;padding:0;display:grid}
-.list li button{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:10px;align-items:baseline;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);color:var(--ink);font:inherit;font-size:13.5px;padding:9px 2px;cursor:pointer}
-.list li button:hover b,.list li button[aria-pressed="true"] b{color:var(--brass)}
-.list li .num{font:600 11px/1.6 var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
-.list li button[aria-pressed="true"] .num{color:var(--brass)}
-.list li .who{color:var(--muted);font-weight:400;font-size:12px;margin-left:8px}
+.list li button{display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px;align-items:baseline;width:100%;text-align:left;background:none;border:0;border-top:1px dashed var(--rule);color:var(--ink);font:inherit;padding:8px 2px;cursor:pointer}
+.list li .dot{width:10px;height:10px;align-self:center}
 .list li b{font-weight:700}
-.list li small{display:none;color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:3px}
+.list li .who{color:var(--muted);font-size:12.5px;margin-left:6px}
+.list li small{display:none;color:var(--ink2);font-size:12.5px;line-height:1.5;margin-top:3px}
+.list li button[aria-pressed="true"] b{color:var(--amber)}
 .list li button[aria-pressed="true"] small{display:block}
-.list li .sw{display:flex;gap:2px;align-self:center}
-.list li .sw i{display:block;width:7px;height:14px}
-.row{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap}
-.row>*{min-width:0}
-.btn{font:600 11.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#14100a;background:var(--ink);border:1px solid var(--ink);padding:0 14px;cursor:pointer;min-height:36px}
-.btn.ghost{background:none;color:var(--ink);border-color:var(--line)}
-.btn[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:#14100a}
-.hint{grid-column:2;grid-row:3;align-self:end;justify-self:end;margin:0;font-size:12px;color:var(--muted);letter-spacing:.04em;text-shadow:0 0 6px #000;text-align:right;line-height:1.5}
-#clock{grid-column:2;grid-row:2;align-self:start;justify-self:end;text-align:right;font:600 12px/1.5 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink2);text-shadow:0 0 8px #000}
-#clock b{display:block;font:800 34px/1 var(--display);letter-spacing:.02em;color:var(--ink)}
-a:focus-visible,button:focus-visible,summary:focus-visible,#view:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
-#err{position:fixed;inset:auto 16px 16px;padding:14px 16px;background:var(--panel);border:1px solid var(--signal);font-size:13px;line-height:1.5}
-#loading{position:fixed;inset:0;display:grid;place-items:center;font:600 12px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--ink2);background:var(--bg)}
+.tag{font-size:11px;font-weight:700;padding:1px 5px;margin-right:6px;border:1px solid var(--rule);color:var(--ink2)}
+.tag.you{background:var(--amber);border-color:var(--amber);color:#160f06}
+.tag.crew{border-color:var(--red);color:#f0928a}
+.tag.law{border-color:var(--met);color:#a8baf0}
+.note{margin:0;padding:8px 10px;border-left:2px solid var(--red);background:rgba(200,38,28,.07);font-size:13px;color:var(--ink2)}
+.note b{color:var(--ink)}
+.hint{grid-column:2;grid-row:3;align-self:end;justify-self:end;margin:0;font-size:12px;color:var(--muted);text-align:right;text-shadow:0 0 6px #000}
+a:focus-visible,button:focus-visible,#view:focus-visible,input:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+#err{position:fixed;inset:auto 16px 16px;padding:12px 14px;background:var(--paper);border-left:3px solid var(--red);font-size:13px}
+#loading{position:fixed;inset:0;display:grid;place-items:center;color:var(--ink2);background:var(--bg)}
+body.capture .hud,body.capture #loading{display:none!important}
+body.frozen .card,body.frozen .label,body.frozen #clock,body.frozen .hint{opacity:.12;transition:opacity .25s}
 @media (max-width:760px){
   .hud{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto}
-  .look{grid-column:1;grid-row:2;justify-self:start;width:100%}
+  .look{grid-column:1;grid-row:2;justify-self:start;grid-auto-flow:column}
   #clock{grid-column:1;grid-row:3}
   .card{grid-row:4;max-height:44vh;width:100%}
   .hint{display:none}
-  .brand h1{font-size:42px}
 }
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
-
-.tag{display:inline-block;font:600 10px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;padding:4px 6px;border:1px solid var(--line);color:var(--ink2);margin-right:4px}
-.tag.kid{border-color:var(--jade);color:var(--jade)}
-.tag.civ{border-color:#8a867e}
-.tag.crew{border-color:var(--signal);color:#f0a096}
-.tag.target{background:var(--signal);border-color:var(--signal);color:#fff}
-.word{margin:0;padding:10px 12px;border-left:3px solid var(--brass);background:rgba(232,163,61,.07);font-size:13px;line-height:1.55;color:var(--ink2)}
-.word b{color:var(--ink)}
-.tag.you{background:var(--brass);border-color:var(--brass);color:#14100a}
-.tag.law{border-color:var(--met);color:#9ab0f0}
-#view.frozen{filter:saturate(.55) contrast(1.2) brightness(1.05)}
-.freeze{position:fixed;left:max(22px,env(safe-area-inset-left,0px));top:42%;transform:rotate(-3deg);max-width:min(620px,calc(100% - 44px));display:grid;gap:8px;justify-items:start;pointer-events:none;z-index:5}
-.freeze .fname{margin:0;font-family:var(--display);font-weight:900;color:var(--card);font-size:clamp(46px,9vw,104px);line-height:.84;text-transform:uppercase;text-shadow:5px 5px 0 #000}
-.freeze .frole{margin:0;font:600 11px/1.3 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:#fff;text-shadow:0 0 8px #000}
-.freeze .ftag{margin:0;background:#000;color:#fff;font:500 clamp(13px,2.4vw,16px)/1.4 var(--mono);padding:7px 11px}
-.freeze .btn{pointer-events:auto;transform:rotate(3deg)}
-body.capture .hud,body.capture #loading{display:none!important}
-body.frozen .card,body.frozen .brand,body.frozen #clock,body.frozen .hint{opacity:0;pointer-events:none;transition:opacity .2s}
-@media (prefers-reduced-motion:no-preference){.freeze.slam{animation:slam .34s cubic-bezier(.2,1.6,.4,1)}}
-@keyframes slam{from{transform:rotate(-3deg) scale(1.3);opacity:0}to{transform:rotate(-3deg) scale(1);opacity:1}}
-@media (max-width:760px){.freeze{top:24%}}
 </style>
 
-<canvas id="view" tabindex="0" aria-label="3D view of Bethnal Green Road at night with the cast. Drag to orbit, scroll or pinch to zoom, arrow keys also orbit."></canvas>
+<canvas id="view" tabindex="0" aria-label="3D view of Bethnal Green Road at night with the cast. Drag to look around, scroll or pinch to zoom."></canvas>
 <div class="hud">
-  <header class="brand">
-    <p class="kick">Stairwell engine &middot; art direction set 05 &middot; <b>E2, 02:14</b></p>
-    <h1>Bethnal <span>Green</span></h1>
-    <nav class="tabs" aria-label="Views">
-      <a href="houses.html">House Calls &#8599;</a>
-      <a href="art-test.html">Art test &#8599;</a>
-    </nav>
+  <header class="label">
+    <p class="file">London VR &middot; look-dev &middot; E2, 02:14</p>
+    <h1>Bethnal Green Road</h1>
+    <nav class="links" aria-label="Elsewhere"><a href="houses.html">House Calls</a></nav>
   </header>
-  <details class="look" id="look">
-    <summary>Look</summary>
-    <div class="look-body">
-      <label class="master"><input type="checkbox" id="ps1" checked> PS1 effects</label>
-      <div id="ps1opts" style="display:grid;gap:10px">
-        <div>
-          <p class="seg-label">Render height</p>
-          <div class="seg" id="resSeg">
-            <button type="button" data-v="240" aria-pressed="false">240</button>
-            <button type="button" data-v="360" aria-pressed="false">360</button>
-            <button type="button" data-v="480" aria-pressed="true">480</button>
-          </div>
-        </div>
-        <label><input type="checkbox" id="snap" checked> Vertex wobble</label>
-        <label><input type="checkbox" id="affine" checked> Warped textures</label>
-        <label><input type="checkbox" id="dither" checked> 15-bit color, dithered</label>
-      </div>
-      <label><input type="checkbox" id="rain" checked> Rain</label>
-    </div>
-  </details>
+  <fieldset class="look" style="margin:0">
+    <legend class="seg-label" style="padding:0">Look</legend>
+    <label><input type="checkbox" id="grade" checked> Film grade</label>
+    <label><input type="checkbox" id="grain" checked> Grain</label>
+    <label><input type="checkbox" id="rain" checked> Rain</label>
+  </fieldset>
   <p id="clock" aria-live="polite"></p>
   <section class="card" id="card" aria-live="polite"></section>
-  <p class="hint">Drag to orbit &middot; scroll or pinch to zoom<br>Right-drag or two fingers to pan</p>
+  <p class="hint">Drag to look &middot; scroll or pinch to zoom<br>Eye level: WASD or the wheel to walk</p>
 </div>
 <p id="err" hidden></p>
-<div class="freeze" id="freeze" hidden><p class="frole" id="fRole"></p><p class="fname" id="fName"></p><p class="ftag" id="fTag"></p><button type="button" class="btn ghost" id="fClose">Unfreeze</button></div>
 <p id="loading">Putting the kettle on&hellip;</p>
 <script>
 'use strict';
@@ -1274,6 +1221,245 @@ function baseMatsLazy(k){ const s=HEADS[k],sk_=skinOf(k); FACE[k]=FACE[k]||{}; F
 
 
 /* =====================================================================================================
+   LONDON VR'S OWN LOOK, on top of the Stairwell renderer, without touching the shared engine.
+   - No PS1 pass: no vertex snap, no affine warp, no 15-bit dither. Textures are mipmapped, linear and anisotropic.
+   - A bleach-bypass grade in the material shader (no screen-space post, so it costs the same in the headset):
+     mid-tones at ~58% saturation, an S-curve, a green-grey shadow floor, sodium-amber highlights, and only the
+     signature colours (chicken-shop red, sodium amber, Met blue) keep full saturation.
+   - Fine film grain per fragment, re-seeded every frame.
+   - uFreeze 0..1: the freeze-frame. The world drains to ~15% saturation, red survives, contrast punches up.
+   On desktop the scene renders supersampled and is box-filtered down (the engine's canvas has no MSAA); in the
+   headset the XR layer's own antialiasing does that job.
+   ===================================================================================================== */
+const FS_LDN=`#version 300 es
+precision highp float;
+uniform sampler2D map; uniform float uHasMap, uCut;
+uniform vec3 uColor, uEmissive, uFogCol; uniform vec2 uRepeat; uniform float uNoFog, uFogNear, uFogFar, uSkyFade;
+uniform float uTime, uFreeze, uGrade, uGrain;
+in vec3 vAff; in vec3 vLight; in vec3 vView; in vec4 vRect;
+out vec4 outColor;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void main(){
+  vec2 uv = vAff.xy / vAff.z * uRepeat;
+  if(vRect.z > 0.0) uv = vRect.xy + fract(uv) * vRect.zw;
+  vec4 t = uHasMap > 0.5 ? texture(map, uv) : vec4(1.0);
+  if(uCut > 0.5 && t.a < 0.5) discard;
+  vec3 c = t.rgb * uColor * vLight + t.rgb * uEmissive;
+  float f = clamp((length(vView) - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0) * (1.0 - min(uNoFog, 1.0));
+  c = mix(c, uFogCol, f);
+  if(uGrade > 0.5 && uNoFog < 1.5){   /* uNoFog = 2: titles and cards, which sit outside the grade */
+    c = clamp(c, 0.0, 1.0);
+    float l = dot(c, vec3(0.299, 0.587, 0.114));
+    float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), s = (mx - mn) / (mx + 1e-4);
+    float red = step(c.g * 1.7, c.r) * step(c.b * 1.7, c.r);
+    float amber = step(c.b * 2.2, c.r) * step(c.r * 0.45, c.g) * step(c.g, c.r);
+    float blue = step(c.r * 1.5, c.b) * step(c.g * 1.05, c.b);
+    float sig = smoothstep(0.42, 0.62, s) * clamp(red + amber + blue, 0.0, 1.0);
+    float skin = step(c.b, c.g) * step(c.g, c.r) * smoothstep(0.12, 0.22, s) * (1.0 - smoothstep(0.55, 0.75, s)) * smoothstep(0.08, 0.2, l);
+    float sat = mix(mix(0.58, 0.86, skin), 1.0, sig);                 /* skin keeps its warmth: bleach bypass, not a corpse */
+    sat = mix(sat, mix(0.14, 0.92, sig * red), uFreeze);                 /* the freeze keeps only the reds */
+    c = mix(vec3(l), c, sat);
+    c = mix(c, c * c * (3.0 - 2.0 * c), 0.42 + 0.25 * uFreeze);          /* S-curve, harder on a freeze */
+    float sh = 1.0 - smoothstep(0.0, 0.32, l);
+    c = c * vec3(0.95, 1.0, 0.97) * (1.0 - sh * 0.04) + vec3(0.014, 0.024, 0.02) * sh;   /* green-grey floor: inky, not crushed */
+    float hi = smoothstep(0.5, 1.0, l);
+    c *= mix(vec3(1.0), vec3(1.06, 1.0, 0.86), hi);                       /* sodium in the highlights */
+  }
+  if(uGrain > 0.5 && uNoFog < 1.5){ float n = hash(floor(gl_FragCoord.xy) + fract(uTime * 7.31) * vec2(91.7, 47.3)); c += (n - 0.5) * (0.05 + 0.03 * uFreeze); }
+  outColor = vec4(c, 1.0 - uSkyFade * smoothstep(0.8, 1.0, f));
+}`;
+const PFS_LDN=`#version 300 es
+precision highp float;
+uniform sampler2D tScene; uniform vec2 uRes; uniform float uSS;
+in vec2 vUv; out vec4 outColor;
+void main(){ vec2 px = gl_FragCoord.xy * uSS; vec3 c = vec3(0.0);
+  for(int j=0;j<2;j++) for(int i=0;i<2;i++) c += texture(tScene, (px + (vec2(float(i), float(j)) - 0.5) * uSS * 0.5 + 0.5) / uRes).rgb;
+  outColor = vec4(c * 0.25, 1.0); }`;
+MAIN=program(VS,FS_LDN,['position','normal','uv','aRect']);
+const POST_LDN=program(PVS,PFS_LDN);
+const ANISO=gl.getExtension('EXT_texture_filter_anisotropic');
+/* every texture mipmapped, trilinear, anisotropic: the opposite of the PS1 pass */
+glTex=function(t){
+  if(!t.glt){ t.glt=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,t.glt); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,t.c);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+    gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    if(ANISO) gl.texParameterf(gl.TEXTURE_2D,ANISO.TEXTURE_MAX_ANISOTROPY_EXT,Math.min(8,gl.getParameter(ANISO.MAX_TEXTURE_MAX_ANISOTROPY_EXT))); }
+  return t.glt; };
+const LOOK={grade:true,grain:true,freeze:0,time:0};
+/* a material that skips the grade and the fog: name cards, title text */
+function ungraded(m){ m.nofog=2; return m; }
+function setLookUniforms(){ gl.useProgram(MAIN.p); gl.uniform1f(MAIN.loc.uTime,LOOK.time); gl.uniform1f(MAIN.loc.uFreeze,LOOK.freeze); gl.uniform1f(MAIN.loc.uGrade,LOOK.grade?1:0); gl.uniform1f(MAIN.loc.uGrain,LOOK.grain?1:0); }
+/* draw the world supersampled into the engine's framebuffer, then box-filter it onto the canvas */
+function drawLondon(eye,tgt){ const W=cv.width,H=cv.height,ss=Math.max(1,Math.min(2,Math.sqrt(9e6/(W*H)))),w=Math.round(W*ss),h=Math.round(H*ss);
+  ensureFB(w,h); gl.bindTexture(gl.TEXTURE_2D,fbTex); for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,gl.LINEAR); gl.bindTexture(gl.TEXTURE_2D,null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fb); setLookUniforms(); renderScene(world,eye,tgt,w,h,[w,h]);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,W,H); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null; curTex=null;
+  gl.useProgram(POST_LDN.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
+  gl.uniform1i(POST_LDN.loc.tScene,0); gl.uniform2f(POST_LDN.loc.uRes,w,h); gl.uniform1f(POST_LDN.loc.uSS,ss); gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); }
+
+/* =====================================================================================================
+   THE LONDON CHARACTER KIT. Only the skeleton, skin weights and pose system come from the Stairwell rig, so the
+   cast still animates, holds props and works in the headset. Everything you can see is new:
+   - a denser body (16-sided torso resampled every 2.5 cm, 12-sided limbs) with chest, glutes, calves and
+     shoulder slope, and garment volume as geometry: puffer quilting, coat bulk, trouser hems;
+   - a sculpted head: jaw, cheekbones, brow ridge, nose, eye sockets, lips and chin are geometry, with real
+     eyeballs in the sockets and separate ears, painted by a new 512 px face painter;
+   - five-finger hands, relaxed or gripping; chunky trainers and boots with soles.
+   ===================================================================================================== */
+const TORSO_L=[[.82,.1,.085,0],[.86,.142,.106,-.01],[.9,.16,.118,-.016],[.94,.168,.118,-.012],[1.0,.158,.108,-.002],[1.05,.148,.102,.004],[1.1,.146,.104,.008],
+  [1.16,.152,.11,.014],[1.22,.164,.12,.022],[1.28,.172,.124,.024],[1.34,.178,.12,.018],[1.4,.18,.11,.008],[1.44,.17,.098,0],[1.475,.14,.08,-.008],[1.5,.1,.07,-.012],[1.53,.066,.062,-.006],[1.58,.058,.058,.004],[1.62,.052,.054,.008]];
+function profileAt(T,y){ if(y<=T[0][0]) return T[0].slice(); for(let i=1;i<T.length;i++) if(y<=T[i][0]){ const a=T[i-1],b=T[i],f=(y-a[0])/(b[0]-a[0]),s=f*f*(3-2*f); return a.map((v,k)=>v+(b[k]-v)*(k?s:f)); } return T[T.length-1].slice(); }
+function resample(T,step){ const out=[],y0=T[0][0],y1=T[T.length-1][0]; for(let y=y0;y<y1-1e-6;y+=step) out.push(profileAt(T,y)); out.push(T[T.length-1].slice()); return out; }
+
+/* ---------- the sculpted head: an ellipsoid pushed and pulled into a face. Local space: the head joint at the base of
+   the skull, +z forward, ~0.25 m tall. UVs are cylindrical (front at u = .5, top of the canvas = top of the head). ---------- */
+const HEAD_H=.26, HC=[0,.128,.012], HR=[.079,.124,.096];
+const gauss=(x0,y0,sx,sy,x,y)=>Math.exp(-(((x-x0)/sx)**2)-(((y-y0)/sy)**2));
+function faceShape(f,x,y,z){ /* returns the displaced point */
+  const ax=Math.abs(x), front=sst(0,.05,z), w=f.width||1;
+  let X=x*w, Y=y, Z=z;
+  if(y<.1){ const k=(.1-y)/.1; X*=1-(1-(f.jaw??.86))*k; Z+=front*(f.chin??.008)*gauss(0,.03,.02,.025,x,y)*1.6; }
+  /* the jaw line: below the mouth, the sides and the underside tuck in towards the neck, leaving the chin in front */
+  if(y<.08){ const k=sst(.08,.015,y), side=1-front*.75; X*=1-.38*k*side; if(z<.03) Z=Z-(Z-(-.01))*.42*k*(1-front); }
+  if(y<.03){ const k=(.03-y)/.03; X*=1-.25*k; Z=Z*(1-.3*k); }
+  Z+=front*((f.nose??1)*(.03*gauss(0,.1,.012,.026,x,y)+.014*gauss(0,.132,.009,.022,x,y))+.006*gauss(0,.087,.018,.009,x,y));   /* nose ridge, tip, wings */
+  Z+=front*(f.brow??1)*.011*gauss(.03,.157,.03,.011,ax,y);                                                            /* brow ridge */
+  Z-=front*.015*gauss(.032,.137,.017,.012,ax,y);                                                                       /* eye sockets */
+  const ck=(f.cheek??1)*.007*gauss(.05,.112,.02,.02,ax,y); X+=Math.sign(x)*ck*.6; Z+=front*ck;                         /* cheekbones */
+  Z+=front*(.006*gauss(0,.069,.018,.009,x,y)-.003*gauss(0,.074,.02,.0028,x,y));                                         /* lips, mouth line */
+  Z+=front*.004*gauss(.022,.06,.012,.02,ax,y);                                                                          /* the corners of the mouth */
+  if(z<0) Z*=1.06;                                                                                                      /* the back of the skull */
+  return [X,Y,Z]; }
+function headGeo(f){ const g=new Geo(),LAT=34,LON=44;
+  /* longitudes bunch up at the front, where the nose and eyes need the vertices */
+  const phAt=j=>{ const t=j/LON*2-1; return Math.sign(t)*Math.pow(Math.abs(t),1.55)*Math.PI; };
+  for(let i=0;i<=LAT;i++){ const th=i/LAT*Math.PI; for(let j=0;j<=LON;j++){ const ph=phAt(j);
+      const x=HR[0]*Math.sin(th)*Math.sin(ph),y=HC[1]+HR[1]*Math.cos(th),z=HC[2]+HR[2]*Math.sin(th)*Math.cos(ph);
+      const p=faceShape(f,x,y,z-HC[2]); p[2]+=HC[2]; g.v(p,[0,1,0],[ph/(Math.PI*2)+.5,Math.min(.996,Math.max(.004,p[1]/HEAD_H))]); } }
+  for(let i=0;i<LAT;i++) for(let j=0;j<LON;j++){ const a=i*(LON+1)+j,b=a+1,c=a+LON+2,d=a+LON+1; g.I.push(a,d,c,a,c,b); }
+  smoothNormals(g); g.groups.push({start:0,count:g.I.length,mi:0}); return g; }
+/* where a point on the face lands on the 512 x 256 face canvas */
+function facePx(f,x,y){ const z=HR[2]*Math.sqrt(Math.max(.05,1-(x/HR[0])**2-((y-HC[1])/HR[1])**2)); return [(Math.atan2(x,z)/(Math.PI*2)+.5)*512,(1-y/HEAD_H)*256]; }
+function eyeZ(f,x,y){ const z=HR[2]*Math.sqrt(Math.max(0,1-(x/HR[0])**2-((y-HC[1])/HR[1])**2)); return faceShape(f,x,y,z)[2]+HC[2]; }
+function sphereGeo(r,seg=12){ const rings=[]; for(let i=0;i<=seg/2;i++){ const a=-Math.PI/2+i/(seg/2)*Math.PI; rings.push([Math.sin(a)*r,Math.cos(a)*r+1e-4,Math.cos(a)*r+1e-4]); } return lathe(rings,seg,{capB:false,capT:false}); }
+const eyeTex={}; function eyeTexFor(iris){ return eyeTex[iris]||(eyeTex[iris]=P2(32,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#060404'],[.035,'#060404'],[.05,iris],[.11,iris],[.13,'#1a120e'],[.15,'#ece6da'],[1,'#d4ccbe']]); R(g,'rgba(255,255,255,.8)',10,1,3,1); },0,1600)); }
+
+/* ---------- the face painter: skin, hairline, brows, lids, lips, stubble, on the sculpted head's UVs ---------- */
+function paintFaceL(s){ const W=512,H=256,I=Img(W,H),SK=F3(s.skin),SD=F3(s.skinD),seed=s.seed,f=s.shape||{};
+  const P=(x,y)=>facePx(f,x,y);
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){ const u=Math.abs(x/W-.5)*2; let c=lerp3(SK,SD,Math.min(1,sst(.2,.75,u)*.55+sst(.75,.95,y/H)*.3));
+    const m=1+.04*fbm(x*.06,y*.06,seed)+.02*fbm(x*.4,y*.4,seed+3); const i=(y*W+x)*3; I.d[i]=c[0]*m; I.d[i+1]=c[1]*m; I.d[i+2]=c[2]*m; }
+  const warm='#c4604c';
+  for(const sx of [-1,1]){ const [ex,ey]=P(sx*.031,.136),[cx_,cy_]=P(sx*.05,.108),[bx,by]=P(sx*.031,.158),[tx,ty]=P(sx*.068,.13);
+    blob(I,cx_,cy_,18,12,.09,warm);                                   /* cheeks */
+    blob(I,ex,ey+12,15,6,-.1);                                        /* under the eyes */
+    blob(I,ex,ey-8,16,6,-.12);                                        /* the lid crease */
+    blob(I,ex,ey,20,12,-.14);                                          /* the socket's shadow */
+    softEll(I,ex,ey-1,12,7,'#140a08',.9,.16); softEll(I,ex,ey,10,5.5,'#2a1a14',.55,.3); softLine(I,ex-12,ey-4,ex+12,ey-5,'#0a0504',.9,2.2);   /* lash line, upper lid */
+    blob(I,tx,ty,10,14,-.1);                                          /* temples */
+    const BR=F3(s.brow||'#2a1c12'); const r=rng(seed+sx*7); for(let k=0;k<160;k++){ const t=r(); const x=bx-sx*15+sx*t*32,y=by+1-Math.sin(t*Math.PI)*5+(r()-.5)*(4-t*2); put(I,x,y,BR,.7*(s.browT?1:.85)); put(I,x+1,y-1,BR,.45); put(I,x,y+1,BR,.3); } }
+  const [nx,ny]=P(0,.098),[ntx,nty]=P(0,.09),[nbx,nby]=P(0,.13); blob(I,nx,ny,8,16,.08,warm);
+  for(const sx of [-1,1]){ blob(I,nx+sx*9,ny-6,4,18,-.2); } softLine(I,nbx,nby,nx,ny-4,'#ffffff',.12,3); blob(I,nx,ny-2,5,5,.1);   /* the nose: shaded sides, a lit ridge */ for(const sx of [-1,1]){ const [px,py]=P(sx*.009,.086); softEll(I,px,py,3,2,'#2a1410',.8,.4); }
+  blob(I,ntx,nty+2,10,4,-.15);
+  const [mx,my]=P(0,.072);
+  const [chx,chy]=P(0,.04); blob(I,chx,chy,18,10,.06);
+  if(s.age){ for(const sx of [-1,1]){ const [ex,ey]=P(sx*.04,.136); for(const d of [-3,0,3]) softLine(I,ex+sx*10,ey+d,ex+sx*18,ey+d*1.8,'#000000',.15,1); } const [fx,fy]=P(0,.18); for(const d of [0,6]) softLine(I,fx-30,fy+d,fx+30,fy+d,'#000000',.12,1.2); }
+  if(s.scar){ const [sx_,sy_]=P(.04,.15); softLine(I,sx_,sy_-12,sx_+6,sy_+14,'#e8b8a8',.6,2); }
+  /* beard and stubble on the jaw, chin and upper lip */
+  if(s.beard){ const C=F3(s.beardC),r=rng(seed+21),full=s.beard==='full',goat=s.beard==='goatee',must=s.beard==='mustache';
+    for(let y=Math.floor(P(0,.11)[1]);y<P(0,.0)[1];y++) for(let x=0;x<W;x++){ const u=Math.abs(x/W-.5)*2; if(u>.42) continue; const yy=HEAD_H*(1-y/H);
+      const lips=Math.abs(x-mx)<20&&Math.abs(y-my)<7, upper=yy>.075&&yy<.088&&Math.abs(x-mx)<24, jaw=yy<.075&&!lips&&(u>.1||yy<.06), chin=yy<.06&&Math.abs(x-mx)<22;
+      let d=0; if(must) d=upper?1:0; else if(goat) d=(upper||chin)&&!lips?1:0; else d=(upper||jaw)&&!lips?1:0;
+      if(!d) continue; if(full||goat||must){ const v=.85+.3*fbm(x*.5,y*.5,seed+5); put(I,x,y,[C[0]*v,C[1]*v,C[2]*v],.92); } else if(r()<.5*sst(.42,.25,u)) put(I,x,y,C,.6); } }
+  softEll(I,mx,my+1,22,7,s.lip||'#a8665a',.9,.5); softEll(I,mx,my+4,17,4,mix(s.lip||'#a8665a','#ffffff',.12),.6,.6); softLine(I,mx-21,my,mx+21,my,'#2a1210',.9,1.6); softLine(I,mx-8,my+4,mx+8,my+4,'#ffffff',.12,2);
+  /* hair painted where the hairline runs: buzz, shaved, or the base under a hair shell */
+  if(s.hair&&s.hair!=='none'){ const C=F3(s.hairC||'#1a1410');
+    for(let x=0;x<W;x++){ const u=Math.abs(x/W-.5)*2; const line=u<.16?(s.hairFront??.195):u<.4?.17-.02*sst(.16,.4,u):u<.7?.15:.09; const yl=(1-line/HEAD_H)*H+3*fbm(x*.1,0,seed);
+      for(let y=0;y<yl;y++){ const a=Math.min(1,(yl-y)/3); if(s.hair==='shaved') put(I,x,y,lerp3(SK,[0,0,0],.2),a*.55); else put(I,x,y,lerp3(C,SK,.12+.12*fbm(x*.6,y*.6,seed+1)),a*.93); } } }
+  return toTex(I); }
+
+/* ---------- hands: palm and five fingers, relaxed (open) or gripping (wrap). Palm faces the body (-s x). ---------- */
+function handL(wr,s,m){ const ps=-s;
+  const build=(curl)=>{ const h=N(wr); mk(box(.03,.085,.082,{tw:.92,td:.95,at:[0,-.044,0]}),m,h);
+    [[.028,.07,.046],[.01,.078,.05],[-.008,.075,.046],[-.026,.062,.038]].forEach(([z,len,pl],i)=>{ const k=N(h,0,-.086,z,0,0,ps*curl*.7); mk(box(.017,pl*.62,.017,{at:[0,-pl*.31,0]}),m,k);
+      const k2=N(k,0,-pl*.6,0,0,0,ps*curl); mk(box(.016,len-pl*.6,.016,{tw:.85,td:.85,at:[0,-(len-pl*.6)/2,0]}),m,k2); });
+    const t=N(h,ps*.012,-.03,.042,-.5,0,ps*(.3+curl*.6)); mk(box(.019,.042,.019,{at:[0,-.021,0]}),m,t); const t2=N(t,0,-.04,0,0,0,ps*curl*.5); mk(box(.017,.032,.017,{tw:.85,td:.85,at:[0,-.016,0]}),m,t2);
+    return h; };
+  const open=build(.32), wrap=build(1.35); wrap.vis=false; return {open,wrap}; }
+/* ---------- shoes: a chunky sole and a rounded upper ---------- */
+function shoeL(an,o){ const w=o.shoeW,l=o.shoeL,sole=o.sole||.032;
+  mk(box(w*1.08,sole,l*1.04,{td:1,at:[0,-o.foot+sole/2,l*.2]}),o.soleM||M(null,{color:0xe8e4dc}),an);
+  mk(lathe([[-o.foot+sole,w*.54,l*.48,l*.21],[-o.foot+sole+.025,w*.53,l*.46,l*.2],[-o.foot*.4,w*.48,l*.38,l*.13],[-.008,w*.42,w*.62,.012],[.04,w*.37,w*.44,0]],12),o.footM,an); }
+
+/* ---------- the rig: Stairwell's skeleton and skinning, this kit's body ---------- */
+function rigL(o,parent){
+  const hf=o.hf||1,w=o.w||1,dp=o.depth||1,bl=o.belly||1,lg=o.lg||1,ag=o.ag||1,jk=o.jacket||0,pl=o.pants||.006,puff=o.puff||0;
+  const fem=o.shape==='fem';
+  const base=TORSO_L.map(r=>r.slice()); if(fem){ for(const r of base){ if(r[0]>=.86&&r[0]<=.94){ r[1]*=1.08; r[2]*=1.04; } if(r[0]>=1.0&&r[0]<=1.1) r[1]*=.88; if(r[0]>=1.22&&r[0]<=1.34){ r[2]*=1.12; r[3]+=.012; } if(r[0]>=1.4&&r[0]<=1.475) r[1]*=.88; } }
+  const T=resample(base,.025).map(([y,rx,rz,cz])=>{ const neck=y>=1.5, mid=y>=1.0&&y<=1.28, worn=y>=.93&&y<=1.47;
+    const ridge=worn&&puff?puff*(.55+.45*Math.cos((y-1.0)/.115*Math.PI*2)):0;
+    const kx=neck?(.9+.1*w):w, kz=neck?1:dp*(mid?bl:1);
+    return [y*hf, rx*kx*(mid?(1+(bl-1)*.45):1)+(worn?jk+ridge:y<.93?pl:0), rz*kz+(worn?jk+ridge:y<.93?pl:0), cz+(mid?(bl-1)*.12:0)]; });
+  o.torsoRings=T;
+  o.thigh=.43*hf; o.shin=.42*hf; o.foot=.08*hf; o.legW=.11*lg; o.torso=.41*hf; o.shoeW=o.shoeW||.105; o.shoeL=o.shoeL||.285*Math.min(1.08,hf);
+  const tc=torsoAt(o,1.21*hf); o.torsoD=(tc[2]+tc[3])*2;
+  const P={}; P.hips=[0,.99*hf,0]; P.spine=[0,1.09*hf,0]; P.neck=[0,1.5*hf,0]; P.head=[0,1.57*hf,0];
+  for(const s of [1,-1]){ const L_=s>0?'L':'R';
+    P['thigh'+L_]=[s*.09*w,.93*hf,0]; P['knee'+L_]=[s*.09*w,.5*hf,0]; P['ankle'+L_]=[s*.09*w,.08*hf,0];
+    P['arm'+L_]=[s*.19*w,1.45*hf,0]; P['elbow'+L_]=[s*(.19*w+.032*ag),1.15*hf,0]; P['hand'+L_]=[s*(.19*w+.044*ag),.89*hf,0]; }
+  const root=N(parent),J={root};
+  for(const b of BONES){ const par=BONE_PARENT[b],pp=par?P[par]:[0,0,0]; J[b]=N(par?J[par]:root,P[b][0]-pp[0],P[b][1]-pp[1],P[b][2]-pp[2]); }
+  const g=new Geo(),sk=[]; const y0=T[0][0],yT=T[T.length-1][0];
+  tube(g,sk,T.map(([y,rx,rz,cz])=>({c:[0,y,cz],rx,rz,v:(y-y0)/(yT-y0),w:TORSO_W(y/hf)})),16,0,{capB:true,capT:true});
+  const ARMR=resample(ARM.map(([y,rx,rz])=>[y,rx*(y>1.36&&y<1.47?1.12:1),rz*(y>1.2&&y<1.3?1.06:1),0]),.03);
+  for(const s of [1,-1]){ const L_=s>0?'L':'R',S=P['arm'+L_],E=P['elbow'+L_],H=P['hand'+L_];
+    const ax=y=>y>=S[1]?S[0]:y>=E[1]?E[0]+(S[0]-E[0])*(y-E[1])/(S[1]-E[1]):H[0]+(E[0]-H[0])*(y-H[1])/(E[1]-H[1]);
+    tube(g,sk,ARMR.map(([y,rx,rz])=>{ const Y=y*hf,cuff=y<.95?(o.cuff||0):0; return {c:[ax(Y),Y,0],rx:rx*ag+jk*.6+(puff&&y>.95?puff*.5:0)+cuff,rz:rz*ag+jk*.6+(puff&&y>.95?puff*.5:0)+cuff,v:(y-.9)/.6,w:ARM_W(y,L_)}; }),12,s>0?1:2,{capB:true,capT:true}); }
+  const LEGR=resample(LEG.map(r=>r.slice()),.03);
+  for(const s of [1,-1]){ const L_=s>0?'L':'R';
+    tube(g,sk,LEGR.map(([y,rx,rz,cz])=>{ const hem=y<.14?(o.hem||0)*(1-(y-.09)/.05):0; return {c:[s*.09*w,y*hf,cz],rx:rx*lg+pl+hem,rz:rz*lg+pl+hem,v:(y-.09)/.89,w:LEG_W(y,L_)}; }),12,s>0?3:4,{capB:true,capT:true}); }
+  smoothNormals(g);
+  const n=g.P.length/3,bi=new Uint8Array(n*2),bw=new Float32Array(n*2);
+  sk.forEach((ws,i)=>{ ws.slice(0,2).forEach(([b,wt],k)=>{ bi[i*2+k]=BONES.indexOf(b); bw[i*2+k]=wt; }); });
+  J.body=mk(g,[o.torsoM,o.armLM||o.armM,o.armM,o.legM,o.legM],root);
+  g.noCull=true; J.skin={geo:g,bi,bw,bindP:new Float32Array(g.P),bindN:new Float32Array(g.Nm),P:new Float32Array(g.P),N:new Float32Array(g.Nm),bpos:BONES.map(b=>P[b]),rel:BONES.map(()=>m4.make()),loc:m4.make()};
+  /* the head, its eyes and ears */
+  const hs=(o.headS||1)*1.05, f=o.faceShape||{}; const head=N(J.head); head.s=[hs,hs,hs];
+  J.headMesh=mk(headGeo(f),o.headM,head);
+  for(const s of [1,-1]){ const ex=s*.031,ey=.136,ez=eyeZ(f,ex,ey)-.0068; mk(sphereGeo(.0118,10),M(eyeTexFor(o.iris||'#4a3a2a')),head,ex*(f.width||1),ey,ez,Math.PI/2,0,0);
+    mk(lathe([[-.026,.003,.008],[-.012,.011,.016],[.012,.012,.017],[.028,.004,.008]],8),o.earM,head,s*.074*(f.width||1),.125,-.006,0,0,s*.12); }
+  for(const s of [1,-1]){ const L_=s>0?'L':'R'; const h=handL(J['hand'+L_],s,(s>0&&o.handML)||o.handM); J['open'+L_]=h.open; J['wrap'+L_]=h.wrap; shoeL(J['ankle'+L_],o); }
+  return J; }
+
+/* a hair shell over the skull (slick, long) and a hood that frames the face, built on the same ellipsoid */
+function shellGeo(f,scale,keep,LAT=16,LON=24){ const g=new Geo(),idx=[];
+  for(let i=0;i<=LAT;i++){ const th=i/LAT*Math.PI; idx.push([]); for(let j=0;j<=LON;j++){ const ph=(j/LON-.5)*Math.PI*2; const x=HR[0]*Math.sin(th)*Math.sin(ph),y=HC[1]+HR[1]*Math.cos(th),z=HR[2]*Math.sin(th)*Math.cos(ph);
+      const p=faceShape(f,x,y,z); idx[i].push(keep(x,y,z,ph)?g.v([p[0]*scale[0],(p[1]-HC[1])*scale[1]+HC[1],p[2]*scale[2]+HC[2]],[0,1,0],[j/LON,i/LAT]):-1); } }
+  for(let i=0;i<LAT;i++) for(let j=0;j<LON;j++){ const a=idx[i][j],b=idx[i][j+1],c=idx[i+1][j+1],d=idx[i+1][j]; if(a<0||b<0||c<0||d<0) continue; g.I.push(a,d,c,a,c,b); }
+  smoothNormals(g); g.groups.push({start:0,count:g.I.length,mi:0}); return g; }
+function hairShell(J,f,col,o={}){ const front=o.front??.19,back=o.back??.07,len=o.len||0;
+  const keep=(x,y,z,ph)=>{ const a=Math.abs(ph)/Math.PI; const line=a<.18?front:a<.45?front-.04*sst(.18,.45,a):back-len; return y>=line-.004; };
+  const m=M(P2(64,64,(g,w,h)=>{ R(g,col,0,0,w,h); for(let i=0;i<120;i++){ const x=Math.random()*w; vfill(g,x,0,1,h,[[0,'rgba(255,255,255,.12)'],[1,'rgba(0,0,0,.25)']]); } },6,1610),{double:true});
+  return mk(shellGeo(f,[1.06,1.04,1.08],keep),m,J.headMesh.par); }
+function hoodL(J,f,tex){ const keep=(x,y,z,ph)=>{ const a=Math.abs(ph)/Math.PI; return !(a<.3&&y<.2&&y>.02)&&y>-.02; };
+  return mk(shellGeo(f,[1.32,1.22,1.3],keep,18,26),M(tex,{double:true}),J.headMesh.par); }
+function capL(J,col,f){ const m=M(null,{color:hexInt(col)}); const g=shellGeo(f,[1.08,1.02,1.1],(x,y)=>y>.17); const n=mk(g,m,J.headMesh.par);
+  const b=new Geo(); for(let i=0;i<=8;i++){ const a=(i/8-.5)*2.2; for(const r of [.09,.16]) b.v([Math.sin(a)*r*.9,.184-r*.12+(r>.1?-.006:0),Math.cos(a)*r*.75+.04],[0,1,0],[i/8,r>.1?1:0]); }
+  for(let i=0;i<8;i++){ const a=i*2; b.I.push(a,a+1,a+3,a,a+3,a+2); } b.groups.push({start:0,count:b.I.length,mi:0}); smoothNormals(b); mk(b,M(null,{color:hexInt(col),double:true}),J.headMesh.par); return n; }
+
+/* ---------- making a London character from a ROSTER entry ---------- */
+const FACE_L={};
+function makeCharL(id,parent){ const R_=ROSTER[id],s=HEADS[id],f=s.shape||{};
+  const ft=FACE_L[id]||(FACE_L[id]=paintFaceL(s)), sk_=flat(32,32,s.seed+43,s.skin,'skin',{grime:0});
+  const o=Object.assign({headM:M(ft),earM:M(null,{color:hexInt(mix(s.skin,s.skinD,.3))}),handM:M(sk_),iris:s.iris,faceShape:f},R_.o,
+    {torsoM:M(R_.torso),armM:M(R_.arm),legM:M(R_.leg),footM:M(R_.foot),soleM:M(null,{color:hexInt(R_.sole||'#e6e2da')})});
+  if(R_.hand) o.handM=M(R_.hand);
+  const J=rigL(o,parent); if(R_.extra) R_.extra(J,o);
+  const sp={kind:id,faces:{fight:ft,hurt:ft,beg:ft,sleep:ft,shock:ft,agony:ft,choke:ft},grp:'cast',fight:R_.fight||{},showDrop:false,gripHand:R_.gripHand};
+  if(R_.prop) Object.assign(sp,{prop:R_.prop,wFight:R_.wFight||{p:[0,-.06,.02],r:[1.3,0,0]},twoHand:R_.twoHand,support:R_.support});
+  const C=finish(parent,J,o,sp); C.id=id; civPoses(C); return C; }
+
+/* =====================================================================================================
    THE CAST of Bethnal Green Road, on the Stairwell rig: you, the crew you want in with, the people who live
    on the street, and the Old Bill. Painted faces and garments, the same skinned body as the tower cast.
    ===================================================================================================== */
@@ -1287,6 +1473,10 @@ Object.assign(HEADS,{
   pcmale:{seed:1206,skin:'#d8a486',skinD:'#a8765c',hair:'slick',hairC:'#3a2a1c',hairFront:13,sideburn:36,brow:'#3a2a1c',iris:'#4a5a6a',lip:'#a86a5e',beard:'mustache',beardC:'#3a2a1c'},
   pcfem:{seed:1207,skin:'#b88462',skinD:'#8a5a40',hair:'long',hairC:'#1a120c',hairFront:13,sideburn:44,behind:48,nape:50,brow:'#1a120c',iris:'#2a1a10',lip:'#8a4a3a'}
 });
+
+/* the London kit's heads: face shape as geometry, hairline in metres */
+Object.assign(HEADS.danny,{shape:{jaw:.84,nose:.92,brow:.8,cheek:1.12,chin:.006,width:.97},hairFront:.2});
+Object.assign(HEADS.degsy,{shape:{jaw:.96,nose:1.28,brow:1.35,cheek:.9,chin:.013,width:1.05},hairFront:.198});
 
 /* ---------- shared bits ---------- */
 const tTrainerW=garment(64,32,1290,()=>['#ece8e2','leather',.2],{folds:2,grime:.14,decor:I=>{ softRect(I,0,23,64,9,'#c4c0b6',1,1); for(const y of [8,13]) softLine(I,26,y,38,y,'#3a3a3c',.8,1); softRect(I,46,11,10,4,'#2a2a2c',.8,.8); }});
@@ -1379,10 +1569,10 @@ const SIDES={you:['you','You'],crew:['crew','The crew'],local:['civ','Lives here
 const ROSTER={
   danny:{side:'you',name:'Danny "Two Sugars" Doyle',role:'You · 19, Hollis House',color:'#e8a33d',card:'Wants in. Hasn\'t thought much past that.',
     note:'Grew up on the fourth floor of Hollis House. Takes his tea with two sugars and his chances with none. Wants to be somebody on this street by Christmas.',
-    o:{hf:.98,w:.95,depth:.94,lg:.96,ag:.95,jacket:.01,pants:.012},torso:tDanTorso,arm:tDanArm,leg:tDanLeg,foot:tTrainerW,extra:(J,o)=>collar(J,o,M(flat(64,16,1307,'#0e0f11','knit'),{double:true}),.05,.012)},
+    kit:'L',o:{hf:.98,w:.95,depth:.94,lg:.96,ag:.95,jacket:.01,pants:.012,cuff:.004,hem:.006},torso:tDanTorso,arm:tDanArm,leg:tDanLeg,foot:tTrainerW,extra:(J,o)=>collar(J,o,M(flat(64,16,1307,'#0e0f11','knit'),{double:true}),.05,.012)},
   degsy:{side:'crew',name:'Degsy',role:'The crew · runs errands for the old firm',color:'#2f6a4e',card:'Knows a bloke. Can\'t remember which one.',
     note:'Outside the Golden Rooster most nights, smoking, hazards on. Hands out the jobs nobody else wants, and the bag that starts all this.',
-    o:{hf:1.0,w:1.06,depth:1.1,belly:1.08,lg:1.0,ag:1.04,jacket:.03,pants:.012},torso:tDegTorso,arm:tDegArm,leg:tDegLeg,foot:tTrainerW,prop:pFag,wFight:{p:[0,-.07,.02],r:[1.2,0,0]},extra:J=>cap(J,'#141416','#141416')},
+    kit:'L',o:{hf:1.0,w:1.06,depth:1.1,belly:1.08,lg:1.0,ag:1.04,jacket:.018,pants:.012,puff:.012,hem:.004},torso:tDegTorso,arm:tDegArm,leg:tDegLeg,foot:tTrainerW,prop:pFag,wFight:{p:[0,-.07,.02],r:[1.2,0,0]},extra:J=>capL(J,'#141416',HEADS.degsy.shape)},
   kwame:{side:'crew',name:'Kwame',role:'The crew · Degsy\'s shadow',color:'#2a3462',card:'Says nothing. Remembers everything.',
     note:'Never more than two metres from Degsy and never without a box of wings. The one who actually knows the bloke.',
     o:{hf:1.03,w:1.0,depth:.98,lg:1.04,ag:1.02,jacket:.012,pants:.014},torso:tKwaTorso,arm:tKwaArm,leg:tKwaLeg,foot:tTrainerW,prop:pChickenBox,wFight:{p:[0,-.04,.02],r:[0,0,0]},extra:J=>hoodUp(J,LNAVY)},
@@ -1449,9 +1639,10 @@ const tTarmac=P2(128,128,(g,w,h)=>{ R(g,'#1c1c1e',0,0,w,h); specks(g,'#2e2e32',9
 const tKerb=P2(64,16,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#8e8a80'],[.3,'#7a766c'],[1,'#56534c']]); specks(g,'#5e5a52',60,1418,w,h); R(g,'#2a2824',w-1,0,1,h); },6,1419);
 const tYellow=P2(16,4,g=>{ R(g,'#d6aa22',0,0,16,4); specks(g,'#8a6a10',6,1420,16,4); },0,1);
 const tWhiteLine=P2(16,4,g=>{ R(g,'#d8d4cc',0,0,16,4); specks(g,'#8a8a8a',5,1421,16,4); },0,1);
-const tShutterL=P2(128,128,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#727476'],[1,'#4c4e50']]); for(let y=0;y<h;y+=4){ R(g,'rgba(255,255,255,.14)',0,y,w,1); R(g,'rgba(0,0,0,.34)',0,y+2,w,1); }
-  specks(g,'#3a3c3e',300,1422,w,h); const r=rng(1423); for(let i=0;i<5;i++){ const x=r()*w|0; vfill(g,x,h*.5,2,h*.5,[[0,'rgba(80,50,30,0)'],[1,'rgba(80,50,30,.4)']]); }
-  for(let k=0;k<4;k++){ g.strokeStyle=['#c83a7a','#e8c840','#3aa8e8','#ece8e0'][k]; g.lineWidth=3; g.lineCap='round'; g.beginPath(); let x=12+r()*60,y=40+r()*50; g.moveTo(x,y); for(let s=0;s<3;s++) g.quadraticCurveTo(x+r()*14,y-14+r()*28,x+=8+r()*10,y+=r()*14-7); g.stroke(); } },6,1424);
+function shutterTex(seed){ return P2(128,128,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#727476'],[1,'#4c4e50']]); for(let y=0;y<h;y+=4){ R(g,'rgba(255,255,255,.14)',0,y,w,1); R(g,'rgba(0,0,0,.34)',0,y+2,w,1); }
+  specks(g,'#3a3c3e',300,1422,w,h); const r=rng(seed); for(let i=0;i<5;i++){ const x=r()*w|0; vfill(g,x,h*.5,2,h*.5,[[0,'rgba(80,50,30,0)'],[1,'rgba(80,50,30,.4)']]); }
+  for(let k=0;k<4;k++){ g.strokeStyle=['#c83a7a','#e8c840','#3aa8e8','#ece8e0'][k]; g.lineWidth=3; g.lineCap='round'; g.beginPath(); let x=12+r()*60,y=40+r()*50; g.moveTo(x,y); for(let s=0;s<3;s++) g.quadraticCurveTo(x+r()*14,y-14+r()*28,x+=8+r()*10,y+=r()*14-7); g.stroke(); } },6,seed+1); }
+const tShutterL=shutterTex(1423);
 const tWinLit=P2(32,32,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#ffd9a0'],[1,'#ffb866']]); R(g,'rgba(110,40,30,.55)',0,0,6,h); R(g,'rgba(110,40,30,.55)',w-6,0,6,h); R(g,'#4a4038',0,15,w,2); R(g,'#4a4038',15,0,2,h); ell(g,20,24,4,6,'rgba(60,30,20,.5)'); },0,1425);
 const tWinDark=P2(32,32,(g,w,h)=>{ R(g,'#0d1014',0,0,w,h); R(g,'rgba(120,130,150,.16)',3,3,10,8); R(g,'#b9b2a5',0,15,w,2); R(g,'#b9b2a5',15,0,2,h); R(g,'#b9b2a5',0,0,w,2); R(g,'#b9b2a5',0,h-2,w,2); R(g,'#b9b2a5',0,0,2,h); R(g,'#b9b2a5',w-2,0,2,h); },0,1426);
 const tSky=P2(4,64,(g,w,h)=>vfill(g,0,0,w,h,[[0,'#06070c'],[.65,'#1c1720'],[1,'#3a2a28']]),0,1);
@@ -1490,7 +1681,7 @@ function shopFront(x,w,kind){
   for(const s of [-1,1]) blkT(.42,4.05,.6,tConc,x+s*(w/2+.21),2.03,FZ-.1,{tile:3,color:0xa8a49c});      /* piers between units */
   if(kind==='shut'||kind==='bookie'){
     blk(w,.5,.42,col(0x3a3c40),x,3.62,FZ+.05);                                                            /* shutter box */
-    wallP(w,3.25,tShutterL,x,1.78,FZ-.08,0,{tile:1.6,tileH:1.6});
+    wallP(w,3.25,shutterTex(1423+Math.round(x*7)),x,1.78,FZ-.08,0,{tile:w/Math.max(1,Math.round(w/1.6)),tileH:3.25});
     blk(w,.07,.06,col(0x2a2c2e),x,.2,FZ-.04); blk(.08,.12,.04,col(0x8a8a86),x+w*.3,.26,FZ-.02);               /* bottom rail and padlock */
     if(kind==='bookie') mk(boxW(w,.62,.16),MM(signTex(384,52,'#1d3b6e','#f2d43a','LUCKY STARS','BOOKMAKERS',{seed:1430})),STREET,x,4.0,FZ+.36);
     return; }
@@ -1542,11 +1733,15 @@ for(const x of [-9.6,-5,0,5,9.8]){ mk(cyl(.075,.09,.92,10),col(0x18191c),STREET,
 mk(cyl(.24,.22,.9,10),col(0x14261a),STREET,-4.6,PAVE_Y+.45,KERB_Z-.6); mk(cyl(.26,.26,.06,10),col(0x0e1a12),STREET,-4.6,PAVE_Y+.92,KERB_Z-.6);
 
 /* ---------- the lamp: tapered column, bracket, lantern ---------- */
-const LAMP=[3.6,6.6,KERB_Z-.35];
+const LAMP=[3.6,6.6,KERB_Z-.35], LAMP2=[-8.6,6.6,KERB_Z-.35];
 mk(cyl(.07,.12,6.8,10),col(0x2a2d33),STREET,LAMP[0],PAVE_Y+3.4,LAMP[2]); mk(cyl(.16,.16,.5,10),col(0x22252a),STREET,LAMP[0],PAVE_Y+.25,LAMP[2]);
 blk(.08,.08,1.3,col(0x2a2d33),LAMP[0],6.95,LAMP[2]+.62);
 mk(box(.5,.18,.34,{tw:.8,td:.8}),col(0x2a2d33),STREET,LAMP[0],7.0,LAMP[2]+1.22); blk(.42,.04,.26,glowC(0xffd090),LAMP[0],6.9,LAMP[2]+1.22);
 wallP(1.4,1.4,tGlowSodium,LAMP[0],6.75,LAMP[2]+1.3,0,{unlit:true,cut:true,whole:true,cell:2,double:true});
+mk(cyl(.07,.12,6.8,10),col(0x2a2d33),STREET,LAMP2[0],PAVE_Y+3.4,LAMP2[2]); mk(cyl(.16,.16,.5,10),col(0x22252a),STREET,LAMP2[0],PAVE_Y+.25,LAMP2[2]);
+blk(.08,.08,1.3,col(0x2a2d33),LAMP2[0],6.95,LAMP2[2]+.62);
+mk(box(.5,.18,.34,{tw:.8,td:.8}),col(0x2a2d33),STREET,LAMP2[0],7.0,LAMP2[2]+1.22); blk(.42,.04,.26,glowC(0xffd090),LAMP2[0],6.9,LAMP2[2]+1.22);
+wallP(1.4,1.4,tGlowSodium,LAMP2[0],6.75,LAMP2[2]+1.3,0,{unlit:true,cut:true,whole:true,cell:2,double:true});
 
 /* ---------- across the road: terraces with real reveals ---------- */
 const TZ=ROAD_Z1+4;
@@ -1561,12 +1756,16 @@ blkT(34,.85,.25,tStock,0,PAVE_Y+.42,ROAD_Z1+3.1,{tile:1.6,tileV:1.5});
 const ARCH=N(STREET,-17,0,4,0,Math.PI/2,0);
 wallP(14,12,tSoot,0,6,0,0,{parent:ARCH,tile:1.6,tileH:1.5,cell:2});
 mk(box(8.4,4.6,.3),col(0x050506),ARCH,0,2.3,.2); mk(cyl(4.2,4.2,.3,14),col(0x050506),ARCH,0,4.6,.2,Math.PI/2);
+{ const tLock=P2(256,160,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#3a2a1a'],[1,'#ffb060']]); R(g,'#1a1410',0,0,w,40); for(let i=0;i<5;i++) R(g,'#2a2420',20+i*46,70,30,90);
+    R(g,'#c8c0b0',96,46,64,10); ell(g,128,118,26,16,'#2a1a10'); R(g,'#6a6a6a',150,96,60,40); R(g,'#e8a040',0,h-6,w,6); },0,1450);
+  wallP(5.6,4.4,tLock,0,2.3,.4,0,{parent:ARCH,whole:true,unlit:true,cell:3});
+  mk(boxW(4.2,.6,.12),MM(signTex(384,56,'#141414','#f0a23e','ARCH 9 · MOTORS','MOT · TYRES · NO QUESTIONS',{seed:1451})),ARCH,0,6.2,.45); }
 const sky=N(STREET); wallP(140,44,tSky,0,20,-44,0,{parent:sky,unlit:true,nofog:true,whole:true,cell:140}); wallP(140,44,tSky,0,20,64,Math.PI,{parent:sky,unlit:true,nofog:true,whole:true,cell:140});
 for(const [x,h] of [[-18,46],[-8,30],[22,38],[30,26]]) mk(box(9,h,9),MM(null,{color:0x0b0c11,nofog:true}),sky,x,h/2,-36);
 
 /* ---------- rain: a volume of crossed streaks around the viewer, two stacked blocks that fall and wrap ---------- */
-const tStreak=P2(4,32,(g,w,h)=>{ g.clearRect(0,0,w,h); for(let y=0;y<h;y++){ const a=y/h; R(g,a>.15?`rgba(170,182,200,1)`:'rgba(0,0,0,0)',1,y,2,1); } },0,1440);
-function rainGeo(n,size,height,seed){ const g=new Geo(),r=rng(seed),L=.36,W=.014;
+const tStreak=P2(4,32,(g,w,h)=>{ g.clearRect(0,0,w,h); for(let y=0;y<h;y++){ const a=y/h; const v=Math.round(110+80*a); R(g,a>.3?`rgba(${v},${v+8},${v+20},1)`:'rgba(0,0,0,0)',1,y,2,1); } },0,1440);
+function rainGeo(n,size,height,seed){ const g=new Geo(),r=rng(seed),L=.24,W=.007;
   for(let i=0;i<n;i++){ const x=(r()-.5)*size,y=r()*height,z=(r()-.5)*size;
     for(const [ux,uz] of [[1,0],[0,1]]){ const b=g.P.length/3; for(const [a,v] of [[-1,0],[1,0],[1,1],[-1,1]]) g.v([x+ux*a*W,y+v*L,z+uz*a*W],[0,0,1],[(a+1)/2,v]); g.I.push(b,b+1,b+2,b,b+2,b+3); } }
   g.groups.push({start:0,count:g.I.length,mi:0}); g.noCull=true; return g; }
@@ -1575,15 +1774,15 @@ const RAIN_H=7, rainBlocks=[0,1].map(i=>({n:mk(rainGeo(900,16,RAIN_H,1441+i),rai
 function rainTick(t,eye){ RAIN.p=[Math.round(eye[0]),0,Math.round(eye[2])]; const fall=(t*8.5)%RAIN_H; for(const b of rainBlocks){ let y=b.i*RAIN_H-fall; if(y<-1) y+=RAIN_H*2; b.n.p[1]=y; } }
 
 /* ---------- light ---------- */
-const STREET_LIGHT={amb:[.2,.19,.25],dir:[-.3,1,.4],dirCol:[.12,.13,.2],fog:[.05,.042,.048],fogNear:12,fogFar:40,
-  pl:[[[LAMP[0],6.6,LAMP[2]+1.2],[1.5,.92,.42],11],[[-7.3,2.6,-1.4],[1.35,.66,.46],6.5],[[-2.1,2.6,-1.4],[.8,.95,.85],5.5],[[11.6,2.4,-3.6],[.5,.62,.7],4],
-      [[0,5.8,-1.8],[.55,.48,.36],7],[[2,2,6],[.12,.13,.2],14],[[-1,2.6,4.4],[.55,.5,.5],8],[[-7.3,2.8,-4.4],[1.2,.95,.75],4.5]]};
+const STREET_LIGHT={amb:[.15,.18,.17],dir:[-.3,1,.4],dirCol:[.1,.12,.13],fog:[.042,.05,.048],fogNear:12,fogFar:42,
+  pl:[[[LAMP[0],5.2,LAMP[2]+1.0],[2.3,1.3,.5],13],[[-7.3,2.6,-1.4],[1.25,.6,.42],6],[[-2.1,2.6,-1.4],[.75,.9,.8],5],[[11.6,2.4,-3.6],[.45,.58,.62],4],
+      [[LAMP2[0],5.2,LAMP2[2]+1.0],[2.3,1.3,.5],13],[[-17,2.6,4],[1.1,.7,.4],7],[[-1,2.6,5.4],[.62,.68,.7],10],[[-7.3,2.8,-4.4],[1.1,.92,.72],4.5]]};
 
 /* =====================================================================================================
    VIEW, CAST, FREEZE-FRAMES, LOOP. One view of the street. The cast stands where they'd be at 02:14, or in a
-   line-up along the kerb. Pick someone and the frame freezes on them with their name card, Ritchie style.
+   line-up along the kerb. Pick someone and you walk up to them and the world freezes, with their name card beside them.
    ===================================================================================================== */
-const state={ps1:true,res:480,snap:true,affine:true,dither:true,rain:true,layout:'street',pose:'stand',pick:null,eye:false};
+const state={ps1:false,snap:false,affine:false,dither:false,rain:true,layout:'street',pose:'stand',pick:null,eye:false};
 const cam={t:[0,1.4,0],th:.32,ph:1.32,r:11},goal={t:[0,1.4,0],th:.32,ph:1.32,r:11};
 const HOME={t:[-1.2,1.6,0],th:.28,ph:1.36,r:11.5};
 function setGoal(c,instant){ goal.t=c.t.slice(); goal.ph=c.ph; goal.r=c.r; let th=c.th; while(th-cam.th>Math.PI) th-=Math.PI*2; while(th-cam.th<-Math.PI) th+=Math.PI*2; goal.th=th; if(instant){ cam.t=goal.t.slice(); cam.th=goal.th; cam.ph=goal.ph; cam.r=goal.r; } }
@@ -1591,7 +1790,7 @@ function effR(){ const asp=cv.width/Math.max(1,cv.height); return cam.r*Math.max
 function eyePos(){ const r=effR(); return [cam.t[0]+r*Math.sin(cam.ph)*Math.sin(cam.th),cam.t[1]+r*Math.cos(cam.ph),cam.t[2]+r*Math.sin(cam.ph)*Math.cos(cam.th)]; }
 const clampGoal=()=>{ if(state.eye){ goal.ph=Math.min(2.7,Math.max(.45,goal.ph)); goal.r=.04; return; } goal.ph=Math.min(1.62,Math.max(.25,goal.ph)); goal.r=Math.min(22,Math.max(1.4,goal.r)); };
 const ptrs=new Map(); let lastPinch=0,panMode=false;
-cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); panMode=e.button===2||e.shiftKey; if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; lastPinch=Math.hypot(a.x-b.x,a.y-b.y); } unfreeze(); });
+cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); panMode=e.button===2||e.shiftKey; if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; lastPinch=Math.hypot(a.x-b.x,a.y-b.y); } if(frozen&&frozenT>.4) unfreeze(); });
 cv.addEventListener('pointermove',e=>{ const p=ptrs.get(e.pointerId); if(!p) return; const dx=e.clientX-p.x,dy=e.clientY-p.y; p.x=e.clientX; p.y=e.clientY;
   if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); if(lastPinch) goal.r*=lastPinch/d; lastPinch=d; pan(dx/2,dy/2); }
   else if(panMode&&!state.eye) pan(dx,dy); else { goal.th+=(state.eye?1:-1)*dx*.006; goal.ph+=(state.eye?1:-1)*dy*.005; } clampGoal(); });
@@ -1608,12 +1807,12 @@ function pan(dx,dy){ const s=goal.r*.0016; const rx=Math.cos(cam.th),rz=-Math.si
 
 /* ---------- the cast on the street ---------- */
 /* where each of them is at 02:14: [x, z, heading, pose] */
-const SPOTS={danny:[-.6,1.1,.15,'stand'],degsy:[-5.6,-.9,.55,'smoke'],kwame:[-4.4,-1.5,-.25,'stand'],ali:[-7.8,-2.2,.1,'lean'],
+const SPOTS={danny:[-.6,1.1,.15,'stand'],degsy:[-5.6,-.9,.55,'smoke'],kwame:[-4.4,-1.5,-.25,'stand'],ali:[-7.8,-2.2,.1,'watch'],
   maureen:[1.8,.5,-.9,'stand'],piotr:[4.6,1.4,-.5,'phone'],pcmale:[7.4,3.6,-1.1,'stand'],pcfem:[9,4.4,-1.3,'stand']};
 const CAST={};
-for(const id of ORDER){ const n=N(STREET,0,PAVE_Y,0); const C=makeChar(id,n,'cast'); C.node=n; CAST[id]=C;
+for(const id of ORDER){ const n=N(STREET,0,PAVE_Y,0); const C=ROSTER[id].kit==='L'?makeCharL(id,n):makeChar(id,n,'cast'); C.node=n; CAST[id]=C;
   const P=C.poses, hy=C.o.thigh+C.o.shin+C.o.foot+.05;
-  P.smoke={hipsY:hy,wpn:'fight',j:{armR:[-1.05,.15,.42],elbowR:[-2.25,0,0],armL:[.08,0,.14],elbowL:[-.25,0,0],spine:[.03,0,0],head:[-.05,.25,0],thighL:[-.06,0,.06],thighR:[.05,0,-.04],kneeL:[.08,0,0]}};
+  P.smoke={hipsY:hy,wpn:'fight',j:{armR:[-.4,0,.28],elbowR:[-1.55,0,0],armL:[.08,0,.14],elbowL:[-.25,0,0],spine:[.03,0,0],head:[-.05,.25,0],thighL:[-.06,0,.06],thighR:[.05,0,-.04],kneeL:[.08,0,0]}};
   if(id==='maureen') P.fight={hipsY:hy,wpn:'fight',j:{armR:[-.95,0,.12],elbowR:[-1.15,0,0],armL:[.05,0,.12],elbowL:[-.5,0,0],spine:[.08,0,0],head:[.1,0,0]}};
   if(id==='kwame') P.fight={hipsY:hy,wpn:'fight',j:{armR:[.08,0,-.1],elbowR:[-.35,0,0],armL:[.1,0,.1],elbowL:[-.3,0,0],head:[.06,-.3,0],thighL:[-.04,0,.04]}};
   if(id==='danny'||id==='degsy'||id==='piotr'||id==='ali') P.fight=Object.assign({},P.idle,{wpn:'fight'}); }
@@ -1625,53 +1824,69 @@ function poseOf(id){ const p=state.pose; if(p==='stand') return state.layout==='
 function poseAll(){ for(const id of ORDER){ const C=CAST[id]; const name=poseOf(id); applyPose(C,name);
   if(state.pose==='handsup'||state.pose==='scared'){ C.J.headMesh.mesh.mats[0]=C.faceM.shock; C.J.headMesh.mesh.runs=null; } skinUpdate(C); } }
 
-/* ---------- freeze-frame ---------- */
-const freezeEl=document.getElementById('freeze'), fName=document.getElementById('fName'), fTag=document.getElementById('fTag'), fRole=document.getElementById('fRole');
-let frozen=false;
-function freezeOn(id){ const C=CAST[id],R_=ROSTER[id]; const p=C.node.p, h=C.node.r[1];
-  if(state.eye) state.eye=false; setGoal({t:[p[0],p[1]+1.5,p[2]],th:h+.28,ph:1.55,r:1.6});
-  state.pick=id; fName.textContent=R_.name.replace(/ ".*" /,' ').toUpperCase(); fRole.textContent=R_.role; fTag.textContent=R_.card;
-  freezeEl.hidden=false; freezeEl.classList.remove('slam'); void freezeEl.offsetWidth; freezeEl.classList.add('slam'); frozen=true; cv.classList.add('frozen'); document.body.classList.add('frozen'); renderCard(); }
-function unfreeze(){ if(!frozen) return; frozen=false; freezeEl.hidden=true; cv.classList.remove('frozen'); document.body.classList.remove('frozen'); }
+/* ---------- freeze-frame, the VR way ----------
+   The world stops (time, rain, smoke, the cast) and the colour drains to the grade; the viewer's head does not move.
+   The name card is an object in the world at the character's shoulder, turned to face you. In the headset it has to
+   earn the look: within 4 m, looking at them for 0.6 s. It lets go after 3.2 s, on a click, or on Escape. */
+let frozen=false,frozenT=0,pending=null,lookT=0;
+const SEEN=new Set(), KEY_CAST=['degsy','kwame','ali','maureen','piotr','pcmale','pcfem'];
+const CARDS={}, CARD=N(STREET); CARD.vis=false;
+const NAMEF="'Anton','Impact','Arial Narrow',sans-serif", TYPEF="'Courier Prime','Courier New',monospace";
+function cardTex(id){ const R_=ROSTER[id]; return P2(1024,512,(g,w,h)=>{ g.clearRect(0,0,w,h);
+    const name=R_.name.replace(/ ".*" /,' ').toUpperCase(), role=R_.role.toUpperCase();
+    g.font=`700 34px ${TYPEF}`; g.fillStyle='#000'; g.fillText(role,18,74); g.fillStyle='#f4efe4'; g.fillText(role,14,70);
+    g.save(); g.scale(.82,1); const fs=name.length>12?150:196; g.font=`400 ${fs}px ${NAMEF}`; g.fillStyle='#000'; g.fillText(name,24/.82,96+fs*.86+8); g.fillStyle='#f5d02e'; g.fillText(name,14/.82,96+fs*.86); g.restore();
+    g.font=`700 36px ${TYPEF}`; const tw=Math.min(w-20,g.measureText(R_.card).width+36); g.fillStyle='#050505'; g.fillRect(10,388,tw,62); g.fillStyle='#ffffff'; g.fillText(R_.card,28,431,w-50); },0,1500); }
+function cardFor(id){ if(!CARDS[id]){ CARDS[id]=mk(plane(1.5,.75,2,1),ungraded(M(cardTex(id),{unlit:true,cut:true,double:true})),CARD); } return CARDS[id]; }
+const FILL=6, FILL0=STREET_LIGHT.pl[FILL].map(v=>Array.isArray(v)?v.slice():v);
+function headOf(id){ const p=CAST[id].node.p; return [p[0],p[1]+1.62,p[2]]; }
+function freezeOn(id,walkUp){ if(walkUp!==false){ const C=CAST[id],p=C.node.p,h=C.node.r[1]+.35,d=2.1;
+    /* the viewer walks up to them: eye height, 2.1 m in front and a little to one side, then the world stops */
+    state.eye=true; setGoal({t:[p[0]+Math.sin(h)*d,PAVE_Y+1.65,Math.min(KERB_Z+1.2,p[2]+Math.cos(h)*d)],th:h,ph:1.6,r:.04}); renderCard(); pending={id,t:.7}; return; }
+  const th=cam.th,right=[Math.cos(th),0,-Math.sin(th)],hd=headOf(id);
+  for(const k in CARDS) CARDS[k].vis=false; const c=cardFor(id); c.vis=true; CARD.vis=true;
+  CARD.p=[hd[0]+right[0]*.95+Math.sin(th)*.25,hd[1]-.05,hd[2]+right[2]*.95+Math.cos(th)*.25]; CARD.r=[0,th,-.05];
+  STREET_LIGHT.pl[FILL]=[[hd[0]+Math.sin(th)*1.3,hd[1]+.35,hd[2]+Math.cos(th)*1.3],[1.0,.95,.88],4.2];
+  state.pick=id; SEEN.add(id); frozen=true; frozenT=0; document.body.classList.add('frozen'); renderCard(); }
+function unfreeze(){ pending=null; if(!frozen) return; frozen=false; CARD.vis=false; STREET_LIGHT.pl[FILL]=FILL0.map(v=>Array.isArray(v)?v.slice():v); document.body.classList.remove('frozen'); renderCard(); }
+function lookTick(dt){ if(!state.eye||frozen||pending||window.__CAPTURE) { lookT=0; return; } const e=eyePos(),f=[-Math.sin(cam.th)*Math.sin(cam.ph),-Math.cos(cam.ph),-Math.cos(cam.th)*Math.sin(cam.ph)];
+  for(const id of KEY_CAST){ if(SEEN.has(id)) continue; const hd=headOf(id),d=[hd[0]-e[0],hd[1]-e[1],hd[2]-e[2]],L=Math.hypot(...d); if(L>4) continue;
+    const cosA=(d[0]*f[0]+d[1]*f[1]+d[2]*f[2])/L; if(cosA>Math.cos(.3)){ lookT+=dt; if(lookT>.6){ lookT=0; freezeOn(id,false); } return; } } lookT=0; }
 
 /* ---------- card ---------- */
 const card=document.getElementById('card'), clockEl=document.getElementById('clock');
 const el=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; };
 function segOf(opts,cur,onPick){ const s=el('div','seg'); for(const [v,label] of opts){ const b=el('button',null,label); b.type='button'; b.dataset.v=v; b.setAttribute('aria-pressed',String(v===cur)); b.addEventListener('click',()=>{ s.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); onPick(v); }); s.append(b); } return s; }
 function renderCard(){ card.innerHTML='';
-  card.append(el('p','sub','The cast · on the Stairwell rig'),el('h2',null,'Who\'s out at 2 a.m.'));
-  card.append(el('p','body','Pick someone for their freeze-frame. Same skinned body, painted faces and gun holds as the tower cast, dressed for East London.'));
+  card.append(el('p','sub','Case file · the cast'),el('h2',null,'Who\'s out at 2 a.m.'));
+  card.append(el('p','body','Pick someone and you walk up to them; the street stops for their freeze-frame. At eye level, just look at someone close by for a moment.'));
   const row=el('div','row'); card.append(row);
-  const eb=el('button','btn'+(state.eye?'':' ghost'),state.eye?'Back to orbit':'Eye level (VR height)'); eb.type='button'; eb.setAttribute('aria-pressed',String(state.eye)); eb.addEventListener('click',()=>setEye(!state.eye)); row.append(eb);
+  const eb=el('button','btn',state.eye?'Back to the overview':'Eye level (1.65 m)'); eb.type='button'; eb.setAttribute('aria-pressed',String(state.eye)); eb.addEventListener('click',()=>setEye(!state.eye)); row.append(eb);
   row.append(segOf([['street','On the street'],['lineup','Line-up']],state.layout,v=>{ state.layout=v; unfreeze(); place(); setGoal(v==='lineup'?{t:[0,1.05,1.4],th:0,ph:1.42,r:innerWidth>760?7.4:9.6}:HOME); }));
   card.append(el('p','seg-label','Show them'),segOf([['stand','As they are'],['handsup','Hands up'],['scared','Scared'],['hurt','Hurt']],state.pose,p=>{ state.pose=p; poseAll(); }));
   const ul=el('ul','list');
   for(const id of ORDER){ const R_=ROSTER[id],li=el('li'),b=el('button'); b.type='button'; b.setAttribute('aria-pressed',String(state.pick===id&&frozen));
-    const lead=el('span','num'); lead.style.cssText=`width:10px;height:10px;background:${R_.color};align-self:center`;
+    const lead=el('span','dot'); lead.style.background=R_.color;
     const txt=el('span'); txt.style.minWidth='0'; const sd=SIDES[R_.side]; txt.append(el('span','tag '+sd[0],sd[1]),el('b',null,R_.name),el('span','who',R_.role.split(' · ')[1]||''),el('small',null,R_.note));
-    b.append(lead,txt,el('span','num','')); b.addEventListener('click',()=>{ freezeOn(id); }); li.append(b); ul.append(li); }
+    b.append(lead,txt); b.addEventListener('click',()=>{ freezeOn(id); }); li.append(b); ul.append(li); }
   card.append(ul);
-  const w=el('p','word'); w.append(el('b',null,'The Old Bill. '),'One star brings PC Hughes on foot. Two brings PC Okafor in the car, and she runs. Lose them both and the street goes back to normal, but Ali\'s camera saw everything.'); card.append(w); }
+  const w=el('p','note'); w.append(el('b',null,'The Old Bill. '),'One star brings PC Hughes on foot. Two brings PC Okafor in the car, and she runs. Lose them both and the street goes back to normal, but Ali\'s camera saw everything.'); card.append(w); }
 function updateClock(){ clockEl.innerHTML=''; clockEl.append(el('b',null,'02:14'),'Bethnal Green Rd · E2'); }
 
 const $=id=>document.getElementById(id);
-function syncLook(){ state.ps1=$('ps1').checked; state.snap=$('snap').checked; state.affine=$('affine').checked; state.dither=$('dither').checked; state.rain=$('rain').checked; RAIN.vis=state.rain; $('ps1opts').classList.toggle('dim',!state.ps1); texFilter=state.ps1?gl.NEAREST:gl.LINEAR; }
+function syncLook(){ LOOK.grade=$('grade').checked; LOOK.grain=$('grain').checked; state.rain=$('rain').checked; RAIN.vis=state.rain; }
 document.querySelectorAll('.look input').forEach(i=>i.addEventListener('change',syncLook));
-document.querySelectorAll('#resSeg button').forEach(b=>b.addEventListener('click',()=>{ document.querySelectorAll('#resSeg button').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); state.res=+b.dataset.v; }));
-document.getElementById('fClose').addEventListener('click',unfreeze);
 syncLook();
 
 /* ---------- loop ---------- */
 function resize(){ const wide=innerWidth>760; viewShift[0]=wide?Math.min(.3,260/innerWidth*1.1):0; viewShift[1]=wide?.04:-.3;
   const dpr=Math.min(devicePixelRatio||1,2); const w=Math.max(1,Math.round(innerWidth*dpr)),h=Math.max(1,Math.round(innerHeight*dpr)); if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; } }
 let lastT=performance.now(),clock=0,wclock=0;
-function draw(){ const eye=eyePos(), tgt=cam.t;
-  if(state.ps1){ const h=state.res,w=Math.max(1,Math.round(h*cv.width/cv.height)); ensureFB(w,h); gl.bindTexture(gl.TEXTURE_2D,null); gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderScene(world,eye,tgt,w,h,[w,h]);
-    gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,cv.width,cv.height); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null;
-    gl.useProgram(POST.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
-    gl.uniform1i(POST.loc.tScene,0); gl.uniform2f(POST.loc.uRes,w,h); gl.uniform1f(POST.loc.uDither,state.dither?1:0); gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); }
-  else { gl.bindFramebuffer(gl.FRAMEBUFFER,null); renderScene(world,eye,tgt,cv.width,cv.height,[cv.width,cv.height]); } }
-function step(dt){ clock+=dt; if(!frozen) wclock+=dt;
+function draw(){ drawLondon(eyePos(),cam.t); }
+function step(dt){ clock+=dt; if(!frozen) wclock+=dt; LOOK.time=clock;
+  if(pending){ pending.t-=dt; if(pending.t<=0){ const id=pending.id; pending=null; freezeOn(id,false); } }
+  if(frozen){ frozenT+=dt; if(frozenT>3.2&&!window.__CAPTURE) unfreeze(); } lookTick(dt);
+  LOOK.freeze+=((frozen?1:0)-LOOK.freeze)*(1-Math.exp(-dt*12));
   const k=1-Math.exp(-dt*(frozen?9:6)); for(let i=0;i<3;i++) cam.t[i]+=(goal.t[i]-cam.t[i])*k; cam.th+=(goal.th-cam.th)*k; cam.ph+=(goal.ph-cam.ph)*k; cam.r+=(goal.r-cam.r)*k;
   if(!frozen) for(const id of ORDER){ const C=CAST[id]; animateChar(C,wclock); skinUpdate(C); }
   if(state.eye){ const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),s_=(keys.KeyD?1:0)-(keys.KeyA?1:0); if(f||s_) walk(f*1.6*dt,s_*1.6*dt); }
