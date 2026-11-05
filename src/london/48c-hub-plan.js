@@ -173,9 +173,13 @@ function buildLot(L,BR,D,r,Z){ const [x0,z0,x1,z1]=BR, k=L.k, d=D[k], horiz=k===
 /* a shop front: riser, recessed lit room, frame, fascia sign from the atlas; some shuttered for the night */
 function groundShop(L,lx0,lz0,lx1,lz1,gH,fx,fz,U,out,fw,r){ const trades=L.f==='curry'?['curry','curry','beigel','kebab','offy','vintage']:L.f==='market'?['flowers','cafe','vintage','flowers','barber','charity']:L.f==='vintage'?['vintage','cafe','barber','vintage','hardware']:
     ['chicken','offy','phone','barber','laundry','cafe','nails','chemist','agent','gold','vape','kebab','bookie','hardware','charity','chicken','offy','phone'];
-  const tk=pick(r,trades), T=TRADES[tk]; tradeRoom(tk); const shut=r()<.2;
+  let tk=pick(r,trades); for(let k=0;k<6&&tk===LAST_TRADE;k++) tk=pick(r,trades); LAST_TRADE=tk; const T=TRADES[tk]; tradeRoom(tk); const shut=r()<.2;
   /* the walls of the ground floor (sides and back plain) */
-  const sideM=mDark; eBoxF(lx0,lz0,lx1,lz1,PAVE_Y,PAVE_Y+gH,{n:sideM,s:sideM,e:sideM,w:sideM,t:null},{tu:2,tv:2});
+  const sideM=mDark, fk=out[2]<-.5?'n':out[2]>.5?'s':out[0]<-.5?'w':'e', GF={n:sideM,s:sideM,e:sideM,w:sideM,t:null}; GF[fk]=null; eBoxF(lx0,lz0,lx1,lz1,PAVE_Y,PAVE_Y+gH,GF,{tu:2,tv:2});
+  /* the reveal: side walls and ceiling of the recess, so the glass sits in a real opening */
+  { const gwh=(fw-.6)/2, bx=fx-U[0]*gwh, bz=fz-U[2]*gwh, ex=fx+U[0]*gwh, ez=fz+U[2]*gwh, ix=-out[0]*.4, iz=-out[2]*.4;
+    eGrid(mDark,[bx+ix,PAVE_Y,bz+iz],[out[0],0,out[2]],Y_,.4,gH,1,1); eGrid(mDark,[ex,PAVE_Y,ez],[-out[0],0,-out[2]],Y_,.4,gH,1,1);
+    eGrid(mDark,[bx+ix,PAVE_Y+gH-.6,bz+iz],U,[out[0],0,out[2]],fw-.6,.4,1,1); eGrid(mDark,[bx,PAVE_Y+.5,bz],U,[-out[0],0,-out[2]],fw-.6,.4,1,1); }
   const inset=.35, gw=fw-.6, gh=gH-1.15, ox=fx+out[0]*.03-U[0]*gw/2, oz=fz+out[2]*.03-U[2]*gw/2;
   if(shut){ eGrid(SHUT[L.door%6],[ox,PAVE_Y+.05,oz],U,Y_,gw,gh+.55,gw,gh+.55); }
   else { eGrid(T.mRoom,[ox-out[0]*inset+U[0]*.0,PAVE_Y+.5,oz-out[2]*inset],U,Y_,gw,gh,gw,gh);
@@ -183,19 +187,20 @@ function groundShop(L,lx0,lz0,lx1,lz1,gH,fx,fz,U,out,fw,r){ const trades=L.f==='
     for(const t of [0,.38,1]) eGeo(box(U[0]?.07:.12,gH-.9,U[2]?.07:.12),mFrame,ox+U[0]*gw*t+out[0]*.02,PAVE_Y+(gH-.9)/2,oz+U[2]*gw*t+out[2]*.02);
     if(r()<.3){ STREET_LIGHT.pl.push([[fx+out[0]*1.2,PAVE_Y+2.4,fz+out[2]*1.2],[.9,.8,.62],6]); } }
   /* fascia: a box proud of the wall with the sign on its face */
-  const name=pick(r,T.names.length?T.names:['SHOP']), uv=atlasSign(T.bg,T.fg,name,T.sub,{face:T.face,lit:true,subC:T.fg});
+  let name=pick(r,T.names.length?T.names:['SHOP']); for(let k=0;k<4&&name===LAST_NAME;k++) name=pick(r,T.names); LAST_NAME=name; const uv=atlasSign(T.bg,T.fg,name,T.sub,{face:T.face,lit:true,subC:T.fg});
   const sy=PAVE_Y+gH-.5;
   eSign(uv,[fx+out[0]*.2,sy,fz+out[2]*.2],U,fw-.3,.72);
   eGeo(box(U[0]?fw-.2:.18,.8,U[2]?fw-.2:.18),mDark,fx+out[0]*.1,sy,fz+out[2]*.1); }
 function groundPub(L,lx0,lz0,lx1,lz1,gH,fx,fz,U,out,fw,r){ const green=r()<.5, wood=green?col(0x14301e):col(0x3a1414);
-  eBoxF(lx0,lz0,lx1,lz1,PAVE_Y,PAVE_Y+gH,{n:wood,s:wood,e:wood,w:wood,t:null},{tu:2,tv:2,cell:3});
+  const fk=out[2]<-.5?'n':out[2]>.5?'s':out[0]<-.5?'w':'e', GF={n:wood,s:wood,e:wood,w:wood,t:null}; eBoxF(lx0,lz0,lx1,lz1,PAVE_Y,PAVE_Y+gH,GF,{tu:2,tv:2,cell:3});
+  /* the pub front stands proud of the wall, so its windows (a step behind) aren't hidden */ 
   const gw=fw-.6, ox=fx+out[0]*.03-U[0]*gw/2, oz=fz+out[2]*.03-U[2]*gw/2; tradeRoom('cafe');
   const pubRoom=TRADES.pubRoom||(TRADES.pubRoom={m:nightM(P2(128,64,(g,w,h)=>{ vfill(g,0,0,w,h,[[0,'#ffcc80'],[1,'#a05a20']]); R(g,'#3a1a0a',0,h-14,w,14); for(let i=0;i<5;i++) R(g,'#5a2a10',8+i*24,30,14,20); for(let i=0;i<7;i++) ell(g,10+i*18,24,4,6,'#2a1408'); },0,1),{unlit:true},0)});
-  for(let i=0;i<3;i++){ const pw_=gw/3-.25; eGrid(pubRoom.m,[ox+U[0]*(i*gw/3+.12)-out[0]*.25,PAVE_Y+.9,oz+U[2]*(i*gw/3+.12)-out[2]*.25],U,Y_,pw_,1.6,pw_,1.6); }
+  for(let i=0;i<3;i++){ const pw_=gw/3-.25; eGrid(pubRoom.m,[ox+U[0]*(i*gw/3+.12)+out[0]*.04,PAVE_Y+.9,oz+U[2]*(i*gw/3+.12)+out[2]*.04],U,Y_,pw_,1.6,pw_,1.6); }
   const uv=atlasSign(green?'#14301e':'#3a1414','#f0d48a',L.pub,'ALES · LAGERS · SKY SPORTS',{face:'cond',lit:true,subC:'#e8d8b0'});
   eSign(uv,[fx+out[0]*.22,PAVE_Y+gH-.4,fz+out[2]*.22],U,fw-.2,.7);
   STREET_LIGHT.pl.push([[fx+out[0]*1.4,PAVE_Y+2.4,fz+out[2]*1.4],[1.3,.85,.45],8]); PUB_SPOTS.push([fx+out[0]*1.6,fz+out[2]*1.6,Math.atan2(out[0],out[2])]); }
-const PUB_SPOTS=[];
+const PUB_SPOTS=[]; let LAST_TRADE='', LAST_NAME='';
 
 /* ---------------- the viaducts: brick body, arches on both faces, bridges over the streets ---------------- */
 const ARCHT=(()=>{ const out=[]; for(let v=0;v<4;v++){ const r=hr(8400+v), w=5*PXM, h=7.4*PXM; const fill=['lock','shut','brick','lit'][v];

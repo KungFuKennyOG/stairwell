@@ -394,7 +394,7 @@ const WALKO=WALK.map(r=>({r})); const WALKH=RectHash(WALKO,o=>o.r); const addWal
 const inWalk=(x,z,rad)=>{ if(HUBX&&HUBX.walk(x,z,rad)) return true; for(const o of WALKH.near(x,z,x,z)) if(inR(o.r,x,z,rad)) return true; return false; };
 function solidHit(x,z,rad,feet,head){ for(const s of solNear(x-rad,z-rad,x+rad,z+rad)){ const r=s.r; if(x>r[0]-rad&&x<r[2]+rad&&z>r[1]-rad&&z<r[3]+rad&&s.y1>feet+STEP&&s.y0<head) return s; } return null; }
 function groundAt(x,z,feet){ let g=floorY(x,z); const k=P.r*.5; for(const s of solNear(x-k,z-k,x+k,z+k)){ const r=s.r; if(x>r[0]-k&&x<r[2]+k&&z>r[1]-k&&z<r[3]+k&&s.y1<=feet+STEP+.001&&s.y1>g) g=s.y1; } return g; }
-function free(x,z,feet){ return inWalk(x,z,P.r)&&!solidHit(x,z,P.r,feet,feet+BODY); }
+function free(x,z,feet){ return inWalk(x,z,P.r)&&!solidHit(x,z,P.r,feet,feet+BODY)&&!(feet<floorY(x,z)+1.2&&lifeBlocks(x,z,P.r)); }
 function rayRect(x,z,fx,fz,r){ let t0=-1e9,t1=1e9; for(const [p,d,lo,hi] of [[x,fx,r[0],r[2]],[z,fz,r[1],r[3]]]){ if(Math.abs(d)<1e-9){ if(p<lo||p>hi) return null; continue; } let a=(lo-p)/d,b=(hi-p)/d; if(a>b){ const t=a; a=b; b=t; } t0=Math.max(t0,a); t1=Math.min(t1,b); } return t0<=t1?[t0,t1]:null; }
 P.y=PAVE_Y; P.vy=0; P.vx=0; P.vz=0; P.ground=true;
 const ACT={on:false,t:0,dur:0,kind:'',from:null,to:null,peakY:0};
