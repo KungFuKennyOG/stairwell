@@ -24,7 +24,7 @@ kit=['src/houses/40-helpers.js','src/houses/41-paint.js','src/houses/43-castkit.
 fparts=[open('src/10-engine.js').read(),open('src/20-floor-assets.js').read()]+[open(f).read() for f in kit]+[open(f).read() for f in sorted(glob.glob('src/frontera/*.js'))]
 open('puerto-seco.html','w').write(open('src/frontera/00-head.html').read()+'\n'.join(fparts)+'\n</script>\n')
 # london.html: Bethnal Green Road art direction set (the VR crime caper's street and cast), same engine plus the cast kit from src/houses, then src/london/*.js
-lparts=[open('src/10-engine.js').read()]+[open(f).read() for f in ['src/houses/40-helpers.js','src/houses/43-castkit.js']]+[open(f).read() for f in sorted(glob.glob('src/london/*.js'))]
+lparts=[open('src/10-engine.js').read()]+[open(f).read() for f in ['src/houses/40-helpers.js','src/houses/43-castkit.js','src/51-gait.js']]+[open(f).read() for f in sorted(glob.glob('src/london/*.js'))]
 open('london.html','w').write(open('src/london/00-head.html').read()+'\n'.join(lparts)+'\n</script>\n')
 PY
 for f in index.html train.html meridian.html houses.html puerto-seco.html london.html; do node -e "const fs=require('fs');const s=fs.readFileSync('$f','utf8');const js=s.split('<script>')[1].split('</script>')[0];try{new Function(js);console.log('$f syntax ok')}catch(e){console.log('$f SYNTAX',e.message);process.exit(1)}"; done

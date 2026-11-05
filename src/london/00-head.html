@@ -72,6 +72,32 @@ body.frozen .card,body.frozen .label,body.frozen #clock,body.frozen .hint{opacit
   .card{grid-row:4;max-height:44vh;width:100%}
   .hint{display:none}
 }
+/* the job: start screen, in-game HUD, end card */
+.start{position:fixed;inset:0;display:grid;align-content:end;justify-items:start;gap:14px;padding-block:24px max(28px,env(safe-area-inset-bottom,0px));padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));
+  background:linear-gradient(0deg,rgba(6,6,7,.94) 0%,rgba(6,6,7,.7) 45%,rgba(6,6,7,0) 80%);z-index:5}
+.start .file{margin:0;font:700 12px/1.2 var(--type);color:var(--amber);letter-spacing:.06em}
+.start h2{margin:0;font:400 clamp(52px,10vw,120px)/.86 var(--name);text-transform:uppercase;text-shadow:4px 4px 0 #000}
+.start h2 span{color:var(--red)}
+.start .pitch{margin:0;max-width:56ch;color:var(--ink2);font-size:15px}
+.start .ctl{margin:0;color:var(--muted);font-size:12.5px;max-width:70ch}
+.start .row button{font:400 22px/1 var(--name);letter-spacing:.04em;text-transform:uppercase;padding:13px 22px;border:0;cursor:pointer;background:var(--ink);color:#0b0b0b;min-height:48px}
+.start .row button.vr{background:var(--red);color:var(--ink)}
+.start .row button.ghost{background:none;color:var(--ink2);border:1px solid var(--rule);font:700 13px/1 var(--type);text-transform:none;letter-spacing:0}
+.ghud{position:fixed;inset:0;pointer-events:none;display:none;z-index:4}
+body.playing .ghud{display:block}
+body.playing .hud{display:none}
+body.playing #view{cursor:crosshair}
+#gObj{position:absolute;left:max(16px,env(safe-area-inset-left,0px));top:calc(14px + env(safe-area-inset-top,0px));margin:0;max-width:min(520px,70vw);padding:8px 12px;background:var(--paper);border-left:3px solid var(--amber);font:700 14px/1.4 var(--type)}
+#gStars{position:absolute;right:max(16px,env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));margin:0;font:400 44px/1 var(--name);color:#ffd040;text-shadow:3px 3px 0 #000;letter-spacing:.08em}
+#gStars[data-n="2"]{color:#ff5a3a}
+#gSub{position:absolute;left:50%;bottom:calc(34px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);margin:0;max-width:min(760px,90vw);padding:8px 14px;background:rgba(6,6,6,.92);font:700 17px/1.45 var(--type);text-align:center}
+#gSub b{color:var(--amber);margin-right:6px}
+.gEnd{position:fixed;inset:auto 0 0 0;z-index:6;display:grid;gap:10px;justify-items:start;padding-block:22px max(26px,env(safe-area-inset-bottom,0px));padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));background:linear-gradient(0deg,rgba(5,5,5,.96),rgba(5,5,5,.75) 70%,rgba(5,5,5,0))}
+.gEnd h2{margin:0;font:400 clamp(56px,11vw,130px)/.86 var(--name);color:#f5d02e;text-shadow:4px 4px 0 #000}
+.gEnd[data-kind="nicked"] h2{color:var(--red)}
+.gEnd p{margin:0;max-width:60ch;color:var(--ink);font-size:15px}
+.gEnd button{font:400 20px/1 var(--name);text-transform:uppercase;letter-spacing:.04em;padding:12px 20px;border:0;background:var(--ink);color:#0b0b0b;cursor:pointer;pointer-events:auto}
+body.capture .start,body.capture .ghud,body.capture .gEnd{display:none!important}
 @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
 </style>
 
@@ -92,6 +118,15 @@ body.frozen .card,body.frozen .label,body.frozen #clock,body.frozen .hint{opacit
   <section class="card" id="card" aria-live="polite"></section>
   <p class="hint">Drag to look &middot; scroll or pinch to zoom<br>Eye level: WASD or the wheel to walk</p>
 </div>
+<section class="start" id="gStart" aria-label="Start">
+  <p class="file">London VR &middot; the first job &middot; E2, 02:14</p>
+  <h2>The <span>Bag</span></h2>
+  <p class="pitch">Degsy's got a bag on the boot of his motor that needs to get to Arch 9, under the railway bridge. Two coppers are between you and it. Don't run. Don't let them see it.</p>
+  <div class="row"><button type="button" id="gVR" class="vr" hidden>Enter VR</button><button type="button" id="gPlay">Play on desktop</button><button type="button" id="gLook" class="ghost">Just look around</button></div>
+  <p class="ctl">Desktop: mouse to look, WASD to walk, Shift to run, E or click to grab. Headset: left stick to walk (click it to run), right stick to turn, squeeze or pull the trigger with a hand on the bag to grab it. Look at someone up close to meet them.</p>
+</section>
+<div class="ghud" aria-live="polite"><p id="gObj"></p><p id="gStars" data-n="0"></p><p id="gSub" hidden></p></div>
+<section class="gEnd" id="gEnd" hidden><h2 id="gEndH"></h2><p id="gEndP"></p><button type="button" id="gAgain">Run it again</button></section>
 <p id="err" hidden></p>
 <p id="loading">Putting the kettle on&hellip;</p>
 <script>

@@ -91,7 +91,8 @@ function shopFront(x,w,kind){
     return; }
   if(kind==='lobby'){ blk(w,.06,SHOP_DEPTH,col(0x1a1c1e),x,PAVE_Y+.03,FZ-SHOP_DEPTH/2);
     for(const s of [-1,1]) wallP(SHOP_DEPTH,3.1,tConc,x+s*(w/2-.02),1.6,FZ-SHOP_DEPTH/2,s*-Math.PI/2,{tile:3});
-    wallP(w,3.1,tConc,x,1.6,FZ-SHOP_DEPTH,0,{tile:3,color:0xc8d0d4});
+    /* the back wall has a doorway: Hollis House runs through to the back alley */
+    for(const s of [-1,1]) wallP((w-1.2)/2,3.1,tConc,x+s*(w/2+.6)/2,1.6,FZ-SHOP_DEPTH,0,{tile:3,color:0xc8d0d4}); wallP(1.2,.9,tConc,x,2.7,FZ-SHOP_DEPTH,0,{tile:3,color:0xc8d0d4});
     for(const s of [-1,1]) blk(.06,2.3,.06,col(0x9aa4aa),x+s*.55,1.27,FZ-1.2); blk(1.16,.06,.06,col(0x9aa4aa),x,2.42,FZ-1.2);
     for(let i=0;i<6;i++) blk(.3,.22,.04,col(0x6a6e72),x-1+(i%3)*.36,1.3+(i>2?.26:0),FZ-SHOP_DEPTH+.03);
     blk(.5,.05,.3,glowC(0xe9f4f8),x,3.05,FZ-1.4);
@@ -184,5 +185,5 @@ function rainTick(t,eye){ RAIN.p=[Math.round(eye[0]),0,Math.round(eye[2])]; cons
 
 /* ---------- light ---------- */
 const STREET_LIGHT={amb:[.2,.22,.22],dir:[-.3,1,.4],dirCol:[.16,.15,.14],fog:[.042,.05,.048],fogNear:12,fogFar:42,
-  pl:[[[LAMP[0],5.2,LAMP[2]+1.0],[2.3,1.3,.5],13],[[-7.3,2.6,-1.4],[1.25,.6,.42],6],[[-2.1,2.6,-1.4],[.75,.9,.8],5],[[11.6,2.4,-3.6],[.45,.58,.62],4],
+  pl:[[[LAMP[0],5.2,LAMP[2]+1.0],[2.3,1.3,.5],13],[[-7.3,2.6,-1.4],[1.25,.6,.42],6],[[-2.1,2.6,-1.4],[.75,.9,.8],5],[[11.6,2.6,FZ-4.6],[1.0,1.1,1.2],8],
       [[LAMP2[0],5.2,LAMP2[2]+1.0],[2.3,1.3,.5],13],[[-17,2.6,4],[1.1,.7,.4],7],[[-1,2.6,5.4],[.62,.68,.7],10],[[-7.3,2.8,-4.4],[1.1,.92,.72],4.5]]};
