@@ -38,4 +38,4 @@ function fieldTo(gx,gz,cx,cz){ const wx0=Math.floor(Math.min(gx,cx)-FIELD_R/2), 
       let px=x,pz=z; for(let step=0;step<5;step++){ const ix=k%ww, iz=(k/ww)|0; let best=k; for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]){ const nx=ix+dx,nz=iz+dz; if(nx<0||nz<0||nx>=ww||nz>=wh) continue; const nk=nz*ww+nx; if(dist[nk]<dist[best]&&(dx===0||dz===0||(dist[iz*ww+nx]<65535&&dist[nz*ww+ix]<65535))) best=nk; }
         if(best===k) break; k=best; px=wx0+(k%ww)+.5; pz=wz0+((k/ww)|0)+.5; }
       return [px,pz]; } }; }
-buildNav();
+/* built at the end of 48j, after the street furniture */

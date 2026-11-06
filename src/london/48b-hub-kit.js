@@ -173,7 +173,7 @@ const LAMPS=[];
 function lamp(x,z,dx,dz,o={}){ const h=o.h||7.0, y0=PAVE_Y; eBoxF(x-.08,z-.08,x+.08,z+.08,y0,y0+h,{n:mPole,s:mPole,e:mPole,w:mPole}); const arm=1.25, hx=x+dx*arm, hz=z+dz*arm;
   eGeo(box(Math.abs(dx)>.5?arm:.08,.08,Math.abs(dz)>.5?arm:.08),mPole,x+dx*arm/2,y0+h-.05,z+dz*arm/2);
   eGeo(box(Math.abs(dx)>.5?.42:.26,.06,Math.abs(dz)>.5?.42:.26),mLampHead,hx,y0+h-.12,hz);
-  eGrid(mGlow,[hx-.8,y0+h-.95,hz],X_,Y_,1.6,1.6,1.6,1.6); eGrid(mGlow,[hx,y0+h-.95,hz-.8],Z_,Y_,1.6,1.6,1.6,1.6);
+  for(let k=0;k<3;k++){ const a=k*Math.PI/3, U=[Math.cos(a),0,Math.sin(a)]; eGrid(mGlow,[hx-U[0]*.7,y0+h-1.0,hz-U[2]*.7],U,Y_,1.4,1.4,1.4,1.4); } /* three crossed cards, centred under the head so it never clips them */
   const L_=[[hx,y0+h-.3,hz],[2.6,1.45,.56],15]; STREET_LIGHT.pl.push(L_); LAMPS.push(L_); hsol(x-.12,z-.12,x+.12,z+.12,y0+h); }
 const mBin=col(0x1c1e1c), mPost=col(0xb01818), mBench=col(0x3a2a1e), mBollard=col(0x18191b);
 function bin(x,z){ eGeo(cyl(.28,.24,.95,8),mBin,x,PAVE_Y+.47,z); hsol(x-.28,z-.28,x+.28,z+.28,PAVE_Y+.95); }

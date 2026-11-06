@@ -33,7 +33,7 @@ function todTick(dt){ TOD.h=(TOD.h+dt*TOD.rate*(TOD.fast?40:1))%24; const h=TOD.
   if(!skylineM) skylineM=SKY.kids[0].mesh.mats[0]; const sl=.35+TOD.day*1.4; skylineM.color=[sl*.9,sl*.95,sl];
   LIFE.density=A[6]+(B[6]-A[6])*e;
   /* rain comes in at night */ const wet=h>21.5||h<4.5; if(state.rain!==wet){ state.rain=wet; RAIN.vis=wet; }
-  if(GAME.G.on) phoneDirtyT(); }
+  if(typeof dayHideTick==='function'&&BAKED.kids.length) dayHideTick(); if(GAME.G.on) phoneDirtyT(); }
 function todStr(){ const h=Math.floor(TOD.h), m=Math.floor((TOD.h-h)*60); return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); }
 let _todLast=''; function phoneDirtyT(){ const s=todStr(); if(s!==_todLast){ _todLast=s; if(typeof GAME.phoneDirty==='function') GAME.phoneDirty(); } }
 addEventListener('keydown',e=>{ if(e.code==='KeyT') TOD.fast=true; }); addEventListener('keyup',e=>{ if(e.code==='KeyT') TOD.fast=false; });

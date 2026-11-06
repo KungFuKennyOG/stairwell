@@ -233,7 +233,7 @@ function buildViaducts(){ for(const V of VIADUCTS){ const [x0,z0,x1,z1,ax,top]=V
 
 /* ---------------- the build ---------------- */
 function buildGround(){
-  for(const r of ROADS) eFlat(r[0],r[1],r[2],r[3],0,mTarmac,2,4);
+  for(const r of ROADS) eFlat(r[0],r[1],r[2],r[3],0,mTarmac,6,4);
   for(const r of PAVES) eFlat(r[0],r[1],r[2],r[3],PAVE_Y,mPave,1.2,3);
   /* kerb faces: along every road edge where pavement meets it */
   for(const r of ROADS){ const ed=[[r[0],r[1],r[2],r[1],'n'],[r[0],r[3],r[2],r[3],'s'],[r[0],r[1],r[0],r[3],'w'],[r[2],r[1],r[2],r[3],'e']];
