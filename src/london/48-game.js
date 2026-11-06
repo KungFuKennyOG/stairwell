@@ -52,7 +52,7 @@ SIGHT.push([-40,-60,-15.9,FZ-2.62],[-13.8,-8.6,10.95,FZ-2.62],[12.25,FZ-5.55,40,
 SIGHT.push([FENCE_X-.08,FZ-8.45,FENCE_X+.08,FZ-5.5],[10.2,FZ-2.68,11.0,FZ-2.55],[12.2,FZ-2.68,13.0,FZ-2.55]);                  /* the lobby's back wall either side of the doorway */
 for(let i=0;i<SIGHT.length;i++){ const r=SIGHT[i]; SIGHT[i]=[Math.max(r[0],-16.6),Math.max(r[1],-27.2),Math.min(r[2],36.5),Math.min(r[3],15.2)]; } /* the hub's own buildings hide you via the nav grid */
 const inR=(r,x,z,m)=>x>r[0]+m&&x<r[2]-m&&z>r[1]+m&&z<r[3]-m;
-function standable(x,z,rad){ if(NAV) return navWalk(x,z,rad); if(!WALK.some(r=>inR(r,x,z,rad))) return false; for(const b of BLOCK) if(inR([b[0]-rad,b[1]-rad,b[2]+rad,b[3]+rad],x,z,0)) return false; return true; }
+function standable(x,z,rad){ if(NAV&&!inCore(x,z,0)) return navWalk(x,z,rad); if(!WALK.some(r=>inR(r,x,z,rad))) return false; for(const b of BLOCK) if(inR([b[0]-rad,b[1]-rad,b[2]+rad,b[3]+rad],x,z,0)) return false; return true; }
 function segHits(ax,az,bx,bz,r){ /* slab test, 2D */ let t0=0,t1=1; const dx=bx-ax,dz=bz-az;
   for(const [p,d,lo,hi] of [[ax,dx,r[0],r[2]],[az,dz,r[1],r[3]]]){ if(Math.abs(d)<1e-9){ if(p<lo||p>hi) return false; continue; } let a=(lo-p)/d,b=(hi-p)/d; if(a>b){ const t=a; a=b; b=t; } t0=Math.max(t0,a); t1=Math.min(t1,b); if(t0>t1) return false; } return true; }
 function clearLine(ax,az,bx,bz,high){ for(let i=0;i<SIGHT.length;i++){ if(high&&i<5&&i!==2) continue; /* up on something: cars and the shelter don't hide you */ if(segHits(ax,az,bx,bz,SIGHT[i])) return false; } if(NAV&&!navSight(ax,az,bx,bz)) return false; return true; }
