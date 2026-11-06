@@ -4,7 +4,7 @@
    lit windows. The hand-built blocks (estates, park, school, Tube, church...) are filled in buildLandmarks().
    ========================================================================================================== */
 const SKY=N(world); SKY.dyn=true;
-const tSkyline=P2(2048,256,(g,w,h)=>{ g.clearRect(0,0,w,h); const r=hr(8801); const dark='#0b0c10';
+const tSkyline=P2(2048,256,(g,w,h)=>{ g.clearRect(0,0,w,h); const r=hr(8801); const dark='#2a2e38';
   const tower=(x,tw,th,lit=.25,top=null)=>{ g.fillStyle=dark; g.fillRect(x,h-th,tw,th);
     if(top==='spire'){ g.beginPath(); g.moveTo(x,h-th); g.lineTo(x+tw/2,h-th-th*.25); g.lineTo(x+tw,h-th); g.fill(); }
     if(top==='pyramid'){ g.beginPath(); g.moveTo(x,h-th); g.lineTo(x+tw/2,h-th-tw*.5); g.lineTo(x+tw,h-th); g.fill(); R(g,'#ff2a1a',x+tw/2-1,h-th-tw*.5-3,3,3); }
@@ -21,7 +21,7 @@ const tSkyline=P2(2048,256,(g,w,h)=>{ g.clearRect(0,0,w,h); const r=hr(8801); co
   for(const [u,tw,th,top] of [[.115,20,140,null],[.13,22,175,'pyramid'],[.148,18,150,null],[.165,12,95,null]]) tower(U(u),tw,th,.22,top);
   /* council towers dotted about, and cranes */
   for(const u of [.31,.36,.66,.7,.82,.9,.97]) tower(U(u),12,60+r()*30,.3);
-  g.strokeStyle='#14161a'; g.lineWidth=2; for(const u of [.2,.44,.6,.78]){ const cx=U(u); g.beginPath(); g.moveTo(cx,h); g.lineTo(cx,h-150); g.moveTo(cx-40,h-145); g.lineTo(cx+70,h-145); g.stroke(); R(g,'#ff2a1a',cx-1,h-153,3,3); }
+  g.strokeStyle='#30343c'; g.lineWidth=2; for(const u of [.2,.44,.6,.78]){ const cx=U(u); g.beginPath(); g.moveTo(cx,h); g.lineTo(cx,h-150); g.moveTo(cx-40,h-145); g.lineTo(cx+70,h-145); g.stroke(); R(g,'#ff2a1a',cx-1,h-153,3,3); }
 },0,1);
 tSkyline.nomip=false;
 { const R_=86, N_=32, H_=44, gR=new Geo(); for(let i=0;i<=N_;i++){ const a=i/N_*Math.PI*2, x=Math.cos(a)*R_, z=Math.sin(a)*R_; gR.v([x,-2,z],[-Math.cos(a),0,-Math.sin(a)],[i/N_,0]); gR.v([x,H_,z],[-Math.cos(a),0,-Math.sin(a)],[i/N_,1]); }

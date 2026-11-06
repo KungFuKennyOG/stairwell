@@ -33,7 +33,7 @@ function bakeStatic(root){ updateWorld(world,null); let nMesh=0;
 function lightsNear(src,eye){ const all=src.pl, sc=[];
   for(let i=0;i<all.length;i++){ const p=all[i][0]; sc.push([Math.hypot(p[0]-eye[0],p[1]-eye[1],p[2]-eye[2])-all[i][2]*.6,i]); }
   sc.sort((a,b)=>a[0]-b[0]); const cut=sc.length>8?sc[8][0]:1e9, pl=[];
-  for(let k=0;k<Math.min(8,sc.length);k++){ const [d,i]=sc[k], f=Math.min(1,Math.max(0,(cut-d)/6)), L_=all[i]; pl.push([L_[0],[L_[1][0]*f,L_[1][1]*f,L_[1][2]*f],L_[2]]); }
+  for(let k=0;k<Math.min(8,sc.length);k++){ const [d,i]=sc[k], f=Math.min(1,Math.max(0,(cut-d)/6)), L_=all[i]; const lk=src.lampK??1; pl.push([L_[0],[L_[1][0]*f*lk,L_[1][1]*f*lk,L_[1][2]*f*lk],L_[2]]); }
   return {amb:src.amb,dir:src.dir,dirCol:src.dirCol,fog:src.fog,fogNear:src.fogNear,fogFar:src.fogFar,pl}; }
 
 /* the engine's renderScene, culling on: the fog swallows everything past fogFar, so nothing past it is drawn */

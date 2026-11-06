@@ -14,7 +14,11 @@ const hr=(seed)=>{ let s=seed>>>0||1; return ()=>{ s^=s<<13; s>>>=0; s^=s>>17; s
 
 /* ---------------- emit primitives (world space, straight into chunk buckets) ---------------- */
 /* a quad grid: o + U*s + V*t, s in [0,w], t in [0,h]; normal = U x V; uv = (s/tu+ou, t/tv+ov) */
-function eGrid(m,o,U,V,w,h,tu,tv,ou=0,ov=0,cu=0,cv=0){ const nu=Math.max(1,cu?Math.round(w/cu):1), nv=Math.max(1,cv?Math.round(h/cv):1);
+function eGrid(m,o,U,V,w,h,tu,tv,ou=0,ov=0,cu=0,cv=0){
+  /* anything longer than a chunk is cut into chunk-sized pieces, so each piece is drawn with the chunk it sits in */
+  const LIM=CHUNK; if(w>LIM*1.05){ const n=Math.ceil(w/LIM), pw=w/n; for(let i=0;i<n;i++) eGrid(m,[o[0]+U[0]*pw*i,o[1]+U[1]*pw*i,o[2]+U[2]*pw*i],U,V,pw,h,tu,tv,ou+pw*i/tu,ov,cu,cv); return; }
+  if(h>LIM*1.05){ const n=Math.ceil(h/LIM), ph=h/n; for(let i=0;i<n;i++) eGrid(m,[o[0]+V[0]*ph*i,o[1]+V[1]*ph*i,o[2]+V[2]*ph*i],U,V,w,ph,tu,tv,ou,ov+ph*i/tv,cu,cv); return; }
+  const nu=Math.max(1,cu?Math.round(w/cu):1), nv=Math.max(1,cv?Math.round(h/cv):1);
   const n=[U[1]*V[2]-U[2]*V[1],U[2]*V[0]-U[0]*V[2],U[0]*V[1]-U[1]*V[0]];
   const cx=o[0]+U[0]*w/2+V[0]*h/2, cz=o[2]+U[2]*w/2+V[2]*h/2, B=emitBucket(m,cx,cz,(nu+1)*(nv+1)), b0=B.n;
   for(let j=0;j<=nv;j++) for(let i=0;i<=nu;i++){ const s=w*i/nu,t=h*j/nv; B.P.push(o[0]+U[0]*s+V[0]*t,o[1]+U[1]*s+V[1]*t,o[2]+U[2]*s+V[2]*t); B.Nm.push(n[0],n[1],n[2]); B.T.push(s/tu+ou,t/tv+ov); B.n++; }

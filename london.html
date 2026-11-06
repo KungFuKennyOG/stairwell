@@ -1421,7 +1421,7 @@ const FS_LDN=FS.replace('uniform sampler2D map; uniform float uHasMap, uCut;','u
   .replace('if(uCut > 0.5 && t.a < 0.5) discard;','if(uCut > 1.5){ if(t.a < sdBayer(gl_FragCoord.xy) * 0.94 + 0.03) discard; } else if(uCut > 0.5 && t.a < 0.5) discard;');
 const PFS_LDN=`#version 300 es
 precision highp float;
-uniform sampler2D tScene; uniform vec2 uRes; uniform float uDither, uGrade, uFreeze;
+uniform sampler2D tScene; uniform vec2 uRes; uniform float uDither, uGrade, uFreeze, uDay;
 in vec2 vUv; out vec4 outColor;
 float bayer2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
 float bayer4(vec2 a){ return bayer2(0.5 * a) * 0.25 + bayer2(a); }
@@ -1437,13 +1437,13 @@ void main(){
     float hivis = step(c.b * 2.0, c.g) * step(c.r * 0.7, c.g) * step(c.r, c.g * 1.15);
     float sig = smoothstep(0.35, 0.6, s) * clamp(red + amber + blue + hivis, 0.0, 1.0);
     float skin = step(c.b, c.g) * step(c.g, c.r) * smoothstep(0.1, 0.2, s) * (1.0 - smoothstep(0.55, 0.75, s)) * (1.0 - red);
-    float sat = mix(mix(0.74, 0.92, skin), 1.12, sig);
+    float sat = mix(mix(mix(0.74, 0.92, skin), 1.12, sig), mix(0.9, 1.0, skin), uDay*.6);
     sat = mix(sat, mix(0.12, 1.0, sig * red), uFreeze);
     vec3 g = mix(vec3(l), c, sat);
     g = mix(g, g * g * (3.0 - 2.0 * g), 0.22 + 0.3 * uFreeze);                       /* contrast, harder on a freeze */
     float sh = 1.0 - smoothstep(0.0, 0.28, l);
-    g = g * mix(vec3(1.0), vec3(0.9, 1.0, 0.97), sh) + vec3(0.012, 0.02, 0.018) * sh;  /* green-grey night floor */
-    g *= mix(vec3(1.0), vec3(1.06, 1.0, 0.86), smoothstep(0.5, 1.0, l));               /* sodium in the highlights */
+    g = g * mix(vec3(1.0), vec3(0.9, 1.0, 0.97), sh*(1.0-uDay)) + vec3(0.012, 0.02, 0.018) * sh * (1.0-uDay);  /* green-grey night floor */
+    g *= mix(vec3(1.0), mix(vec3(1.06, 1.0, 0.86), vec3(0.98, 1.0, 1.03), uDay), smoothstep(0.5, 1.0, l));  /* sodium in the highlights at night, a cool London grey by day */
     c = g;
   }
   if(uDither > 0.5){ float L = 31.0; c += (bayer4(px) - 0.5) / L; c = floor(c * L + 0.5) / L; }
@@ -1466,7 +1466,7 @@ function drawLondon(eye,tgt){
   gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,cv.width,cv.height); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null; curTex=null;
   gl.useProgram(POST_LDN.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
   gl.uniform1i(POST_LDN.loc.tScene,0); gl.uniform2f(POST_LDN.loc.uRes,w,h); gl.uniform1f(POST_LDN.loc.uDither,state.dither?1:0);
-  gl.uniform1f(POST_LDN.loc.uGrade,LOOK.grade?1:0); gl.uniform1f(POST_LDN.loc.uFreeze,LOOK.freeze);
+  gl.uniform1f(POST_LDN.loc.uGrade,LOOK.grade?1:0); gl.uniform1f(POST_LDN.loc.uFreeze,LOOK.freeze); gl.uniform1f(POST_LDN.loc.uDay,LOOK.day||0);
   gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); }
 
 /* ---------- PERF: what lets one hub be ten times the street ----------
@@ -1504,7 +1504,7 @@ function bakeStatic(root){ updateWorld(world,null); let nMesh=0;
 function lightsNear(src,eye){ const all=src.pl, sc=[];
   for(let i=0;i<all.length;i++){ const p=all[i][0]; sc.push([Math.hypot(p[0]-eye[0],p[1]-eye[1],p[2]-eye[2])-all[i][2]*.6,i]); }
   sc.sort((a,b)=>a[0]-b[0]); const cut=sc.length>8?sc[8][0]:1e9, pl=[];
-  for(let k=0;k<Math.min(8,sc.length);k++){ const [d,i]=sc[k], f=Math.min(1,Math.max(0,(cut-d)/6)), L_=all[i]; pl.push([L_[0],[L_[1][0]*f,L_[1][1]*f,L_[1][2]*f],L_[2]]); }
+  for(let k=0;k<Math.min(8,sc.length);k++){ const [d,i]=sc[k], f=Math.min(1,Math.max(0,(cut-d)/6)), L_=all[i]; const lk=src.lampK??1; pl.push([L_[0],[L_[1][0]*f*lk,L_[1][1]*f*lk,L_[1][2]*f*lk],L_[2]]); }
   return {amb:src.amb,dir:src.dir,dirCol:src.dirCol,fog:src.fog,fogNear:src.fogNear,fogFar:src.fogFar,pl}; }
 
 /* the engine's renderScene, culling on: the fog swallows everything past fogFar, so nothing past it is drawn */
@@ -2221,7 +2221,7 @@ const tPhone=tex(256,448,'#0a0a0c',null);
 function drawPhone(){ const g=tPhone.c.getContext('2d'),w=256,h=448; R(g,'#0b0c10',0,0,w,h); R(g,'#c8231c',0,0,w,46); g.fillStyle='#fff'; g.font=`bold 24px ${TYPEF}`; g.textAlign='left'; g.fillText('DEGSY',14,32);
   g.fillStyle='#f0ece2'; g.font=`bold 22px ${TYPEF}`; const words=G.obj.split(' '); let ln='',y=90; for(const wd of words){ const tr=ln?ln+' '+wd:wd; if(g.measureText(tr).width>w-28&&ln){ g.fillText(ln,14,y); ln=wd; y+=30; } else ln=tr; } g.fillText(ln,14,y);
   g.font=`64px ${SANS}`; g.fillStyle=G.stars?'#ffd040':'#3a3a3a'; g.fillText('★',20,h-40); g.fillStyle=G.stars>1?'#ffd040':'#3a3a3a'; g.fillText('★',110,h-40);
-  g.font=`bold 18px ${TYPEF}`; g.fillStyle='#8a857a'; g.fillText('02:14  E2',14,h-110); if(G.cash){ g.fillStyle='#7ad87a'; g.fillText('£'+G.cash+' found',140,h-110); } if(promptK){ g.fillStyle='#f0a23e'; g.font=`bold 22px ${TYPEF}`; g.fillText('A · '+(promptK==='climb'?'CLIMB':'VAULT'),14,h-140); } retex(tPhone); phoneDirty=false; }
+  g.font=`bold 18px ${TYPEF}`; g.fillStyle='#8a857a'; g.fillText((typeof todStr==='function'?todStr():'02:14')+'  E2',14,h-110); if(G.cash){ g.fillStyle='#7ad87a'; g.fillText('£'+G.cash+' found',140,h-110); } if(promptK){ g.fillStyle='#f0a23e'; g.font=`bold 22px ${TYPEF}`; g.fillText('A · '+(promptK==='climb'?'CLIMB':'VAULT'),14,h-140); } retex(tPhone); phoneDirty=false; }
 function buildHands(){ const skin=M(null,{color:0xc8906c}),sleeve=M(null,{color:0x111214});
   for(const s of ['left','right']){ const n=N(STREET); n.dyn=true; mk(box(.085,.1,.11),skin,n,0,0,.02); mk(box(.03,.05,.06),skin,n,(s==='left'?1:-1)*.05,.02,-.01); mk(cyl(.045,.05,.2,8),sleeve,n,0,-.01,.15,Math.PI/2); n.vis=false; HANDS[s]={n,M:m4.make(),pos:[0,0,0],grip:false,gripEdge:false}; }
   const ph=N(HANDS.left.n); mk(box(.075,.14,.01),col(0x111111),ph,0,0,0); mk(plane(.066,.116),M(tPhone,{unlit:true}),ph,0,0,.006); ph.p=[0,.07,-.02]; ph.r=[-.9,0,0]; }
@@ -2584,7 +2584,7 @@ function xrFrame(t,xf){ const session=xf.session; session.requestAnimationFrame(
 function renderMats(w,h){ gl.bindFramebuffer(gl.FRAMEBUFFER,fb); drawWorldLDN(world,w,h,null); }
 function postTo(target,x,y,w,h,sw,sh){ gl.bindFramebuffer(gl.FRAMEBUFFER,target); gl.viewport(x,y,w,h); gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); curCull=null; curTex=null;
   gl.useProgram(POST_LDN.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
-  gl.uniform1i(POST_LDN.loc.tScene,0); gl.uniform2f(POST_LDN.loc.uRes,sw,sh); gl.uniform1f(POST_LDN.loc.uDither,state.dither?1:0); gl.uniform1f(POST_LDN.loc.uGrade,LOOK.grade?1:0); gl.uniform1f(POST_LDN.loc.uFreeze,LOOK.freeze);
+  gl.uniform1i(POST_LDN.loc.tScene,0); gl.uniform2f(POST_LDN.loc.uRes,sw,sh); gl.uniform1f(POST_LDN.loc.uDither,state.dither?1:0); gl.uniform1f(POST_LDN.loc.uGrade,LOOK.grade?1:0); gl.uniform1f(POST_LDN.loc.uFreeze,LOOK.freeze); gl.uniform1f(POST_LDN.loc.uDay,LOOK.day||0);
   gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); }
 
 /* ---------- one step of the game (the art-set loop calls this; the headset loop too) ---------- */
@@ -2592,7 +2592,7 @@ let stepWorld=()=>{};
 function tick(dt){ if(!G.on) return; if(!G.xr) deskTick(dt); promptTick();
   G.t+=dt; if(G.result){ G.endT+=dt; linesTick(dt); return; }
   for(const c of COPS) copTick(c,dt); jobTick(dt); linesTick(dt); }
-return {sol,G,P,COPS,ACT,SOL,WALK,CASH,BLOCK,LOCKUP,START,setInput:(f,s_,run)=>{ TOUCH.stick=[s_,-f]; TOUCH.run=!!run; },start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
+return {phoneDirty:()=>{ phoneDirty=true; },sol,G,P,COPS,ACT,SOL,WALK,CASH,BLOCK,LOCKUP,START,setInput:(f,s_,run)=>{ TOUCH.stick=[s_,-f]; TOUCH.run=!!run; },start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
 })();
 
 /* ==========================================================================================================
@@ -2611,7 +2611,11 @@ const hr=(seed)=>{ let s=seed>>>0||1; return ()=>{ s^=s<<13; s>>>=0; s^=s>>17; s
 
 /* ---------------- emit primitives (world space, straight into chunk buckets) ---------------- */
 /* a quad grid: o + U*s + V*t, s in [0,w], t in [0,h]; normal = U x V; uv = (s/tu+ou, t/tv+ov) */
-function eGrid(m,o,U,V,w,h,tu,tv,ou=0,ov=0,cu=0,cv=0){ const nu=Math.max(1,cu?Math.round(w/cu):1), nv=Math.max(1,cv?Math.round(h/cv):1);
+function eGrid(m,o,U,V,w,h,tu,tv,ou=0,ov=0,cu=0,cv=0){
+  /* anything longer than a chunk is cut into chunk-sized pieces, so each piece is drawn with the chunk it sits in */
+  const LIM=CHUNK; if(w>LIM*1.05){ const n=Math.ceil(w/LIM), pw=w/n; for(let i=0;i<n;i++) eGrid(m,[o[0]+U[0]*pw*i,o[1]+U[1]*pw*i,o[2]+U[2]*pw*i],U,V,pw,h,tu,tv,ou+pw*i/tu,ov,cu,cv); return; }
+  if(h>LIM*1.05){ const n=Math.ceil(h/LIM), ph=h/n; for(let i=0;i<n;i++) eGrid(m,[o[0]+V[0]*ph*i,o[1]+V[1]*ph*i,o[2]+V[2]*ph*i],U,V,w,ph,tu,tv,ou,ov+ph*i/tv,cu,cv); return; }
+  const nu=Math.max(1,cu?Math.round(w/cu):1), nv=Math.max(1,cv?Math.round(h/cv):1);
   const n=[U[1]*V[2]-U[2]*V[1],U[2]*V[0]-U[0]*V[2],U[0]*V[1]-U[1]*V[0]];
   const cx=o[0]+U[0]*w/2+V[0]*h/2, cz=o[2]+U[2]*w/2+V[2]*h/2, B=emitBucket(m,cx,cz,(nu+1)*(nv+1)), b0=B.n;
   for(let j=0;j<=nv;j++) for(let i=0;i<=nu;i++){ const s=w*i/nu,t=h*j/nv; B.P.push(o[0]+U[0]*s+V[0]*t,o[1]+U[1]*s+V[1]*t,o[2]+U[2]*s+V[2]*t); B.Nm.push(n[0],n[1],n[2]); B.T.push(s/tu+ou,t/tv+ov); B.n++; }
@@ -3047,7 +3051,7 @@ function buildHub(){ const t0=performance.now();
    lit windows. The hand-built blocks (estates, park, school, Tube, church...) are filled in buildLandmarks().
    ========================================================================================================== */
 const SKY=N(world); SKY.dyn=true;
-const tSkyline=P2(2048,256,(g,w,h)=>{ g.clearRect(0,0,w,h); const r=hr(8801); const dark='#0b0c10';
+const tSkyline=P2(2048,256,(g,w,h)=>{ g.clearRect(0,0,w,h); const r=hr(8801); const dark='#2a2e38';
   const tower=(x,tw,th,lit=.25,top=null)=>{ g.fillStyle=dark; g.fillRect(x,h-th,tw,th);
     if(top==='spire'){ g.beginPath(); g.moveTo(x,h-th); g.lineTo(x+tw/2,h-th-th*.25); g.lineTo(x+tw,h-th); g.fill(); }
     if(top==='pyramid'){ g.beginPath(); g.moveTo(x,h-th); g.lineTo(x+tw/2,h-th-tw*.5); g.lineTo(x+tw,h-th); g.fill(); R(g,'#ff2a1a',x+tw/2-1,h-th-tw*.5-3,3,3); }
@@ -3064,7 +3068,7 @@ const tSkyline=P2(2048,256,(g,w,h)=>{ g.clearRect(0,0,w,h); const r=hr(8801); co
   for(const [u,tw,th,top] of [[.115,20,140,null],[.13,22,175,'pyramid'],[.148,18,150,null],[.165,12,95,null]]) tower(U(u),tw,th,.22,top);
   /* council towers dotted about, and cranes */
   for(const u of [.31,.36,.66,.7,.82,.9,.97]) tower(U(u),12,60+r()*30,.3);
-  g.strokeStyle='#14161a'; g.lineWidth=2; for(const u of [.2,.44,.6,.78]){ const cx=U(u); g.beginPath(); g.moveTo(cx,h); g.lineTo(cx,h-150); g.moveTo(cx-40,h-145); g.lineTo(cx+70,h-145); g.stroke(); R(g,'#ff2a1a',cx-1,h-153,3,3); }
+  g.strokeStyle='#30343c'; g.lineWidth=2; for(const u of [.2,.44,.6,.78]){ const cx=U(u); g.beginPath(); g.moveTo(cx,h); g.lineTo(cx,h-150); g.moveTo(cx-40,h-145); g.lineTo(cx+70,h-145); g.stroke(); R(g,'#ff2a1a',cx-1,h-153,3,3); }
 },0,1);
 tSkyline.nomip=false;
 { const R_=86, N_=32, H_=44, gR=new Geo(); for(let i=0;i<=N_;i++){ const a=i/N_*Math.PI*2, x=Math.cos(a)*R_, z=Math.sin(a)*R_; gR.v([x,-2,z],[-Math.cos(a),0,-Math.sin(a)],[i/N_,0]); gR.v([x,H_,z],[-Math.cos(a),0,-Math.sin(a)],[i/N_,1]); }
@@ -3479,6 +3483,46 @@ function lifeTick(dt,eye){ if(!LIFE.on||!HUBX) return; LIFE.t+=dt; const px=GAME
 function lifeBlocks(x,z,r){ for(const v of CAR_POOL){ if(!v.alive) continue; const dx=x-v.x, dz=z-v.z, c=Math.cos(v.yaw), s=Math.sin(v.yaw), lx=dx*c-dz*s, lz=dx*s+dz*c; if(Math.abs(lx)<v.wid/2+r&&Math.abs(lz)<v.len/2+r) return true; }
   for(const p of PED_POOL){ if(p.alive&&Math.hypot(x-p.x,z-p.z)<r+.22) return true; } return false; }
 
+/* ==========================================================================================================
+   THE CLOCK: a day in Bethnal Green is 24 real minutes (an hour a minute), starting at half ten at night.
+   Keyframed: ambient, sun (moon at night), fog, sky, how hard the lamps and lit windows glow, how many people and
+   cars are about, whether it's raining. Hold T (desktop) to wind the clock on.
+   ========================================================================================================== */
+const TOD={h:22.5, rate:1/60, fast:false, day:0, night:1};
+/* [hour, ambient, sun colour, fog colour, fog far, sky, life density] */
+const TODK=[
+  [0,  [.23,.25,.25],[.10,.11,.14],[.042,.05,.048],42,'night',.30],
+  [4.5,[.22,.24,.25],[.10,.11,.14],[.04,.046,.05],42,'night',.18],
+  [5.6,[.34,.32,.34],[.55,.38,.32],[.22,.2,.22],48,'dawn',.30],
+  [7,  [.58,.58,.60],[.95,.80,.62],[.44,.47,.5],56,'day',.75],
+  [12, [.70,.72,.76],[1.1,1.04,.95],[.5,.54,.58],60,'day',.9],
+  [17, [.62,.62,.64],[1.0,.86,.7],[.47,.48,.5],58,'day',.95],
+  [19, [.4,.36,.37],[.85,.5,.34],[.22,.18,.19],50,'dusk',.85],
+  [20.3,[.26,.27,.28],[.18,.16,.18],[.07,.07,.075],44,'night',.7],
+  [24, [.23,.25,.25],[.10,.11,.14],[.042,.05,.048],42,'night',.4]];
+const todL3=(a,b,k)=>[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k];
+/* skies: night (the old sodium-lit cloud), dawn, day, dusk */
+const SKYT={night:tSky,
+  dawn:P2(4,64,(g,w,h)=>vfill(g,0,0,w,h,[[0,'#2a3048'],[.55,'#7a6a7a'],[.85,'#d8987a'],[1,'#f0c090']]),0,1),
+  day:P2(4,64,(g,w,h)=>vfill(g,0,0,w,h,[[0,'#7a8ea8'],[.6,'#a8b4c0'],[1,'#c8ccd0']]),0,1),
+  dusk:P2(4,64,(g,w,h)=>vfill(g,0,0,w,h,[[0,'#1a1a30'],[.5,'#5a3a4a'],[.8,'#c86a40'],[1,'#e8a060']]),0,1)};
+let skylineM=null;
+function todTick(dt){ TOD.h=(TOD.h+dt*TOD.rate*(TOD.fast?40:1))%24; const h=TOD.h;
+  let i=0; while(i<TODK.length-2&&TODK[i+1][0]<=h) i++; const A=TODK[i],B=TODK[i+1],k=clamp((h-A[0])/(B[0]-A[0]),0,1), e=k*k*(3-2*k);
+  const amb=todL3(A[1],B[1],e), sun=todL3(A[2],B[2],e), fog=todL3(A[3],B[3],e), far=A[4]+(B[4]-A[4])*e;
+  /* daylight 0..1, from the ambient */ TOD.day=clamp((amb[0]-.25)/.45,0,1); TOD.night=1-TOD.day; LOOK.day=TOD.day;
+  const sa=(h-6)/12*Math.PI; STREET_LIGHT.amb=amb; STREET_LIGHT.dirCol=sun; STREET_LIGHT.dir=[Math.cos(sa)*.6,Math.max(.15,Math.sin(sa)),.45]; STREET_LIGHT.fog=fog; STREET_LIGHT.fogFar=far; STREET_LIGHT.fogNear=far*(.3+.3*TOD.day);
+  STREET_LIGHT.lampK=Math.max(.06,TOD.night);
+  for(const [m,c,dim] of NIGHT_MATS){ const f=1-dim*TOD.day*.88; m.color=[c[0]*f,c[1]*f,c[2]*f]; }
+  /* sky: pick the nearest look, and dim or lift it */ const sk=e<.5?A[5]:B[5]; if(SKY.skyM.tex!==SKYT[sk]) SKY.skyM.tex=SKYT[sk];
+  if(!skylineM) skylineM=SKY.kids[0].mesh.mats[0]; const sl=.35+TOD.day*1.4; skylineM.color=[sl*.9,sl*.95,sl];
+  LIFE.density=A[6]+(B[6]-A[6])*e;
+  /* rain comes in at night */ const wet=h>21.5||h<4.5; if(state.rain!==wet){ state.rain=wet; RAIN.vis=wet; }
+  if(GAME.G.on) phoneDirtyT(); }
+function todStr(){ const h=Math.floor(TOD.h), m=Math.floor((TOD.h-h)*60); return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); }
+let _todLast=''; function phoneDirtyT(){ const s=todStr(); if(s!==_todLast){ _todLast=s; if(typeof GAME.phoneDirty==='function') GAME.phoneDirty(); } }
+addEventListener('keydown',e=>{ if(e.code==='KeyT') TOD.fast=true; }); addEventListener('keyup',e=>{ if(e.code==='KeyT') TOD.fast=false; });
+
 /* =====================================================================================================
    VIEW, CAST, FREEZE-FRAMES, LOOP. One view of the street. The cast stands where they'd be at 02:14, or in a
    line-up along the kerb. Pick someone and you walk up to them and the world freezes, with their name card beside them.
@@ -3592,7 +3636,7 @@ function stepWorld(dt){ clock+=dt; wclock+=dt; LOOK.time=clock; /* the freeze-fr
   else { const k=1-Math.exp(-dt*(frozen?9:6)); for(let i=0;i<3;i++) cam.t[i]+=(goal.t[i]-cam.t[i])*k; cam.th+=(goal.th-cam.th)*k; cam.ph+=(goal.ph-cam.ph)*k; cam.r+=(goal.r-cam.r)*k;
     if(state.eye){ const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),s_=(keys.KeyD?1:0)-(keys.KeyA?1:0); if(f||s_) walk(f*1.6*dt,s_*1.6*dt); } }
   for(const id of ORDER){ if(GAME.G.on&&(id==='pcmale'||id==='pcfem')) continue; if(frozen&&state.pick===id) continue; const C=CAST[id]; animateChar(C,wclock); skinUpdate(C); }
-  rainTick(wclock,eyePos()); DRESS.tick(wclock,eyePos()); skyTick(eyePos()); lifeTick(dt,eyePos()); const fl=Math.sin(wclock*31)>.97&&Math.sin(wclock*3.1)>.6; STREET_LIGHT.pl[1][1]=fl?[.5,.22,.15]:[1.35,.62,.42]; setLights(lightsNear(STREET_LIGHT,eyePos())); }
+  rainTick(wclock,eyePos()); DRESS.tick(wclock,eyePos()); skyTick(eyePos()); lifeTick(dt,eyePos()); todTick(dt); const fl=Math.sin(wclock*31)>.97&&Math.sin(wclock*3.1)>.6; STREET_LIGHT.pl[1][1]=fl?[.5,.22,.15]:[1.35,.62,.42]; setLights(lightsNear(STREET_LIGHT,eyePos())); }
 function step(dt){ stepWorld(dt); if(!GAME.G.xr&&!window.__noDraw){ resize(); draw(); } }
 function frame(now){ if(GAME.G.xr) return; const dt=Math.min(.05,(now-lastT)/1000); lastT=now; step(dt); requestAnimationFrame(frame); }
 GAME.setStepWorld(stepWorld); GAME.setResume(()=>{ lastT=performance.now(); requestAnimationFrame(frame); });
@@ -3600,7 +3644,7 @@ if(window.__CAPTURE) document.body.classList.add('capture');
 place(); renderCard(); updateClock(); setGoal(HOME,true); setLights(lightsNear(STREET_LIGHT,eyePos()));
 const BAKE=bakeStatic(STREET); console.log('[london] baked',BAKE.meshes,'meshes into',BAKE.chunks,'chunks');
 const ld=document.getElementById('loading'); if(ld) ld.hidden=true;
-window.__london={state,CAST,setGoal,freezeOn,unfreeze,place,poseAll,step,cam,goal,setClock:v=>{wclock=v;},GAME,BAKE,PERF,EMIT,BIDX,hub:()=>HUBX,LIFE:()=>({cars:CAR_POOL,peds:PED_POOL})};
+window.__london={state,CAST,setGoal,freezeOn,unfreeze,place,poseAll,step,cam,goal,setClock:v=>{wclock=v;},GAME,BAKE,PERF,EMIT,BIDX,hub:()=>HUBX,LIFE:()=>({cars:CAR_POOL,peds:PED_POOL}),setHour:h=>{ TOD.h=h; },TOD};
 /* the job: start screen buttons */
 { const pb=document.getElementById('gPlay'),vb=document.getElementById('gVR'),again=document.getElementById('gAgain'),look=document.getElementById('gLook');
   if(pb) pb.addEventListener('click',()=>{ document.getElementById('gStart').hidden=true; GAME.start(false); cv.requestPointerLock?.(); cv.focus(); });
