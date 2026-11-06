@@ -152,6 +152,7 @@ function buildLot(L,BR,D,r,Z){ const [x0,z0,x1,z1]=BR, k=L.k, d=D[k], horiz=k===
   if(L.pub) groundPub(L,lx0,lz0,lx1,lz1,gH,fx,fz,U,out,fw,r);
   else if(shop) groundShop(L,lx0,lz0,lx1,lz1,gH,fx,fz,U,out,fw,r);
   else { const hf=houseFront(L.brick,L.door), hm=hf.mBase, back={n:'s',s:'n',w:'e',e:'w'}[front];
+    { const st=L.S[8]||'', no=(HOUSE_NO[st]=(HOUSE_NO[st]||0)+1), sx=fx-U[0]*fw/2+U[0]*1.05, sz=fz-U[2]*fw/2+U[2]*1.05; HOUSE_DOORS.push({x:sx+out[0]*.7,z:sz+out[2]*.7,yaw:Math.atan2(-out[0],-out[2]),street:st,no:no*2-(L.k==='n'||L.k==='w'?1:0)}); }
     eBoxF(lx0,lz0,lx1,lz1,PAVE_Y,PAVE_Y+gH,{[front]:hm},{tu:fw,tv:gH,vb:PAVE_Y,cell:3});
     const rest={}; rest[back]=F.mBase; if(L.corner){ for(const q of (horiz?'ew':'ns')) rest[q]=F.mBase; } eBoxF(lx0,lz0,lx1,lz1,PAVE_Y,PAVE_Y+gH,rest,{tu:F.bays*HUB.BAY,tv:F.floors*HUB.FLOOR}); }
   /* parapet and coping, flat roof, chimney stack on the party wall */
@@ -163,7 +164,7 @@ function buildLot(L,BR,D,r,Z){ const [x0,z0,x1,z1]=BR, k=L.k, d=D[k], horiz=k===
   /* rear extension: one storey, half the width, roof you can climb onto from the garden */
   const ew=(horiz?lx1-lx0:lz1-lz0)*.5, ed=3.2, eh=2.55; let ex0,ez0,ex1,ez1;
   if(k==='n'){ ex0=lx0; ex1=lx0+ew; ez0=lz1; ez1=lz1+ed; } else if(k==='s'){ ex0=lx1-ew; ex1=lx1; ez0=lz0-ed; ez1=lz0; } else if(k==='w'){ ez0=lz0; ez1=lz0+ew; ex0=lx1; ex1=lx1+ed; } else { ez0=lz1-ew; ez1=lz1; ex0=lx0-ed; ex1=lx0; }
-  if(!L.corner){ eBoxF(ex0,ez0,ex1,ez1,PAVE_Y,PAVE_Y+eh,{n:mBrickW,s:mBrickW,e:mBrickW,w:mBrickW,t:mFelt},{tu:1.6,tv:1.5}); hsol(ex0,ez0,ex1,ez1,PAVE_Y+eh);
+  if(!L.corner){ EXT_TOPS.push([(ex0+ex1)/2,PAVE_Y+eh,(ez0+ez1)/2]); eBoxF(ex0,ez0,ex1,ez1,PAVE_Y,PAVE_Y+eh,{n:mBrickW,s:mBrickW,e:mBrickW,w:mBrickW,t:mFelt},{tu:1.6,tv:1.5}); hsol(ex0,ez0,ex1,ez1,PAVE_Y+eh);
     /* garden wall between this lot and the next, 7 m back */ const gw=1.8;
     if(k==='n') { eBoxF(lx1-.12,lz1,lx1+.12,lz1+7,PAVE_Y,PAVE_Y+gw,{e:mBrickW,w:mBrickW,t:mCope},{tu:1.6,tv:1.5}); hsol(lx1-.12,lz1,lx1+.12,lz1+7,PAVE_Y+gw); }
     if(k==='s') { eBoxF(lx1-.12,lz0-7,lx1+.12,lz0,PAVE_Y,PAVE_Y+gw,{e:mBrickW,w:mBrickW,t:mCope},{tu:1.6,tv:1.5}); hsol(lx1-.12,lz0-7,lx1+.12,lz0,PAVE_Y+gw); }
@@ -200,7 +201,7 @@ function groundPub(L,lx0,lz0,lx1,lz1,gH,fx,fz,U,out,fw,r){ const green=r()<.5, w
   const uv=atlasSign(green?'#14301e':'#3a1414','#f0d48a',L.pub,'ALES · LAGERS · SKY SPORTS',{face:'cond',lit:true,subC:'#e8d8b0'});
   eSign(uv,[fx+out[0]*.22,PAVE_Y+gH-.4,fz+out[2]*.22],U,fw-.2,.7);
   STREET_LIGHT.pl.push([[fx+out[0]*1.4,PAVE_Y+2.4,fz+out[2]*1.4],[1.3,.85,.45],8]); PUB_SPOTS.push([fx+out[0]*1.6,fz+out[2]*1.6,Math.atan2(out[0],out[2])]); }
-const PUB_SPOTS=[]; let LAST_TRADE='', LAST_NAME='';
+const PUB_SPOTS=[]; let LAST_TRADE='', LAST_NAME=''; const HOUSE_DOORS=[], HOUSE_NO={}, EXT_TOPS=[];
 
 /* ---------------- the viaducts: brick body, arches on both faces, bridges over the streets ---------------- */
 const ARCHT=(()=>{ const out=[]; for(let v=0;v<4;v++){ const r=hr(8400+v), w=5*PXM, h=7.4*PXM; const fill=['lock','shut','brick','lit'][v];

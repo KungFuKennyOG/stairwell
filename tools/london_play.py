@@ -19,7 +19,7 @@ window.__sim=function(pts,run,maxT,shots){ const L=window.__london,Gm=L.GAME,G=G
     P.y=Math.max(P.y,0); L.step(1/30); t+=1/30; const s=st(); if(s!==last){ log.push(t.toFixed(1)+'s '+P.x.toFixed(1)+','+P.z.toFixed(1)+' '+s); last=s; }
     if(G.line&&!log.includes('say '+G.line.text)) log.push('say '+G.line.text);
     if(shots&&shots.length&&t>=shots[0]) { shots.shift(); log.push('SHOT@'+t.toFixed(1)); return {log,pause:true,t}; }
-    if(G.result) { for(let k=0;k<20;k++) L.step(1/30); log.push('RESULT '+G.result); break; } }
+    if(G.phase==='leg2'&&!G.result){ log.push('RESULT done (arch 9; leg two open)'); break; } if(G.result) { for(let k=0;k<20;k++) L.step(1/30); log.push('RESULT '+G.result); break; } }
   return {log,t}; };
 """
 DEG=[[11.6,0.2],[2,0.4],[-5.6,0.6],{'wait':11},[-7.3,2.3],[-7.3,3.5],{'grab':1}]

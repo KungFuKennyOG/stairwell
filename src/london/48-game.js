@@ -109,7 +109,7 @@ const tMark=k=>P2(64,64,(g,w,h)=>{ g.clearRect(0,0,w,h); g.font=`bold 56px ${SAN
   g.fillStyle='#000'; g.fillText(k===3?'!':'?',w/2+3,h/2+5); g.fillStyle=k===3?'#ff3a28':k===2?'#ffd040':'#e8e2d4'; g.fillText(k===3?'!':'?',w/2,h/2+2); },0,1);
 const markM=[1,2,3].map(k=>M(tMark(k),{unlit:true,cut:true,double:true}));
 const COPS=[];
-function makeCop(id,post,patrol){ const C=CAST[id],m=mk(plane(.3,.3),markM[0],STREET); m.vis=false; m.dyn=true;
+function makeCop(id,post,patrol,Cx){ const C=Cx||CAST[id],m=mk(plane(.3,.3),markM[0],STREET); m.vis=false; m.dyn=true;
   const c={id,C,post,patrol,pi:0,wait:0,state:'post',sus:0,mark:m,hd:post[2],pos:[post[0],post[1]],E:null,seeT:0,target:null,searchT:0,speed:0,look:0};
   c.E={J:C.J,o:C.o,hd:c.hd,pos:c.pos,walkAmt:0,runAmt:0,hp:{legL:1,legR:1,armL:1,armR:1},wpnHeld:false,kind:'pc',aware:false};
   COPS.push(c); return c; }
@@ -146,7 +146,7 @@ function drawLabel(t,text){ const g=t.c.getContext('2d'),w=512,h=96; g.clearRect
 function labelFor(who){ if(!labels[who]){ const t=tLab(); const n=mk(plane(1.3,.244),M(t,{unlit:true,cut:true,double:true}),STREET); n.vis=false; n.dyn=true; labels[who]={t,n}; } return labels[who]; }
 function say(key,dur=3.2){ const [who,text]=LINES[key]; G.queue.push({who,text,dur}); }
 function sayNow(key,dur=3){ G.queue.length=0; G.line=null; say(key,dur); }
-function speakerHead(who){ if(who==='terry') return [LOCKUP.x,PAVE_Y+2.2,FZ-.2]; const C=CAST[who]; if(!C) return null; return v3.add(mulP(C.J.head.world,[0,0,0]),[0,.42,0]); }
+function speakerHead(who){ if(who==='terry') return [LOCKUP.x,PAVE_Y+2.2,FZ-.2]; if(who==='lenny'&&typeof LENNY!=='undefined'&&LENNY) return v3.add(mulP(LENNY.C.J.head.world,[0,0,0]),[0,.42,0]); if(who==='danny') return null; const C=CAST[who]; if(!C) return null; return v3.add(mulP(C.J.head.world,[0,0,0]),[0,.42,0]); }
 
 /* ---------- HUD (desktop HTML; in the headset, Danny's phone in the left hand) ---------- */
 const $g=id=>document.getElementById(id);
@@ -160,7 +160,7 @@ const tPhone=tex(256,448,'#0a0a0c',null);
 function drawPhone(){ const g=tPhone.c.getContext('2d'),w=256,h=448; R(g,'#0b0c10',0,0,w,h); R(g,'#c8231c',0,0,w,46); g.fillStyle='#fff'; g.font=`bold 24px ${TYPEF}`; g.textAlign='left'; g.fillText('DEGSY',14,32);
   g.fillStyle='#f0ece2'; g.font=`bold 22px ${TYPEF}`; const words=G.obj.split(' '); let ln='',y=90; for(const wd of words){ const tr=ln?ln+' '+wd:wd; if(g.measureText(tr).width>w-28&&ln){ g.fillText(ln,14,y); ln=wd; y+=30; } else ln=tr; } g.fillText(ln,14,y);
   g.font=`64px ${SANS}`; g.fillStyle=G.stars?'#ffd040':'#3a3a3a'; g.fillText('★',20,h-40); g.fillStyle=G.stars>1?'#ffd040':'#3a3a3a'; g.fillText('★',110,h-40);
-  g.font=`bold 18px ${TYPEF}`; g.fillStyle='#8a857a'; g.fillText((typeof todStr==='function'?todStr():'02:14')+'  E2',14,h-110); if(G.cash){ g.fillStyle='#7ad87a'; g.fillText('£'+G.cash+' found',140,h-110); } if(promptK){ g.fillStyle='#f0a23e'; g.font=`bold 22px ${TYPEF}`; g.fillText('A · '+(promptK==='climb'?'CLIMB':'VAULT'),14,h-140); } retex(tPhone); phoneDirty=false; }
+  g.font=`bold 18px ${TYPEF}`; g.fillStyle='#8a857a'; g.fillText((typeof todStr==='function'?todStr():'02:14')+'  E2',14,h-110); if(G.cash){ g.fillStyle='#7ad87a'; g.fillText('£'+G.cash+' found',140,h-110); } if(promptK){ g.fillStyle='#f0a23e'; g.font=`bold 22px ${TYPEF}`; g.fillText('A · '+(promptK==='climb'?'CLIMB':'VAULT'),14,h-140); } if(typeof phoneExtra==='function') phoneExtra(g,w,h); retex(tPhone); phoneDirty=false; }
 function buildHands(){ const skin=M(null,{color:0xc8906c}),sleeve=M(null,{color:0x111214});
   for(const s of ['left','right']){ const n=N(STREET); n.dyn=true; mk(box(.085,.1,.11),skin,n,0,0,.02); mk(box(.03,.05,.06),skin,n,(s==='left'?1:-1)*.05,.02,-.01); mk(cyl(.045,.05,.2,8),sleeve,n,0,-.01,.15,Math.PI/2); n.vis=false; HANDS[s]={n,M:m4.make(),pos:[0,0,0],grip:false,gripEdge:false}; }
   const ph=N(HANDS.left.n); mk(box(.075,.14,.01),col(0x111111),ph,0,0,0); mk(plane(.066,.116),M(tPhone,{unlit:true}),ph,0,0,.006); ph.p=[0,.07,-.02]; ph.r=[-.9,0,0]; }
@@ -186,6 +186,7 @@ function canSee(c){ const dx=P.x-c.pos[0],dz=P.z-c.pos[1],d=Math.hypot(dx,dz); i
   const fx=Math.sin(c.hd+c.look),fz=Math.cos(c.hd+c.look),cos=(dx*fx+dz*fz)/(d||1);
   if(d>2.2&&cos<Math.cos(1.05)) return false; return clearLine(c.pos[0],c.pos[1],P.x,P.z,P.y-floorY(P.x,P.z)>.6); }
 function copTick(c,dt){ if(frozen&&state.pick===c.id) return;
+  if(c.hub){ const far=Math.hypot(P.x-c.pos[0],P.z-c.pos[1]); c.C.node.vis=far<75; if(far>75&&c.state!=='chase'){ c.seeing=false; return; } }
   const sees=canSee(c), d=Math.hypot(P.x-c.pos[0],P.z-c.pos[1]); c.seeing=sees;
   let goal=null,speed=0,run=0;
   if(G.stars===0){
@@ -220,7 +221,7 @@ function copTick(c,dt){ if(frozen&&state.pick===c.id) return;
   const J=C.J; for(const k of JOINTS) if(J[k]&&C.base[k]) J[k].r=C.base[k].slice(); J.hips.p=[0,C.hy0,0];
   J.head.r=[J.head.r[0],J.head.r[1]+c.look,J.head.r[2]];
   if(c.sus>.2||c.state==='chase'){ const dx=P.x-c.pos[0],dz=P.z-c.pos[1],a=Math.atan2(dx,dz)-c.hd,w=Math.atan2(Math.sin(a),Math.cos(a)); J.head.r[1]=clamp(w,-1.1,1.1); }
-  gait(c.E,G.t,dt); skinUpdate(C);
+  gait(c.E,G.t,dt); if(!c.hub||((c.sk=(c.sk||0)+1)%(Math.hypot(P.x-c.pos[0],P.z-c.pos[1])>25?3:1)===0)) skinUpdate(C);
   /* the mark over the head */
   const k=G.stars>0&&c.state==='chase'?3:c.sus>.55?2:c.sus>.08?1:0; c.mark.vis=k>0&&!G.result; if(k) { c.mark.mesh.mats[0]=markM[k-1]; c.mark.mesh.runs=null; const hp=mulP(J.head.world,[0,0,0]); c.mark.p=[hp[0],hp[1]+.55+.04*Math.sin(G.t*6),hp[2]]; c.mark.r=[0,Math.atan2(P.x-hp[0],P.z-hp[2]),0]; const s=k===1?.6+.4*Math.min(1,c.sus*2):1; c.mark.s=[s,s,1]; }
 }
@@ -238,17 +239,17 @@ function jobTick(dt){ cashTick();
   if(G.phase==='meet'){ if(dDeg<9) bark('degsy','degsyWave',9); if(dDeg<2.6){ G.phase='brief'; G.queue=[]; G.line=null; say('d1',2.6); say('d2',4.4); say('d3',3.6); G.briefT=10.6; } }
   else if(G.phase==='brief'){ G.briefT-=dt; if(G.briefT<=0){ G.phase='getbag'; setObj('Grab the bag off the boot of Degsy\'s silver motor.'); } }
   if(G.phase==='getbag'&&G.hasBag){ G.phase='deliver'; say('dGo',2.6); setObj('Get the bag to Arch 9, under the railway bridge at the east end. Keep it away from the coppers. The estate round the back (Hollis House, or the gates at the west end) joins the back alley.'); }
-  if(G.phase==='deliver'&&!G.result){
+  if((G.phase==='deliver'||G.phase==='leg2')&&!G.result){
     const dL=Math.min(Math.hypot(P.x-LOCKUP.x,P.z-(FZ-.4)),Math.hypot(P.x-BACKDOOR.x,P.z-BACKDOOR.z)+.4);
-    if(dL<2.0){ if(G.stars===0) done(); else if(!G.said.has('terryNo')){ G.said.add('terryNo'); say('terryNo',3); } } else if(dL>4) G.said.delete('terryNo');
+    if(dL<2.0&&G.phase==='deliver'){ if(G.stars===0){ if(typeof leg2Start==='function') leg2Start(); else done(); } else if(!G.said.has('terryNo')){ G.said.add('terryNo'); say('terryNo',3); } } else if(dL>4) G.said.delete('terryNo');
     if(G.stars>0){ const seen=COPS.some(c=>c.seeing); G.chaseT=(G.chaseT||0)+dt;
       if(seen){ G.lostT=0; if(G.stars===1&&(P.running||G.chaseT>14)){ setStars(2); sayNow('run2',3); } }
-      else { G.lostT+=dt; if(G.lostT>(G.stars===1?5:8)){ setStars(0); for(const c of COPS){ c.sus=0; if(c.state==='chase'||c.state==='search'){ c.state='search'; c.searchT=3; } } say('lost',2.4); G.said.delete('search'); setObj('Lost \'em. Get the bag to Arch 9, under the railway bridge at the east end.'); } } }
+      else { G.lostT+=dt; if(G.lostT>(G.stars===1?5:8)){ setStars(0); for(const c of COPS){ c.sus=0; if(c.state==='chase'||c.state==='search'){ c.state='search'; c.searchT=3; } } say('lost',2.4); G.said.delete('search'); setObj(G.phase==='leg2'?G.goalText:'Lost \'em. Get the bag to Arch 9, under the railway bridge at the east end.'); } } }
     setObj(G.stars?(G.stars===1?'The Old Bill\'s onto you. Break their line of sight and lose them.':'Two coppers on your tail. Get out of sight and stay there.'):G.obj); }
   bark('maureen','maureen',2.8); bark('ali','ali',3.2); bark('piotr','piotr',2.6); bark('kwame','kwame',3.0);
 }
 function linesTick(dt){
-  if(!G.line&&G.queue.length){ G.line=G.queue.shift(); G.lineT=G.line.dur; const L=labelFor(G.line.who); drawLabel(L.t,G.line.text); const s=$g('gSub'); if(s){ const nm={degsy:'DEGSY',pcmale:'PC HUGHES',pcfem:'PC OKAFOR',terry:'TERRY (inside)',maureen:'MAUREEN',ali:'ALI',piotr:'PIOTR',kwame:'KWAME'}[G.line.who]||''; s.innerHTML=''; const b=document.createElement('b'); b.textContent=nm; s.append(b,document.createTextNode(' '+G.line.text)); s.hidden=false; } }
+  if(!G.line&&G.queue.length){ G.line=G.queue.shift(); G.lineT=G.line.dur; const L=labelFor(G.line.who); drawLabel(L.t,G.line.text); const s=$g('gSub'); if(s){ const nm={lenny:'LENNY',danny:'DANNY',degsy:'DEGSY',pcmale:'PC HUGHES',pcfem:'PC OKAFOR',terry:'TERRY (inside)',maureen:'MAUREEN',ali:'ALI',piotr:'PIOTR',kwame:'KWAME'}[G.line.who]||''; s.innerHTML=''; const b=document.createElement('b'); b.textContent=nm; s.append(b,document.createTextNode(' '+G.line.text)); s.hidden=false; } }
   for(const k in labels) labels[k].n.vis=false;
   if(G.line){ G.lineT-=dt; const L=labelFor(G.line.who),h=speakerHead(G.line.who); if(h){ L.n.vis=true; L.n.p=h; L.n.r=[0,Math.atan2(P.x-h[0],P.z-h[2]),0]; const k=clamp(Math.hypot(P.x-h[0],P.z-h[2])/2.6,1,2.4); L.n.s=[k,k,1]; }
     if(G.lineT<=0){ G.line=null; const s=$g('gSub'); if(s&&!G.queue.length) s.hidden=true; } }
@@ -531,5 +532,5 @@ let stepWorld=()=>{};
 function tick(dt){ if(!G.on) return; if(!G.xr) deskTick(dt); promptTick();
   G.t+=dt; if(G.result){ G.endT+=dt; linesTick(dt); return; }
   for(const c of COPS) copTick(c,dt); jobTick(dt); linesTick(dt); }
-return {phoneDirty:()=>{ phoneDirty=true; },sol,G,P,COPS,ACT,SOL,WALK,CASH,BLOCK,LOCKUP,START,setInput:(f,s_,run)=>{ TOUCH.stick=[s_,-f]; TOUCH.run=!!run; },start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
+return {phoneDirty:()=>{ phoneDirty=true; },say,sayNow,setObj,setStars,LINES,makeCop,copTick,sol,G,P,COPS,ACT,SOL,WALK,CASH,BLOCK,LOCKUP,START,setInput:(f,s_,run)=>{ TOUCH.stick=[s_,-f]; TOUCH.run=!!run; },start,reset,tick,enterVR,tryGrab,jump,bodyTick,canSee,clearLine,setStepWorld:f=>{ stepWorld=f; },setResume:f=>{ resumeDesk=f; },labels,done,busted,standable};
 })();
