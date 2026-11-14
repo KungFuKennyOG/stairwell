@@ -669,7 +669,7 @@ function setAware(E,why,at){ if(E.dead||E.ally) return; /* your own team never t
 function faceHold(E,f,t){ if(!E.dead) E.faceHold={f,t}; }
 /* fists and anything blunt: no wound to speak of, but it stuns, and enough to the head puts him out cold */
 const BLUNT={head:{stun:.75,daze:.42},neck:{stun:.85,daze:.22},chest:{stun:.4},belly:{stun:.62},thigh:{stun:.22},shin:{stun:.16},foot:{stun:.1},uarm:{stun:.15},farm:{stun:.12}};
-function hitBlunt(E,seg,point,dir,key,o){ const pw=o.power||1,B=BLUNT[key];
+function hitBlunt(E,seg,point,dir,key,o){ if(o.tier!=null) return melBlunt(E,seg,point,dir,key,o); /* your fists and clubs: by tier (81-melee.js); slams and falls below */ const pw=o.power||1,B=BLUNT[key];
   for(const i of [seg[0],seg[1]]) kickV(E.B,i,v3.sc(dir,1.9*pw),H); for(const i of [PI_.chest,PI_.neck,PI_.pelvis]) kickV(E.B,i,v3.sc(dir,.55*pw),H);
   if(key==='head') kickV(E.B,PI_.head,v3.add(v3.sc(dir,1.2*pw),[0,.4*pw,0]),H);
   E.stun=Math.min(1,E.stun+B.stun*pw); E.hitT=0; spray(point,v3.sc(dir,-1),3,1,.6,'dark',.008);
@@ -698,9 +698,9 @@ function hitEnemy(E,seg,point,dir,weapon,o={}){ protoEmit('enemyHit',E,seg,weapo
   let heart=false;
   if(key==='chest'||key==='belly'){ const B=E.B,ch=X_(B,PI_.chest),nk=X_(B,PI_.neck),Rs=frameFrom(X_(B,PI_.shL),X_(B,PI_.shR),ch,nk);
     const hp=v3.add(v3.add(ch,v3.sc(v3.sub(nk,ch),.3)),v3.add(v3.sc(Rs[0],.035),v3.sc(Rs[2],.02)));
-    const reach=weapon==='gun'?.45:.14,tt=clamp(v3.dot(v3.sub(hp,point),dir),0,reach),cl=v3.add(point,v3.sc(dir,tt));
-    heart=Math.hypot(...v3.sub(hp,cl))<(weapon==='gun'?.06:.075); }
-  const fatal=heart?'heart':weapon==='knife'&&key==='head'?'brain':weapon==='knife'&&key==='neck'?'throat':null; /* blades: the skull, the throat; chops too */
+    const reach=weapon==='gun'?.45:(o.reach??.14),tt=clamp(v3.dot(v3.sub(hp,point),dir),0,reach),cl=v3.add(point,v3.sc(dir,tt));
+    heart=!o.shallow&&Math.hypot(...v3.sub(hp,cl))<(weapon==='gun'?.06:.075); }
+  const fatal=heart?'heart':weapon==='knife'&&key==='head'&&!o.shallow&&!o.noBrain?'brain':weapon==='knife'&&key==='neck'&&!o.shallow?'throat':null; /* blades: the skull, the throat; chops too. o.shallow: a drawn nick; o.noBrain: a cut that didn't go through bone (81-melee.js) */
   /* the wound */
   if(fatal==='brain'){ E.headshot=true; spray(point,v3.sc(dir,-1),40,2.4,.6,'bright',.013); addWound(E,seg,point,dir,{rate:5,art:true,part:key,knife:true}); E.spurtT=.4; }
   else if(fatal){ /* heart or opened throat: he drops where he stands and is gone in a second or two */

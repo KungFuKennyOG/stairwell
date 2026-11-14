@@ -109,7 +109,7 @@ const UNITS_PROTO = `(()=>{ const R=window.__R,out=[],ok=(n,p,d)=>out.push([n,!!
 
 /* the bandage gesture in VR, with scripted head and hand matrices */
 const UNITS_WRAP = `(()=>{ const R=window.__R,out=[],ok=(n,p,d)=>out.push([n,!!p,d]); R.L.calm=true;
-  for(const E of enemies){ E.aware=false; E.atkCd=99; } XR.on=true; const eye=[PL.x,1.62,PL.z]; XR.head={f:[0,0,-1],r:[1,0,0],u:[0,1,0],eye}; PL.yaw=0; /* facing -z: right is +x */
+  for(const E of enemies){ E.aware=false; E.atkCd=99; } if(typeof CLN!=='undefined') CLN.callUntil=1e9; /* no grabs mid-test either (82-clinch.js ignores atkCd) */ XR.on=true; const eye=[PL.x,1.62,PL.z]; XR.head={f:[0,0,-1],r:[1,0,0],u:[0,1,0],eye}; PL.yaw=0; /* facing -z: right is +x */
   const at=p=>{ const m=m4.make(); m[12]=p[0]; m[13]=p[1]; m[14]=p[2]; return m; }, fistOff=p=>[p[0]-FIST[0],p[1]-FIST[1],p[2]-FIST[2]];
   /* run a circle of the strip hand round a centre, about an axis, at so many turns per second for so long; the other hand held still */
   function run(hand,c,ax,rad,tps,secs,other){ const b1=Math.abs(ax[0])<.9?norm3(v3.cross(ax,[1,0,0])):norm3(v3.cross(ax,[0,0,1])),b2=v3.cross(ax,b1);
