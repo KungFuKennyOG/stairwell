@@ -14,7 +14,7 @@ const DENY_LINES=['What— what is that?','Is that a gun?','What\'s happening?',
 const SHIELD_LINES=['Don\'t look, don\'t look—','Stay down— stay down—','I got you, I got you—','Not her— please—'];
 const FLEE_LINES=['Help! Somebody help!','He\'s got a gun!','Run! RUN!'];
 
-function psychOf(E){ if(!E.psych){ const r=Math.random(); E.psych=E.civ?'civ':PROTO.on?fightNerve(r):r<.35?'quit':r<.8?'fight':'fake'; } return E.psych; } /* prototype: the split by floor (84-fight.js) */
+function psychOf(E){ if(!E.psych){ const r=Math.random(); E.psych=E.civ?'civ':PROTO.on?(E.hunter?'fight':fightNerve(r)):r<.35?'quit':r<.8?'fight':'fake'; } return E.psych; } /* prototype: the split by floor (84-fight.js) */
 
 /* where your guns point */
 function playerAims(){ const out=[]; for(const h of [HANDS.R,HANDS.L]){ const it=h.item,w=it&&WPN[it.key]; if(!w||!w.gun) continue;

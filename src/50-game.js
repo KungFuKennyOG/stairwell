@@ -1223,6 +1223,7 @@ function renderWith(w,h,noUpd){
   const wob=XR.on?0:2; gl.uniform1f(u.uSnap,wob===2?1:wob===1?2.5:0); gl.uniform1f(u.uAffine,wob===2?1:wob===1?.15:0); gl.uniform2f(u.uRes,w,h); /* in a headset there is no vertex wobble and no texture warp, ever: both swim between the eyes. The PS1 look in VR is the low-res textures, the dither and the palette */
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
+  gl.uniform1i(u.uSpN,SPOT.n); if(SPOT.n){ gl.uniform3fv(u.uSpPos,SPOT.pos); gl.uniform3fv(u.uSpDir,SPOT.dir); gl.uniform3fv(u.uSpCol,SPOT.col); gl.uniform1fv(u.uSpRng,SPOT.rng); } /* flashlight cones (85-pfloor.js) */
   gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0);
   /* a level with a sky: draw the sky first, then everything else blends its last few metres of fog into it */
   const sky=FLOOR.sky&&inWorld(FLOOR.sky)?FLOOR.sky:null;

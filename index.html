@@ -619,10 +619,11 @@ uniform vec3 uPLPos[8]; uniform vec3 uPLCol[8]; uniform float uPLDist[8];
 uniform float uFogNear, uFogFar;
 in vec4 aRect; /* an atlas rectangle for a tiled texture (z>0), or, on the far field, the centre and radius of the tile it stands in for */
 uniform float uFar, uFarSwap; uniform vec3 uFarEye;
-out vec3 vAff; out vec3 vLight; out vec3 vView; out vec4 vRect;
+out vec3 vAff; out vec3 vLight; out vec3 vView; out vec4 vRect; out vec3 vW; out vec3 vN;
 void main(){
   vec4 wp = modelMatrix * vec4(position,1.0);
   vec3 n = normalize(mat3(modelMatrix) * normal);
+  vW = wp.xyz; vN = n; /* per pixel: the flashlight cones (FS) */
   vec3 L = uAmb + uDirCol * max(dot(n, normalize(uDirDir)), 0.0);
   if(uUnlit < 0.5) for(int i=0;i<8;i++){
     vec3 d = uPLPos[i] - wp.xyz; float dist = length(d);
@@ -644,7 +645,8 @@ const FS=`#version 300 es
 precision highp float;
 uniform sampler2D map; uniform float uHasMap, uCut;
 uniform vec3 uColor, uEmissive, uFogCol; uniform vec2 uRepeat; uniform float uNoFog, uFogNear, uFogFar, uSkyFade;
-in vec3 vAff; in vec3 vLight; in vec3 vView; in vec4 vRect;
+uniform vec3 uSpPos[2]; uniform vec3 uSpDir[2]; uniform vec3 uSpCol[2]; uniform float uSpRng[2]; uniform int uSpN; uniform float uUnlit;
+in vec3 vAff; in vec3 vLight; in vec3 vView; in vec4 vRect; in vec3 vW; in vec3 vN;
 out vec4 outColor;
 void main(){
   vec2 uv = vAff.xy / vAff.z * uRepeat;
@@ -652,6 +654,13 @@ void main(){
   vec4 t = uHasMap > 0.5 ? texture(map, uv) : vec4(1.0);
   if(uCut > 0.5 && t.a < 0.5) discard;
   vec3 c = t.rgb * uColor * vLight + t.rgb * uEmissive;
+  /* flashlights: up to two cones lit per pixel, a soft spill round a hot core, cut off where the beam meets a wall (uSpRng, from the CPU) */
+  if(uUnlit < 0.5) for(int i=0;i<2;i++){ if(i>=uSpN) break;
+    vec3 d = vW - uSpPos[i]; float dist = max(length(d), 1e-3); vec3 l = d / dist; float ca = dot(l, uSpDir[i]);
+    float cone = smoothstep(0.86, 0.95, ca) * 0.7 + smoothstep(0.955, 0.99, ca) * 0.55;
+    float nl = length(vN); float lam = nl > 1e-4 ? max(dot(vN / nl, -l), 0.0) : 1.0;
+    float fall = min(1.3, 1.8 / (1.0 + 0.1 * dist * dist)) * clamp((uSpRng[i] - dist) / 0.7, 0.0, 1.0);
+    c += t.rgb * uColor * uSpCol[i] * (cone * lam * fall); }
   float f = clamp((length(vView) - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0) * (1.0 - uNoFog); /* uNoFog: the sky and things in it (a backdrop past the fog) */
   /* uSkyFade: on a level with a sky, the last stretch of the fog dissolves into the sky already drawn behind (blended), instead of
      leaving a black cut-out that vanishes when it's culled */
@@ -690,7 +699,8 @@ function upload(g){ g.vao=gl.createVertexArray(); gl.bindVertexArray(g.vao); g.b
   const ib=gl.createBuffer(); g.bufs.push(ib); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(g.I),gl.STATIC_DRAW); gl.bindVertexArray(null); }
 function disposeTree(n){ if(n.mesh){ const g=n.mesh.geo; if(g.temp&&g.vao){ gl.deleteVertexArray(g.vao); for(const b of g.bufs) gl.deleteBuffer(b); g.vao=null; } } for(const k of n.kids) disposeTree(k); }
 const L={amb:[.1,.1,.1],dirDir:[0,1,0],dirCol:[0,0,0],plPos:new Float32Array(24),plCol:new Float32Array(24),plDist:new Float32Array([1,1,1,1,1,1,1,1]),fog:[0,0,0],fogNear:8,fogFar:30};
-function setLights(o){ L.amb=o.amb; L.dirDir=o.dir; L.dirCol=o.dirCol; L.fog=o.fog; L.fogNear=o.fogNear; L.fogFar=o.fogFar; L.plPos.fill(0); L.plCol.fill(0); L.plDist.fill(1);
+const SPOT={n:0,pos:new Float32Array(6),dir:new Float32Array(6),col:new Float32Array(6),rng:new Float32Array([1,1])}; /* flashlight cones, per pixel (85-pfloor.js fills them) */
+function setLights(o){ SPOT.n=0; L.amb=o.amb; L.dirDir=o.dir; L.dirCol=o.dirCol; L.fog=o.fog; L.fogNear=o.fogNear; L.fogFar=o.fogFar; L.plPos.fill(0); L.plCol.fill(0); L.plDist.fill(1);
   o.pl.forEach((pl,i)=>{ L.plPos.set(pl[0],i*3); L.plCol.set(pl[1],i*3); L.plDist[i]=pl[2]; }); }
 let fb=null,fbTex=null,fbDepth=null,fbW=0,fbH=0;
 function ensureFB(w,h){ if(w===fbW&&h===fbH) return; fbW=w; fbH=h;
@@ -739,6 +749,7 @@ function renderScene(root,eye,target,w,h,snapRes){
   gl.uniform1f(u.uSnap,state.ps1&&state.snap?1:0); gl.uniform1f(u.uAffine,state.ps1&&state.affine?1:0); gl.uniform2f(u.uRes,snapRes[0],snapRes[1]);
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
+  gl.uniform1i(u.uSpN,SPOT.n); if(SPOT.n){ gl.uniform3fv(u.uSpPos,SPOT.pos); gl.uniform3fv(u.uSpDir,SPOT.dir); gl.uniform3fv(u.uSpCol,SPOT.col); gl.uniform1fv(u.uSpRng,SPOT.rng); }
   gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0); if(u.uSkyFade) gl.uniform1f(u.uSkyFade,0);
   drawTree(root); gl.bindVertexArray(null); }
 
@@ -6387,6 +6398,7 @@ function renderWith(w,h,noUpd){
   const wob=XR.on?0:2; gl.uniform1f(u.uSnap,wob===2?1:wob===1?2.5:0); gl.uniform1f(u.uAffine,wob===2?1:wob===1?.15:0); gl.uniform2f(u.uRes,w,h); /* in a headset there is no vertex wobble and no texture warp, ever: both swim between the eyes. The PS1 look in VR is the low-res textures, the dither and the palette */
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
+  gl.uniform1i(u.uSpN,SPOT.n); if(SPOT.n){ gl.uniform3fv(u.uSpPos,SPOT.pos); gl.uniform3fv(u.uSpDir,SPOT.dir); gl.uniform3fv(u.uSpCol,SPOT.col); gl.uniform1fv(u.uSpRng,SPOT.rng); } /* flashlight cones (85-pfloor.js) */
   gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0);
   /* a level with a sky: draw the sky first, then everything else blends its last few metres of fog into it */
   const sky=FLOOR.sky&&inWorld(FLOOR.sky)?FLOOR.sky:null;
@@ -9198,7 +9210,7 @@ const DENY_LINES=['What— what is that?','Is that a gun?','What\'s happening?',
 const SHIELD_LINES=['Don\'t look, don\'t look—','Stay down— stay down—','I got you, I got you—','Not her— please—'];
 const FLEE_LINES=['Help! Somebody help!','He\'s got a gun!','Run! RUN!'];
 
-function psychOf(E){ if(!E.psych){ const r=Math.random(); E.psych=E.civ?'civ':PROTO.on?fightNerve(r):r<.35?'quit':r<.8?'fight':'fake'; } return E.psych; } /* prototype: the split by floor (84-fight.js) */
+function psychOf(E){ if(!E.psych){ const r=Math.random(); E.psych=E.civ?'civ':PROTO.on?(E.hunter?'fight':fightNerve(r)):r<.35?'quit':r<.8?'fight':'fake'; } return E.psych; } /* prototype: the split by floor (84-fight.js) */
 
 /* where your guns point */
 function playerAims(){ const out=[]; for(const h of [HANDS.R,HANDS.L]){ const it=h.item,w=it&&WPN[it.key]; if(!w||!w.gun) continue;
@@ -12452,13 +12464,20 @@ function pfLightAnim(l,t){ const k=l.kind; if(k==='flick'){ const on=(Math.sin(t
   if(k==='candle') return .82+.1*Math.sin(t*9.7+l.t0)+.08*Math.sin(t*23.1);
   if(k==='exit') return .92+.08*Math.sin(t*3.1+l.t0);
   if(k==='neon'){ const ph=(t*.23)%2; if(Math.sin(t*1.9+l.t0)>.97&&Math.sin(t*61)>0) return .15; return ph<1?1:-1; } return 1; }
+/* a flashlight's cone (10-engine.js lights it per pixel): from the hunt's aim (83-hunt.js torchPos/torchDir) or the way he faces; its reach stops
+   half a metre past the first wall or furniture it meets, so it never lights the next room. And a light on his gun you can see */
+function pfTorchCone(E,k){ const o=E.torchPos&&E.torchDir&&E.torchDir.length===3?E.torchPos:[E.pos[0]+Math.sin(E.hd)*.25,1.25,E.pos[1]+Math.cos(E.hd)*.25];
+  const d=E.torchDir&&E.torchDir.length===3?E.torchDir:norm3([Math.sin(E.hd),-.18,Math.cos(E.hd)]),h=rayBoxes(o,d,9,null,true);
+  SPOT.pos.set(o,k*3); SPOT.dir.set(d,k*3); SPOT.col.set([1.0,.96,.84],k*3); SPOT.rng[k]=h?Math.min(9,h.t+.5):9;
+  if(!E.pfTorch&&E.C&&E.C.wpn){ const t=N(E.C.wpn,0,-.042,.075,Math.PI/2,0,0); mk(cyl(.017,.015,.11,6),[mBlack,M(null,{color:0xfff4d6,unlit:true}),mBlack],t); E.pfTorch=t; } }
 function pfLightsTick(dt){ const e=camBasis().eye,t=GAME.t,K=Math.min(7,pnum('pfloor','roomSlots',7)); let slot=0;
   const tor=[]; for(const E of enemies){ if(!E.torchOn||E.dead) continue; const d=Math.hypot(E.pos[0]-e[0],E.pos[1]-e[2]); if(d<18) tor.push([d,E]); } tor.sort((a,b)=>a[0]-b[0]);
-  for(const [,E] of tor.slice(0,2)){ let q,y=1.0; const o=E.torchPos,d3=E.torchDir;
+  let sk=0; for(const [,E] of tor.slice(0,2)){ let q,y=1.0; const o=E.torchPos,d3=E.torchDir; pfTorchCone(E,sk++);
     if(o&&d3&&d3.length===3){ const r=E.torchSpot?1.1:1.9; q=[o[0]+d3[0]*r,o[2]+d3[2]*r]; y=Math.max(.35,o[1]+d3[1]*r+.2); } /* the hunt's beam (83-hunt.js): a 3D aim, low into a hiding spot */
     else { const f=d3||[Math.sin(E.hd),Math.cos(E.hd)],a=pnum('pfloor','torchAhead',1.9); q=E.torchP?[E.torchP[0],E.torchP[2]]:[E.pos[0]+f[0]*a,E.pos[1]+f[1]*a]; }
     pushOutXZ(q,.1,'body');
-    L.plPos.set([q[0],y,q[1]],slot*3); L.plCol.set([1.25,1.2,1.05],slot*3); L.plDist[slot]=pnum('pfloor','torchR',4.4); slot++; }
+    L.plPos.set([q[0],y,q[1]],slot*3); L.plCol.set([.5,.48,.42],slot*3); L.plDist[slot]=pnum('pfloor','torchR',4.4); slot++; } SPOT.n=sk; /* the cone does the lighting; the point light is its bounce */
+  for(const E of enemies) if(E.pfTorch) E.pfTorch.vis=!!E.torchOn&&!E.dead&&!!E.wpnHeld;
   const pr=PF.room,open=PF.exit&&PF.exit.open,C=[];
   for(const l of PF.lights){ if(l.kind==='stairs'&&!open){ l.want=0; } else { const d=Math.hypot(l.p[0]-e[0],l.p[2]-e[2]); l.s=d-l.d*.7-(pr&&l.room&&pfRoomsApart(pr,l.room)<=1?4:0); C.push(l); } }
   C.sort((a,b)=>a.s-b.s); const n=K-slot; C.forEach((l,i)=>{ l.want=i<n?1:0; });
