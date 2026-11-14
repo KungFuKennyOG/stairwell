@@ -1131,7 +1131,7 @@ function resetGame(){
   for(const D of FLOOR.doors) if(D.state==='open'&&D.u.doorState==='closed') setDoor(D,'closed',true);
   /* desk testing starts armed; in VR you start with your fists and walk to the rack */
   equip(HANDS.R,XR.on||FLOOR.camp?null:newItem('pistol')); equip(HANDS.L,XR.on||FLOOR.camp?null:newItem('knife')); /* the campaign starts with fists everywhere */
-  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='motel') motelReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); protoEmit('reset'); } /* the first room always starts with its three tenants */
+  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='motel') motelReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); else if(FLOOR.mode==='proto') pfReset(); protoEmit('reset'); } /* the first room always starts with its three tenants */
 /* dying restarts the level you're on, with whatever you carried into it (GAME.kit, set when a level is entered by its shaft or ladder) */
 function restartLevel(){ resetGame(); const k=GAME.kit; if(k&&k.mode===FLOOR.mode){ equip(HANDS.R,k.R?newItem(k.R):null); equip(HANDS.L,k.L?newItem(k.L):null); } if(XR.on) vrRecenter(); }
 /* into the next level with what's in your hands */
