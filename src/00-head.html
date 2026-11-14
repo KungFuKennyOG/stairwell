@@ -58,7 +58,17 @@ body{background:var(--bg);color:var(--ink);font-family:var(--mono);overflow:hidd
 .lvlrow{margin:10px 0 12px}.lvlrow .btn[aria-pressed="true"]{background:var(--sodium);color:#0a0a0a;border-color:var(--sodium)}
 .startrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
 .vrnote{font-size:11.5px!important;color:var(--muted)!important}
-#start{font:900 22px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;color:#0a0a0a;background:var(--sodium);border:0;padding:14px;cursor:pointer}
+#start,#pAgain{font:900 22px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;color:#0a0a0a;background:var(--sodium);border:0;padding:14px;cursor:pointer}
+/* the floor 01 prototype (?proto=1, 89-shell.js): its own lines on the card, no bullet time button, no test panel */
+.protoBtn{border-color:var(--sodium);color:var(--sodium);padding:12px;font-size:12px}
+body:not(.proto) .protoshow{display:none!important}
+body.proto .protohide,body.proto #bSlowT,body.proto #bSlow,body.proto #testPanel{display:none!important}
+#pDeath{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);margin:0;font:900 clamp(34px,7vw,58px)/1 var(--display);letter-spacing:.04em;text-transform:uppercase;color:var(--ink);text-shadow:0 2px 0 #000,0 0 14px #000;pointer-events:none;white-space:nowrap}
+#pEnd{position:fixed;inset:0;display:flex;flex-direction:column;overflow:auto;padding:16px;pointer-events:auto}
+#pEnd .card{width:min(440px,100%);margin:auto;gap:12px}
+#pEndH{margin:0;font-family:var(--display);font-weight:900;font-size:42px;line-height:.9;text-transform:uppercase}
+#pEndS dd{color:var(--ink);font-variant-numeric:tabular-nums}
+body.pend #lockHint{display:none!important}
 .touchonly{display:none}
 body.touch .touchonly{display:grid}
 body.touch .deskonly{display:none}
@@ -113,22 +123,32 @@ body.touch #testPanel .tp-keys{display:none}
 </div>
 <section id="intro" aria-label="Start">
   <div class="card">
-    <p class="kick">Puerto Seco · the tower · the lobby and floors 1–3</p>
+    <p class="kick protohide">Puerto Seco · the tower · the lobby and 15 floors</p>
+    <p class="kick protoshow">Puerto Seco · the tower · floor 01 prototype</p>
     <h1>Stair<span>well</span></h1>
     <p>Six of you went into the tower after the Landlord. The tip was a setup. Ray wakes up in the lobby among his team, with Novak's pistol, and climbs. One floor at a time, taking whatever the men upstairs have. They live here. Listen before you go in.</p>
-    <div class="startrow lvlrow" id="lvlRow" role="group" aria-label="Where to start">
+    <p class="protoshow">The prototype: floor 01, rebuilt. You're hurt, and they know a sixth man got away. Two of them walk the floor with flashlights. The stairs up are chained; something on the floor opens them. Hide when the lights come. If they find you, it's at arm's length.</p>
+    <div class="startrow lvlrow protohide" id="lvlRow" role="group" aria-label="Where to start">
       <button class="btn" type="button" data-lvl="motel" aria-pressed="false">The motel</button>
       <button class="btn" type="button" data-lvl="test" aria-pressed="false">Test levels</button>
     </div>
-    <dl class="keys deskonly"><dt>WASD · mouse</dt><dd>Move · look (click to capture)</dd><dt>1-9 · V</dt><dd>Fists, bottle, knife, machete, .38, 9mm, shotgun, MP5, 9mm suppressor · screw a suppressor on or off the 9mm, MP5 or shotgun</dd><dt>Click</dt><dd>Fire or swing (hold for the MP5)</dd><dt>F · E · Q</dt><dd>Knife in the left hand · kick · throw what you hold</dd><dt>R · T · N</dt><dd>Reload · bullet time · goggles (up, night vision, thermal)</dd></dl>
-    <dl class="keys touchonly"><dt>Left thumb</dt><dd>Move</dd><dt>Right side drag</dt><dd>Look</dd><dt>Buttons</dt><dd>Shoot, stab, kick, reload, slow-mo</dd></dl>
+    <div class="startrow protohide"><button class="btn protoBtn" id="protoBtn" type="button">Floor 01 prototype</button></div>
+    <p class="vrnote protohide">New: floor 01 rebuilt as a horror floor. You're hunted, you hide, and it ends at arm's length. One floor, made for the Quest.</p>
+    <dl class="keys deskonly protohide"><dt>WASD · mouse</dt><dd>Move · look (click to capture)</dd><dt>1-9 · V</dt><dd>Fists, bottle, knife, machete, .38, 9mm, shotgun, MP5, 9mm suppressor · screw a suppressor on or off the 9mm, MP5 or shotgun</dd><dt>Click</dt><dd>Fire or swing (hold for the MP5)</dd><dt>F · E · Q</dt><dd>Knife in the left hand · kick · throw what you hold</dd><dt>R · T · N</dt><dd>Reload · bullet time · goggles (up, night vision, thermal)</dd></dl>
+    <dl class="keys deskonly protoshow"><dt>WASD · mouse</dt><dd>Move · look (click to capture)</dd><dt>Click</dt><dd>Fire or swing</dd><dt>R</dt><dd>Reload</dd><dt>F · E · Q</dt><dd>Knife in the left hand · kick · throw what you hold</dd><dt>H</dt><dd>Shout</dd></dl>
+    <dl class="keys touchonly"><dt>Left thumb</dt><dd>Move</dd><dt>Right side drag</dt><dd>Look</dd><dt>Buttons</dt><dd>Shoot, stab, kick, reload<span class="protohide">, slow-mo</span></dd></dl>
     <div class="startrow"><button id="start" type="button">Start</button><button id="vrBtn" type="button" hidden>Play in VR</button></div>
-    <div class="startrow"><button class="btn" id="micBtn" type="button" aria-pressed="false">Allow mic</button></div>
-    <p class="vrnote">Mic: talk and the men close by hear a voice; shout and everyone knows where you are, but the people who can see you do what they're told (hands up, get down, stop). Whispering is silent. The bar under the FPS on your left wrist shows your level. Flat screen: H shouts.</p>
-    <p class="vrnote">You leave the lobby with Novak's pistol; the men upstairs have the rest (a shotgun on 02, an MP5 on 03). Grip grabs a weapon off a table, the floor or a body, or grabs a man (collar, wrist, neck from behind); grip again drops or throws. Trigger fires; point a gun at the floor for half a second to reload it (A/X works too), B/Y kicks. Punch and cut by actually swinging. Step onto the east landing to go up a floor (it fades straight there); the game saves on the stairs, and dying puts you back at the start of the floor. Left stick moves, click it for bullet time; right stick turns, click it for sharpness. Your frame rate is on your left wrist. Test levels: the stash house, tunnel and warehouse, with the rack and the spawn board.</p>
+    <div class="startrow"><button class="btn" id="micBtn" type="button" aria-pressed="false">Allow mic</button><button class="btn protoshow" id="protoBack" type="button">Back to the 15 floors</button></div>
+    <p class="vrnote protohide">Mic: talk and the men close by hear a voice; shout and everyone knows where you are, but the people who can see you do what they're told (hands up, get down, stop). Whispering is silent. The bar under the FPS on your left wrist shows your level. Flat screen: H shouts.</p>
+    <p class="vrnote protohide">You leave the lobby with Novak's pistol; the men upstairs have the rest (a shotgun on 02, an MP5 on 03). Grip grabs a weapon off a table, the floor or a body, or grabs a man (collar, wrist, neck from behind); grip again drops or throws. Trigger fires; point a gun at the floor for half a second to reload it (A/X works too), B/Y kicks. Punch and cut by actually swinging. Step onto the east landing to go up a floor (it fades straight there); the game saves on the stairs, and dying puts you back at the start of the floor. Left stick moves, click it for bullet time; right stick turns, click it for sharpness. Your frame rate is on your left wrist. Test levels: the stash house, tunnel and warehouse, with the rack and the spawn board.</p>
+    <dl class="keys protoshow"><dt>Grip</dt><dd>Grab a weapon, a body or a man; again to drop or throw</dd><dt>Trigger</dt><dd>Fire</dd><dt>A / X</dt><dd>Tap to reload. Hold to count the rounds by feel</dd><dt>B / Y</dt><dd>Kick</dd><dt>Left stick</dt><dd>Move. Click to crouch</dd><dt>Right stick</dt><dd>Turn. Click for sharpness</dd><dt>Swing</dt><dd>Punch and cut by actually swinging</dd></dl>
+    <p class="vrnote protoshow">No bullet time. Health doesn't come back. Ammo is what you find. The mic is optional: whispering is silent, talking carries a few metres, a shout brings them. Dying puts you back at the stairs. Your frame rate is on your left wrist.</p>
   </div>
 </section>
 <section id="msg" hidden aria-live="polite"><div class="card"><h2 id="msgH"></h2><p id="msgP"></p><button class="btn" id="msgReset" type="button">Reset the floor</button></div></section>
+<p id="pDeath" hidden aria-live="assertive"></p>
+<section id="pEnd" hidden aria-live="polite"><div class="card"><p class="kick" id="pEndK">Floor 01 prototype</p><h2 id="pEndH"></h2><dl class="keys" id="pEndS"></dl>
+  <div class="startrow"><button id="pAgain" type="button">Play again</button><button class="btn" id="pBack" type="button">Back to the 15 floors</button></div></div></section>
 <p id="err" hidden></p>
 
 <script>
