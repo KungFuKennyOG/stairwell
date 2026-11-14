@@ -117,24 +117,96 @@ window.__D=(function(){
     const sx=PL.x,sz=PL.z; if(o.dark){ PL.x=sx+2.5; PL.z=1.3; }
     while(GAME.t-t0<o.secs){ step(); const d=Math.hypot(H.pos[0]-PL.x,H.pos[1]-PL.z); if(d<minD){ minD=d; arr=GAME.t-t0; } if(H.aware&&aw==null){ aw=+(GAME.t-t0).toFixed(0); } }
     return {floor:FLOOR.def.n,hunter:H.name,kind:H.kind,spawnLit:lit(PL.x,PL.z),sawYouAt:aw,closest:+minD.toFixed(1),closestAt:+arr.toFixed(0),calls:L.barks.filter(b=>b[1]===H.name).map(b=>[+(b[0]-t0).toFixed(0),b[2]]).slice(0,8),routePts:H.hunter.pts.length,othersAware:enemies.filter(E=>E!==H&&E.aware&&!E.civ).length}; }
-  return {duel,detect,fight,siege,body,surr,level,hunter,step,L,lit};
+
+  /* ---- the hunt (83-hunt.js; ?proto=1). Shared: hunt events on a log, Ray made unseeable for the timing tests ---- */
+  const HE=[]; if(typeof protoOn==='function'){ protoOn('huntStart',r=>HE.push(['start',+GAME.t.toFixed(1),r])); protoOn('huntEnd',()=>HE.push(['end',+GAME.t.toFixed(1)])); }
+  const men=()=>enemies.filter(E=>!E.civ&&!E.ally);
+  const found=()=>men().find(E=>!E.dead&&E.aware&&E.canSee);
+  const hstate=()=>typeof HUNT!=='undefined'?HUNT.state:'-';
+  function shootDown(){ PL.pitch=-1.2; const b=camBasis(); const r=fireHand(HANDS.R,{o:b.eye,d:b.f}); PL.pitch=0; return r; }
+  /* stand still in the dark after one unsuppressed shot: how long until one of them is looking at you? */
+  function darkshot(o){ reset(); L.god=true; HE.length=0; equip(HANDS.R,newItem('pistol')); PL.x=o.at[0]; PL.z=o.at[1]; PL.yaw=o.yaw||0; for(let k=0;k<30;k++) step();
+    const t0=GAME.t,lit=__D.lit(PL.x,PL.z); shootDown(); let fT=null,who=null,how=null;
+    while(GAME.t-t0<(o.secs||45)){ step(); const F=found(); if(F){ fT=+(GAME.t-t0).toFixed(1); who=F.name; how=(F.torchOn?'torch ':'')+(F.hLit?'lit':'dark')+' '+Math.hypot(F.pos[0]-PL.x,F.pos[1]-PL.z).toFixed(1)+'m'; break; } }
+    return {at:o.at,lit,foundAt:fT,who,how,state:hstate(),hunts:HE.slice()}; }
+  /* hunt length and breathers: one shot, then Ray can't be seen (a stub for the hiding system); more noise in the breather */
+  function cycle(o){ reset(); L.god=true; HE.length=0; window.rayConcealment=()=>0; equip(HANDS.R,newItem('pistol')); PL.x=o.at[0]; PL.z=o.at[1]; for(let k=0;k<30;k++) step();
+    const t0=GAME.t; shootDown(); const shots=[0]; let endN=0,lastEnd=null,nextShot=null; const snaps=[];
+    while(GAME.t-t0<o.secs){ step(); const t=GAME.t-t0, ends=HE.filter(h=>h[0]==='end');
+      if(ends.length>endN){ endN=ends.length; lastEnd=t; nextShot=t+(o.after||10); }
+      if(nextShot!=null&&t>=nextShot){ nextShot=null; shootDown(); shots.push(+t.toFixed(1)); }
+      if(Math.floor(t)%5===0&&Math.floor(t)!==(snaps.length?snaps[snaps.length-1].t:-1)) snaps.push({t:Math.floor(t),s:hstate(),idle:men().filter(E=>!E.dead&&E.st==='idle').length}); }
+    delete window.rayConcealment;
+    const H=HE.map(h=>[h[0],+(h[1]-t0).toFixed(1),h[2]||'']),runs=[]; let cur=null; for(const h of H){ if(h[0]==='start') cur={start:h[1],why:h[2]}; else if(cur){ cur.len=+(h[1]-cur.start).toFixed(1); cur.end=h[1]; runs.push(cur); cur=null; } } if(cur) runs.push(cur);
+    const gaps=runs.slice(1).map((r,i)=>({gap:+(r.start-runs[i].end).toFixed(1),why:r.why}));
+    return {runs,gaps,shots,log:typeof HUNT!=='undefined'?HUNT.log.filter(l=>l.ev!=='alert'&&l.ev!=='probe').slice(0,40):null}; }
+  /* a body is found: from then on, is any man ever idle at his post? */
+  function idle(o){ reset(); L.god=true; HE.length=0; window.rayConcealment=()=>0; PL.x=o.hide[0]; PL.z=o.hide[1]; for(let k=0;k<30;k++) step();
+    const V=enemies.find(E=>E.name===o.victim); V.headshot=true; const t0=GAME.t; let bodyT=null; const per={},still={};
+    while(GAME.t-t0<o.secs){ step(); const t=GAME.t-t0; if(bodyT==null&&typeof HUNT!=='undefined'&&HUNT.body) bodyT=+t.toFixed(1);
+      if(bodyT!=null) for(const E of men()){ if(E.dead||E.st==='down'||E.st==='kneel') continue; const P=per[E.name]||(per[E.name]={idle:0,maxStill:0,jobs:new Set()});
+        if(E.st==='idle'&&!E.aware) P.idle+=dt; if(E.hj) P.jobs.add(E.hj.k); if(E.aware) P.jobs.add('aware');
+        const S=still[E.name]||(still[E.name]={p:E.pos.slice(),t:t}); if(Math.hypot(E.pos[0]-S.p[0],E.pos[1]-S.p[1])>.6){ S.p=E.pos.slice(); S.t=t; } P.maxStill=Math.max(P.maxStill,t-S.t); } }
+    delete window.rayConcealment;
+    return {victim:o.victim,bodyFoundAt:bodyT,hunts:HE.map(h=>[h[0],+(h[1]-t0).toFixed(1),h[2]||'']),per:Object.fromEntries(Object.entries(per).map(([k,v])=>[k,{idleS:+v.idle.toFixed(1),maxStillS:+v.maxStill.toFixed(1),jobs:[...v.jobs].join('/')}]))}; }
+  /* walk at a calm man's face in the dark: is there a warning first? */
+  function face(o){ reset(); L.god=true; HE.length=0; equip(HANDS.R,null); const sg=o.ex>0?1:-1; /* he stands at ex looking back toward the middle; you come from the middle */
+    const E=solo('gunman',o.ex,0,(o.behind?1:-1)*sg*Math.PI/2); PL.x=FLOOR.start.x; PL.z=FLOOR.start.z; PL.yaw=-sg*Math.PI/2; PL.pitch=0; for(let k=0;k<20;k++) step();
+    PL.x=o.ex-sg*o.from; PL.z=0; step(); E.pm=0; const t0=GAME.t; let warn=null,spot=null,warnHow=null; L.barks.length=0;
+    while(GAME.t-t0<25){ const d=(E.pos[0]-PL.x)*sg; if(d>(o.stop||.6)){ if(o.slow) stick.dy=-o.slow; else KEYS.KeyW=true; } else { KEYS.KeyW=false; stick.dy=0; }
+      step(); const t=+(GAME.t-t0).toFixed(2),gap=+((E.pos[0]-PL.x)*sg).toFixed(1);
+      if(warn==null&&((E.pm||0)>.15||E.hj||E.hReact>0||E.mind&&E.mind!=='calm'||L.barks.length)){ warn={t,gap}; warnHow=L.barks.length?L.barks[0][2]:E.hj?E.hj.k:(E.pm>.15?'meter':E.mind); }
+      if(E.aware){ spot={t,gap}; break; } }
+    KEYS.KeyW=false; stick.dy=0; return {ex:o.ex,slow:o.slow||1,behind:!!o.behind,lit:__D.lit(E.pos[0],E.pos[1]),warn,warnHow,spot,lead:warn&&spot?+(spot.t-warn.t).toFixed(2):null}; }
+  /* the meter's timings: one man, Ray standing in his view, by state and distance (Ray lit by a stub for the far cases) */
+  function meter(o){ reset(); L.god=true; equip(HANDS.R,null); const E=solo('gunman',o.ex,0,-Math.PI/2); PL.x=o.ex-o.dist; PL.z=0; PL.yaw=Math.PI/2;
+    if(typeof HUNT!=='undefined'){ HUNT.state=o.state||'calm'; HUNT.t=999; HUNT.len=999; HUNT.t0=GAME.t; HUNT.lkp=[o.ex,0]; HUNT.lkpT=GAME.t; } const _l=window.huntLitAt; if(o.lit&&typeof huntLitAt==='function'){ window.__litStub=true; huntLitAt=()=>true; }
+    const _cb=camBasis; if(o.peek){ camBasis=function(){ const b=_cb(); return Object.assign({},b,{eye:[b.eye[0],b.eye[1],b.eye[2]]}); }; }
+    for(let k=0;k<3;k++) step(); E.pm=0; E.spotT=0; const t0=GAME.t; let full=null,heads=null;
+    if(o.peek&&typeof huntSight==='function'){ const _hs=huntSight; huntSight=function(E_,d,B){ const r=_hs(E_,d,B); if(r&&E_===E) E_.hLos=1; return r; }; }
+    while(GAME.t-t0<8){ PL.x=o.ex-o.dist; PL.z=0; step(); if(E.aware){ full=+(GAME.t-t0).toFixed(2); break; } }
+    return {state:o.state||'calm',dist:o.dist,lit:!!o.lit,peek:!!o.peek,spottedAfter:full}; }
+  /* cost: senses() and the hunt's own tick, per frame, nine people, during a hunt */
+  function cost(o){ reset(); L.god=true; window.rayConcealment=()=>0; equip(HANDS.R,newItem('pistol')); PL.x=o.at[0]; PL.z=o.at[1]; for(let k=0;k<30;k++) step(); shootDown();
+    let tS=0,tH=0,tU=0,n=0; const _s=senses; senses=function(){ const a=performance.now(); const r=_s.apply(this,arguments); tS+=performance.now()-a; return r; };
+    const _h=typeof huntTick==='function'?huntTick:null; if(_h) huntTick=function(){ const a=performance.now(); const r=_h.apply(this,arguments); tH+=performance.now()-a; return r; };
+    for(let k=0;k<30*o.secs;k++){ const a=performance.now(); step(); tU+=performance.now()-a; n++; }
+    senses=_s; if(_h) huntTick=_h; delete window.rayConcealment;
+    return {frames:n,people:enemies.length,state:hstate(),sensesMs:+(tS/n).toFixed(3),huntTickMs:+(tH/n).toFixed(3),bothMs:+((tS+tH)/n).toFixed(3),wholeUpdateMs:+(tU/n).toFixed(2)}; }
+  /* hiding spot checks: a hunt starts near a bed Ray was seen getting into (a stand-in for the hiding system: PL.hide set, Ray at its centre) */
+  function hidecheck(o){ reset(); L.god=true; HE.length=0; window.rayConcealment=()=>0; equip(HANDS.R,newItem('pistol'));
+    const S=huntHides().filter(s=>s.kind===o.kind).sort((a,b)=>Math.hypot(a.x-o.near[0],a.z-o.near[1])-Math.hypot(b.x-o.near[0],b.z-o.near[1]))[0]; if(!S) return {err:'no spot'};
+    PL.x=S.x; PL.z=S.z; for(let k=0;k<30;k++) step(); if(o.seen){ HUNT.lastSeen={t:GAME.t,x:PL.x,z:PL.z}; } PL.hide=S; step();
+    const t0=GAME.t; huntAlert('shot',huntApproach(S,[S.x,0]),1); let caught=null; const probes=[];
+    while(GAME.t-t0<o.secs){ step(); for(const l of HUNT.log) if(l.ev==='probe'&&l.t>=t0&&!l._seen){ l._seen=true; probes.push([+(l.t-t0).toFixed(1),l.by,l.kind,l.caught]); if(l.caught&&caught==null) caught=+(l.t-t0).toFixed(1); } if(caught!=null) break; }
+    delete window.rayConcealment; PL.hide=null;
+    return {kind:o.kind,seenIn:!!o.seen,spotAt:[+S.x.toFixed(1),+S.z.toFixed(1)],caughtAt:caught,probes:probes.slice(0,8)}; }
+  return {duel,detect,fight,siege,body,surr,level,hunter,darkshot,cycle,idle,face,meter,cost,hidecheck,step,L,lit};
 })();`;
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'] });
+  const browser = await chromium.launch({ timeout: 180000, executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'] });
   const errs = [];
   const fresh = async f => { const page = await browser.newPage({ viewport: { width: 640, height: 360 } }); page.on('pageerror', e => errs.push('f' + f + ' ' + String(e).slice(0, 200)));
-    await page.goto(game + '?f=' + f); await page.waitForTimeout(350); await page.click('#start'); await page.waitForTimeout(250); await page.evaluate(s => window.__eval(s), CORE); return page; };
+    await page.goto(game + '?f=' + f + (args.q ? '&' + args.q : ''), { timeout: 180000 }); await page.waitForTimeout(350); await page.click('#start'); await page.waitForTimeout(250); await page.evaluate(s => window.__eval(s), CORE); return page; };
   const run = async (f, fn, a) => { const p = await fresh(f); const r = await p.evaluate(([fn, a]) => { try { return window.__D[fn](a); } catch (e) { return { ERR: String(e.stack).slice(0, 400) }; } }, [fn, a]); await p.close(); console.log(JSON.stringify(r)); return r; };
+  const F0 = args.f || 3;
   if (test === 'duel') { for (const lit of [true, false]) for (const kind of ['gunman', 'enforcer', 'doorman', 'landlord', 'corner', 'cutter']) for (const dist of [3, 6, 10]) await run(3, 'duel', { kind, dist, lit, secs: 60 }); }
-  else if (test === 'detect') { for (const a of [{}, { lit: true }, { behind: true }, { behind: true, lit: true }, { slow: .5 }, { behind: true, slow: .5 }, { stop: 3 }, { stop: 2.5, lit: true }, { stop: 1.5, behind: true }]) for (let r = 0; r < 2; r++) await run(3, 'detect', a); }
+  else if (test === 'detect') { for (const a of [{}, { lit: true }, { behind: true }, { behind: true, lit: true }, { slow: .5 }, { behind: true, slow: .5 }, { stop: 3 }, { stop: 2.5, lit: true }, { stop: 1.5, behind: true }]) for (let r = 0; r < (args.runs || 2); r++) await run(F0, 'detect', a); }
   else if (test === 'fight') { const [a, b] = (args.floors || '1-15').split('-').map(Number); for (let f = a; f <= b; f++) for (let r = 0; r < (args.runs || 2); r++) { const p = await fresh(f); if (args.wpn) await p.evaluate(([k, s]) => window.__eval(`equip(HANDS.R,newItem('${k}',undefined,${s}))`), [args.wpn, !!args.sup]);
       const res = await p.evaluate(a => window.__D.fight(a), { maxT: 300, sigma: args.sigma ?? 3, react: args.react ?? .6, gap: args.gap ?? .3 }); await p.close(); console.log(JSON.stringify(res)); } }
   else if (test === 'siege') { for (const f of args.floors || [3, 7, 10, 12]) for (const where of ['mid', 'start']) await run(f, 'siege', where === 'mid' ? { at: [0, 0], hide: [-9, 0] } : { at: [-8, 0], hide: [-16.2, -.45] }); }
-  else if (test === 'body') { for (let r = 0; r < 3; r++) await run(3, 'body', { secs: 70 }); }
+  else if (test === 'body') { for (let r = 0; r < (args.runs || 3); r++) await run(F0, 'body', { secs: args.secs || 70 }); }
   else if (test === 'surr') { for (const psych of ['quit', 'fake', 'fight']) for (const a of [{ dist: 3, hold: 2, turn: false }, { dist: 3, hold: 2, turn: true }, { dist: 7, hold: 2, turn: true }]) for (let r = 0; r < 2; r++) await run(3, 'surr', Object.assign({ psych, secs: 40 }, a)); }
   else if (test === 'level') { for (let f = 1; f <= 15; f++) await run(f, 'level'); }
-  else if (test === 'hunter') { for (const f of [1, 2, 4, 7, 14]) for (const dark of [false, true]) await run(f, 'hunter', { secs: 150, dark }); }
+  else if (test === 'hunter') { for (const f of args.floors || [1, 2, 4, 7, 14]) for (const dark of [false, true]) await run(f, 'hunter', { secs: 150, dark }); }
+  else if (test === 'darkshot') { for (const at of args.ats || [[6, 0], [5, -3.5], [8, 3.5], [-12, 0], [12.5, -3.5]]) for (let r = 0; r < (args.runs || 1); r++) await run(F0, 'darkshot', { at, secs: args.secs || 45 }); }
+  else if (test === 'cycle') { for (let r = 0; r < (args.runs || 1); r++) await run(F0, 'cycle', { at: args.at || [-12, -0.4], secs: args.secs || 330, after: args.after || 10 }); }
+  else if (test === 'idle') { for (const v of args.victims || ['Rui', 'Dani']) await run(F0, 'idle', { victim: v, hide: args.hide || [12.5, -3.5], secs: args.secs || 240 }); }
+  else if (test === 'face') { for (const a of [{ ex: 12, from: 7 }, { ex: 12, from: 7, slow: .5 }, { ex: 8, from: 7 }, { ex: 12, from: 7, behind: true, slow: .5 }, { ex: 12, from: 7, behind: true }]) for (let r = 0; r < (args.runs || 2); r++) await run(F0, 'face', a); }
+  else if (test === 'meter') { for (const a of [{ state: 'calm', dist: 5, lit: true }, { state: 'edge', dist: 5, lit: true }, { state: 'hunting', dist: 5, lit: true }, { state: 'calm', dist: 1.6 }, { state: 'calm', dist: 12, lit: true }, { state: 'calm', dist: 5, lit: true, peek: true }, { state: 'calm', dist: 4 }, { state: 'edge', dist: 2.6 }]) await run(F0, 'meter', Object.assign({ ex: 8 }, a)); }
+  else if (test === 'cost') { await run(F0, 'cost', { at: args.at || [-12, -0.4], secs: args.secs || 40 }); }
+  else if (test === 'hidecheck') { for (const a of [{ kind: 'bed', near: [-8.5, -5], seen: true }, { kind: 'wardrobe', near: [-5, -5.6], seen: true }, { kind: 'bed', near: [-8.5, -5], seen: false }]) await run(F0, 'hidecheck', Object.assign({ secs: 60 }, a)); }
   if (errs.length) console.log('ERRORS', JSON.stringify(errs.slice(0, 8)));
   await browser.close();
 })();
