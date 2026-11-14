@@ -85,7 +85,9 @@ window.__RIG=(function(){
     for(const h of hands){ equip(h,null); park(h); }
     for(let i=0;i<40;i++) frame(); return E; }
   /* a hand out of the way, low by Ray's side */
-  function park(h){ const M=fromCols([0,0,1],[0,1,0],[-1,0,0],[PL.x-.1,.7,PL.z+(h===HANDS.R?.35:-.35)]); h.M.set(M); if(typeof melSnap==='function') melSnap(h); h.prevPts=null; h.cd=0; }
+  function park(h){ const M=fromCols([0,0,1],[0,1,0],[-1,0,0],[PL.x-.1,.7,PL.z+(h===HANDS.R?.35:-.35)]); h.M.set(M); tele(h); h.prevPts=null; h.cd=0; }
+  /* the rig moves a hand instantly; a real one never does: don't let the jump count as hand speed */
+  function tele(h){ if(typeof melSnap==='function') melSnap(h); h.prevPos=null; h.vel=[0,0,0]; }
   function bodyFrame(E){ const B=E.B,P=n=>X_(B,PI_[n]),fw=[Math.sin(E.hd),0,Math.cos(E.hd)],up=nrm(sub(P('neck'),P('pelvis'))),rt=nrm(sub(P('shR'),P('shL'))); return {P,fw,up,rt}; }
   const mid=(a,b,k)=>add(a,sc(sub(b,a),k));
   function target(E,part){ const {P,fw,up,rt}=bodyFrame(E);
@@ -95,8 +97,11 @@ window.__RIG=(function(){
   const PART_OK={head:['head','neck'],jaw:['head','neck'],neck:['neck','head'],chest:['chest'],belly:['belly'],uarm:['uarm'],farm:['farm'],thigh:['thigh']};
   /* --- weapons: the striking spot in item space, and how each swing type holds it --- */
   const STRIKE={ fists:{blunt:[0,-.035,-.008],lead:.05}, knife:{edge:[0,-.012,.15],tip:[0,-.004,.23],lead:.02}, bottle:{edge:[0,0,.16],tip:[0,0,.2],lead:.04},
-    machete:{edge:[0,-.035,.3],tip:[0,-.012,.43],lead:.012}, pistol:{butt:[0,-.085,-.03],side:[0,.045,.06],tip:[0,.045,.15],lead:.015} };
-  const TYPES={ fists:['jab','hook','upper'], knife:['slash','chop','thrust'], bottle:['slash','chop','thrust'], machete:['slash','chop','thrust'], pistol:['butt','side','jab'] };
+    machete:{edge:[0,-.035,.3],tip:[0,-.012,.43],lead:.012}, pistol:{butt:[0,-.085,-.03],side:[0,.045,.06],tip:[0,.045,.15],lead:.015},
+    /* the props agent's items (87-props.js): -y is the striking side, the pan's cooking face is +x */
+    pan:{face:[0,0,.217],edge:[-.02,-.12,.217],lead:.005}, hammer:{edge:[-.024,-.056,.215],lead:.003}, pipe:{edge:[-.019,-.017,.45],lead:.003}, cutter:{edge:[-.024,-.025,.47],lead:.003} };
+  const TYPES={ fists:['jab','hook','upper'], knife:['slash','chop','thrust'], bottle:['slash','chop','thrust'], machete:['slash','chop','thrust'], pistol:['butt','side','jab'],
+    pan:['face','edge'], hammer:['slash','chop'], pipe:['slash','chop'], cutter:['slash','chop'] };
   /* the swing: direction at contact D, the item's axes [X,Y,Z], which spot leads, straight or an arc */
   function swingSpec(E,w,type,part){ const {fw,up,rt}=bodyFrame(E),inn=sc(fw,-1),S=STRIKE[w];
     const low=part==='thigh',lowish=part==='belly';
@@ -105,6 +110,7 @@ window.__RIG=(function(){
     if(w==='fists'){ spot=S.blunt; D=type==='jab'?(low?nrm(add(inn,sc(up,-.45))):lowish?nrm(add(inn,sc(up,-.15))):inn):type==='hook'?across:(part==='head'||part==='jaw'||part==='neck'?upc:down); Z=D; Y=perp(Math.abs(dot(D,up))>.9?inn:up,Z); arc=type!=='jab'; }
     else if(w==='pistol'){ if(type==='butt'){ spot=S.butt; D=down; Y=sc(D,-1); Z=perp(inn,Y); } else if(type==='side'){ spot=S.side; D=across; Z=perp(inn,D); Y=cross(Z,D); /* X = D: the side of the slide leads */ }
       else { spot=S.tip; lead=0; D=low?nrm(add(inn,sc(up,-.45))):lowish?nrm(add(inn,sc(up,-.15))):inn; Z=D; Y=perp(up,Z); arc=false; } }
+    else if(w==='pan'&&type==='face'){ spot=S.face; D=across; Z=perp(inn,D); Y=cross(Z,D); } /* X = D: the face leads */
     else { if(type==='thrust'){ spot=S.tip; lead=0; D=low?nrm(add(inn,sc(up,-.45))):lowish?nrm(add(inn,sc(up,-.15))):inn; Z=D; Y=perp(up,Z); arc=false; }
       else { spot=S.edge; D=type==='slash'?across:down; Y=sc(D,-1); Z=perp(type==='slash'?up:inn,Y); } }
     const X=cross(Y,Z); return {D,R:[X,Y,Z],spot,arc,lead}; }
@@ -119,7 +125,7 @@ window.__RIG=(function(){
   function itemPose(R,spot,P){ const [X,Y,Z]=R; return fromCols(X,Y,Z,sub(P,add(sc(X,spot[0]),add(sc(Y,spot[1]),sc(Z,spot[2]))))); }
   function swing(h,E,spec,S0,v,prof,o={}){ const {spot}=spec,pre=o.pre??.32,post=o.post??.16,at=pathOf(spec,S0);
     if(o.miss){ const poses=[]; for(let s=-pre;s<=(o.stop??post)+1e-6;s+=.02){ const q=at(s); poses.push(itemPose(q.R,spot,q.P)); } const tc=performance.now(); LASTCL=clearance(E,h,poses); TM.cl+=performance.now()-tc; }
-    let s=-pre; { const q=at(s); placeItem(h,q.R,spot,q.P); } if(typeof melSnap==='function') melSnap(h); h.prevPts=null; h.cd=0; h.bumpCd=0;
+    let s=-pre; { const q=at(s); placeItem(h,q.R,spot,q.P); } tele(h); h.prevPts=null; h.cd=0; h.bumpCd=0;
     for(let i=0;i<6;i++) frame(); /* settle at the start */
     LOG=[]; SWING=true; let n=0,end=o.stop??post;
     VHIST=[0,0,0];
@@ -135,7 +141,7 @@ window.__RIG=(function(){
   const tierOf=v=>v<1.5?0:v<3.5?1:v<6?2:3;
   /* ---- registration sweep ---- */
   function reg(q){ DRY=true; deaf=true; if(NEW) PROTO.melee.dry=true; const E=fresh('gunman'); const h=HANDS.R,rows=[],miss=[];
-    const W=q?['fists','knife','machete','pistol']:['fists','knife','bottle','machete','pistol'],SP=q?[1,1.5,4,8]:[1,1.5,2.5,4,6,8],PARTS=['head','jaw','neck','chest','belly','uarm','farm','thigh'],PROF=q?['pull']:['steady','pull'];
+    const W=(q?['fists','knife','machete','pistol']:['fists','knife','bottle','machete','pistol']).concat(WPN.pan&&!q?['pan','hammer','pipe','cutter']:[]),SP=q?[1,1.5,4,8]:[1,1.5,2.5,4,6,8],PARTS=['head','jaw','neck','chest','belly','uarm','farm','thigh'],PROF=q?['pull']:['steady','pull'];
     for(const w of W){ equip(h,w==='fists'?null:newItem(w)); park(h); for(let i=0;i<6;i++) frame();
       for(const part of PARTS) for(const type of TYPES[w]) for(const prof of PROF) for(const v of SP){
         const spec=swingSpec(E,w,type,part),T=target(E,part),hit=surface(E,T,spec.D); if(!hit){ rows.push({w,part,type,prof,v,skip:'no surface'}); continue; }
@@ -180,7 +186,54 @@ window.__RIG=(function(){
     return {men:enemies.length,dry,real,skinBuildMs:tb}; }
   function one(w,part,type,prof,v){ DRY=true; deaf=true; if(NEW){ PROTO.melee.dry=true; PROTO.melee.debug=true; } const E=fresh('gunman'),h=HANDS.R; equip(h,w==='fists'?null:newItem(w)); park(h); for(let i=0;i<6;i++) frame();
     const spec=swingSpec(E,w,type,part),T=target(E,part),hit=surface(E,T,spec.D); const L=swing(h,E,spec,hit.p,v,prof); DRY=false; deaf=false; if(NEW){ PROTO.melee.dry=false; PROTO.melee.debug=false; } return L; }
-  return {reg,tierCase,perf,one,NEW};
+  /* ---- the things a registration count can't show: weight, aim, the stop, stamina, grab-and-stab, stab depth, flat screen ---- */
+  function feel(){ const out={}; deaf=true; DRY=false; let E=fresh('gunman'); const h=HANDS.R,fist=()=>mulP(h.node?(()=>{ const L=m4.make(); m4.compose(L,h.node.p,h.node.r,[1,1,1]); return L; })():h.M,FIST),real=()=>mulP(h.M,FIST);
+    /* weight: steady 4 m/s through the air, how far the hand you see trails the real one */
+    out.lag={}; const away=[PL.x-.2,1.2,PL.z+.9];
+    for(const w of ['fists','knife','bottle','machete','pistol','pan','hammer','pipe','cutter']){ if(!WPN[w]) continue; equip(h,w==='fists'?null:newItem(w)); park(h); for(let i=0;i<4;i++) frame();
+      const Z=[1,0,0],Y=[0,1,0],X=cross(Y,Z); let gap=0,gapSlow=0; for(const [v,key] of [[4,'fast'],[1.2,'slow']]){ h.M.set(fromCols(X,Y,Z,add(away,[0,0,-.5]))); tele(h); for(let i=0;i<4;i++) frame();
+        for(let f=0;f<Math.round(.7/v/DT);f++){ h.M.set(fromCols(X,Y,Z,add(away,[0,0,-.5+v*DT*(f+1)]))); frame(); const g=Math.hypot(...sub(fist(),real())); if(key==='fast') gap=Math.max(gap,g); else gapSlow=Math.max(gapSlow,g); } }
+      out.lag[w]={at4:+(gap*100).toFixed(1),at1_2:+(gapSlow*100).toFixed(1)}; }
+    /* the stop: a hard jab to the chest, how long the fist you see stays put while the real one goes on */
+    equip(h,null); park(h); for(let i=0;i<4;i++) frame(); E=fresh('gunman'); DRY=true; if(NEW) PROTO.melee.dry=true;
+    { const spec=swingSpec(E,'fists','jab','chest'),hit=surface(E,target(E,'chest'),spec.D),at=pathOf(spec,hit.p); let s=-.3; placeItem(h,at(s).R,spec.spot,at(s).P); tele(h); for(let i=0;i<6;i++) frame();
+      LOG=[]; SWING=true; let held=0,prevF=null,after=-1,gapMax=0; for(let f=0;f<40;f++){ s+=4*DT; const q=at(s); placeItem(h,q.R,spec.spot,q.P); frame(); const F=fist();
+        if(after<0&&LOG.length) after=0; else if(after>=0){ after++; if(prevF&&Math.hypot(...sub(F,prevF))<.002&&held===after-1) held++; gapMax=Math.max(gapMax,Math.hypot(...sub(F,real()))); } prevF=F; if(s>.25) break; }
+      SWING=false; out.stop={heldFrames:held,heldMs:Math.round(held*DT*1000),gapCm:+(gapMax*100).toFixed(1),contact:LOG.length?LOG[0].tier:null}; }
+    DRY=false; if(NEW) PROTO.melee.dry=false;
+    /* gun aim: a pistol moved slowly stays exactly on the hand; swung hard it gets weight */
+    equip(h,newItem('pistol')); park(h); for(let i=0;i<4;i++) frame();
+    { const gaps={}; for(const v of [1.5,2.5,5]){ const Z=[1,0,0],Y=[0,1,0],X=cross(Y,Z); h.M.set(fromCols(X,Y,Z,add(away,[0,0,-.5]))); tele(h); for(let i=0;i<6;i++) frame(); let g=0;
+        for(let f=0;f<Math.round(.5/v/DT);f++){ h.M.set(fromCols(X,Y,Z,add(away,[0,0,-.5+v*DT*(f+1)]))); h.vel=[0,0,v]; frame(); h.vel=[0,0,v]; g=Math.max(g,Math.hypot(...sub(fist(),real()))); } gaps[v+'m/s']=+(g*100).toFixed(1); } out.gunGapCm=gaps; }
+    /* stamina (prototype only): ten hard swings in the air, then rest */
+    if(NEW){ const was=PROTO.on; PROTO.on=true; equip(h,newItem('machete')); park(h); for(let i=0;i<4;i++) frame(); const S=h.mv; S.stam=1; const st=[];
+      for(let i=0;i<20;i++) frame(); S.stam=1; /* hand still: no swing in progress */
+      for(let k=0;k<10;k++){ for(let f=0;f<16;f++){ const z=f<6?f*.09:.45; h.M.set(fromCols([0,0,-1],[0,1,0],[1,0,0],add(away,[0,0,z-.2]))); if(f===0){ h.prevPos=null; h.vel=[0,0,0]; } frame(); } st.push(+S.stam.toFixed(2)); } /* 6 m/s for 6 frames, then still */
+      const lagTired=(()=>{ const P=melTaus(h,WPN.machete,S); return +(P[0]*1000).toFixed(1); })();
+      for(let f=0;f<Math.round(3/DT);f++){ h.vel=[0,0,0]; frame(); } const after3=+S.stam.toFixed(2); S.stam=1; const lagFresh=+(melTaus(h,WPN.machete,S)[0]*1000).toFixed(1);
+      out.stamina={afterEachSwing:st,after3sRest:after3,machetLagMs_tired:lagTired,machetLagMs_fresh:lagFresh}; PROTO.on=was; }
+    /* grab and stab: the left hand holds his collar, the right comes in with a knife at a speed that would only push */
+    { E=fresh('gunman'); equip(h,newItem('knife')); park(h); for(let i=0;i<6;i++) frame(); const L=HANDS.L,nk=X_(E.B,PI_.neck); L.M.set(fromCols([0,0,-1],[0,1,0],[1,0,0],sub(nk,FIST))); setLocal(L.node,m4.make(),L.M);
+      const g=grabTarget(mulP(L.M,FIST),.3); if(g) startGrab(L,g); for(let i=0;i<6;i++){ L.M.set(fromCols([0,0,-1],[0,1,0],[1,0,0],sub(X_(E.B,PI_.neck),FIST))); frame(); }
+      const spec=swingSpec(E,'knife','slash','chest'),hit=surface(E,target(E,'chest'),spec.D); const Lg=hit?swing(h,E,spec,hit.p,1.0,'steady'):[];
+      out.grabStab={grabbed:!!L.grab,contact:Lg.map(x=>x.tier+':'+x.kind+'@'+(+x.speed).toFixed(1)).join(' '),wounds:E.wounds.length};
+      const sp2=swingSpec(E,'knife','thrust','belly'),h2=surface(E,target(E,'belly'),sp2.D); park(h); for(let i=0;i<6;i++){ L.M.set(fromCols([0,0,-1],[0,1,0],[1,0,0],sub(X_(E.B,PI_.neck),FIST))); frame(); }
+      const L2=h2?swing(h,E,sp2,h2.p,.8,'steady',{post:.04}):[]; out.grabStab.slowThrust=L2.map(x=>x.tier+':'+x.kind+'@'+(+x.speed).toFixed(1)).join(' ')+(h.stuck?' (stuck)':'');
+      if(L.grab) endGrab(L.grab); equip(h,null); }
+    /* stab depth: a thrust that sticks, then the hand keeps pushing along the blade */
+    { E=fresh('gunman'); equip(h,newItem('knife')); park(h); for(let i=0;i<6;i++) frame(); const spec=swingSpec(E,'knife','thrust','belly'),hit=surface(E,target(E,'belly'),spec.D),at=pathOf(spec,hit.p);
+      let s=-.3; placeItem(h,at(s).R,spec.spot,at(s).P); tele(h); for(let i=0;i<6;i++) frame(); LOG=[]; SWING=true;
+      while(s<.02&&!h.stuck){ s+=3*DT; const q=at(s); placeItem(h,q.R,spec.spot,q.P); frame(); } SWING=false; const w0=E.wounds.length,d0=h.stuck?h.stuck.depth:null;
+      for(let f=0;f<30&&h.stuck;f++){ s+=.4*DT; const q=at(s); placeItem(h,q.R,spec.spot,q.P); frame(); }
+      out.depth={stuck:!!h.stuck,depthStart:d0&&+d0.toFixed(3),depthEnd:h.stuck&&+h.stuck.depth.toFixed(3),full:!!(h.stuck&&h.stuck.full),woundsBefore:w0,woundsAfter:E.wounds.length,dead:E.dead||E.dieT!=null};
+      for(let f=0;f<20&&h.stuck;f++){ s-=1.6*DT; const q=at(s); placeItem(h,q.R,spec.spot,q.P); frame(); } out.depth.rippedOutAfterPull=!h.stuck; equip(h,null); }
+    /* flat screen: right hand, fists, click twice at his head */
+    { E=fresh('gunman'); XR.on=false; equip(HANDS.R,null); const hd=X_(E.B,PI_.head); window.__game.aimAt(hd); const ev=[]; const lst=(hh,EE,o)=>ev.push(o.tier); 
+      const _mh=melHit; let tiers=[]; melHit=function(hh,EE,seg,p,dir,speed,bone,o){ tiers.push(melTier(speed)); return _mh.apply(this,arguments); };
+      for(let k=0;k<2;k++){ HANDS.R.cd=0; window.__game.aimAt(X_(E.B,PI_.head)); flatSwing(HANDS.R); for(let i=0;i<30;i++){ PL.hp=100; update(DT,performance.now()); updateWorld(world,null); runQ(); } }
+      melHit=_mh; for(let i=0;i<60;i++){ update(DT,performance.now()); updateWorld(world,null); runQ(); } out.flat={tiers,down:E.st==='down'}; XR.on=true; }
+    deaf=false; return out; }
+  return {reg,tierCase,perf,one,feel,NEW};
 })();`;
 
 const TIER_CASES = [
@@ -216,6 +269,14 @@ const TIER_CASES = [
   const NEW = await p.evaluate(() => window.__RIG.NEW);
   const out = { new: NEW };
   console.log('melee rig on', path.basename(process.argv[2] || 'index.html'), NEW ? '(new melee)' : '(old melee)');
+  if ((mode === 'feel' || mode === 'all') && NEW) { const r = await p.evaluate(() => window.__RIG.feel()); out.feel = r;
+    console.log('\nFEEL'); console.log('  lag, cm the hand you see trails the real one (steady 4 m/s | 1.2 m/s): ' + Object.entries(r.lag).map(([k, v]) => `${k} ${v.at4}|${v.at1_2}`).join(', '));
+    console.log(`  pistol, cm off the real hand moved at 1.5 / 2.5 / 5 m/s: ${JSON.stringify(r.gunGapCm)} (aiming stays 1:1 below 3 m/s)`);
+    console.log(`  weapon stop on a 4 m/s jab to the chest: tier ${r.stop.contact}, fist held still ${r.stop.heldFrames} frames (${r.stop.heldMs} ms), real hand up to ${r.stop.gapCm} cm on before it catches up`);
+    if (r.stamina) console.log(`  stamina (prototype): after each of 10 hard swings ${r.stamina.afterEachSwing.join(' ')}; after 3 s rest ${r.stamina.after3sRest}; machete lag ${r.stamina.machetLagMs_fresh} ms fresh, ${r.stamina.machetLagMs_tired} ms tired`);
+    console.log(`  grab and stab: collar held ${r.grabStab.grabbed}; a 1 m/s knife slash (a push on its own) -> ${r.grabStab.contact || 'none'}, wounds ${r.grabStab.wounds}; a 0.8 m/s thrust -> ${r.grabStab.slowThrust || 'none'}`);
+    console.log(`  stab depth: stuck ${r.depth.stuck}, depth ${r.depth.depthStart} -> ${r.depth.depthEnd} m pushing on, full wound ${r.depth.full}, wounds ${r.depth.woundsBefore} -> ${r.depth.woundsAfter}, fatal ${r.depth.dead}; pulled back hard: ripped out ${r.depth.rippedOutAfterPull}`);
+    console.log(`  flat screen, two clicks at his head with fists: tiers ${r.flat.tiers.join(',')}, down ${r.flat.down}`); }
   if (mode === 'one') { const a = JSON.parse(process.argv[4]); console.log(JSON.stringify(await p.evaluate(a => window.__RIG.one(...a), a))); }
   if (mode === 'reg' || mode === 'all') {
     const t0 = Date.now(); const R = await p.evaluate(q => window.__RIG.reg(q), quick); out.reg = R;

@@ -9,9 +9,13 @@
 
    Item fields, read for ANY WPN entry (the props agent's pan, hammer, pipe work by carrying them):
      mass   kg; drives the lag. Guns carry a low "club" mass (feel over realism, as Saints & Sinners does).
-     strike [{a,b,r,kind,n}] capsules in item space (+z out of the grip). kind 'edge' cuts when it lands edge-first
-            (n = the way the edge faces, item space; no n = sharp all round, like broken glass), 'point' stabs when it
-            goes in point-first (r is the enlarged tip zone, sideways), 'blunt' hits. No strike: a blunt capsule along pts.
+     strike [{a,b,r,kind,n}] capsules in item space (+z out of the grip, -y the striking side). kind 'edge' cuts when it
+            lands edge-first (n = the way the edge faces; no n = sharp all round, like broken glass), 'point' stabs when it
+            goes in point-first (n = the thrust direction, default +z; r is the enlarged tip zone, sideways), 'blunt' hits
+            (n = the striking face's normal; a wide one, r 6 cm or more, is treated as a flat disc across n, like a pan's
+            face). No strike: a blunt capsule along pts.
+     tool   items that aren't weapons (keys, first-aid tin, rounds, cloth) hit like a fist and weigh nothing in the hand;
+            the bolt cutter is the exception: a heavy club.
    Events: protoEmit('melee', h, E, {tier, speed, part, kind:'blunt'|'cut'|'stab'|'slice'|'push', weapon, grabbed, p})
            for every contact, applied or not.
    For the enemy-fight agent: E.winded = seconds his next attack is slowed by body blows (decays 1/s), E.openT = GAME.t
@@ -24,9 +28,10 @@ PROTO.melee={
   headKO:4, koWin:4,         /* two head hits at or over headKO within koWin s put him down */
   stagWin:3,                 /* two staggers within this many seconds put him down */
   stop:[.06,.09],            /* the weapon holds on him this long: light item .. heavy item (s) */
-  tau0:.003, tauK:.022,      /* positional lag (s of lag at a steady speed) = tau0 + tauK*mass^1.5 */
+  tau0:.003, tauK:.016,      /* positional lag (s of lag at a steady speed) = tau0 + tauK*mass^1.5: at 4 m/s a knife trails ~1.5 cm,
+                                a machete ~4, the pan ~9, the pipe ~13 */
   rot0:.005, rotK:1.3,       /* rotation lag time = rot0 + rotK*mass*(half length)^2 */
-  tauMax:.04, rotMax:.08,
+  tauMax:.035, rotMax:.08,
   twoHand:.5,                /* both hands on it: lag x this */
   clubV:3,                   /* a one-handed gun swung faster than this (m/s) turns into a club with weight; slower, it aims 1:1 */
   edgeCos:.82, flatCos:.57,  /* edge within ~35 deg of the motion cuts, past ~55 deg it's the flat (blunt) */
@@ -52,19 +57,21 @@ for(const k in MEL_ITEMS){ const w=WPN[k]; if(!w) continue; if(w.mass===undefine
 function melStrikes(w){ if(w._caps&&w._capsOf===w.strike) return w._caps; let L=w.strike;
   if(!L){ const P=w.gun?(w.bash&&w.bash.pts)||[[0,0,0]]:w.pts||[[0,0,0]]; L=[{a:P[0],b:P[P.length-1],r:w.melee==='knife'?.02:.03,kind:w.melee==='knife'?'edge':'blunt'}]; }
   w._capsOf=w.strike; return w._caps=L.filter(c=>c.kind==='point').concat(L.filter(c=>c.kind!=='point')); } /* points first: a thrust is judged by its tip */
-const melMass=w=>w.mass!==undefined?w.mass:w.gun?.5:w.melee?.4:0;
+const melMass=w=>w.tool&&w.tool!=='cutter'?0:w.mass!==undefined?w.mass:w.gun?.5:w.melee?.4:0; /* tools hit like a fist */
 function melLen(w){ if(w._len!==undefined) return w._len; let L=.05; for(const c of melStrikes(w)) for(const p of [c.a,c.b]) L=Math.max(L,Math.hypot(p[0],p[1],p[2])); return w._len=L; }
 
 /* ---------- per-hand state ---------- */
 function melState(h){ return h.mv||(h.mv={node:null,p:null,v:[0,0,0],q:null,lp:null,V:m4.make(),IW:m4.make(),RW:m4.make(),prevIW:null,hist:[],key:null,stopT:0,catchT:0,lock:new Map(),stam:1,restT:9,swing:false,clubK:0}); }
 /* put the hand you see back on your real hand at once (equip, teleports, the rig between swings) */
-function melSnap(h){ const S=melState(h); S.p=null; S.q=null; S.v=[0,0,0]; S.prevIW=null; S.hist.length=0; S.stopT=0; S.catchT=0; S.clubK=0; S.lock.clear(); }
+function melSnap(h){ const S=melState(h); S.p=null; S.tp=null; S.q=null; S.v=[0,0,0]; S.prevIW=null; S.hist.length=0; S.stopT=0; S.catchT=0; S.clubK=0; S.lock.clear(); }
 const melCols=M=>[colOf(M,0),colOf(M,1),colOf(M,2)];
 function melCompose(q,p){ /* a hand matrix from its rotation and where its fist centre is */ const [X,Y,Z]=qCols(q); return fromCols(X,Y,Z,v3.sub(p,v3.add(v3.sc(X,FIST[0]),v3.add(v3.sc(Y,FIST[1]),v3.sc(Z,FIST[2]))))); }
 function melTaus(h,w,S){ const m=melMass(w),P=PROTO.melee,two=!!(h.support||h.supportOf);
   let tau=Math.min(P.tauMax,P.tau0+P.tauK*Math.pow(m,1.5)),tr=Math.min(P.rotMax,P.rot0+P.rotK*m*Math.pow(melLen(w)/2,2));
   if(two){ tau*=P.twoHand; tr*=P.twoHand; }
-  if(PROTO.on){ const s=P.stam.weak+(1-P.stam.weak)*clamp(S.stam/.3,0,1),k=1/Math.sqrt(s); tau*=k; tr*=k; } /* tired: half the spring strength at empty */
+  let s=1; if(PROTO.on) s=P.stam.weak+(1-P.stam.weak)*clamp(S.stam/.3,0,1); /* tired: half the spring strength at empty */
+  if(PL.armWeak) s*=1-clamp(PL.armWeak[h.side]||0,0,.8); /* a wounded arm (80-ray.js): that hand's spring is weaker */
+  if(s<1){ const k=1/Math.sqrt(s); tau*=k; tr*=k; }
   return [tau,tr]; }
 /* a hand's world matrix -> the play space's local frame (so walking and snap turns don't drag the weapon behind you) */
 function melLocal(M){ const W=worldFromLocal(),o=m4.make(); m4.mul(o,rigidInv(W),M); return o; }
@@ -86,9 +93,11 @@ function melHand(h,dt){ const S=melState(h),it=h.item,key=it?it.key:'fists',w=WP
   else if(S.stopT>0){ S.stopT-=dt; S.v=[0,0,0]; if(S.stopT<=0) S.catchT=.1; } /* stopped on him: it holds while your hand goes on */
   else { if(S.catchT>0){ S.catchT-=dt; tau=Math.max(tau,.022); tr=Math.max(tr,.03); } /* then it catches up, quickly but not in one frame */
     if(tau<8e-4){ S.p=tp; S.v=[0,0,0]; }
-    else { const om=2/tau,e=Math.exp(-om*dt); for(let c=0;c<3;c++){ const c1=S.p[c]-tp[c],c2=S.v[c]+om*c1; S.p[c]=tp[c]+(c1+c2*dt)*e; S.v[c]=(c2-om*(c1+c2*dt))*e; } } /* critically damped, exact for any frame time */
+    else { const om=2/tau,e=Math.exp(-om*dt),tq0=S.tp||tp; /* critically damped, solved exactly for a real hand moving steadily through the frame, */
+      for(let c=0;c<3;c++){ const vr=(tp[c]-tq0[c])/dt,ep=-2*vr/om,e0=S.p[c]-tq0[c],c1=e0-ep,c2=(S.v[c]-vr)+om*c1; /* so the lag is speed x tau at any frame rate */
+        S.p[c]=tp[c]+ep+(c1+c2*dt)*e; S.v[c]=vr+(c2-om*(c1+c2*dt))*e; } }
     S.q=tr<1e-3?tq:qNlerp(S.q,tq,1-Math.exp(-dt/tr)); }
-  melApply(h,S); }
+  S.tp=tp; melApply(h,S); }
 /* the hand you see, and what it holds, from the spring state */
 function melApply(h,S){ const it=h.item,w=WPN[it?it.key:'fists'];
   const V=h.stuck?h.M:melWorld(melCompose(S.q,S.p)); S.V.set(V);
@@ -152,7 +161,7 @@ function melSweep(h,dt){ const S=melState(h);
   const prev=S.prevIW; S.prevIW=cur;
   /* contacts held: let a man go once the weapon is well clear of him */
   for(const [E,t] of S.lock){ if(!enemies.includes(E)||GAME.t-t>1.2||GAME.t-t>.12&&melClear(E,caps,cur,.04)) S.lock.delete(E); }
-  if(!prev||S.stopT>0) return;
+  if(!prev||S.stopT>0||h.cd>0) return; /* h.cd: a hit knocked your hands (80-ray.js); that jolt is not a swing */
   const hp=colOf(cur,3),cand=[];
   for(const E of enemies){ if(S.lock.has(E)) continue; const x=E.B.x; if(Math.hypot(x[0]-hp[0],x[2]-hp[2])<1.9){ cand.push(E); melTrack(E,dt); if(!E.melC) melSkin(E); } } /* x[0..2]: his pelvis. His skin index is built as he comes in reach, not on the frame you hit him */
   if(!cand.length) return;
@@ -167,26 +176,35 @@ function melSweep(h,dt){ const S=melState(h);
           if(melSegD(ax,ay,az,bx,by,bz,X[i],X[i+1],X[i+2],X[j],X[j+1],X[j+2])<lim){ segs.push(si); break; } } }
       if(!segs.length) continue;
       /* narrow phase: rays from the capsule's leading surface along its motion, onto his drawn skin */
-      const hit=melNarrow(E,c,A0,B0,A1,B1,segs); if(!hit) continue;
+      const hit=melNarrow(E,c,A0,B0,A1,B1,segs,M0,M1); if(!hit) continue;
       const u=u0+.5*hit.f;
       if(melContact(h,S,E,c,hit,u,w,key)){ S.lock.set(E,GAME.t); if(S.stopT>0||h.stuck) return; } } } }
 /* is every strike volume at least m clear of his body capsules? */
 function melClear(E,caps,M,m){ const X=E.B.x; for(const c of caps){ const a=mulP(M,c.a),b=mulP(M,c.b);
   for(let si=0;si<SEGS.length;si++){ if(E.segOff.has(si)) continue; const sg=SEGS[si],i=sg[0]*3,j=sg[1]*3; if(melSegD(a[0],a[1],a[2],b[0],b[1],b[2],X[i],X[i+1],X[i+2],X[j],X[j+1],X[j+2])<c.r+sg[2]+m) return false; } } return true; }
-function melNarrow(E,c,A0,B0,A1,B1,segs){ const C=melSkin(E),len=Math.hypot(...v3.sub(B0,A0)),np=c.kind==='point'?1:Math.max(2,Math.ceil(len/.03)+1);
-  const lead=c.kind==='point'?.01:c.r,wide=c.r>=.03,best={t:9,m:null,k:-1,si:-1};
-  let out=null;
+const MEL_RIM=[0,1,2,3,4,5,6,7].map(i=>[Math.cos(i*Math.PI/4),Math.sin(i*Math.PI/4)]);
+function melNarrow(E,c,A0,B0,A1,B1,segs,M0,M1){ const C=melSkin(E),len=Math.hypot(...v3.sub(B0,A0)),disc=c.kind==='blunt'&&c.n&&c.r>=.06,np=c.kind==='point'?1:disc?3:Math.max(2,Math.ceil(len/.03)+1);
+  const lead=c.kind==='point'||disc?.01:c.r,wide=c.r>=.03,best={t:9,m:null,k:-1,si:-1};
+  let out=null,n0=null,n1=null;
+  if(disc){ n0=norm3(melRot(M0,c.n)); n1=norm3(melRot(M1,c.n)); } /* a flat face: rays from across the disc, not from a ball round it */
   for(let i=0;i<np;i++){ const u=np===1?0:i/(np-1),p0=v3.add(A0,v3.sc(v3.sub(B0,A0),u)),p1=v3.add(A1,v3.sc(v3.sub(B1,A1),u)),dv=v3.sub(p1,p0),L=Math.hypot(...dv); if(L<1e-4) continue;
     const d=v3.sc(dv,1/L),e1=norm3(Math.abs(d[1])<.9?v3.cross(d,[0,1,0]):v3.cross(d,[1,0,0])),e2=v3.cross(d,e1);
-    for(const [sx,sy] of wide?MEL_SPOTS:MEL_SPOTS.slice(0,1)){ const rho=c.kind==='point'?c.r*.8:c.r*.7,fw=sx||sy?(c.kind==='point'?.01:Math.sqrt(Math.max(0,c.r*c.r-rho*rho))):lead;
-      const o=v3.add(p0,v3.add(v3.sc(d,fw-.015),v3.add(v3.sc(e1,sx*rho),v3.sc(e2,sy*rho)))); best.m=null;
+    const pts=disc?[[0,0,0]].concat(MEL_RIM.map(q=>[q[0],q[1],1])):wide?MEL_SPOTS.map(q=>[q[0],q[1],0]):[[0,0,0]];
+    for(const [sx,sy,rim] of pts){ let o;
+      if(disc){ const f0=norm3(Math.abs(n0[1])<.9?v3.cross(n0,[0,1,0]):v3.cross(n0,[1,0,0])),f1=v3.cross(n0,f0),g0=norm3(Math.abs(n1[1])<.9?v3.cross(n1,[0,1,0]):v3.cross(n1,[1,0,0])),g1=v3.cross(n1,g0),R=c.r*.92;
+        const q0=v3.add(p0,v3.add(v3.sc(f0,sx*R*rim),v3.sc(f1,sy*R*rim))),q1=v3.add(p1,v3.add(v3.sc(g0,sx*R*rim),v3.sc(g1,sy*R*rim))),qd=v3.sub(q1,q0),qL=Math.hypot(...qd); if(qL<1e-4) continue;
+        const dq=v3.sc(qd,1/qL); o=v3.add(q0,v3.sc(dq,lead-.015)); best.m=null; melRay(C,segs,o,dq,qL+.015,best);
+        if(best.m) out=melNarrowHit(E,C,best,o,dq,qL,out); continue; }
+      const rho=c.kind==='point'?c.r*.8:c.r*.7,fw=sx||sy?(c.kind==='point'?.01:Math.sqrt(Math.max(0,c.r*c.r-rho*rho))):lead;
+      o=v3.add(p0,v3.add(v3.sc(d,fw-.015),v3.add(v3.sc(e1,sx*rho),v3.sc(e2,sy*rho)))); best.m=null;
       melRay(C,segs,o,d,L+.015,best);
-      if(best.m){ const p=v3.add(o,v3.sc(d,best.t)),f=clamp((best.t-.015)/L,0,1);
-        /* only going into him counts: coming out of him (a hand that started inside) is not a hit */
-        const sg=SEGS[best.si],a=X_(E.B,sg[0]),b=X_(E.B,sg[1]),ab=v3.sub(b,a),s=clamp(v3.dot(v3.sub(p,a),ab)/Math.max(1e-6,v3.dot(ab,ab)),0,1),q=v3.add(a,v3.sc(ab,s));
-        if(v3.dot(d,v3.sub(q,p))<=0) continue;
-        if(!out||f<out.f){ const ti=melTriInfo(C,best,d); out={p,n:ti.n,bone:ti.bone,f,si:best.si,s,d}; } } } }
+      if(best.m) out=melNarrowHit(E,C,best,o,d,L,out); } }
   return out; }
+function melNarrowHit(E,C,best,o,d,L,out){ const p=v3.add(o,v3.sc(d,best.t)),f=clamp((best.t-.015)/L,0,1);
+  /* only going into him counts: coming out of him (a hand that started inside) is not a hit */
+  const sg=SEGS[best.si],a=X_(E.B,sg[0]),b=X_(E.B,sg[1]),ab=v3.sub(b,a),s=clamp(v3.dot(v3.sub(p,a),ab)/Math.max(1e-6,v3.dot(ab,ab)),0,1),q=v3.add(a,v3.sc(ab,s));
+  if(v3.dot(d,v3.sub(q,p))<=0) return out;
+  if(!out||f<out.f){ const ti=melTriInfo(C,best,d); return {p,n:ti.n,bone:ti.bone,f,si:best.si,s,d}; } return out; }
 
 /* ---------- a contact: how fast, which way, what kind; then the tier ---------- */
 function melContact(h,S,E,c,hit,u,w,key){ const P=PROTO.melee;
@@ -194,7 +212,7 @@ function melContact(h,S,E,c,hit,u,w,key){ const P=PROTO.melee;
      three frames relative to his body there */
   const Mu=melLerpM(S.hist[1].M,S.hist[0].M,u),ci=mulP(rigidInv(Mu),hit.p),sg=SEGS[hit.si],B=E.B,i=sg[0]*3,j=sg[1]*3,s=hit.s;
   const X0=E.melX0||B.x,X1=E.melX1||B.x,vb=[0,1,2].map(k=>((X1[i+k]-X0[i+k])*(1-s)+(X1[j+k]-X0[j+k])*s)/(E.melDt||1));
-  const Zw=norm3(melRot(Mu,[0,0,1]));
+  const Zw=norm3(melRot(Mu,c.kind==='point'&&c.n?c.n:[0,0,1])); /* which way a point goes in */
   /* each of the last three frames, for the weapon you see and the one in your real hand: the contact point's velocity relative to him */
   const lagF=3+Math.ceil(melTaus(h,w,S)[0]*1.5/Math.max(S.hist[0].dt,1e-3)); /* a lagging blade arrives carrying the swing your hand made a moment earlier */
   const V=[]; for(let f=0;f+1<S.hist.length&&f<6;f++) for(const k of ['M','R']){ if(f>=(k==='M'?3:lagF)) continue; const vr=v3.sub(v3.sc(v3.sub(mulP(S.hist[f][k],ci),mulP(S.hist[f+1][k],ci)),1/S.hist[f].dt),vb),m=Math.hypot(...vr); if(m>1e-4) V.push({vr,m,cs:clamp(-v3.dot(vr,hit.n)/m,0,1),vis:k==='M'}); }
@@ -232,7 +250,7 @@ function melHit(h,E,seg,p,dir,speed,bone,o){ const key=h.item?h.item.key:'fists'
   if(!o) o={tier:melTier(speed),kind:w.gun||w.melee!=='knife'?(speed<P.tier[0]?'push':'blunt'):(speed<P.tier[0]?'push':'cut'),cutK:1};
   const T=o.tier,part=seg[3],k=part.replace(/[LR]$/,''),m=melMass(w);
   const dp=norm3([dir[0],clamp(dir[1],-.35,.12),dir[2]]); /* he's driven along the blow, never lifted */
-  if(o.kind==='push'||o.kind==='blunt'){ hitEnemy(E,seg,p,dp,'blunt',{tier:T,speed,mk:1+m*.6,push:o.kind==='push'}); /* -> hitBlunt -> melBlunt (a cut-off piece just gets knocked about) */
+  if(o.kind==='push'||o.kind==='blunt'){ hitEnemy(E,seg,p,dp,'blunt',{tier:T,speed,mk:Math.min(1.8,1+m*.6),push:o.kind==='push'}); /* -> hitBlunt -> melBlunt (a cut-off piece just gets knocked about) */
     if(o.kind==='push') sfx('bump',.5,p); else if(w.gun) sfx('bash',T>=2?1:.75,p); else { sfx('punch',T>=2?1:.7,p); if(T>=2) sfx(T>=3&&(k==='head'||k==='neck')?'crunch':'kick',T>=3?.6:.4,p); }
     if(T>=1&&w.uses&&w.melee==='knife'){ h.item.uses--; if(h.item.uses<=0){ sfx('glass'); spray(p,v3.sc(dir,-1),10,1.6,.8,'dust',.008); equip(h,null); } } }
   else { const segI=SEGS.indexOf(seg),stab=o.kind==='stab',slice=o.kind==='slice',ck=o.cutK||1,wb=w.bleed||1;
@@ -251,7 +269,7 @@ function melHit(h,E,seg,p,dir,speed,bone,o){ const key=h.item?h.item.key:'fists'
       if(stab||lodge) startStuck(h,E,bone,seg,!stab); }
     if(w.uses){ h.item.uses--; if(h.item.uses<=0){ sfx('glass'); spray(p,v3.sc(dir,-1),10,1.6,.8,'dust',.008); equip(h,null); } } }
   if(XR.on){ const full=T>=2||o.kind==='stab',v=o.kind==='push'||o.kind==='slice'?.25:full?1:.5,ms=o.kind==='push'||o.kind==='slice'?15:full?40:20; buzz(h.hand,v,ms); if(h.support) buzz(h.support.hand,v*.8,ms); }
-  h.cd=T>=2?.4:.28; }
+  if(!XR.on) h.cd=T>=2?.4:.28; } /* flat screen: one click, one blow. VR: each man is held off until the weapon leaves him (melSweep) */
 /* staggered: driven back a step, the guard drops for about a second */
 function melStagger(E,dp,speed,k=1){ const B=E.B,fl=norm3([dp[0],0,dp[2]]),f=k*(1.1+.22*clamp(speed-3.5,0,4));
   for(const i of [PI_.pelvis,PI_.hipL,PI_.hipR,PI_.chest,PI_.neck,PI_.shL,PI_.shR,PI_.head]) kickV(B,i,v3.sc(fl,f),H); /* the whole trunk, evenly: he goes back, he doesn't spin */
