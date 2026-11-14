@@ -43,29 +43,55 @@ function flatYank(G){ if(!G.wr) return; G.wr.tug+=.55*(1.2-clamp(G.E.cons*(1-G.E
 function wrestleShot(E,G){ const g=gunRay(E),KS=kst(E),W=WPN[KIND_WPN[E.kind]],sg=!!KS.shotgun;
   muzzle(g.mz,g.d,sg); muzzleSmoke(g.mz,g.d,sg,false); sfx(W.snd||'gun',.9,g.mz); noise([E.pos[0],0,E.pos[1]],14,{alarm:true,from:E}); GAME.eShots=(GAME.eShots||0)+1;
   if(XR.on){ buzz('left',1,70); buzz('right',1,70); }
-  const n=sg?6:1; let dmg=0;
+  const n=sg?6:1,parts=[]; let dmg=0;
   for(let k=0;k<n;k++){ const d=sg?norm3(v3.add(g.d,[rnd(-.05,.05),rnd(-.04,.04),rnd(-.05,.05)])):g.d;
     const room=rayRoom(g.mz,d),bx=rayBoxes(g.mz,d,room.t),L=bx?bx.t:room.t;
     /* first thing along the barrel: you, him, a friend of his, or the wall */
     let first={t:L,what:'wall'};
-    { const eye=camBasis().eye; for(const [p,r] of [[eye,.13],[[PL.x,1.25,PL.z],.21]]){ const t=v3.dot(v3.sub(p,g.mz),d); if(t>.02&&t<first.t){ const off=Math.hypot(...v3.sub(p,v3.add(g.mz,v3.sc(d,t)))); if(off<r){ first={t,what:'you'}; } else if(off<.6&&k===0&&t<6) sfx('whiz',.9,v3.add(g.mz,v3.sc(d,t))); } } }
+    { const eye=camBasis().eye; for(const [p,r,part] of [[eye,.13,'head'],[[PL.x,1.25,PL.z],.21,'torso']]){ const t=v3.dot(v3.sub(p,g.mz),d); if(t>.02&&t<first.t){ const off=Math.hypot(...v3.sub(p,v3.add(g.mz,v3.sc(d,t)))); if(off<r){ first={t,what:'you',part}; } else if(off<.6&&k===0&&t<6) sfx('whiz',.9,v3.add(g.mz,v3.sc(d,t))); } } }
     for(const S of SEGS){ if(E.segOff.has(SEGS.indexOf(S))) continue; const h=raySeg(g.mz,d,X_(E.B,S[0]),X_(E.B,S[1]),S[2]); if(h&&h.t>.03&&h.t<first.t) first={t:h.t,what:'self',seg:S}; } /* turned on himself */
     const bb=bodyInLine(g.mz,v3.add(g.mz,v3.sc(d,first.t)),E); if(bb&&bb.t<first.t) first={t:bb.t,what:'body',bb};
     const p=v3.add(g.mz,v3.sc(d,first.t));
-    if(first.what==='you') dmg+=sg?KS.dmg/n*1.4:(KS.dmg||10)*1.3;
+    if(first.what==='you'){ dmg+=sg?KS.dmg/n*1.4:(KS.dmg||10)*1.3; parts.push(first.part); }
     else if(first.what==='self') hitEnemy(E,first.seg,p,d,'gun',{bleed:sg?.5:1,sever:sg?.7:1,pellet:sg});
     else if(first.what==='body') hitEnemy(first.bb.E,first.bb.seg,first.bb.p,first.bb.dir,'gun',{bleed:sg?.5:1,sever:sg?.7:1,pellet:sg});
     else { const nrm=bx?bx.n:room.n,hp=v3.add(p,v3.sc(nrm,.004)); addDecal(DEC.hole,hp,nrm,.025,140); impactFx(hp,nrm,sg); if(k<2) sfx('ric',.6,hp); } }
-  if(dmg>0) hurtPlayer(Math.round(dmg)); }
+  if(dmg>0) hurtPlayer(Math.round(dmg),{E,kind:'gun',w:KIND_WPN[E.kind],n:parts.length,parts,mz:g.mz,dist:.5,wrestle:true}); }
 /* it's yours */
 function takeGun(G){ const E=G.E,h=G.h,key=KIND_WPN[E.kind],W=WPN[key];
   for(const O of GRABS.slice()) if(O.E===E&&O.name==='gun') endGrab(O);
   E.wpnHeld=false; if(E.C.wpn) E.C.wpn.vis=false; setGrip(E.J,'R',false); setGrip(E.J,'L',false); E.disarmed=true;
-  if(!h.item) equip(h,newItem(key,W.gun?Math.max(2,Math.round(W.mag*rnd(.4,.9))):undefined));
+  if(!h.item) equip(h,newItem(key,W.gun?(PROTO.on?rayDropRounds(key):Math.max(2,Math.round(W.mag*rnd(.4,.9)))):undefined));
   sfx('wrestle',1,mulP(h.M,FIST)); sfx('click',.9); if(XR.on) buzz(h.hand,1,110);
   E.stun=Math.min(1,E.stun+.4); const back=norm3([E.B.x[0]-PL.x,0,E.B.x[2]-PL.z]); for(const i of [PI_.chest,PI_.shL,PI_.shR,PI_['hd'+E.wpnHand]]) kickV(E.B,i,v3.sc(back,1.3),H);
   bark(E,pick(['No— no no no—','Wait— WAIT—','Okay— okay— okay—','Shit— shit—']),1.8); vox(E,'gasp');
   if(psychOf(E)!=='fight'||E.blood<70||Math.random()<.35) surrender(E,'disarmed'); }
+
+/* ---------- the other way round: he has YOUR gun hand (82-clinch.js, prototype) ----------
+   The same fight for a gun, mirrored. His hand is on your wrist and he winds your muzzle round onto you. Every pull and twist of
+   your hand slows him but never stops him; the struggle window in 82-clinch.js can still tear you loose, and so can hitting him.
+   If the muzzle gets there, your own gun goes off into you (or clicks, if it's empty, and he tears it out of your hand).
+   G is the grab (PL.grab): G.h your held hand, G.E him, G.str how hard he holds. Only the hand you see turns, never your view. */
+function wrestleRevStart(G){ const E=G.E; G.ph='turn'; G.wr={turn:0,jT:0};
+  E.atkT=-1; E.burstN=0; if(E.barkCd<1.4) bark(E,pick(['Look at me— LOOK at me—','Gimme— give it—','No no no, cop—']),1.5); vox(E,'strain');
+  sfx('wrestle',1,mulP(G.h.M,FIST)); if(XR.on) buzz(G.h.hand,.9,90); }
+function wrestleRevTick(G,dt,mvRate){ const E=G.E,W=G.wr; if(!W) return false;
+  const stall=clamp(mvRate/pnum('clinch','turnStall',.35),0,pnum('clinch','turnStallMax',.5)); /* fighting it slows him down, never stops him */
+  W.turn=Math.min(1,W.turn+dt/pnum('clinch','wristTurnT',2.2)*G.str*(1-stall));
+  E.atkT=-1; E.burstN=0; E.atkCd=Math.max(E.atkCd,.6);
+  /* the gun shakes between you: his arm jerks, your hand buzzes harder the closer it comes round */
+  W.jT-=dt; if(W.jT<=0){ W.jT=rnd(.08,.18); const s=G.side||'L',hd=X_(E.B,PI_['hd'+s]),ch=X_(E.B,PI_.chest); kickV(E.B,PI_['hd'+s],v3.add(v3.sc(norm3(v3.sub(hd,ch)),.5*G.str),[rnd(-.5,.5),rnd(-.3,.5),rnd(-.5,.5)]),H);
+    if(XR.on) buzz(G.h.hand,.45+.5*W.turn,45); if(Math.random()<.3) sfx('wrestle',.45,hd); }
+  if(E.barkCd<=0&&Math.random()<.5) bark(E,pick(['That\'s it— that\'s it—','*grunts*','Turn around, cop—','Look at it— LOOK at it—']),1.3);
+  return W.turn>=1; }
+/* the muzzle is on you: your gun goes off. True if it fired (82-clinch.js does the damage) */
+function wrestleRevShot(G){ const h=G.h,it=h.item,w=it&&WPN[it.key]; if(!w||!w.gun||!h.itemNode) return false;
+  if(it.ammo<=0||it.reload>0||(w.pump&&!it.chambered)){ sfx('click'); if(XR.on) buzz(h.hand,.4,30); return false; }
+  it.ammo--; it.cd=w.rof; if(w.pump){ it.chambered=false; it.spent=true; } h.rec=1;
+  const Mi=itemM(h),mz=mulP(Mi,canMuzzle(w,it)),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0])));
+  if(!it.sup) muzzle(mz,bd,!!w.pellets); muzzleSmoke(mz,bd,!!w.pellets,!!it.sup); sfx(it.sup?(w.pump?'suppsg':'supp'):w.snd||'gun',1,mz);
+  if(it.sup) noise([PL.x,0,PL.z],GUN_SUP[it.key]||4); else noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true});
+  if(XR.on){ buzz('left',1,120); buzz('right',1,120); } GAME.eShots=(GAME.eShots||0)+1; return true; }
 
 /* ---------- pinned to a wall ---------- */
 /* is the hand pushing this body into something solid? (gap: from the held point to where the hand wants it) */
