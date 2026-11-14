@@ -22,10 +22,10 @@ PROTO.fight={
   range:25,                                   /* m, every enemy gun */
   accMul:1.83,                                /* KSTAT acc is mid range; inside 4 m it's this much better (pistol .30 -> .55) */
   accCurve:[[4,1],[8,.68],[14,.42],[25,.18]], /* x the close accuracy, by distance (pistol: 55% at 4 m, 37% at 8, 23% at 14, 10% at 25) */
-  firstAcc:1.15,                              /* the first round after he's sure */
+  firstAcc:1,                                 /* x accuracy of the first round after he's sure (the danger is the timing; raise to make it nastier) */
   first:[.6,1.0],                             /* s from sure to that round */
   freshGap:3,                                 /* s out of sight before a new sighting is fresh again (first-shot timing) */
-  cdMul:.8,                                   /* the shooter's cadence, x KSTAT cd */
+  cdMul:1,                                    /* the shooter's cadence, x KSTAT cd (agent A's damage already makes each round count) */
   takeGap:[.3,.6],                            /* s a man who just took the token waits before firing */
   flashR:40, flashSupR:6, flashT:2.5,         /* who sees your flash, and how long it shows you to him */
   flashAim:[.15,.3], darkAcc:.8,              /* the answer: time to swing the gun on; aimed at a flash, not a man */
@@ -111,7 +111,7 @@ function fightToken(){ let T=FGT.token;
   if(T&&(!fxTokOk(T)||(T.fx&&T.fx.unseen>.6)||Math.hypot(T.pos[0]-PL.x,T.pos[1]-PL.z)>pnum('fight','range',25))) FGT.token=T=null;
   if(T||PL.dead) return; const now=GAME.t; let best=null,bs=0;
   for(const E of enemies){ if(!fxTokOk(E)||!E.canSee) continue; const d=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z); if(d>pnum('fight','range',25)) continue;
-    let al=.5; if(E.M){ const g=gunRay(E); al=clamp(v3.dot(g.d,norm3(v3.sub([PL.x,1.45,PL.z],g.mz))),0,1); }
+    let al=.5; if(E.M){ const g=gunRay(E); al=clamp(v3.dot(g.d,norm3(v3.sub(fightAimPt(),g.mz))),0,1); }
     const s=fxAcc(E,kst(E)||{acc:.3},d)*(.5+.5*al)*(E.fx&&E.fx.revealT>now?1.3:1)*(E.stun<.3?1:.5); if(s>bs){ bs=s; best=E; } }
   if(!best) return; FGT.token=best; FGT.tokenT=now; const F=fxOf(best);
   if(now-(F.quickT??-99)>.6) best.atkCd=Math.max(best.atkCd,fxR('takeGap')); } /* a beat to settle on you; answering your flash he doesn't wait */

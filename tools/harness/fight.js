@@ -11,6 +11,7 @@
 //   witness  {qs, runs:3}                            Beto dies: Chuy beside him sees it, Nacho is behind a wall, Lalo 9 m off facing away. Who shouts?
 //   rage     {qs}                                    a friend shot dead in front of a quitter and a fighter
 //   quitrun  {qs, secs:40}                           a quitter surrenders, you turn away: does he run for his friends
+//   faker    {qs, runs:2}                            a faker surrenders, your gun goes away: you watch him / turn your back / his friend is in view
 //   retreat  {qs, runs:4}                            a man shot early: does he back into a dark room and wait at the door
 //   token    {qs, secs:20}                           three gunmen who can all see you: how many shoot
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
@@ -24,7 +25,9 @@ window.__F=(function(){
   const L={barks:[],dmg:[],eshots:new Map(),god:false,cur:null,ray:false,lastHit:new Map(),kills:[],swings:new Map(),surr:new Set(),alerts:[]};
   const _bark=bark; bark=function(E,txt,d){ L.barks.push([+GAME.t.toFixed(2),E&&E.name,txt]); return _bark.apply(this,arguments); };
   const _es=enemyShoot; enemyShoot=function(E,b){ L.cur=E; const r=_es.apply(this,arguments); if(r!==false) L.eshots.set(E,(L.eshots.get(E)||0)+1); L.cur=null; return r; };
-  const _hurt=hurtPlayer; hurtPlayer=function(d,src){ L.dmg.push([+GAME.t.toFixed(2),d,L.cur?L.cur.name:(src&&src.E?src.E.name:'melee'),L.cur||src&&src.kind==='gun'?'gun':'melee']); return _hurt.apply(this,arguments); };
+  /* what it actually cost (agent A's hurtPlayer may change the number, or take it all on cover); bleeding is logged apart */
+  const _hurt=hurtPlayer; hurtPlayer=function(d,src){ const hp0=PL.hp,r=_hurt.apply(this,arguments),got=hp0-PL.hp;
+    const k=src&&src.kind==='bleed'?'bleed':L.cur||src&&src.kind==='gun'?'gun':'melee'; if(k==='bleed') L.bleed=(L.bleed||0)+got; else if(got>0) L.dmg.push([+GAME.t.toFixed(2),got,L.cur?L.cur.name:(src&&src.E?src.E.name:'melee'),k]); return r; };
   const _fire=fireHand; fireHand=function(){ L.ray=true; try{ return _fire.apply(this,arguments); } finally { L.ray=false; } };
   const _hit=hitEnemy; hitEnemy=function(E){ if(L.ray) L.lastHit.set(E,Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)); return _hit.apply(this,arguments); };
   const _die=die; die=function(E){ if(!E.dead&&!E.civ&&!E.ally) L.kills.push({name:E.name,d:L.lastHit.has(E)?+L.lastHit.get(E).toFixed(1):null,now:+Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z).toFixed(1)}); return _die.apply(this,arguments); };
@@ -34,7 +37,7 @@ window.__F=(function(){
   function step(){ if(L.god){ PL.hp=100; PL.dead=false; } update(dt,performance.now()); updateWorld(world,null);
     if(window.__Q.length){ const due=window.__Q.filter(q=>q[0]<=GAME.t); window.__Q=window.__Q.filter(q=>q[0]>GAME.t); for(const q of due){ try{ q[1](); }catch(e){ L.err=String(e).slice(0,150); } } }
     for(const E of enemies){ if(E.surr) L.surr.add(E); if(E.atkT>=0&&!E._sw){ E._sw=true; L.swings.set(E,(L.swings.get(E)||0)+1); } if(E.atkT<0) E._sw=false; } }
-  const reset=()=>{ L.barks.length=0; L.dmg.length=0; L.eshots.clear(); L.lastHit.clear(); L.kills.length=0; L.swings.clear(); L.surr.clear(); L.alerts.length=0; window.__Q=[]; };
+  const reset=()=>{ L.bleed=0; L.barks.length=0; L.dmg.length=0; L.eshots.clear(); L.lastHit.clear(); L.kills.length=0; L.swings.clear(); L.surr.clear(); L.alerts.length=0; window.__Q=[]; };
   const MAKERS={corner:makeCorner,cutter:makeCutter,gunman:makeGunman,doorman:makeDoorman,enforcer:makeEnforcer,landlord:makeLandlord};
   function spawn(kind,name,x,z,hd,psych){ const E=spawnEnemy({maker:MAKERS[kind],name,x,z,hd,extra:'I got a kid—'}); enemies.push(E); if(psych) E.psych=psych; return E; }
   function solo(kind,x,z,hd,psych){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); const E=spawn(kind,'T-'+kind,x,z,hd,psych); attachLabels(); return E; }
@@ -61,7 +64,7 @@ window.__F=(function(){
       step(); S.stuckT+=dt; if(S.stuckT>2.5){ const m=Math.hypot(PL.x-S.lastP[0],PL.z-S.lastP[1]); S.jit=m<.3&&KEYS.KeyW?.6:0; S.lastP=[PL.x,PL.z]; S.stuckT=0; } S.jit-=dt; }
     KEYS.KeyW=false;
     const es=[...L.eshots.values()].reduce((a,b)=>a+b,0),gunHits=L.dmg.filter(d=>d[3]==='gun'),mel=L.dmg.filter(d=>d[3]!=='gun');
-    return {floor:FLOOR.def.n,time:+(GAME.t-t0).toFixed(1),exit:exitT!=null,died,diedAt,dmg:Math.round(sumD()),myShots:shots,enemyShots:es,gunHits:gunHits.length,meleeHits:mel.length,
+    return {floor:FLOOR.def.n,time:+(GAME.t-t0).toFixed(1),exit:exitT!=null,died,diedAt,dmg:Math.round(sumD()),bleed:Math.round(L.bleed||0),myShots:shots,enemyShots:es,gunHits:gunHits.length,meleeHits:mel.length,
       hostile:bad.length,attacked:bad.filter(E=>(L.eshots.get(E)||0)+(L.swings.get(E)||0)>0).length,surrendered:bad.filter(E=>L.surr.has(E)).length,dead:bad.filter(E=>E.dead).length,
       kills:L.kills.slice(),psych:bad.map(E=>E.psych||'-').join(''),rage:bad.filter(E=>E.fx&&E.fx.raged).length,retreat:bad.filter(E=>E.fx&&E.fx.retreated).length,ran:bad.filter(E=>E.fx&&E.fx.ran).length,err:L.err}; }
 
@@ -149,6 +152,17 @@ window.__F=(function(){
       if(ranT==null&&E.fx&&E.fx.ran) ranT=t; if(alertT==null&&(L.alerts.length||E.fx&&E.fx.ranAlerted)) alertT=t; if(toñoAware==null&&F.aware) toñoAware=t; }
     return {surrAt:sT&&+sT.toFixed(1),gunOff:away&&+away.toFixed(1),ranAt:ranT&&+ranT.toFixed(1),alertAt:alertT&&+alertT.toFixed(1),alerts:L.alerts,friendAwareAt:toñoAware&&+toñoAware.toFixed(1),end:E.st+(E.surr?'/surr':'')+'@'+E.pos[0].toFixed(1),barks:L.barks.slice(-4)}; }
 
+  /* ---- faker: he gives up under your gun; then your gun goes away and you either keep watching him, turn your back, or a friend of his is in view ---- */
+  function faker(o){ reset(); L.god=true; clearEnemies(); PL.x=-8; PL.z=0; PL.yaw=-Math.PI/2; equip(HANDS.R,newItem('pistol')); equip(HANDS.L,null);
+    const E=spawn('gunman','Faro',-5,0,-Math.PI/2,'fake'),M=o.friend?spawn('gunman','Mono',2,1.2,Math.PI/2,'fight'):null; attachLabels(); for(let k=0;k<20;k++) step(); setAware(E,'see'); if(M) M.stay=true;
+    const t0=GAME.t; let off=null,spring=null,shot=null;
+    while(GAME.t-t0<o.secs){ const t=GAME.t-t0;
+      if(off==null){ window.__game.aimAt(X_(E.B,PI_.chest)); if(E.surr&&E.st==='kneel'&&E.surr.t>.6){ off=t; equip(HANDS.R,null); } }
+      else if(o.turn){ PL.yaw=Math.PI/2; PL.pitch=0; } else window.__game.aimAt(X_(E.B,PI_.head));
+      if(M){ M.pos[0]=2; M.pos[1]=1.2; M.aware=false; M.mind='calm'; M.st='idle'; }
+      step(); if(off!=null&&spring==null&&!E.surr&&E.st==='alert') spring=t; if(spring!=null&&shot==null&&L.eshots.get(E)) shot=t; }
+    return {turn:!!o.turn,friend:!!o.friend,gunOffAt:off&&+off.toFixed(1),sprangAfter:spring!=null&&off!=null?+(spring-off).toFixed(2):null,firstShotAfterSpring:shot!=null&&spring!=null?+(shot-spring).toFixed(2):null}; }
+
   /* ---- retreat: a gunman takes a round in the arm early on. Where does he go? ---- */
   function retreat(o){ reset(); L.god=true; clearEnemies(); PL.x=-6; PL.z=0; PL.yaw=-Math.PI/2; equip(HANDS.R,newItem('pistol'));
     const E=spawn(o.kind||'gunman','Pepe',o.x??0,0,-Math.PI/2,'fight'); E.fx=E.fx||{}; if(o.force) E.fx.retreatRoll=0; attachLabels(); for(let k=0;k<20;k++) step(); setAware(E,'see'); for(let k=0;k<10;k++) step();
@@ -171,7 +185,7 @@ window.__F=(function(){
     const by={}; for(const [,n] of shotsT) by[n]=(by[n]||0)+1; let switches=0; for(let i=1;i<shotsT.length;i++) if(shotsT[i][1]!==shotsT[i-1][1]) switches++;
     let overlap=0; for(let i=1;i<shotsT.length;i++) if(shotsT[i][1]!==shotsT[i-1][1]&&shotsT[i][0]-shotsT[i-1][0]<.5) overlap++;
     return {shots:shotsT.length,by,switches,closeSwitches:overlap,hits:L.dmg.length,dmg:sumD(),first:shotsT.slice(0,8)}; }
-  return {bot,duel,acc,flash,melee,block,wrist,nerve,witness,rage,quitrun,retreat,token,step,L,lit};
+  return {bot,duel,acc,flash,melee,block,wrist,nerve,witness,rage,quitrun,faker,retreat,token,step,L,lit};
 })();`;
 
 (async () => {
@@ -202,6 +216,7 @@ window.__F=(function(){
   else if (test === 'witness') { for (let r = 0; r < (args.runs || 3); r++) console.log(JSON.stringify(await run(args.qs || 'f=3&proto=1&pf=0', 'witness', {}))); }
   else if (test === 'rage') { for (let r = 0; r < (args.runs || 2); r++) console.log(JSON.stringify(await run(args.qs || 'f=3&proto=1&pf=0', 'rage', {}))); }
   else if (test === 'quitrun') { for (let r = 0; r < (args.runs || 2); r++) console.log(JSON.stringify(await run(args.qs || 'f=3&proto=1&pf=0', 'quitrun', { secs: args.secs || 40 }))); }
+  else if (test === 'faker') { for (const c of [{}, { turn: true }, { friend: true }]) for (let r = 0; r < (args.runs || 2); r++) console.log(JSON.stringify(await run(args.qs || 'f=3&proto=1&pf=0', 'faker', Object.assign({ secs: args.secs || 15 }, c)))); }
   else if (test === 'retreat') { for (let r = 0; r < (args.runs || 3); r++) console.log(JSON.stringify(await run(args.qs || 'f=1&proto=1&pf=0', 'retreat', { secs: args.secs || 30, force: args.force, x: args.x, kind: args.kind, come: args.come }))); }
   else if (test === 'token') { for (let r = 0; r < (args.runs || 2); r++) console.log(JSON.stringify(await run(args.qs || 'f=3&proto=1&pf=0', 'token', { secs: args.secs || 20 }))); }
   if (errs.length) console.log('ERRORS', JSON.stringify([...new Set(errs)].slice(0, 8)));
