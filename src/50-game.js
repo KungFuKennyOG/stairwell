@@ -853,7 +853,7 @@ function think(E,dt,t){
       const k=Math.min(1,dt*2.5); E.aimYaw=clamp((E.aimYaw||0)+ye*k,-.7,.7); E.aimPit=clamp((E.aimPit||0)+(Math.asin(tp[1])-Math.asin(g.d[1]))*k,-.35,.35); }
     const fighting=E.aware&&E.canSee,RO=(PROTO.on&&fightMove(E,dt,fighting,dist))||(E.role&&E.aware&&typeof twRoleMove==='function'?twRoleMove(E,dt,fighting,dist):null); /* the tower: hunters, holders, ambushers (66-tower.js); prototype: out of the light, waiting his turn, rage, retreat (84-fight.js) */
     let goal=RO?RO.goal:fighting?null:aiGoal(E,dt,t);
-    const want=fighting?Math.atan2(toP[0],toP[1])+(E.wpnHeld&&!E.oneHand?E.aimYaw||0:0)
+    const want=fighting?Math.atan2(toP[0],toP[1])+(E.wpnHeld&&!E.oneHand&&!(PROTO.on&&Math.abs(wrapA(Math.atan2(toP[0],toP[1])-E.hd))>1.2)?E.aimYaw||0:0) /* prototype: turning round to a shot from behind, the barrel correction made him flip back and forth at 180 degrees: turn first, then line up */
       :goal&&E.moveDir?Math.atan2(E.moveDir[0],E.moveDir[2])
       :E.mind==='search'&&E.pauseT>0?(E.scanHd??E.hd)+Math.sin((t+E.t0)*.9)*1.1 /* stands and looks around */
       :FLOOR.power===false?E.hd+Math.sin(t*.6+E.t0)*.3:E.hd;

@@ -16,7 +16,7 @@
    - Nerve by floor (quit/fight/fake). Fakers come up shooting sooner when you look away or a friend of theirs is in view.
    - A surrendered quitter left alone with your gun off him for 10-20 s gets up and runs for his friends.
    Fields other systems can read: E.rage (s left, agent C's tackles), E.fx.* (this file's per-man state), FGT.token (the man shooting).
-   Reads: E.winded (agent B: s; slows his next swing), huntAlert/huntLitAt (agent D), PF.rooms/PF.openings/pfIn (agent F),
+   Reads: E.winded (agent B: s; slows his next swing), E.openT (agent B: no swing till then), huntAlert/huntLitAt (agent D), PF.rooms/PF.openings/pfIn (agent F),
    rayHead/rayConcealment (agent G). Damage to Ray is agent A's: blows and rounds pass hurtPlayer(d,{E,kind,w,n,mz,dist,rage}).
    With agent D: D's HUNT.flashT makes Ray 'lit' for 1.4 s within 16 m of a loud shot (the eyes). This file adds who learns where
    he is, out to 40 m, and who answers; a suppressed shot only within 6 m.
@@ -121,7 +121,8 @@ function fightToken(){ let T=FGT.token;
   if(now-(F.quickT??-99)>.6) best.atkCd=Math.max(best.atkCd,fxR('takeGap')); } /* a beat to settle on you; answering your flash he doesn't wait */
 
 /* ---------- the flash (the 'fire' event) ---------- */
-function fightFlash(info){ const now=GAME.t,mz=info.muzzle,sup=!!info.sup,R=sup?pnum('fight','flashSupR',6):pnum('fight','flashR',40);
+function fightFlash(info){ const now=GAME.t,sup=!!info.sup,R=sup?pnum('fight','flashSupR',6):pnum('fight','flashR',40),e=fxHead();
+  let mz=info.muzzle; if(!mz||Math.hypot(mz[0]-e[0],mz[2]-e[2])>1.5) mz=[e[0],e[1]-.25,e[2]]; /* a hand matrix nobody has posed this frame (rendering off, the desk test bots): the flash is where you are */
   let seen=0; /* (agent D's HUNT.flashT does the short version for the eyes: Ray lit for 1.4 s within 16 m of a loud shot. This is the rest: who knows, how far, who answers) */
   for(const E of enemies){ if(E.dead||E.civ||E.ally||E.surr||!upright(E)) continue; const h=X_(E.B,PI_.head);
     if(Math.hypot(h[0]-mz[0],h[1]-mz[1],h[2]-mz[2])>R||!sightClear(h,mz)) continue;
@@ -184,11 +185,12 @@ function fightHurt(E,dist){ const F=fxOf(E); if(F.retreated||E.rage>0||!E.aware|
   fxFree2(E); F.retreated=true; F.ret={ph:'go',x:s.x,z:s.z,door:s.door,room:s.room,t:0,wait:fxR('retreatWait')}; freshGoal(E); if(FGT.token===E) FGT.token=null; }
 function fightRetreatSpot(E){ const rooms=fxRooms(); if(!rooms.length) return null; const W=fieldTo(E.pos[0],E.pos[1]); if(!W) return null;
   const mine=fxRoomOf(E.pos[0],E.pos[1]),yours=fxRoomOf(PL.x,PL.z),me=[PL.x,1.5,PL.z]; let best=null,bs=-1e9;
-  for(const r of rooms){ if(r.lit||r===yours) continue;
-    for(const d of r.doors) for(const s of [-1,1]){ const x=d.x+d.n[0]*.95-d.n[1]*s*.85,z=d.z+d.n[1]*.95+d.n[0]*s*.85,c=navCell(x,z);
-      if(c<0||FLOOR.nav[c]||W[c]>=1e9||!fxFree(x,z)||!fxIn(r,x,z)||fxLitAt(x,z)) continue;
+  for(const r of rooms){ if(r===yours) continue;
+    for(const d of r.doors) for(const s of [-1,1]) for(const [dp,lat] of [[.95,.85],[.75,.75],[1.2,1.0],[.75,1.1]]){ /* beside the opening, a step inside it */
+      const x=d.x+d.n[0]*dp-d.n[1]*s*lat,z=d.z+d.n[1]*dp+d.n[0]*s*lat,c=navCell(x,z);
+      if(c<0||FLOOR.nav[c]||W[c]>=1e9||!fxIn(r,x,z)||fxLitAt(x,z)) continue;
       const walk=W[c]/40; if(walk>pnum('fight','retreatR',12)||Math.hypot(x-PL.x,z-PL.z)<3) continue;
-      const sc=-walk+(sightClear(me,[x,1.3,z])?-4:0)+(r===mine?1.5:0)+Math.random()*.5; if(sc>bs){ bs=sc; best={x,z,door:[d.x,d.z],room:r}; } } }
+      const sc=-walk+(sightClear(me,[x,1.3,z])?-4:0)+(r===mine?1.5:0)+(r.lit?-2:0)+(fxFree(x,z)?.5:0)+Math.random()*.5; if(sc>bs){ bs=sc; best={x,z,door:[d.x,d.z],room:r}; } break; } }
   return best; }
 function fightRetreat(E,dt,fighting,dist){ const F=E.fx,R=F.ret; R.t+=dt;
   if(E.surr||E.st!=='alert'){ F.ret=null; E.silent=false; return null; }
@@ -205,7 +207,7 @@ function fightRetreat(E,dt,fighting,dist){ const F=E.fx,R=F.ret; R.t+=dt;
 
 /* ---------- melee you can read ---------- */
 const fxArmHeld=E=>GRABS.some(G=>G.E===E&&(G.name==='hd'+E.wpnHand||G.name==='el'+E.wpnHand));
-function fightSwingOk(E){ const F=E.fx||{}; return !F.run&&!(F.stagT>0)&&!fxArmHeld(E); }
+function fightSwingOk(E){ const F=E.fx||{}; return !F.run&&!(F.stagT>0)&&!(E.openT>GAME.t)&&!fxArmHeld(E); } /* openT: staggered by your blow (agent B) */
 function fightSwingStart(E){ const F=fxOf(E); F.W=pnum('fight','wind',.4)+(E.winded>0?Math.min(.35,E.winded*pnum('fight','winded',.2)):0); /* winded (agent B): slower to come back */
   F.feint=!(E.rage>0)&&Math.random()<pnum('fight','feint',.2); F.hitDone=false; F.pw=F.ps=0; vox(E,'grunt',.5); } /* the breath before it: something to hear as well as see */
 /* the swing, frame by frame (replaces the old fixed .44 s hit in think()). F.pw/F.ps drive the arm in targetsFor */
