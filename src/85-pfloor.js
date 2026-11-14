@@ -10,9 +10,9 @@
    Contract (PROTO_BRIEF 6): pfLoad(), pfReset(), PF.rooms, PF.openings, pfRoomAt(x,z), protoEmit('exit').
    Also: protoEmit('room', room, prev) when Ray walks into another room; protoEmit('chain', how) when the stairs open ('cut'|'keys').
    ===================================================================== */
-PROTO.pfloor={ dormD:6, cutR:.24, cutHold:.35, useR:1.7, snapR:8, keyR:.28, exitFade:1.1, torchR:4.4, torchAhead:1.9, roomSlots:7, wetNoise:5 };
+PROTO.pfloor={ dormD:6, cullPeople:true, cutR:.24, cutHold:.35, useR:1.7, snapR:8, keyR:.28, exitFade:1.1, torchR:4.4, torchAhead:1.9, roomSlots:7, wetNoise:5 };
 const PF={rooms:[],byId:{},openings:[],hides:[],lights:[],items:[],pair:[],grid:null,gw:0,gh:0,runs:[],exit:null,room:null,snd:null};
-const PF_T=.14, PF_DOOR_H=2.05, PF_HOLE_H=.95;
+const PF_T=.14, PF_DOOR_H=2.05, PF_HOLE_H=.95; let PF_MERGE_TILE=7; /* static geometry merged by material in tiles this big (36-colonia.js meshMerge) */
 
 /* ---------- the rooms ----------
    rects [x0,z0,x1,z1]; paper: wall paint (TW_PAPER), fl: floor (TW_FLOORS); env: acoustics (room | hall | stair); win: windows on the
@@ -382,7 +382,7 @@ function pfBuild(){ setWorld(18,12);
   pfDress(A); pfExitBuild(G,pot); pfClutter(pot,r2);
   pot.flush(G);
   GEO_TEMP=false;
-  meshMerge(floorN,{tile:7});
+  meshMerge(floorN,{tile:PF_MERGE_TILE});
   /* where people walk: inside a room, clear of anything below 1.5 m (crouch holes and the shafts blocked); a second grid with the holes
      open for whoever can crouch through them (FLOOR.navHole) */
   const nav=new Uint8Array(NX*NZ),navH=new Uint8Array(NX*NZ),space=new Int16Array(NX*NZ).fill(-9);
@@ -473,9 +473,9 @@ function pfCast(){ for(const c of PF_DEF.cast) if(c.hunt&&!c.hunt.pts) c.hunt.pt
   twCast(); /* the tower's own: wardrobe, poses, tenants, the flashlight pair's torches, FLOOR.convos from PF_DEF.talk */
   const by=n=>enemies.find(E=>E.name===n);
   for(const c of PF_DEF.cast){ const E=by(c.name); if(!E) continue; const r=pfRoomAt(E.pos[0],E.pos[1]); if(r) r.who.push(E.name);
-    if(c.vest){ E.vest=true; const o=E.C.o,dz=(o.torsoD||.26)*.5+.012,y=o.torso*.42,mV=M(tTwVest); /* the team's vest: a plate front and back hugging his chest, straps down the sides */
-      mk(box(.34,o.torso*.62,.024),F(mNavy,mNavy,mNavy,mNavy,mNavy,mNavy),E.J.spine,0,y,dz); mk(box(.36,o.torso*.66,.024),F(mNavy,mNavy,mNavy,mNavy,mV,mNavy),E.J.spine,0,y,-dz-.002,0,Math.PI,0);
-      for(const sx of [-1,1]) mk(box(.03,o.torso*.45,dz*2+.01),mNavy,E.J.spine,sx*.175,y,0); for(let k=0;k<3;k++) mk(box(.08,.09,.03),mNavy,E.J.spine,(k-1)*.1,y-o.torso*.12,dz+.02); }
+    if(c.vest){ E.vest=true; const o=E.C.o,dz=(o.torsoD||.26)*.5+.006,y=o.torso*.66,hh=o.torso*.5,mV=M(tTwVest); /* the team's vest: a plate front and back over his chest, straps over the shoulders */
+      mk(box(.33,hh,.02),mNavy,E.J.spine,0,y,dz); mk(box(.35,hh*1.05,.02),F(mNavy,mNavy,mNavy,mNavy,mV,mNavy),E.J.spine,0,y,-dz-.002,0,Math.PI,0);
+      for(const sx of [-1,1]){ mk(box(.025,hh*.7,dz*2),mNavy,E.J.spine,sx*.17,y-hh*.12,0); mk(box(.06,.02,dz*2+.02),mNavy,E.J.spine,sx*.1,y+hh/2+.01,0); } }
     if(c.keys){ E.keys=true; const k=N(E.J.hips,-.15,-.04,.07,0,0,.2); pfBuildKeys(k); PF.keysN=k; PF.keyMan=E; }
     if(c.lead){ PF.lead=E; E.pairT=[]; } if(c.follow){ PF.follow=E; E.followP={pts:[[E.pos[0],E.pos[1]]],i:0,wait:0}; } }
   for(const c of PF_DEF.civ){ const E=by(c.name); if(E){ const r=pfRoomAt(E.pos[0],E.pos[1]); if(r) r.who.push(E.name); } }
@@ -534,9 +534,13 @@ function pfPairTalk(dt){ const C=PF.pairC,T=PF.lead,J=PF.follow; if(!C||C.dead||
 /* asleep by rooms: anyone in your room or the next, or in plain sight, stays awake; past FLOOR.dormD and two rooms off, a calm man sleeps
    (he still hears: noise() doesn't care). E.liveT=0 is the existing keep-awake (50-game.js) */
 function pfAwake(dt){ const pr=PF.room,eye=[PL.x,1.6,PL.z]; PF.seeT=(PF.seeT||0)-dt; const look=PF.seeT<=0; if(look) PF.seeT=.4;
-  for(const E of enemies){ if(E.dead) continue; const er=pfRoomAt(E.pos[0],E.pos[1]);
-    if(pfRoomsApart(pr,er)<=1){ E.liveT=0; E.pfSeen=false; continue; }
+  for(const E of enemies){ if(E.dead) continue; const er=pfRoomAt(E.pos[0],E.pos[1]); E.pfApart=pfRoomsApart(pr,er);
+    if(E.pfApart<=1){ E.liveT=0; E.pfSeen=false; continue; }
     if(look){ const d=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z); E.pfSeen=d<13&&sightClear(eye,[E.pos[0],1.5,E.pos[1]]); } if(E.pfSeen) E.liveT=0; } }
+/* not drawn while asleep two rooms off: skinned bodies are never culled, and a man is ~15 draw calls a frame (per eye). Asleep he
+   doesn't move, and the frame he wakes (or comes into sight, or you come within 7 m) he's drawn again */
+function pfCullPeople(){ const on=pnum('pfloor','cullPeople',true)&&GAME.started&&!PL.dead; for(const E of enemies){ const hide=on&&E.dormant&&!E.dead&&!E.pfSeen&&E.pfApart>=2&&Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)>7;
+    if(E.holder.vis===hide){ E.holder.vis=!hide; if(E.label&&hide) E.label.vis=false; } } }
 function pfRoomTick(){ const r=pfRoomAt(PL.x,PL.z); if(r&&r!==PF.room){ const prev=PF.room; PF.room=r; protoEmit('room',r,prev); } }
 /* wading in the flooded room: every step splashes, and it carries */
 function pfWet(dt){ if(!PF.room||PF.room.id!=='S8'||PL.dead) return; PF.wetT=(PF.wetT||0)-dt; if((PL.spdS||0)>.45&&PF.wetT<=0){ PF.wetT=.55; sfx('splat',.2+.1*Math.min(1,PL.spdS/2)); noise([PL.x,0,PL.z],pnum('pfloor','wetNoise',5)+PL.spdS); } }
@@ -624,9 +628,9 @@ function pfReset(){ GAME.fade=0; PF.exited=false; PF.exitT=null; PF.exitShown=fa
   if(!GAME.kit) equip(HANDS.R,newItem(PF_DEF.kit,undefined,true)); /* Novak's pistol, can on (A sets what's in it) */
   if(XR.on) vrToast('Floor 01',2.5); }
 protoOn('tick',(gdt,dt)=>{ if(FLOOR.mode!=='proto'){ if(PF.snd) pfAudioStop(); return; }
-  pfRoomTick(); pfLightsTick(dt); pfAudioTick(dt); for(const S of PF.ticks) S.tick(GAME.t); if(PF.spray){ PF.spray.s=[1,1+.04*Math.sin(GAME.t*31),1]; PF.spray.p[0]=.2+.01*Math.sin(GAME.t*47); }
+  pfRoomTick(); pfLightsTick(dt); pfAudioTick(dt); if(!GAME.started) pfCullPeople(); for(const S of PF.ticks) S.tick(GAME.t); if(PF.spray){ PF.spray.s=[1,1+.04*Math.sin(GAME.t*31),1]; PF.spray.p[0]=.2+.01*Math.sin(GAME.t*47); }
   if(!GAME.started) return;
-  pfAwake(dt); pfHunters(gdt); pfPairTalk(gdt); twTalk(gdt); twCivTick(gdt); if(typeof HUNT==='undefined') twRoles(gdt);
+  pfAwake(dt); pfCullPeople(); pfHunters(gdt); pfPairTalk(gdt); twTalk(gdt); twCivTick(gdt); if(typeof HUNT==='undefined') twRoles(gdt);
   pfTools(dt); pfWet(dt); pfExitTick(dt); });
 /* dev: ?pfdev=1 boots straight onto the floor (J's start card does this for ?proto=1) */
 if(new URLSearchParams(location.search).get('pfdev')==='1') setTimeout(()=>{ if(FLOOR.mode==='proto') return; try{ pfLoad(); }catch(e){ console.error('[pfloor] load',e); } },0);
