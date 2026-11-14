@@ -10,7 +10,7 @@
 //   still  a downed man not crawling; you walk right over him: how far his body moves
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path');
-const game = 'file://' + path.resolve(process.argv[2]), test = process.argv[3], N = +(process.argv[4] || 0), extra = process.argv[5] || 'proto=1';
+const game = 'file://' + path.resolve(process.argv[2]), test = process.argv[3], N = +(process.argv[4] || 0), extra = process.argv[5] || 'proto=1&pf=0'; /* the scenes are placed for the old floor layout */
 const CORE = `
 window.requestAnimationFrame=()=>0;
 window.__Q=[]; window.setTimeout=(fn,ms)=>{ window.__Q.push([GAME.t+(ms||0)/1000,fn]); return 0; };
