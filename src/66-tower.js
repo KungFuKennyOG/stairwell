@@ -768,7 +768,7 @@ function twStairY(x,z,cy){ const ax=Math.abs(x)-TO(); if(FLOOR.mode!=='camp'||ax
   if(ax>=ST_MID) return 1.4;
   const t=clamp((ax-ST_X0)/ST_RUN,0,1); if(z>0) return 1.4*t; return cy<.7?0:1.4+1.4*(1-t); }
 function twStairs(dt){ const target=twStairY(PL.x,PL.z,PL.y||0); PL.y=lerp(PL.y||0,target,Math.min(1,dt*14)); if(Math.abs(PL.y-target)<.004) PL.y=target;
-  if(XR.on&&XR.baseY!=null) XR.origin[1]=XR.baseY+PL.y;
+  if(XR.on&&XR.baseY!=null) XR.origin[1]=XR.baseY+PL.y-(PL.dropY||0); /* PL.dropY: the crouch toggle and crawling under a bed lower the view (86-hide.js) */
   /* step onto the east landing: fade to black and you're on the next floor's landing (no walking the flights) */
   if(FLOOR.mode!=='camp'||!GAME.started||PL.dead) return;
   if(!GAME.climbing&&PL.x>TL+.45&&Math.abs(PL.z)<1.9) towerClimb();

@@ -6,7 +6,8 @@
    West stairwell (-x) is where you come in; on the test floor it is the armory landing. East (+x) goes up.
    ===================================================================== */
 let RX=13,RZ=6,RH=2.8; /* the world: x in ±RX, z in ±RZ, up to RH. 26 x 12 m for the tower; the tunnel and the warehouse are bigger (the warehouse is 7 m tall) */
-const BOXES=[];                       /* {x0,x1,z0,z1,y0,h,kind} axis-aligned, y from y0 to h */
+const BOXES=[];                       /* {x0,x1,z0,z1,y0,h,kind} axis-aligned, y from y0 to h. b.sightOnly: blocks eyes only (86-hide.js) */
+const SHEETS=[];                      /* hung sheets and plastic in the openings (86-hide.js); here so sightClear can always see the list */
 const floorN=N(world);
 const NO_DOOR_LEAVES=true; /* the game has no doors: house-builder walls keep the opening, no leaf (the art sets still draw them) */
 const FLOOR={n:1,seed:1,test:true,nav:null,space:null,units:[],doors:[],lights:[],start:{x:-11.3,z:0,yaw:-Math.PI/2},flick:null,bx:0,party:[]};
@@ -17,7 +18,7 @@ function removeBox(b){ const i=BOXES.indexOf(b); if(i>=0) BOXES.splice(i,1); box
 /* boxes bucketed on a 1 m grid so a body, a blood drop or the player only tests the few boxes around it */
 let BG_W=RX*2,BG_H=RZ*2,boxGrid=null,boxGridDirty=true;
 function buildBoxGrid(){ boxGrid=Array.from({length:BG_W*BG_H},()=>[]);
-  for(const b of BOXES){ const i0=Math.max(0,Math.floor(b.x0-.3+RX)),i1=Math.min(BG_W-1,Math.floor(b.x1+.3+RX)),k0=Math.max(0,Math.floor(b.z0-.3+RZ)),k1=Math.min(BG_H-1,Math.floor(b.z1+.3+RZ));
+  for(const b of BOXES){ if(b.sightOnly) continue; /* a hung sheet stops eyes, never a body, a blood drop or a thrown thing */ const i0=Math.max(0,Math.floor(b.x0-.3+RX)),i1=Math.min(BG_W-1,Math.floor(b.x1+.3+RX)),k0=Math.max(0,Math.floor(b.z0-.3+RZ)),k1=Math.min(BG_H-1,Math.floor(b.z1+.3+RZ));
     for(let k=k0;k<=k1;k++) for(let i=i0;i<=i1;i++) boxGrid[k*BG_W+i].push(b); }
   boxGridDirty=false; }
 const NO_BOXES=[];
@@ -170,9 +171,12 @@ function doorNear(x,z,maxD){ let best=null,bd=maxD; for(const D of FLOOR.doors){
 
 /* ---------- collision queries ---------- */
 function solidFor(b,who){ /* what blocks whom: the player and walking people step over mattresses and ignore lintels above their heads */
+  if(b.sightOnly) return false; /* a hung sheet: eyes only */
   if(who==='body') return true;
   if(b.kind==='step') return false;
   if(who==='player'&&PL.y) return b.y0<PL.y+1.6&&b.h>PL.y+.4; /* up the stairs: what's below your feet or over your head doesn't stop you */
+  if(who==='player'&&PROTO.on&&b.y0>0&&b.y0<1.6&&b.h>.4) return !hideUnder(b); /* something with an underside (a bed frame, the wall over a crouch hole): open below it for a crouched Ray (86-hide.js) */
+  if(who==='croucher'&&b.y0>=.85) return false; /* a man who ducks (blade men, hunters) goes through a crouch hole */
   if(b.kind==='post'&&who==='walker') return false; /* timber posts: people walking slide past them instead of jamming on a corner */
   return b.y0<1.6&&b.h>.4; }
 function pushOutXZ(p,r,who){ /* push a circle (x,z) out of the boxes around it */
@@ -180,8 +184,8 @@ function pushOutXZ(p,r,who){ /* push a circle (x,z) out of the boxes around it *
     if(p[0]>b.x0-r&&p[0]<b.x1+r&&p[1]>b.z0-r&&p[1]<b.z1+r){ const pens=[p[0]-(b.x0-r),(b.x1+r)-p[0],p[1]-(b.z0-r),(b.z1+r)-p[1]],m=pens.indexOf(Math.min(...pens));
       if(m===0) p[0]=b.x0-r; else if(m===1) p[0]=b.x1+r; else if(m===2) p[1]=b.z0-r; else p[1]=b.z1+r; } }
   p[0]=clamp(p[0],-RX+r,RX-r); p[1]=clamp(p[1],-RZ+r,RZ-r); }
-function rayBoxes(o,d,maxT,filter){ let best=null; if(boxGridDirty) buildBoxGrid();
-  for(const b of BOXES){ if(filter&&!filter(b)) continue; let t0=0,t1=best?best.t:maxT; const lo=[b.x0,b.y0,b.z0],hi=[b.x1,b.h,b.z1]; let nrm=null,ok=true;
+function rayBoxes(o,d,maxT,filter,sight){ let best=null; if(boxGridDirty) buildBoxGrid(); /* sight: also test sight-only boxes (bullets and sound go through them) */
+  for(const b of BOXES){ if(b.sightOnly&&!sight) continue; if(filter&&!filter(b)) continue; let t0=0,t1=best?best.t:maxT; const lo=[b.x0,b.y0,b.z0],hi=[b.x1,b.h,b.z1]; let nrm=null,ok=true;
     for(let k=0;k<3;k++){ if(Math.abs(d[k])<1e-9){ if(o[k]<lo[k]||o[k]>hi[k]){ ok=false; break; } continue; }
       let ta=(lo[k]-o[k])/d[k],tb=(hi[k]-o[k])/d[k],sg=-1; if(ta>tb){ [ta,tb]=[tb,ta]; sg=1; }
       if(ta>t0){ t0=ta; nrm=[0,0,0]; nrm[k]=sg; } if(tb<t1) t1=tb; if(t0>t1){ ok=false; break; } }
@@ -191,8 +195,11 @@ function rayRoom(o,d){ let best={t:1e9,n:[0,1,0]};
   const tryP=(k,v,n)=>{ if(Math.abs(d[k])<1e-9) return; const t=(v-o[k])/d[k]; if(t>0&&t<best.t) best={t,n}; };
   tryP(0,-RX,[1,0,0]); tryP(0,RX,[-1,0,0]); tryP(2,-RZ,[0,0,1]); tryP(2,RZ,[0,0,-1]); tryP(1,0,[0,1,0]); tryP(1,RH,[0,-1,0]);
   const bx=rayBoxes(o,d,best.t); return bx&&bx.t<best.t?bx:best; }
-/* can a sees b? walls and doors block sight, furniture below chest height doesn't */
-function sightClear(a,b){ const d=v3.sub(b,a),L=Math.hypot(...d); if(L<1e-3) return true; const h=rayBoxes(a,v3.sc(d,1/L),L,x=>x.kind==='wall'||x.kind==='door'||x.h>1.5); return !h; }
+/* can a sees b? walls and doors block sight, furniture below chest height doesn't; so do hung sheets where the cloth is hanging
+   (pushed aside by someone walking through, there's a gap) and any other sight-only cover */
+function sightClear(a,b){ const d=v3.sub(b,a),L=Math.hypot(...d); if(L<1e-3) return true; const h=rayBoxes(a,v3.sc(d,1/L),L,x=>x.sightOnly?!x.sheet:x.kind==='wall'||x.kind==='door'||x.h>1.5,true); return !h&&!(SHEETS.length&&sheetsBlock(a,b)); }
+/* can a sound get from a to b without a wall in the way? a sheet or a curtain doesn't stop it */
+function soundClear(a,b){ const d=v3.sub(b,a),L=Math.hypot(...d); if(L<1e-3) return true; return !rayBoxes(a,v3.sc(d,1/L),L,x=>x.kind==='wall'||x.kind==='door'||x.h>1.5); }
 
 /* ---------- navigation: one distance field from the player, shared by everyone hunting him ---------- */
 let navDirty=true,navT=0,navGen=0,NAVD=new Int32Array(NX*NZ);

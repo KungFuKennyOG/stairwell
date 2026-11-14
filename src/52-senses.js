@@ -31,7 +31,7 @@ function noise(src,rad,o={}){ if(!rad||!GAME.started) return; const hush=typeof 
   rad*=hush; protoEmit('noise',src,rad,o);
   for(const E of enemies){ if(E===o.from||!upright(E)||E.ally) continue;
     const d=Math.hypot(E.pos[0]-src[0],E.pos[1]-src[2]); if(d>rad) continue;
-    const los=sightClear([E.pos[0],1.6,E.pos[1]],[src[0],1.2,src[2]]),r=los?rad:rad*(o.voice?.4:o.alarm?.6:.45); if(d>r) continue; /* through a wall: a gunshot still carries, a voice or a footstep doesn't */
+    const los=soundClear([E.pos[0],1.6,E.pos[1]],[src[0],1.2,src[2]]),r=los?rad:rad*(o.voice?.4:o.alarm?.6:.45); if(d>r) continue; /* through a wall: a gunshot still carries, a voice or a footstep doesn't */
     const oo=o.voice?Object.assign({},o,{los}):o; setTimeout(()=>hear(E,src,d/r,oo),120+d*45); } }
 function alertAll(src,rad=12){ noise(src,rad,{alarm:true}); } /* kicked doors */
 
