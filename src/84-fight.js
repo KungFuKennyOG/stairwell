@@ -9,7 +9,8 @@
    - One shooter at a time (a floor-level token). The others spread out or hold till it's their turn.
    - Melee you can read: a 0.4 s wind-up with the arm up before every swing, one in five a feint. Catch the wrist in the wind-up
      (your empty hand on his weapon hand or elbow) and the swing dies; hold your weapon across the line of it and it clangs off.
-   - Rage: a man who sees a friend die (12 m, line of sight) charges for 20 s, hits harder, aims worse. A quitter who sees it fights.
+   - Rage: a man who sees a friend die (12 m, line of sight) charges for 20 s, aims worse, never gives up (src.rage on his blows for
+     agent A's damage). A quitter who sees it fights.
    - "You killed X!" only from a man who saw it, or was within 4 m.
    - A fighter hurt early backs into the nearest dark room and waits beside its doorway for 15-30 s.
    - Nerve by floor (quit/fight/fake). Fakers come up shooting sooner when you look away or a friend of theirs is in view.
@@ -31,7 +32,7 @@ PROTO.fight={
   lightOut:[.2,.7], darkHold:[5,9],           /* s before a lit man moves for the dark, and how long he holds there */
   wind:.4, strike:.18, feint:.2, feintCd:[.35,.6], swingCd:[1.4,2.4], winded:.2,
   blockR:.1, stagger:.5, flatBlock:false,     /* flatBlock: let the desk/harness hands block too (VR only otherwise) */
-  rageT:20, rageR:12, rageDmg:1.35, rageAcc:.6, rageSp:2.6,
+  rageT:20, rageR:12, rageAcc:.6, rageSp:2.6,   /* (the harder hits are agent A's: hurtPlayer gets src.rage) */
   witnessR:4,
   retreat:.45, retreatBlood:60, retreatWait:[15,30], retreatR:12,
   nerve:[[4,[.4,.5,.1]],[9,[.25,.6,.15]],[99,[.1,.7,.2]]], /* up to floor n: [quit, fight, fake] */
@@ -79,9 +80,6 @@ function fightPHit(E,KS,d,hurtArm){ const F=fxOf(E); let a=fxAcc(E,KS,d)*hurtArm
   if(E.rage>0) a*=pnum('fight','rageAcc',.6);
   if(F.byFlash) a*=pnum('fight','darkAcc',.8)*Math.max(.3,F.conc??1); /* he's aiming at where the flash was, at whatever of you shows */
   return clamp(a,0,.92); }
-/* where a round or a blade lands on you, for agent A's damage (hurtPlayer src.part) */
-function fightPart(KS){ if(KS&&KS.shotgun) return 'torso'; const r=Math.random(); return r<.08?'head':r<.7?'torso':r<.85?'arm':'leg'; }
-function fxMeleePart(E){ const r=Math.random(); return E.kind==='cutter'?(r<.15?'head':r<.4?'arm':'torso'):(r<.3?'head':r<.45?'arm':'torso'); }
 
 /* ---------- eyes: called from think() right after senses() ---------- */
 function fightSense(E,dt,dist){ if(E.civ||E.ally) return; const F=fxOf(E),now=GAME.t;
@@ -217,8 +215,7 @@ function fightSwing(E,dt,dist,toP){ const F=fxOf(E),W=F.W||.4,S=pnum('fight','st
     if(k>W+.34){ E.atkT=-1; E.atkCd=fxR('feintCd'); F.pw=F.ps=0; } return; }
   F.pw=Math.min(1,k/W); F.ps=clamp((k-W)/S,0,1);
   const at=W+S*.5; if(!F.hitDone&&before<at&&k>=at){ F.hitDone=true; const f=[Math.sin(E.hd),Math.cos(E.hd)];
-    if(dist<1.75&&(toP[0]*f[0]+toP[1]*f[1])/(dist||1)>.5&&!fightBlocked(E)){ let d=E.wpnHeld?((kst(E)||{}).melee||9):7; if(E.rage>0) d*=pnum('fight','rageDmg',1.35);
-      hurtPlayer(Math.round(d),{E,kind:'melee',part:fxMeleePart(E),weapon:E.wpnHeld?KIND_WPN[E.kind]:'fists'}); } }
+    if(dist<1.75&&(toP[0]*f[0]+toP[1]*f[1])/(dist||1)>.5&&!fightBlocked(E)) hurtPlayer(E.wpnHeld?((kst(E)||{}).melee||9):7,{E,kind:'melee',w:E.wpnHeld?KIND_WPN[E.kind]:'fist',rage:E.rage>0}); } /* agent A's src shape; A sets the damage (src.rage: he's in a rage) */
   if(k>W+S+.17){ E.atkT=-1; E.atkCd=fxR('swingCd')*(E.rage>0?.7:1); F.pw=F.ps=0; } }
 /* the block: your held weapon across the line from his hand to where it's going, at the moment it lands */
 function fxItemSeg(h){ const it=h.item; if(!it||!(h.itemNode||h.itemW)) return null; const w=WPN[it.key]; if(!w) return null; let P;
