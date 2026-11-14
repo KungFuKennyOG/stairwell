@@ -3,19 +3,21 @@
    - Blades sit in the hand the way you really hold them: the handle runs through the fist (the controller's
      grip pose), the blade comes out over the thumb with a slight forward lean, the edge faces your knuckles.
      A/X flips a knife or bottle into a reverse (ice-pick) grip and back.
-   - Weight: the machete lags a little behind your hand and its tip sags.
-   - Speed is damage. A lazy swing just bumps off him.
+   - Weight: every item lags behind your hand by its mass, the machete's tip sags (81-melee.js).
+   - Speed is damage: four tiers, push, hit, stagger, knockdown or chop (81-melee.js).
    - A hard thrust point-first sinks the blade and it STAYS IN. Your hand stays on the handle; he's pulled
-     around by it. Work it and he screams and bleeds more. Pull hard to rip it out (the blood follows it).
+     around by it. Push along the blade and it goes deeper (it gives easily); all the way in is the full wound.
+     Work it and he screams and bleeds more. Pull hard to rip it out (that takes more; the blood follows it).
      Let go and it stays in him until you take it back.
    - Guns are solid too: swing one and you pistol-whip or butt-stroke him.
    ===================================================================== */
 const MEL={tilt:0,yaw:2}; /* Kenny's picks on the Quest: blade straight out of the fist, hands turned out 5° */
 const MELEE_TILT=[0,.44,.79],MELEE_TILT_LBL=['0°','25°','45°'];        /* blade lean forward from the grip axis */
 const HAND_YAW=[5,0,-5],HAND_YAW_LBL=['IN 5°','0°','OUT 5°'],HAND_DROP=.015; /* small correction to where the hands sit */
-const WEIGHT={machete:16};    /* how fast the weapon catches up with your hand (1/s); missing = rigid */
 const SAG={machete:.1};        /* radians the head droops when held one-handed */
 const BURY={knife:.06,bottle:.04,machete:.09};
+const DEEP={knife:.15,machete:.28}; /* how far a stab can be driven in; TIP: where the point is (item z) */
+const TIP={knife:.23,machete:.43};
 const STICKS={knife:1,machete:1};
 
 /* ---------- quaternions for the weight lag ---------- */
@@ -42,15 +44,7 @@ function flipGrip(h){ const it=h.item; if(!it||!(it.key==='knife'||it.key==='bot
 function meleeTick(h,dt){
   if(h.stuck){ stuckTick(h,dt); return; }
   h.bumpCd=(h.bumpCd||0)-dt;
-  const it=h.item,w=it&&WPN[it.key];
-  if(!w||!w.melee||!h.itemNode||h.support||h.supportOf){ h.melQ=null; return; }
-  const wt=WEIGHT[it.key]; if(!wt){ h.melQ=null; if(h.itemW){ h.itemW=null; restoreItemNode(h); } return; }
-  const T=m4.make(); m4.mul(T,h.M,h.itemL); let X=colOf(T,0),Y=colOf(T,1),Z=colOf(T,2);
-  const sag=SAG[it.key]||0,ax=v3.cross(Z,[0,-1,0]),al=Math.hypot(...ax); /* the head droops toward the floor */
-  if(sag&&al>1e-3){ const k=v3.sc(ax,1/al),a=sag*al,c=Math.cos(a),s=Math.sin(a); X=rodr(X,k,c,s); Y=rodr(Y,k,c,s); Z=rodr(Z,k,c,s); }
-  const qt=qFromCols(X,Y,Z); h.melQ=h.melQ?qNlerp(h.melQ,qt,1-Math.exp(-wt*dt)):qt;
-  const [Xc,Yc,Zc]=qCols(h.melQ),g=w.grip,G=mulP(T,g),O=v3.sub(G,v3.add(v3.sc(Xc,g[0]),v3.add(v3.sc(Yc,g[1]),v3.sc(Zc,g[2]))));
-  h.itemW=fromCols(Xc,Yc,Zc,O); setLocal(h.itemNode,h.M,h.itemW); }
+  melHand(h,dt); } /* the hand you see follows your real hand by the weight of what it holds (81-melee.js) */
 function restoreItemNode(h){ if(h.itemNode&&h.itemPR){ h.itemNode.p=h.itemPR.p.slice(); h.itemNode.r=h.itemPR.r.slice(); } }
 
 /* ---------- stuck in him ---------- */
@@ -58,7 +52,7 @@ function startStuck(h,E,bone,seg,chop){
   const Mb=E.M&&E.M[bone]; if(!Mb||!h.itemNode) return false; const key=h.item.key;
   const Mi=new Float32Array(itemM(h)),Zb=chop?v3.sc(norm3(colOf(Mi,1)),-1):norm3(colOf(Mi,2)),b=(BURY[key]||.05)*(chop?.6:1); Mi[12]+=Zb[0]*b; Mi[13]+=Zb[1]*b; Mi[14]+=Zb[2]*b; /* a stab goes in point-first, a chop edge-first */
   const L=m4.make(); m4.mul(L,rigidInv(Mb),Mi);
-  h.stuck={E,bone,seg,L,work:0,prevC:mulP(h.M,FIST),t:0,wound:E.wounds[E.wounds.length-1]};
+  h.stuck={E,bone,seg,L,work:0,prevC:mulP(h.M,FIST),t:0,wound:E.wounds[E.wounds.length-1],chop,depth:b,full:false};
   E.impaled=(E.impaled||0)+1; E.stun=Math.max(E.stun,.9); h.prevPts=null; h.melQ=null;
   if(!E.dead){ faceHold(E,'shock',.4); vox(E,key==='machete'&&Math.random()<.5?'scream':'stabbed'); }
   sfx('stick'); buzz(h.hand,1,130); return true; }
@@ -73,15 +67,21 @@ function stuckTick(h,dt){
   const pull=v3.sc(d,Math.min(1,dl/.12)*3.2); for(const i of [S.seg[0],S.seg[1]]) kickV(E.B,i,v3.sc(pull,dt*60),H); kickV(E.B,PI_.chest,v3.sc(pull,dt*20),H);
   if(!E.dead) E.stun=Math.max(E.stun,.85);
   S.hz=(S.hz||0)-dt; if(S.hz<=0){ S.hz=.12; buzz(h.hand,.12+Math.min(.5,dl*2),18); } /* you feel it in there */
+  /* driving it deeper: push along the blade and it follows about halfway each frame (it gives easily going in).
+     Three quarters of the way in is the real wound: the second hit checks the heart, the throat, the brain from the point */
+  if(!S.chop&&DEEP[h.item.key]&&S.depth<DEEP[h.item.key]){ const Zb=norm3(colOf(Mi,2)),push=v3.dot(d,Zb);
+    if(push>.006){ const dd=Math.min(push*.5,DEEP[h.item.key]-S.depth),T=transl([0,0,dd]),L2=m4.make(); m4.mul(L2,S.L,T); S.L=L2; S.depth+=dd; S.work+=dd*1.5; buzz(h.hand,.3+Math.min(.5,dd*30),12);
+      if(!S.full&&S.depth>=DEEP[h.item.key]*.75&&!E.dead){ S.full=true; const tip=mulP(Mi,[0,0,TIP[h.item.key]+dd]);
+        hitEnemy(E,S.seg,tip,Zb,'knife',{bleed:.8,sever:.001,stun:.6,push:.01,reach:.05,power:1}); sfx('stick',.8); buzz(h.hand,1,60); } } }
   /* working the blade: every bit of hand travel opens it more */
   S.work+=Math.hypot(...v3.sub(ctrl,S.prevC)); S.prevC=ctrl;
   if(S.work>.09){ S.work=0; if(S.wound) S.wound.rate=Math.min(S.wound.rate+.45,9); const n=norm3(v3.sub(handle,colOf(Mi,3)));
     spray(handle,v3.sc(colOf(Mi,2),-1),8,1.4,.7,'bright',.011); buzz(h.hand,.6,40); if(!E.dead){ E.blood-=1.2; if(!E.voxBusy||Math.random()<.4) vox(E,'agony'); faceHold(E,'agony',1); } }
   /* a hard pull rips it out */
-  if(dl>.24){ const Zb=norm3(colOf(Mi,2)); spray(v3.sub(handle,v3.sc(Zb,-.15)),v3.sc(Zb,-1),36,2.6,.5,'bright',.013); spray(handle,v3.sc(Zb,-1),14,1.2,.8,'dark',.014);
+  if(dl>.24&&v3.dot(d,norm3(colOf(Mi,2)))<dl*.5){ const Zb=norm3(colOf(Mi,2)); /* not while you're still driving it in */ spray(v3.sub(handle,v3.sc(Zb,-.15)),v3.sc(Zb,-1),36,2.6,.5,'bright',.013); spray(handle,v3.sc(Zb,-1),14,1.2,.8,'dark',.014);
     if(S.wound){ S.wound.rate=Math.min(S.wound.rate*1.5+.6,10); S.wound.art=S.wound.art||Math.random()<.35; } E.spurtT=.5;
     sfx('rip'); buzz(h.hand,1,90); if(!E.dead){ vox(E,'scream'); faceHold(E,'agony',1.5); } unstick(h); h.cd=.35; } }
-function unstick(h){ const S=h.stuck; if(!S) return; h.stuck=null; S.E.impaled=Math.max(0,(S.E.impaled||0)-1); h.itemW=null; h.melQ=null; restoreItemNode(h); h.prevPts=null; }
+function unstick(h){ const S=h.stuck; if(!S) return; h.stuck=null; S.E.impaled=Math.max(0,(S.E.impaled||0)-1); h.itemW=null; h.melQ=null; restoreItemNode(h); h.prevPts=null; if(h.mv) melSnap(h); }
 
 /* ---------- left in him ---------- */
 const EMB=[];

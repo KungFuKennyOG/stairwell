@@ -207,35 +207,17 @@ function reloadHand(h){ const it=h.item; if(!it) return; const w=WPN[it.key]; if
 function tickItem(h,dt){ const it=h.item; h.rec=Math.max(0,h.rec-dt*7); h.cd-=dt; if(!it) return; it.cd-=dt;
   if(it.reload>0){ it.reload-=dt; if(it.reload<=0){ const w=WPN[it.key]; it.reload=0; it.ammo=PROTO.on?rayLoad(it,w):w.loadOne?Math.min(w.mag,it.ammo+1):w.mag; if(w.pump&&!it.chambered&&!XR.on){ it.chambered=true; it.spent=false; sfx('pump',.7); } } } } /* VR: a loaded tube still needs racking */
 
-/* ---------- melee ---------- */
-function meleeHit(h,E,seg,p,dir,speed,bone){
-  const key=h.item?h.item.key:'fists',w=WPN[key];
-  if(w.gun){ const pw=clamp(speed/3.2,.45,1.6)*w.bash.power; hitEnemy(E,seg,p,dir,'blunt',{power:pw}); sfx('bash'); if(XR.on){ buzz(h.hand,1,90); if(h.support) buzz(h.support.hand,.8,70); } h.cd=.35; return; } /* pistol-whip, butt-stroke */
-  const oneAxe=w.heavy&&!h.support,pk=oneAxe?.6:1;
-  if(w.melee==='blunt'){ hitEnemy(E,seg,p,dir,'blunt',{power:clamp(speed/3.2,.45,1.7)}); sfx('punch'); }
-  else { const segI=SEGS.indexOf(seg); hitEnemy(E,seg,p,dir,'knife',{bleed:(w.bleed||1)*pk,sever:(w.sever||1)*pk,stun:w.stun||1,push:(w.push||1)*pk,chop:!!w.chop,heavy:!!w.heavy,power:clamp(speed/3,.6,1.6)*pk}); sfx(w.chop?'chop':'stab');
-    /* point-first and hard: it goes in and stays in */
-    if(XR.on&&bone&&STICKS[key]&&h.itemNode&&!h.stuck&&!E.segOff.has(segI)&&enemies.includes(E)){ const Zb=norm3(colOf(itemM(h),2)),al=v3.dot(dir,Zb),part=seg[3];
-      const stab=al>.45&&speed*al>(key==='knife'?1:1.4); /* any real point-first push sticks, not just a perfect thrust */
-      const lodge=key==='machete'&&al<.5&&speed>3&&/chest|belly|head|thigh|neck|uarm/.test(part)&&Math.random()<.45; /* chops bite into bone and stay */
-      if(stab||lodge) startStuck(h,E,bone,seg,!stab); }
-    if(w.uses){ h.item.uses--; if(h.item.uses<=0){ sfx('glass'); spray(p,v3.sc(dir,-1),10,1.6,.8,'dust',.008); equip(h,null); } } }
-  if(XR.on) buzz(h.hand,1,w.heavy?140:90); h.cd=w.heavy?.45:.28; }
-/* VR: every frame, each striking point of each hand is swept from where it was to where it is */
-function vrMelee(h,dt){
-  if(h.stuck){ h.prevPts=null; return; }
-  const w=WPN[h.item?h.item.key:'fists'],pts=w.gun?(h.itemNode?w.bash.pts.map(q=>mulP(itemM(h),q)):[]):handPts(h),need=w.gun?2.2:w.speed*(w.heavy&&!h.support?1.35:1);
-  if(h.prevPts&&h.prevPts.length===pts.length&&h.cd<=0&&GAME.started&&!PL.dead) for(let i=0;i<pts.length;i++){ const a=h.prevPts[i],b=pts[i],d=v3.sub(b,a),len=Math.hypot(...d),speed=len/Math.max(dt,1e-3);
-    if(speed<.5||len<1e-4) continue; const dir=v3.sc(d,1/len),o=v3.sub(a,v3.sc(dir,.04)),hit=rayEnemies(o,dir,len+.08,.03); if(!hit) continue;
-    const ex=rayMesh(hit.E,o,dir,0,len+.09); if(!ex) continue; const p=v3.add(o,v3.sc(dir,ex.t)),seg=segFor(hit.E,ex.bone,p);
-    if(speed<need){ if((h.bumpCd||0)<=0){ h.bumpCd=.25; for(const k of [seg[0],seg[1]]) kickV(hit.E.B,k,v3.sc(dir,.6),H); buzz(h.hand,.25,18); sfx('bump',.4); } break; } /* too slow: it just bumps off him */
-    meleeHit(h,hit.E,seg,p,dir,speed,ex.bone); break; }
-  h.prevPts=pts; }
-/* flat screen: a swing that lands a moment after you click, down the crosshair */
+/* ---------- melee ----------
+   The hit test, the tiers and the weight live in 81-melee.js. o (optional): {tier, kind, cutK, grabbed} from the swept test;
+   without it (flat screen, old callers) the tier comes from the speed. */
+function meleeHit(h,E,seg,p,dir,speed,bone,o){ return melHit(h,E,seg,p,dir,speed,bone,o); }
+/* VR: every frame, each strike volume of each hand is swept from where it was to where it is (81-melee.js) */
+function vrMelee(h,dt){ melSweep(h,dt); }
+/* flat screen: a swing that lands a moment after you click, down the crosshair, as a solid blow (the stagger tier: two to the head drop him) */
 function flatSwing(h){ if(!GAME.started||PL.dead||h.swingT>=0||h.cd>0) return; h.swingT=0; h.swingDone=false; }
 function flatSwingHit(h){ const {f,eye}=camBasis(),w=WPN[h.item?h.item.key:'fists']; const hit=rayEnemies(eye,f,w.reach,.07);
   if(hit){ const c=v3.add(eye,v3.sc(f,hit.t)),ex=rayMesh(hit.E,eye,f,Math.max(0,hit.t-.05),hit.t+.4)||nearestSkin(hit.E,c,.2),p=ex?(ex.p||v3.add(eye,v3.sc(f,ex.t))):c;
-    meleeHit(h,hit.E,ex?segFor(hit.E,ex.bone,p):hit.seg,p,f,w.heavy?3.6:3); screenBlood(w.melee==='blunt'?1:3); hitMarker(); }
+    meleeHit(h,hit.E,ex?segFor(hit.E,ex.bone,p):hit.seg,p,f,w.heavy?5:4.2); screenBlood(w.melee==='blunt'?1:3); hitMarker(); }
   else { sfx('swish'); const D=doorNear(eye[0]+f[0]*.8,eye[2]+f[2]*.8,.8); if(D&&D.state==='closed'&&w.heavy) kickDoor(D); } }
 function useRight(){ const h=HANDS.R; if(h.item&&WPN[h.item.key].gun) fireHand(h,(()=>{ const {f,eye}=camBasis(); return {o:eye,d:f}; })()); else flatSwing(h); }
 
