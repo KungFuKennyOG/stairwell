@@ -616,7 +616,7 @@ const PL={x:0,z:3.2,yaw:0,pitch:0,hp:100,hurtT:9,ammo:12,reload:0,stabT:-1,stabD
 const KEYS={};
 const GAME={started:false,ts:1,slow:false,acc:0,t:0,clear:false,barkGlobal:0};
 function camBasis(){ if(XR.on&&XR.head) return XR.head; const cy=Math.cos(PL.yaw),sy=Math.sin(PL.yaw),cp=Math.cos(PL.pitch),sp=Math.sin(PL.pitch);
-  const f=[-sy*cp,sp,-cy*cp],r=norm3(v3.cross(f,[0,1,0])),u=v3.cross(r,f); return {f,r,u,eye:[PL.x,1.62+(PL.y||0),PL.z]}; } /* PL.y: up the stairs (66-tower.js) */
+  const f=[-sy*cp,sp,-cy*cp],r=norm3(v3.cross(f,[0,1,0])),u=v3.cross(r,f); return {f,r,u,eye:[PL.x,1.62+(PL.y||0)-(PL.dropY||0),PL.z]}; } /* PL.y: up the stairs (66-tower.js). PL.dropY: crouched or crawling (86-hide.js) */
 /* rays */
 function raySeg(o,d,a,b,r){
   const u=v3.sub(b,a),w=v3.sub(o,a),bb=v3.dot(d,u),c=v3.dot(u,u),dd=v3.dot(d,w),e=v3.dot(u,w);
@@ -1346,7 +1346,7 @@ function xrFrame(t,xf){
       h.downT=bd[1]<-.87?(h.downT||0)+dt:0; if(h.downT>.5&&!(it.reload>0)){ reloadHand(h); if(it.reload>0) buzz(h.hand,.35,40); } } else h.downT=0;
     if(hand==='left'){ const sx=ax[2]||0,sz=ax[3]||0; if(GAME.started&&Math.hypot(sx,sz)>.15){ const fl=norm3([f[0],0,f[2]]),rl=[-fl[2],0,fl[0]],sp=2.2*dt*Math.max(GAME.ts,.3); /* bullet time slows you too */
         const before=[PL.x,PL.z]; PL.x+=(rl[0]*sx-fl[0]*sz)*sp; PL.z+=(rl[2]*sx-fl[2]*sz)*sp; collidePlayer(); XR.origin[0]+=PL.x-before[0]; XR.origin[2]+=PL.z-before[1]; }
-      if(stickC) toggleSlow(); }
+      if(stickC){ if(PROTO.on) hideCrouchToggle(); else toggleSlow(); } } /* the prototype: the click crouches (86-hide.js) instead of bullet time */
     else { const sx=ax[2]||0; if(Math.abs(sx)>.7&&!XR.snapHeld){ XR.snapHeld=true; const a=-Math.sign(sx)*Math.PI/6,c=Math.cos(a),s=Math.sin(a),dx=XR.origin[0]-eye[0],dz=XR.origin[2]-eye[2];
         XR.origin[0]=eye[0]+dx*c+dz*s; XR.origin[2]=eye[2]-dx*s+dz*c; XR.yaw+=a; } else if(Math.abs(sx)<.3) XR.snapHeld=false;
       if(stickC){ const L=[720,1080,1440],i=(L.indexOf(XR.res)+1)%L.length; XR.res=L[i]; vrToast(['Sharpness: low (more PS1)','Sharpness: medium','Sharpness: high'][i],1.6); } }

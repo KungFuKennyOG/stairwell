@@ -73,7 +73,7 @@ function setEnv(ac,key,fast){ const B=audioBus(ac); if(B.env===key) return; B.en
 /* ---------- 3D: where a sound is, how far, and whether a wall is in the way ---------- */
 function earPos(){ const {eye}=camBasis(); return eye; }
 function spatial(ac,p,dest){ const e=earPos(),d=Math.hypot(p[0]-e[0],p[1]-e[1],p[2]-e[2]);
-  const occ=d>.6&&typeof sightClear==='function'&&!sightClear([e[0],Math.min(e[1],1.5),e[2]],[p[0],Math.max(1,Math.min(p[1],1.5)),p[2]]);
+  const occ=d>.6&&typeof soundClear==='function'&&!soundClear([e[0],Math.min(e[1],1.5),e[2]],[p[0],Math.max(1,Math.min(p[1],1.5)),p[2]]); /* a hung sheet doesn't muffle it: walls only */
   const pan=ac.createPanner(); pan.panningModel='equalpower'; pan.distanceModel='inverse'; pan.refDistance=1.5; pan.rolloffFactor=1; pan.maxDistance=80;
   if(pan.positionX){ pan.positionX.value=p[0]; pan.positionY.value=p[1]; pan.positionZ.value=p[2]; } else pan.setPosition(p[0],p[1],p[2]);
   const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=occ?650:Math.min(20000,22000/(1+d/12)); lp.Q.value=.5;
@@ -81,7 +81,7 @@ function spatial(ac,p,dest){ const e=earPos(),d=Math.hypot(p[0]-e[0],p[1]-e[1],p
   setTimeout(()=>{ try{ pan.disconnect(); lp.disconnect(); g.disconnect(); }catch(_){} },4000);
   return {input:pan,occ,d}; }
 /* the voices (55-voice.js) come through here: the room, the wall muffle, the limiter */
-function voiceDest(ac,p){ const B=audioBus(ac),e=earPos(),occ=Math.hypot(p[0]-e[0],p[2]-e[2])>.6&&!sightClear([e[0],1.5,e[2]],[p[0],1.5,p[2]]);
+function voiceDest(ac,p){ const B=audioBus(ac),e=earPos(),occ=Math.hypot(p[0]-e[0],p[2]-e[2])>.6&&!soundClear([e[0],1.5,e[2]],[p[0],1.5,p[2]]);
   const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=occ?800:18000; const g=ac.createGain(); g.gain.value=occ?.5:1; lp.connect(g); g.connect(B.inp);
   const sd=ac.createGain(); sd.gain.value=occ?.45:.22; lp.connect(sd); sd.connect(B.revIn);
   setTimeout(()=>{ try{ lp.disconnect(); g.disconnect(); sd.disconnect(); }catch(_){} },8000); return lp; }
