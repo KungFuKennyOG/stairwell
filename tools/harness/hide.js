@@ -28,7 +28,7 @@ place(-8.85,-3.3,Math.PI); hideCrouchToggle(); run(.4);
 ok('C crouches: eye at ~0.95', PL.crouch&&Math.abs(camBasis().eye[1]-.95)<.03, {eye:r2(camBasis().eye[1])});
 const tw=walkUntil(Math.PI,()=>PL.z>-2.2,4); run(.6);
 ok('crouched: crawls under the bed', PL.z>-2.25&&PL.crawl, {z:r2(PL.z),t:r2(tw),crawl:PL.crawl});
-ok('crawling: view dips under the frame', camBasis().eye[1]<.3, {eye:r2(camBasis().eye[1])});
+ok('crawling: view dips under the frame', camBasis().eye[1]<bed.h-.05, {eye:r2(camBasis().eye[1]),underside:bed.h});
 ok('under the bed: PL.hide = bed, nothing showing', PL.hide===bed&&PL.hideExp<.05, {hide:PL.hide&&PL.hide.id,exp:r2(PL.hideExp)});
 hideCrouchToggle(); ok('no standing up under the bed', PL.crouchT===true);
 walkUntil(0,()=>PL.z<-3.05,5); run(.5);
@@ -47,7 +47,7 @@ fake([-8.85,1.22,-3.3]); run(.1); ok('VR 1.22 m: still crouched (stands above 1.
 fake([-8.85,1.0,-3.3]); run(.1);
 fake([-8.85,1.0,-2.15],[[-9.05,.9,-1.95],[-8.65,.9,-1.95]]); collidePlayer(); HIDE.fake.head[0]=PL.x; HIDE.fake.head[2]=PL.z; run(.6);
 ok('VR crouched: the bed lets his head under', Math.abs(PL.z+2.15)<.02, {z:r2(PL.z)});
-ok('VR crawl dip held at real-0.78', Math.abs(PL.dropY-.78)<.03&&rayHeadY()<.3, {drop:r2(PL.dropY),head:r2(rayHeadY())});
+const dipW=1.0-(bed.h-HIDEP.crawlGap); ok('VR crawl dip held (real head 1.0 to just under the frame)', Math.abs(PL.dropY-dipW)<.03&&rayHeadY()<bed.h, {drop:r2(PL.dropY),want:r2(dipW),head:r2(rayHeadY())});
 ok('VR under the bed: hidden, nothing showing', PL.hide===bed&&PL.hideExp<.05, {exp:r2(PL.hideExp)});
 HIDE.fake.hands[1]=[-8.65,.9,-2.95]; run(.05); const e1=PL.hideExp;
 HIDE.fake.hands[0]=[-9.05,.9,-2.95]; run(.05); const e2=PL.hideExp;
@@ -134,22 +134,28 @@ ok('2.8 m behind: a fainter glow (the early warning)', gMid>.05&&gMid<gNear, r2(
 const tor4={o:[-7,1.4,-6.5],d:[0,0,1],E:{}}; for(let i=0;i<60;i++) sheetGlow(door,1/60,[tor4]);
 ok('past 4.5 m: nothing', door.mF.emis[0]<.01);
 
-/* ---- 7. tearing a strip off (keyboard B; VR: grip and pull down) ---- */
-window.__strips=0; window.giveStrip=h=>{ window.__strips++; };
-place(-7.0,-.4,Math.PI); const lowBefore=sightClear([-6.8,.17,0],[-6.8,.17,-2.5]);
+/* ---- 7. tearing a strip off (keyboard B; VR: grip and pull down). The strip goes through Ray's giveStrip (80-ray.js) ---- */
+let strips=0; protoOn('stat',(k)=>{ if(k==='strip') strips++; }); const handsFree=()=>{ equip(HANDS.L,null); equip(HANDS.R,null); };
+const hasStrip=()=>[HANDS.L,HANDS.R].some(h=>h.item&&h.item.key==='strip');
+handsFree(); place(-7.0,-.4,Math.PI); const lowBefore=sightClear([-6.8,.17,0],[-6.8,.17,-2.5]);
 const torn=hideFlatTear();
-ok('B tears a strip: giveStrip got it', torn&&window.__strips===1&&door.panels.some(p=>p.torn===1), {torn,strips:window.__strips});
+ok('B tears a strip: it lands in a hand', torn&&strips===1&&hasStrip()&&door.panels.some(p=>p.torn===1), {torn,strips});
 run(3); const p0=door.panels.findIndex(p=>p.torn===1),uSide=p0===0?-7.2:-6.8;
 ok('the hem rose: you can see under that half now', !lowBefore&&sightClear([uSide,.17,0],[uSide,.17,-2.5]));
-/* VR: grip a sheet, crouch while holding it aside (no tear), then yank down (tear) */
-{ const h=HANDS.L,was=XR.on,pad={buttons:[{pressed:false},{pressed:false}]}; h.src={gamepad:pad}; XR.on=true; window.__strips=0; for(const p of door.panels) p.torn=0;
+equip(HANDS.L,newItem('pistol')); equip(HANDS.R,newItem('pistol')); const s0=strips,tp=door.panels.map(p=>p.torn); const t2=hideFlatTear();
+ok('both hands full: no strip, nothing tears', !t2&&strips===s0&&door.panels.every((p,i)=>p.torn===tp[i]));
+/* VR: the grip button goes through grabOrDrop first (60-weapons.js), then the cloth. By a bed it's a strip (Ray's rule); on a hung
+   sheet the grip holds it, crouching while holding it doesn't tear it, a yank down does */
+{ const h=HANDS.L,was=XR.on,pad={buttons:[{pressed:false},{pressed:false}]}; h.src={gamepad:pad}; XR.on=true; handsFree(); for(const p of door.panels) p.torn=0;
   const at=(x,y,z)=>{ h.M=m4.make(); h.M[12]=x-FIST[0]; h.M[13]=y-FIST[1]; h.M[14]=z-FIST[2]; h.vel=[0,0,0]; }, Bh=y=>({y});
-  const k=door.cols.find(c=>c.u<-.3).j*door.rows+3,P=door.P; at(P[k*3],P[k*3+1],P[k*3+2]); pad.buttons[1].pressed=true; sheetHandsTick(Bh(1.6));
-  const held=h._sh===door; at(P[k*3],P[k*3+1]-.2,P[k*3+2]+.15); sheetHandsTick(Bh(1.42)); const afterCrouch=window.__strips;
+  at(bed.x,.75,bed.z+bed.w/2+.05); let s1=strips; grabOrDrop(h); const bedStrip=strips===s1+1&&h.item&&h.item.key==='strip'; handsFree();
+  const k=door.cols.find(c=>c.u<-.3).j*door.rows+3,P=door.P; at(P[k*3],P[k*3+1],P[k*3+2]); s1=strips; grabOrDrop(h); const noInstant=strips===s1&&!h.item;
+  pad.buttons[1].pressed=true; sheetHandsTick(Bh(1.6));
+  const held=h._sh===door; at(P[k*3],P[k*3+1]-.2,P[k*3+2]+.15); sheetHandsTick(Bh(1.42)); const afterCrouch=strips-s1;
   at(P[k*3],P[k*3+1]-.45,P[k*3+2]); sheetHandsTick(Bh(1.42));
-  ok('VR grip: holds the sheet; crouching while holding it doesn\'t tear it; a yank down does', held&&afterCrouch===0&&window.__strips===1&&!h._sh, {held,afterCrouch,strips:window.__strips});
-  pad.buttons[1].pressed=false; sheetHandsTick(Bh(1.42)); XR.on=was; h.src=null; }
-delete window.giveStrip;
+  ok('VR grip by a bed: a strip at once (Ray\'s rule kept)', bedStrip);
+  ok('VR grip on a hung sheet: no instant strip; holds it; crouching holding it doesn\'t tear it; a yank down does, into that hand', noInstant&&held&&afterCrouch===0&&strips===s1+1&&!h._sh&&h.item&&h.item.key==='strip', {noInstant,held,afterCrouch,strips:strips-s1});
+  pad.buttons[1].pressed=false; sheetHandsTick(Bh(1.42)); XR.on=was; h.src=null; handsFree(); }
 
 /* ---- 8. a crouch hole ---- */
 const lint=addBox(-6.07,-5.93,-1,1,.95,2.8,'wall'); boxGridDirty=true;

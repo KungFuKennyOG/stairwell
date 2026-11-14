@@ -77,6 +77,7 @@ function kickedDown(E,fl){ if(!(E.fakeDead||E.gShoot)||E.dead) return;
 
 /* ---- tenants ---- */
 function civReact(E,force){ /* called once when a tenant realises what's happening */
+  if(PROTO.on&&!force&&typeof wdCivReact==='function'){ const m=wdCivReact(E); if(m) return m; } /* prototype: on seeing you, some scream or point you out (88-wounded.js) */
   const mate=enemies.find(O=>O!==E&&O.civ&&!O.dead&&!O.shielder&&Math.hypot(O.pos[0]-E.pos[0],O.pos[1]-E.pos[1])<3.2),r=Math.random();
   const d=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z);
   let m=mate&&r<.35?'shield':r<.5?'freeze':r<.62?'deny':r<.84?'hide':'flee';
