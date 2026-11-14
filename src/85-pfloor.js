@@ -141,6 +141,7 @@ function pfProp(kind,x,z,ry=0,o={}){ const G=floorN,hasH=typeof prop==='function
       for(const b of S.solids){ const bb=addBox(b.x0,b.x1,b.z0,b.z1,b.y0||0,b.h,b.kind==='door'?'furn':b.kind||'furn'); if(b.kind==='door') bb.door=true; if(b.y0>0) bb.under=true; S.boxes.push(bb); }
       if(typeof addSheet==='function') for(const b of S.sight){ const bb=addBox(b.x0,b.x1,b.z0,b.z1,b.y0,b.h,'sheet'); bb.sightOnly=true; S.boxes.push(bb); }
       for(const hd of S.hides) pfHide(Object.assign({},hd,{note:o.hide&&o.hide.note||hd.kind,id:'pf-'+kind+'-'+PF.hides.length}));
+      if(S.curtain&&typeof hideLiveCurtain==='function'){ try{ S.live=hideLiveCurtain(S,x,z,ry+(PF_HYAW[kind]||0)); }catch(e){ console.warn('[pfloor] live curtain',kind,e); } } /* G: a curtain you push through, that stops eyes */
       if(S.tick) PF.ticks.push(S); S.h=true; return S; }catch(e){ console.warn('[pfloor] prop',kind,e); } }
   if(o.hide) pfHide(o.hide);
   const fk=PF_FURN[kind]!==undefined?PF_FURN[kind]:kind;
@@ -259,7 +260,7 @@ function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.p
     H({kind:'closet',x:3.75,z:10.6,yaw:Math.PI,w:1.2,d:1.5,h:1.9,open:'+z',note:'in the closet'}); }
   /* N6: the tenants' flat. A sheet in the doorway, a lamp, a wardrobe */
   { P('sofa',2.0,6.4-T2-.45,Math.PI); const t=P('table',3.4,3.0,Math.PI/2); P('wardrobe',-1.5+T2+.36,3.6,Math.PI/2,{hide:{kind:'wardrobe',x:-1.02,z:3.6,yaw:Math.PI/2,w:1.0,d:.55,h:1.9,open:'+z',note:'in the wardrobe'}});
-    P('lamp',4.05,5.9,0); L_([4.05,1.35,5.75],[1.0,.74,.44],3.8,null,'N6'); P('trash',-.8,1.7,0); SP.tenantsTable=[3.4,top(t,.77),3.2,0]; }
+    P('lamp',4.15,4.6,0); L_([4.15,1.35,4.5],[1.0,.74,.44],3.8,null,'N6'); P('trash',-.8,1.7,0); SP.tenantsTable=[3.4,top(t,.77),3.2,0]; }
   /* N7: the laundry: lines of washing across it, a washer, a sink */
   { P('shelf',4.9,7.5,Math.PI/2); P('laundry',6.7,8.4,0,{opts:{len:2.4},hide:{kind:'sheets',x:6.7,z:9.0,yaw:0,w:2.4,d:.7,h:1.8,note:'behind the sheets'}}); P('laundry',7.0,10.6,0,{opts:{len:2.4}});
     P('washer',8.55,11.55,0); P('sink',3.4,6.9,Math.PI); A.bulb(6,9.2,false); }
@@ -509,11 +510,18 @@ function pfHunters(dt){ const own=typeof HUNT==='undefined';
     if(!E.aware&&E.st==='idle'&&(!E.mind||E.mind==='calm'||E.mind==='nervous')&&!E.goHome) E.st='alert';
     if(E.patrol&&E.patrol!==E.followP&&E.patrol.wait>1.8) E.patrol.wait=rnd(.6,1.6);
     if(own&&!E.aware&&(!E.mind||E.mind==='calm')&&E.st==='alert'){ E.callT-=dt; if(E.callT<=0&&Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)<7){ E.callT=rnd(6,10); const L_=E.hunter.calls,txt=L_[(E.callI=(E.callI??-1)+1)%L_.length]; bark(E,txt,2.4); vox(E,'mutter',1.3); } } }
-  /* Jojo walks a step behind Tito, along where Tito has been (so he follows him through the doorways). If either is busy, Jojo walks the route himself */
+  /* Jojo walks a step behind Tito along the hall, along where Tito has been. When Tito goes into a room Jojo stays out in the hall a
+     little way off its doorway, covering it, and picks up Tito's trail when he comes back out (two men in a 1.3 m entry jam). If either
+     is busy (aware, searching, hurt, D's hunt), Jojo walks the route on his own */
   const T=PF.lead,J=PF.follow; if(!T||!J||J.dead) return;
-  if(!T.dead&&pfCalm(T)&&pfCalm(J)&&pfHuntCalm()){ const tr=T.pairT,last=tr[tr.length-1]; if(!last||Math.hypot(T.pos[0]-last[0],T.pos[1]-last[1])>.35){ tr.push([T.pos[0],T.pos[1]]); if(tr.length>24) tr.shift(); }
-    let d=0,tgt=tr[0]||[T.pos[0],T.pos[1]]; for(let i=tr.length-1;i>0;i--){ d+=Math.hypot(tr[i][0]-tr[i-1][0],tr[i][1]-tr[i-1][1]); if(d>=1.5){ tgt=tr[i-1]; break; } }
-    const P=J.followP; P.pts[0]=tgt; P.i=0; const dj=Math.hypot(J.pos[0]-tgt[0],J.pos[1]-tgt[1]); P.wait=dj>.9?0:Math.max(P.wait,.2); if(J.patrol!==P) J.patrol=P; }
+  if(!T.dead&&pfCalm(T)&&pfCalm(J)&&pfHuntCalm()){ const tr=T.pairT,rT=pfRoomAt(T.pos[0],T.pos[1]),inHall=rT&&rT.id==='H',P=J.followP;
+    if(inHall!==T.pfInHall){ if(inHall){ tr.length=0; J.pfCover=null; } else if(T.pfInHall!==undefined){ const l=tr[tr.length-1]||[T.pos[0],T.pos[1]]; const sx=Math.sign(J.pos[0]-l[0])||1; J.pfCover=[clamp(l[0]+sx*1.3,-7.4,7.4),clamp(J.pos[1],-.5,.5)]; } T.pfInHall=inHall; }
+    let tgt;
+    if(J.pfCover&&!inHall) tgt=J.pfCover;
+    else { const last=tr[tr.length-1]; if(!last||Math.hypot(T.pos[0]-last[0],T.pos[1]-last[1])>.35){ tr.push([T.pos[0],T.pos[1]]); if(tr.length>24) tr.shift(); }
+      let d=0; tgt=tr[0]||[T.pos[0],T.pos[1]]; for(let i=tr.length-1;i>0;i--){ d+=Math.hypot(tr[i][0]-tr[i-1][0],tr[i][1]-tr[i-1][1]); if(d>=1.5){ tgt=tr[i-1]; break; } } }
+    P.pts[0]=tgt; P.i=0; const dj=Math.hypot(J.pos[0]-tgt[0],J.pos[1]-tgt[1]); P.wait=dj>.9?0:Math.max(P.wait,.2); if(J.patrol!==P) J.patrol=P;
+    if(J.pfCover&&dj<.9&&!inHall){ let dh=Math.atan2(T.pos[0]-J.pos[0],T.pos[1]-J.pos[1])-J.hd; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); J.hd+=clamp(dh,-2*dt,2*dt); } } /* watching the doorway Tito went through */
   else if(J.patrol===J.followP){ let bi=0,bd=1e9; PF_ROUTE.forEach((q,i)=>{ const d=Math.hypot(q[0]-J.pos[0],q[1]-J.pos[1]); if(d<bd){ bd=d; bi=i; } }); J.patrol={pts:PF_ROUTE,i:bi,wait:0}; } }
 /* what the pair say to each other as they pass (twTalk is for people standing still) */
 function pfPairTalk(dt){ const C=PF.pairC,T=PF.lead,J=PF.follow; if(!C||C.dead||!T||!J) return; if(T.dead||J.dead||T.aware||J.aware){ C.dead=true; return; }
@@ -550,7 +558,7 @@ function pfTools(dt){ const X=PF.exit; if(!X||PL.dead) return; const kp=pfKeysPo
   const use=pfUseQ||(KEYS.Mouse0&&pfToolOf(HANDS.R.item)); pfUseQ=false; if(!use) return; const {f,eye}=camBasis(),h=HANDS.R,R_=pnum('pfloor','useR',1.7);
   const looking=(p,r)=>{ const v=v3.sub(p,eye),d=Math.hypot(...v); return d<r&&v3.dot(v,f)/d>.75; };
   const tl=pfToolOf(h.item); if(tl&&!X.open&&looking(X.at,R_)){ pfOpen(tl==='cutter'?'cut':'keys'); return; }
-  if(kp&&pfOut(PF.keyMan)&&looking(kp,1.6)){ pfTakeKeys(h); return; }
+  if(kp&&pfOut(PF.keyMan)&&looking(kp,2.0)){ pfTakeKeys(h); return; }
   const aTool=it=>it&&WPN[it.key]&&/^(medkit|rounds|strip)$/.test(WPN[it.key].tool||''); if(KEYS.Mouse0||aTool(h.item)) return; /* strips, kits and rounds are A's (80-ray.js, also on U) */
   let best=null,bd=1e9; for(const P of LOOSE){ if(aTool(P.item)) continue; const v=v3.sub(P.node.p,eye),d=Math.hypot(...v); if(d<2.1&&v3.dot(v,f)/d>.8&&d<bd){ bd=d; best=P; } }
   if(best){ if(h.item) grabOrDrop(h); equip(h,best.item); removePickup(best); sfx('click',.6); } }
@@ -645,6 +653,9 @@ function pfSightCheck(o={}){ const S=.1,W=Math.round(2*RX/S),Hh=Math.round(2*RZ/
 function pfCheck(){ const out={rooms:PF.rooms.length,openings:PF.openings.length,openKinds:{},boxes:BOXES.length,hides:PF.hides.length,lights:PF.lights.length,unreached:[],unreachedCrouch:[],exits:{}};
   for(const o of PF.openings) out.openKinds[o.kind]=(out.openKinds[o.kind]||0)+1;
   for(const r of PF.rooms) out.exits[r.id]=r.exits;
+  /* doorways whose approach is blocked: the cell in the doorway's column half a metre in front, on each side */
+  out.blockedDoors=[]; for(const o of PF.openings){ if(o.kind==='chain') continue; const nv=o.kind==='hole'?FLOOR.navHole:FLOOR.nav,sc=Math.round(o.pos*2)/2;
+    for(const sd of [-1,1]){ const rc=Math.round((o.c+sd*.55)*2)/2,c=o.axis==='x'?navCell(sc,rc):navCell(rc,sc); if(c<0||nv[c]) out.blockedDoors.push(o.a+'/'+o.b+(sd<0?' -':' +')); } }
   /* a field from (x,z), started from the nearest open cell in the same room (a hiding spot sits inside its furniture) */
   const fieldOn=(nav,x,z)=>{ const F=new Int32Array(NX*NZ),rm=pfRoomAt(x,z); let c=navCell(x,z);
     if(nav[c]){ let bd=1e9,bc=c; for(let k=-5;k<=5;k++) for(let i=-5;i<=5;i++){ const q=c+k*NX+i; if(q<0||q>=nav.length||nav[q]||pfRoomAt(cellX(q%NX),cellZ((q-q%NX)/NX))!==rm) continue; if(i*i+k*k<bd){ bd=i*i+k*k; bc=q; } } c=bc; }

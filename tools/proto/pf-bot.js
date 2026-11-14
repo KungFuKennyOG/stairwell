@@ -4,6 +4,8 @@
 //   cutter <0|1|2>  the bolt cutter is in spot 0 (Dani's table), 1 (storeroom shelf) or 2 (gutted flat); walk to it, take it, cut the chain, leave
 //   patrol          stand on the landing for 240 s and watch the flashlight pair walk (where they get to, whether they stick)
 //   ghost           as cutter, but nobody sees or hears Ray (pure route timing)
+//   keys            Mario dies; take his keyring off his hip, unlock the chain, leave
+//   talk            what you overhear standing by Dani, then a couple of metres behind the walking pair
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path'); const file = 'file://' + path.resolve(process.argv[2] || 'index.html'), mode = process.argv[3] || 'sprint', arg = process.argv[4];
 const IN_PAGE = `
@@ -41,7 +43,24 @@ window.__P=(function(){
       if(T&&J) maxGap=Math.max(maxGap,Math.hypot(T.pos[0]-J.pos[0],T.pos[1]-J.pos[1]));
       if(Math.round((GAME.t-t0)*30)%300===0) track.push([+(GAME.t-t0).toFixed(0),T&&T.pos.map(v=>+v.toFixed(1)),T&&T.patrol&&T.patrol.i,J&&J.pos.map(v=>+v.toFixed(1)),T&&T.st,T&&T.mind]); }
     return {titoRooms:[...seen.T],jojoRooms:[...seen.J],maxGap:+maxGap.toFixed(1),stuckMax:{T:+stuckMax.T.toFixed(1),J:+stuckMax.J.toFixed(1)},track,barks:LOG.barks.slice(0,12)}; }
-  return {sprint,cutter,patrol,LOG};
+  /* keys: Mario goes down (killed outright), Ray takes his keyring (U at his hip), walks to the door, unlocks it (quiet), leaves */
+  function keys(maxT){ const t0=GAME.t,Mr=enemies.find(E=>E.name==='Mario'); if(!Mr) return {err:'no Mario',names:enemies.map(E=>E.name)}; for(const E of enemies){ E.civ=true; E.atkCd=1e9; } let got=null,open=null;
+    PL.x=-.4; PL.z=7.2; die(Mr); for(let k=0;k<60;k++) step(dt);
+    while(GAME.t-t0<maxT){ KEYS.KeyW=false; if(PF.exited) break;
+      if(got==null){ const kp=pfKeysPos(); if(kp&&Math.hypot(PL.x-kp[0],PL.z-kp[2])>.9){ walk(kp[0],kp[2]); step(dt); if(GAME.t-t0>20) break; continue; } if(kp){ face(kp[0],kp[1],kp[2]); pfUseQ=true; } step(dt); if(HANDS.R.item&&HANDS.R.item.key==='keys') got=GAME.t-t0; else if(GAME.t-t0>25) break; continue; }
+      if(!PF.exit.open){ const d=Math.hypot(PL.x-12.2,PL.z-9.7); if(d<.5){ face(...PF.exit.lock); pfUseQ=true; step(dt); if(PF.exit.open) open=GAME.t-t0; continue; } walk(12.2,9.7); }
+      else { if(PL.x>12.3){ PL.yaw=Math.atan2(-(14.2-PL.x),-(9.9-PL.z)); KEYS.KeyW=true; } else walk(12.6,9.9); }
+      step(dt); }
+    KEYS.KeyW=false; return {gotKeys:got&&+got.toFixed(1),openAt:open&&+open.toFixed(1),how:PF.exit.how,exit:!!PF.exited,exitAt:PF.exited?+(GAME.t-t0).toFixed(1):null,keysVisibleOnHim:!!(PF.keysN&&PF.keysN.vis),events:LOG.events.filter(e=>e[1]!=='room')}; }
+  /* talk: stand where you'd overhear Dani, then by the pair's route, and log what's said */
+  function talk(){ const out={}; const at=(x,z,T)=>{ PL.x=x; PL.z=z; const n0=LOG.barks.length,t0=GAME.t; while(GAME.t-t0<T){ PL.x=x; PL.z=z; step(dt); } return LOG.barks.slice(n0).map(b=>b[1]+': '+b[2]); };
+    for(const E of enemies) if(!E.hunter) E.civ=E.civ; /* nobody changed */
+    const D=enemies.find(E=>E.name==='Dani'); out.dani=at(-9.2,4.6,22);
+    for(const E of PF.pair) E.ally=true; /* deaf and blind for this check: they just walk and talk */
+    const n0=LOG.barks.length,t0=GAME.t; let closest=99; PL.x=-4.5; PL.z=0; PL.px=PL.x; PL.pz=PL.z; while(GAME.t-t0<240){ step(dt); closest=Math.min(closest,...PF.pair.map(E=>Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z))); }
+    out.pair=LOG.barks.slice(n0).filter(b=>b[1]==='Tito'||b[1]==='Jojo').map(b=>b[0]+' '+b[1]+': '+b[2]); out.pairClosest=+closest.toFixed(1);
+    return out; }
+  return {sprint,cutter,patrol,keys,talk,LOG};
 })();`;
 (async () => {
   const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'] });
@@ -50,5 +69,5 @@ window.__P=(function(){
   await p.goto(file + '?proto=1&pfdev=1', { timeout: 240000 }); await p.waitForTimeout(1500); await p.click('#start', { timeout: 120000 }); await p.waitForTimeout(500);
   if (mode === 'cutter' || mode === 'ghost') await p.evaluate(i => window.__eval(`PF.cutterI=${i}; resetGame();`), +(arg || 0));
   await p.evaluate(s => window.__eval(s), IN_PAGE);
-  const res = await p.evaluate(([m]) => window.__eval(m === 'sprint' ? '__P.sprint(120)' : m === 'patrol' ? '__P.patrol(240)' : `__P.cutter(150,${m === 'ghost'})`), [mode]);
+  const res = await p.evaluate(([m]) => window.__eval(m === 'sprint' ? '__P.sprint(120)' : m === 'patrol' ? '__P.patrol(240)' : m === 'keys' ? '__P.keys(90)' : m === 'talk' ? '__P.talk()' : `__P.cutter(150,${m === 'ghost'})`), [mode]);
   console.log(JSON.stringify(res)); console.log(errs.length ? 'ERRORS ' + JSON.stringify(errs.slice(0, 8)) : 'no errors'); await b.close(); })();
