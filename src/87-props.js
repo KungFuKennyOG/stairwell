@@ -641,7 +641,7 @@ function pMedkit(g){ const s=prM('tinSide');   /* a battered first-aid tin: whit
   prBox(g,s,.04,.13,.19,-.02,0,.07); prBox(g,prF6(prM('tinLid'),s,s,s,s,s),.018,.134,.194,.009,0,.07);
   prCyl(g,prM('steel'),.004,.004,.18,6,.0,-.067,.07,Math.PI/2,0,0); prBox(g,prM('steel'),.01,.012,.02,.006,.068,.07); return g; }
 function pRounds(g){ const x=-.022;   /* a few loose 9 mm rounds in a knotted sandwich bag */
-  const n=N(g,x,0,0); n.s=[.55,1,1]; mk(prLathe([[-.04,0,0],[-.036,.02,.15],[-.015,.032,.4],[.012,.03,.62],[.03,.015,.8],[.038,.006,.88],[.05,.007,.95],[.056,0,1]],7),prM('bag',{cut:true,double:true}),n);
+  const n=N(g,x,0,0); n.s=[.55,1,1]; mk(prLathe([[-.04,0,0],[-.036,.02,.15],[-.015,.032,.4],[.012,.03,.62],[.03,.015,.8],[.038,.006,.88],[.05,.007,.95],[.056,0,1]],6),prM('bag',{cut:true,double:true}),n);
   for(const [px,py,pz,rx,rz] of [[x-.002,-.022,-.008,.3,1.4],[x+.002,-.01,.012,-.2,.2],[x-.003,.002,-.004,1.3,-.5],[x+.002,-.03,.012,0,-1.1]]){ const r=N(g,px,py,pz,rx,0,rz); prCyl(r,prM('brassCase'),.0049,.0049,.019,5); prCyl(r,prM('copper'),.0018,.0046,.011,5,0,.015,0); }
   return g; }
 function pRoundBox(g){ const x=-.021,s=prM('ammoSide');   /* a box of 9 mm, end flap torn open, noses showing */

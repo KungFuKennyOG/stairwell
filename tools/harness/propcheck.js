@@ -41,7 +41,13 @@ const path = require('path'); const file = 'file://' + path.resolve(process.argv
     for(const k of ['pipe','cutter']){ XR.on=true; equip(HANDS.R,newItem(k)); equip(HANDS.L,null); XR.on=false;
       const h=HANDS.R,o=HANDS.L; h.M=m4.compose(m4.make(),[0,1.2,0],[0,0,0],[1,1,1]); updateWorld(h.node,null);
       const along=mulP(itemM(h),[WPN[k].fore[0],0,WPN[k].fore[2]+.05]); o.M=m4.compose(m4.make(),v3.sub(along,FIST),[0,0,0],[1,1,1]);
-      const got=trySupport(o); ok(got,k+': second hand takes hold along the handle'); if(got){ applySupport(h); ok(h.itemW&&[...h.itemW].every(v=>isFinite(v)),k+': two-handed pose finite'); releaseSupport(o); } equip(HANDS.R,null); }
+      const got=trySupport(o); ok(got,k+': second hand takes hold along the handle'); if(got){ XR.on=true; applySupport(h); XR.on=false; const W=h.itemW,cl=c=>Math.hypot(W[c*4],W[c*4+1],W[c*4+2]); ok(W&&[...W].every(v=>isFinite(v))&&[0,1,2].every(c=>Math.abs(cl(c)-1)<1e-3),k+': two-handed pose is a proper rotation (column lengths '+[0,1,2].map(c=>cl(c).toFixed(2))+')'); releaseSupport(o);
+        /* steadiness: the support hand a couple of mm either side of the handle must not flip the item's roll */
+        const rolls=[[.002,0],[-.002,0],[0,.002],[0,-.002]].map(([dx,dz])=>{ o.M=m4.compose(m4.make(),v3.add(v3.sub(along,FIST),[dx,0,dz]),[0,0,0],[1,1,1]); trySupport(o); XR.on=true; applySupport(h); XR.on=false; const X=colOf(h.itemW,0); releaseSupport(o); return X; });
+        /* KNOWN until applySupport (60-weapons.js) takes the up reference from the back of the hand for VR-held melee items:
+           uh = w.melee&&!w.fwd&&XR.on ? -hand z : hand y. Not this file's to change; reported to the lead */
+        const worst=Math.min(...rolls.map(a=>Math.min(...rolls.map(b=>v3.dot(a,b))))); out.push((worst>.95?'PASS ':'KNOWN ')+k+': two-handed roll steady when the hands line up (worst agreement '+worst.toFixed(2)+')'); }
+      equip(HANDS.R,null); }
     /* the old melee path (until B's lands): a swing with each item through a man registers as blunt and nothing throws */
     const E=enemies.find(e=>!e.dead&&!e.civ); let hits=0;
     if(E) for(const k of keys){ const before=E.hp; try{ HANDS.R.item=newItem(k); HANDS.R.cd=0; meleeHit(HANDS.R,E,SEGS[0],X_(E.B,PI_.chest),[0,0,1],3,null); }catch(e){ ok(false,k+': meleeHit threw '+e.message); } hits++; }
@@ -49,5 +55,5 @@ const path = require('path'); const file = 'file://' + path.resolve(process.argv
     return out; })()`));
   for (const l of r) console.log(l);
   const fails = r.filter(l => l.startsWith('FAIL')).length;
-  console.log(errs.length ? 'ERRORS ' + JSON.stringify(errs.slice(0, 6)) : 'no errors', '|', r.length - fails, 'pass', fails, 'fail');
+  console.log(errs.length ? 'ERRORS ' + JSON.stringify(errs.slice(0, 6)) : 'no errors', '|', r.filter(l => l.startsWith('PASS')).length, 'pass', fails, 'fail', r.filter(l => l.startsWith('KNOWN')).length, 'known');
   await b.close(); process.exit(fails || errs.length ? 1 : 0); })();
