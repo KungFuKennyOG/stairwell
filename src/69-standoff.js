@@ -14,7 +14,7 @@ const DENY_LINES=['What— what is that?','Is that a gun?','What\'s happening?',
 const SHIELD_LINES=['Don\'t look, don\'t look—','Stay down— stay down—','I got you, I got you—','Not her— please—'];
 const FLEE_LINES=['Help! Somebody help!','He\'s got a gun!','Run! RUN!'];
 
-function psychOf(E){ if(!E.psych){ const r=Math.random(); E.psych=E.civ?'civ':r<.35?'quit':r<.8?'fight':'fake'; } return E.psych; }
+function psychOf(E){ if(!E.psych){ const r=Math.random(); E.psych=E.civ?'civ':PROTO.on?fightNerve(r):r<.35?'quit':r<.8?'fight':'fake'; } return E.psych; } /* prototype: the split by floor (84-fight.js) */
 
 /* where your guns point */
 function playerAims(){ const out=[]; for(const h of [HANDS.R,HANDS.L]){ const it=h.item,w=it&&WPN[it.key]; if(!w||!w.gun) continue;
@@ -38,7 +38,7 @@ function springBack(E){ E.surr=null; E.st='alert'; E.rise=.55; E.aware=true; E.r
   E.wpnHeld=true; E.wpnHand='R'; E.C.wpn.vis=true; setGrip(E.J,'R',true); E.sprung=.35; E.backup=false; if(E.concealed!==undefined){ bark(E,pick(LINES.alert),1.6); GAME.barkGlobal=1; vox(E,'shout'); } /* he's been waiting for this: the first shot comes in about a third of a second */ sfx('click',.9,[E.pos[0],1.1,E.pos[1]]); }
 
 function surrDecide(E,dt,dist){
-  if(E.civ||E.surr||E.dead||E.st!=='alert'||!E.aware||E.grabbed) return; const P=psychOf(E);
+  if(E.civ||E.surr||E.dead||E.st!=='alert'||!E.aware||E.grabbed) return; if(PROTO.on&&E.rage>0) return; /* in a rage he doesn't give up (84-fight.js) */ const P=psychOf(E);
   const quitter=P==='quit'||P==='fake';
   /* one hit and he's done (a psychological stop) */
   if(E.hitT<.05&&!E.hitSeen){ E.hitSeen=true; if(quitter&&Math.random()<.75) return surrender(E,'hit'); if(P==='fight'&&E.blood<70&&Math.random()<.15) return surrender(E,'hit'); }
@@ -53,6 +53,7 @@ function surrTick(E,dt,dist){ const S=E.surr; if(!S||E.dead) return; S.t+=dt;
   if(S.ph==='reach'&&S.t>.22){ S.ph='hands'; S.t=0; if(E.wpnHeld) dropWeapon(E); } /* the hands come up from the belt; the gun falls */
   else if(S.ph==='hands'&&S.t>S.hold&&E.st==='alert'){ S.ph='kneel'; S.t=0; E.st='kneel'; }
   if(E.st==='down'){ E.surr=null; return; }
+  if(PROTO.on){ fightSurr(E,S,dt,dist); return; } /* prototype: fakers by circumstance, quitters who run for their friends (84-fight.js) */
   /* the faker: your gun leaves him and he's close enough to make it count */
   if(E.backup&&(S.ph==='kneel'||S.ph==='hands')&&!E.covered&&E.freeT>E.fakeWait&&dist<8&&E.cons>.45&&sightClear(X_(E.B,PI_.head),[PL.x,1.5,PL.z])) springBack(E); }
 
@@ -68,7 +69,7 @@ function fakeDeadTick(E,dt,dist){ if(!E.fakeDead||E.dead) return;
   E.gShoot.t+=dt; E.atkCd-=dt;
   if(E.cons<.3||!E.wpnHeld){ E.gShoot=null; E.fakeDead=false; if(E.wpnHeld) dropWeapon(E); return; }
   /* firing from his back is awkward: he lets go once the gun is roughly on you (about 50 degrees), not lined up like a man standing */
-  if(E.atkCd<=0){ const g=gunRay(E); E.atkCd=v3.dot(g.d,norm3(v3.sub([PL.x,1.45,PL.z],g.mz)))>Math.cos(.9)?(enemyShoot(E,true),rnd(.45,.85)):.1; } }
+  if(E.atkCd<=0){ const g=gunRay(E); E.atkCd=v3.dot(g.d,norm3(v3.sub(PROTO.on?fightAimPt():[PL.x,1.45,PL.z],g.mz)))>Math.cos(.9)?(enemyShoot(E,true),rnd(.45,.85)):.1; } }
 /* a kick knocks the gun out from under him */
 function kickedDown(E,fl){ if(!(E.fakeDead||E.gShoot)||E.dead) return;
   E.fakeDead=false; E.gShoot=null; E.wpnHeld=true; if(E.C.wpn) E.C.wpn.vis=true; dropWeapon(E);
