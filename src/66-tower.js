@@ -438,7 +438,7 @@ function twTalk(dt){ for(const C of FLOOR.convos||[]){ if(C.dead) continue;
   if(C.i>=C.lines.length){ C.i=0; C.t=dur+rnd(14,22); } else C.t=dur+rnd(.5,1.1); } }
 
 /* ---------- the run: loading, resetting, the stairs ---------- */
-function towerLoad(i){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genTower(i); buildRack(); buildBoard(); resetGame(); if(XR.on) vrRecenter(); }
+function towerLoad(i){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genTower(i); buildRack(); buildBoard(); resetGame(); protoEmit('load'); if(XR.on) vrRecenter(); }
 /* Novak's pistol, on the floor by his right hand, pushed toward you */
 function proNovakGun(Nv){ if(FLOOR.pro.gun) return; FLOOR.pro.gun=true; const h=X_(Nv.B,PI_.hdR),d=norm3([PL.x-h[0],0,PL.z-h[2]]),p=[h[0]+d[0]*.25,.06,h[2]+d[2]*.25];
   const Mw=m4.compose(m4.make(),p,[0,Math.atan2(d[0],d[2]),Math.PI/2],[1,1,1]); addPickup(newItem('pistol',undefined,true),Mw,v3.sc(d,.35),[0,0,0]); sfx('bump',.4,p); }

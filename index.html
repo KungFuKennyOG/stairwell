@@ -132,6 +132,28 @@ body.touch #testPanel .tp-keys{display:none}
 <p id="err" hidden></p>
 
 <script>
+/* =====================================================================
+   FLOOR 01 PROTOTYPE: the shared switch, the tuning table and the event bus.
+   ?proto=1 (or the start card's prototype button) turns the horror rules on. With it off, the 15-floor game plays exactly as before.
+   Every system built for the prototype lives in its own src/8x-*.js file, registers its numbers under PROTO.<system>,
+   and listens to the core through protoOn(event, fn) instead of editing the frame loop.
+   Events (emitted by the core, see PROTO_BRIEF.md for the full list):
+     tick(gdt, dt)        once a frame, after everyone has thought, before physics
+     hurt(d, src)         Ray took damage (src: {E, kind:'gun'|'melee'|..., part}) — emitted before death is decided
+     death(E)             someone died
+     fire(h, it, info)    Ray fired: info {o, d, muzzle, sup}
+     noise(src, rad, o)   any noise made (src is [x,0,z])
+     reset()              level (re)started: rebuild per-floor state here
+     load()               a floor was loaded (after reset)
+   ===================================================================== */
+const PROTO=(()=>{ const q=new URLSearchParams(location.search);
+  return { on:q.get('proto')==='1', floor:q.get('pf')!=='0', v:'0.1' }; })();
+const PROTO_EV={};
+function protoOn(ev,fn){ (PROTO_EV[ev]||(PROTO_EV[ev]=[])).push(fn); }
+function protoEmit(ev,...a){ const L=PROTO_EV[ev]; if(!L) return; for(const fn of L){ try{ fn(...a); }catch(e){ console.error('[proto:'+ev+']',e); } } }
+/* one place to read a tuning number with a fallback, so a system still runs if its table is missing */
+function pnum(sys,key,def){ const t=PROTO[sys]; return t&&t[key]!==undefined?t[key]:def; }
+
 'use strict';
 (function(){
 const cv=document.getElementById('view');
@@ -5910,7 +5932,7 @@ function startDrop(E,T){ const B=E.B,pel=X_(B,PI_.pelvis); if(E.drop||pel[1]<.42
   kickV(B,PI_.pelvis,[0,-.8,0],H); for(const i of [PI_.hipL,PI_.hipR]) kickV(B,i,[0,-.7,0],H); for(const i of [PI_.knL,PI_.knR]) kickV(B,i,v3.sc(fw,rnd(.7,1)),H); /* the legs give, knees first: no frozen beat standing there dead */
   for(const i of [PI_.chest,PI_.neck,PI_.shL,PI_.shR]) kickV(B,i,push,H); kickV(B,PI_.head,v3.sc(push,1.3),H);
   E.drop.aKnee=v3.sc(fw,rnd(4,5.5)); E.drop.aTop=v3.add(v3.sc(fd,fwd?rnd(3,4.5):rnd(2.5,3.5)),v3.sc(rt,side*1.2)); E.drop.aHip=fwd?[0,0,0]:v3.sc(fw,-rnd(2,3)); /* falling back: the hips sit back over the heels */ }
-function die(E){ if(E.dead) return; startDrop(E); if(!E.headshot&&!E.cut.head) vox(E,'rattle'); E.dead=true; E.st='dead'; E.deadT=0; dropWeapon(E); E.face='sleep'; E.J.headMesh.mesh.mats[0]=E.C.faceM.sleep; E.J.headMesh.mesh.runs=null; E.barkT=0;
+function die(E){ if(E.dead) return; protoEmit('death',E); startDrop(E); if(!E.headshot&&!E.cut.head) vox(E,'rattle'); E.dead=true; E.st='dead'; E.deadT=0; dropWeapon(E); E.face='sleep'; E.J.headMesh.mesh.mats[0]=E.C.faceM.sleep; E.J.headMesh.mesh.runs=null; E.barkT=0;
   for(const O of enemies) if(O!==E&&!O.dead&&!E.silent&&O.barkCd<=0&&Math.random()<.8){ bark(O,pick(O.ally?[`${E.name}!`,`${E.name}— no—`]:LINES.friend(E.name))); break; } }
 
 /* weapons that fall out of hands */
@@ -6110,7 +6132,7 @@ function kick(){ if(!GAME.started||PL.dead||PL.kickCd>0) return; PL.kickCd=.8; c
   if(!best){ const D=doorNear(PL.x+fl[0]*.7,PL.z+fl[2]*.7,.95); if(D&&D.state==='closed'){ kickDoor(D); return; } sfx('swish'); return; } const E=best.E; sfx('kick');
   for(const i of [PI_.pelvis,PI_.chest,PI_.hipL,PI_.hipR,PI_.neck]) kickV(E.B,i,v3.add(v3.sc(fl,5.5),[0,.6,0]),H);
   E.stun=Math.min(1,E.stun+1.1); E.shoveT=0; E.slamT=Math.max(E.slamT||0,.7); kickedDown(E,fl); setAware(E,'kick'); if(E.st==='kneel'){ toDown(E); } }
-function hurtPlayer(d){ if(PL.dead) return; PL.hp-=d; PL.hurtT=0; XR.flash=.35; if(XR.on){ buzz('left',1,120); buzz('right',1,120); } $('flash').classList.remove('on'); void $('flash').offsetWidth; $('flash').classList.add('on'); screenBlood(2); sfx('hurt');
+function hurtPlayer(d,src){ if(PL.dead) return; protoEmit('hurt',d,src||{}); PL.hp-=d; PL.hurtT=0; XR.flash=.35; if(XR.on){ buzz('left',1,120); buzz('right',1,120); } $('flash').classList.remove('on'); void $('flash').offsetWidth; $('flash').classList.add('on'); screenBlood(2); sfx('hurt');
   if(PL.hp<=0){ PL.hp=0; PL.dead=true; PL.deadT=0; showMsg('YOU DIED','Back to the start of the level.'); } }
 
 /* ---------- screen + sound ---------- */
@@ -6243,7 +6265,7 @@ function resetGame(){
   for(const D of FLOOR.doors) if(D.state==='open'&&D.u.doorState==='closed') setDoor(D,'closed',true);
   /* desk testing starts armed; in VR you start with your fists and walk to the rack */
   equip(HANDS.R,XR.on||FLOOR.camp?null:newItem('pistol')); equip(HANDS.L,XR.on||FLOOR.camp?null:newItem('knife')); /* the campaign starts with fists everywhere */
-  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='motel') motelReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); } /* the first room always starts with its three tenants */
+  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='motel') motelReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); protoEmit('reset'); } /* the first room always starts with its three tenants */
 /* dying restarts the level you're on, with whatever you carried into it (GAME.kit, set when a level is entered by its shaft or ladder) */
 function restartLevel(){ resetGame(); const k=GAME.kit; if(k&&k.mode===FLOOR.mode){ equip(HANDS.R,k.R?newItem(k.R):null); equip(HANDS.L,k.L?newItem(k.L):null); } if(XR.on) vrRecenter(); }
 /* into the next level with what's in your hands */
@@ -6301,6 +6323,7 @@ function update(dt,now){
   if(!XR.on&&KEYS.Mouse0&&document.pointerLockElement&&HANDS.R.item&&WPN[HANDS.R.item.key].auto) useRight();
   updateGrabs(gdt); footsteps(dt);
   for(const E of enemies) think(E,gdt,GAME.t);
+  protoEmit('tick',gdt,dt); /* prototype systems (src/05-proto.js) */
   /* a body that falls asleep inside this frame's physics already had its rig set to the pose (pose space, at the origin) by targetsFor,
      so it still has to be driven back onto its particles this frame, or its head, hands and shoes stay floating at the origin while it sleeps */
   /* dormant: someone calm at his post, unhurt, far from you. His body stands frozen in its last pose (no physics, no skinning) until you
@@ -6640,6 +6663,7 @@ const say=(E,lines,dur)=>{ if(E.barkCd<=0&&GAME.barkGlobal<=0){ bark(E,pick(line
 
 /* a sound at src [x,y,z], heard out to rad metres. o.alarm: gunshot/scream/kick. o.from: the enemy making it (doesn't hear himself) */
 function noise(src,rad,o={}){ if(!rad||!GAME.started) return; if(typeof twHush==='function') rad*=twHush(src); /* the party music swallows it (72-tower-money.js) */
+  protoEmit('noise',src,rad,o);
   for(const E of enemies){ if(E===o.from||!upright(E)||E.ally) continue;
     const d=Math.hypot(E.pos[0]-src[0],E.pos[1]-src[2]); if(d>rad) continue;
     const los=sightClear([E.pos[0],1.6,E.pos[1]],[src[0],1.2,src[2]]),r=los?rad:rad*(o.voice?.4:o.alarm?.6:.45); if(d>r) continue; /* through a wall: a gunshot still carries, a voice or a footstep doesn't */
@@ -7278,7 +7302,7 @@ function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye
   it.ammo--; it.cd=w.rof; h.rec=(w.pump?1.8:w.cup&&h.support?.5:1)*(it.sup?.8:1); sfx(it.sup?(w.pump?'suppsg':'supp'):w.snd||'gun',it.sup&&w.auto?.8:1); earShot(it.key,it.sup); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
   if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }
   const Mi=itemM(h),mz=mulP(Mi,canMuzzle(w,it)),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); if(!it.sup) muzzle(mz,bd,!!w.pellets); muzzleSmoke(mz,bd,!!w.pellets,!!it.sup); if(!w.loadOne) ejectBrass(h,Mi,w); GAME.shotT=GAME.t;
-  const o=aim?aim.o:mz,d0=aim?aim.d:bd; if(it.sup) noise([PL.x,0,PL.z],GUN_SUP[it.key]||4); else noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true}); /* loud, but not floor-wide: a wall or a shut door halves it */
+  const o=aim?aim.o:mz,d0=aim?aim.d:bd; protoEmit('fire',h,it,{o,d:d0,muzzle:mz,sup:!!it.sup}); if(it.sup) noise([PL.x,0,PL.z],GUN_SUP[it.key]||4); else noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true}); /* loud, but not floor-wide: a wall or a shut door halves it */
   const n=w.pellets||1,sp=w.spread||.006,tally=new Map();
   for(let i=0;i<n;i++){ const r=bullet(o,norm3(v3.add(d0,[rnd(-sp,sp),rnd(-sp,sp),rnd(-sp,sp)])),w,h); if(r) tally.set(r.E,{n:(tally.get(r.E)||{n:0}).n+1,t:r.t}); }
   if(w.pellets){
@@ -8392,7 +8416,7 @@ function twTalk(dt){ for(const C of FLOOR.convos||[]){ if(C.dead) continue;
   if(C.i>=C.lines.length){ C.i=0; C.t=dur+rnd(14,22); } else C.t=dur+rnd(.5,1.1); } }
 
 /* ---------- the run: loading, resetting, the stairs ---------- */
-function towerLoad(i){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genTower(i); buildRack(); buildBoard(); resetGame(); if(XR.on) vrRecenter(); }
+function towerLoad(i){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); genTower(i); buildRack(); buildBoard(); resetGame(); protoEmit('load'); if(XR.on) vrRecenter(); }
 /* Novak's pistol, on the floor by his right hand, pushed toward you */
 function proNovakGun(Nv){ if(FLOOR.pro.gun) return; FLOOR.pro.gun=true; const h=X_(Nv.B,PI_.hdR),d=norm3([PL.x-h[0],0,PL.z-h[2]]),p=[h[0]+d[0]*.25,.06,h[2]+d[2]*.25];
   const Mw=m4.compose(m4.make(),p,[0,Math.atan2(d[0],d[2]),Math.PI/2],[1,1,1]); addPickup(newItem('pistol',undefined,true),Mw,v3.sc(d,.35),[0,0,0]); sfx('bump',.4,p); }
