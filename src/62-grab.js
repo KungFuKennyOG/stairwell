@@ -28,7 +28,8 @@ function endGrab(G,throwV){ const i=GRABS.indexOf(G); if(i>=0) GRABS.splice(i,1)
   E.slamT=Math.max(E.slamT||0,.8); }
 /* pull each held point toward the hand, every physics step: the rest of the body follows through its joints */
 function applyGrabs(h){ for(const G of GRABS){ const B=G.E.B,o=G.i*3,t=v3.add(G.tgt,G.off),x=B.x,p=B.p,k=G.E.dead?.5:.32;
-  for(let c=0;c<3;c++){ const d=(t[c]-x[o+c])*k; x[o+c]+=d; p[o+c]+=d*.7; } } }
+  for(let c=0;c<3;c++){ const d=(t[c]-x[o+c])*k; x[o+c]+=d; p[o+c]+=d*.7; } }
+  if(PL.grab&&typeof clinchPhys==='function') clinchPhys(); } /* a man's hands on you (82-clinch.js) */
 function updateGrabs(dt){ GAME.hostageNow=null;
   for(const G of GRABS.slice()){ const E=G.E,h=G.h; G.t+=dt; const tgt=mulP(h.M,FIST);
     const hv=G.prevTgt?v3.sc(v3.sub(tgt,G.prevTgt),1/Math.max(dt,1e-3)):[0,0,0]; G.prevTgt=G.tgt=tgt; G.hsp=Math.hypot(...hv);
