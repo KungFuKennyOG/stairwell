@@ -67,6 +67,32 @@ function takeGun(G){ const E=G.E,h=G.h,key=KIND_WPN[E.kind],W=WPN[key];
   bark(E,pick(['No— no no no—','Wait— WAIT—','Okay— okay— okay—','Shit— shit—']),1.8); vox(E,'gasp');
   if(psychOf(E)!=='fight'||E.blood<70||Math.random()<.35) surrender(E,'disarmed'); }
 
+/* ---------- the other way round: he has YOUR gun hand (82-clinch.js, prototype) ----------
+   The same fight for a gun, mirrored. His hand is on your wrist and he winds your muzzle round onto you. Every pull and twist of
+   your hand slows him but never stops him; the struggle window in 82-clinch.js can still tear you loose, and so can hitting him.
+   If the muzzle gets there, your own gun goes off into you (or clicks, if it's empty, and he tears it out of your hand).
+   G is the grab (PL.grab): G.h your held hand, G.E him, G.str how hard he holds. Only the hand you see turns, never your view. */
+function wrestleRevStart(G){ const E=G.E; G.ph='turn'; G.wr={turn:0,jT:0};
+  E.atkT=-1; E.burstN=0; if(E.barkCd<1.4) bark(E,pick(['Look at me— LOOK at me—','Gimme— give it—','No no no, cop—']),1.5); vox(E,'strain');
+  sfx('wrestle',1,mulP(G.h.M,FIST)); if(XR.on) buzz(G.h.hand,.9,90); }
+function wrestleRevTick(G,dt,mvRate){ const E=G.E,W=G.wr; if(!W) return false;
+  const stall=clamp(mvRate/pnum('clinch','turnStall',.35),0,pnum('clinch','turnStallMax',.5)); /* fighting it slows him down, never stops him */
+  W.turn=Math.min(1,W.turn+dt/pnum('clinch','wristTurnT',2.2)*G.str*(1-stall));
+  E.atkT=-1; E.burstN=0; E.atkCd=Math.max(E.atkCd,.6);
+  /* the gun shakes between you: his arm jerks, your hand buzzes harder the closer it comes round */
+  W.jT-=dt; if(W.jT<=0){ W.jT=rnd(.08,.18); const s=G.side||'L',hd=X_(E.B,PI_['hd'+s]),ch=X_(E.B,PI_.chest); kickV(E.B,PI_['hd'+s],v3.add(v3.sc(norm3(v3.sub(hd,ch)),.5*G.str),[rnd(-.5,.5),rnd(-.3,.5),rnd(-.5,.5)]),H);
+    if(XR.on) buzz(G.h.hand,.45+.5*W.turn,45); if(Math.random()<.3) sfx('wrestle',.45,hd); }
+  if(E.barkCd<=0&&Math.random()<.5) bark(E,pick(['That\'s it— that\'s it—','*grunts*','Turn around, cop—','Look at it— LOOK at it—']),1.3);
+  return W.turn>=1; }
+/* the muzzle is on you: your gun goes off. True if it fired (82-clinch.js does the damage) */
+function wrestleRevShot(G){ const h=G.h,it=h.item,w=it&&WPN[it.key]; if(!w||!w.gun||!h.itemNode) return false;
+  if(it.ammo<=0||it.reload>0||(w.pump&&!it.chambered)){ sfx('click'); if(XR.on) buzz(h.hand,.4,30); return false; }
+  it.ammo--; it.cd=w.rof; if(w.pump){ it.chambered=false; it.spent=true; } h.rec=1;
+  const Mi=itemM(h),mz=mulP(Mi,canMuzzle(w,it)),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0])));
+  if(!it.sup) muzzle(mz,bd,!!w.pellets); muzzleSmoke(mz,bd,!!w.pellets,!!it.sup); sfx(it.sup?(w.pump?'suppsg':'supp'):w.snd||'gun',1,mz);
+  if(it.sup) noise([PL.x,0,PL.z],GUN_SUP[it.key]||4); else noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true});
+  if(XR.on){ buzz('left',1,120); buzz('right',1,120); } GAME.eShots=(GAME.eShots||0)+1; return true; }
+
 /* ---------- pinned to a wall ---------- */
 /* is the hand pushing this body into something solid? (gap: from the held point to where the hand wants it) */
 function pinCheck(E,G,gap,gl){ if(gl<.05||E.dead) return false; const d=v3.sc(gap,1/gl);
