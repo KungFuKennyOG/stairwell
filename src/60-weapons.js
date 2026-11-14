@@ -136,7 +136,7 @@ function applySupport(h){ const s=h.support; if(!s||!h.item||!h.itemNode){ h.ite
     setLocal(s.node,m4.make(),fromCols(Xh,Yh,Zh,v3.sub(c,v3.add(v3.sc(Xh,FIST[0]),v3.add(v3.sc(Yh,FIST[1]),v3.sc(Zh,FIST[2])))))); return; }
   const w=WPN[h.item.key],G=mulP(h.M,FIST),S=mulP(s.M,FIST); if(Math.hypot(...v3.sub(S,G))>.9){ releaseSupport(s); return; } /* hands pulled apart: let go */
   const v=v3.sub(w.fore,w.grip),zm=norm3(v),um=norm3(v3.sub([0,1,0],v3.sc(zm,zm[1]))),xm=v3.cross(um,zm);
-  const zw=norm3(v3.sub(S,G)),uh=colOf(h.M,1),uw=norm3(v3.sub(uh,v3.sc(zw,v3.dot(uh,zw)))),xw=v3.cross(uw,zw);
+  const zw=norm3(v3.sub(S,G)),uh=w.melee&&!w.fwd&&XR.on?v3.sc(colOf(h.M,2),-1):colOf(h.M,1), /* a club held the VR way runs along the thumb axis: take up from the back of the hand */uw=norm3(v3.sub(uh,v3.sc(zw,v3.dot(uh,zw)))),xw=v3.cross(uw,zw);
   let R=mm([xw,uw,zw],[[xm[0],um[0],zm[0]],[xm[1],um[1],zm[1]],[xm[2],um[2],zm[2]]]);
   /* recoil: the muzzle climbs and the gun drives back into you, both hands go with it */
   const kick=h.rec*(w.pump?.2:.07); if(kick>1e-3){ const c=Math.cos(-kick),sn=Math.sin(-kick); R=R.map(v=>rodr(v,xw,c,sn)); }
