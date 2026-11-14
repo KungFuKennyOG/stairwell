@@ -317,7 +317,7 @@ function melStagger(E,dp,speed,k=1){ const B=E.B,fl=norm3([dp[0],0,dp[2]]),f=k*(
   if(E.st==='alert'||E.st==='idle'){ const st=k*(.16+.03*clamp(speed-3.5,0,3)); E.pos[0]+=fl[0]*st; E.pos[1]+=fl[2]*st; } /* his feet have to step to catch him */
   E.stun=Math.max(E.stun,.55+.15*k); E.openT=GAME.t+1; E.atkCd=Math.max(E.atkCd||0,1); E.atkT=-1; E.flinchT=FL_T; E.settle=Math.max(E.settle||0,.6); }
 function melDown(E,dp,ko){ const fl=norm3([dp[0],0,dp[2]]); for(const i of [PI_.chest,PI_.neck,PI_.head,PI_.shL,PI_.shR]) kickV(E.B,i,v3.sc(fl,1.4),H);
-  toDown(E,true); E.knocked=true; E.koT=ko; E.melHead=[]; E.melStag=[]; faceHold(E,'shock',1.2); if(E.barkCd<1.6) bark(E,'',0); }
+  E.hitDir=fl; toDown(E,true); startDrop(E,rnd(.75,.95)); E.knocked=true; /* out cold: he folds and drops like a sack (startDrop), no pose held on the way down */ E.koT=ko; E.melHead=[]; E.melStag=[]; faceHold(E,'shock',1.2); if(E.barkCd<1.6) bark(E,'',0); }
 /* fists, gun butts, the flat of a blade: by tier */
 function melBlunt(E,seg,point,dir,key,o){ const T=o.tier,sp=o.speed||0,mk=o.mk||1,BL=BLUNT[key]||{stun:.2},head=key==='head'||key==='neck',body=key==='chest'||key==='belly',P=PROTO.melee,B=E.B,t=GAME.t;
   const segP=seg[0]===seg[1]?[seg[0]]:[seg[0],seg[1]],trunk=[PI_.pelvis,PI_.hipL,PI_.hipR,PI_.chest,PI_.neck,PI_.shL,PI_.shR];

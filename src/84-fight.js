@@ -141,8 +141,25 @@ function fightMove(E,dt,fighting,dist){ const F=E.fx; if(!F||E.civ||E.ally) retu
     if(!armed(E)) return dist<1.3&&E.canSee?{goal:null,chase:false}:{goal:{x:tgt[0],z:tgt[1],sp:(kst(E)||{}).run||3},chase:E.canSee}; /* blades already come flat out; a rage just never stops coming */
     if(Math.hypot(tgt[0]-E.pos[0],tgt[1]-E.pos[1])<2.2) return {goal:null,chase:false};
     return {goal:{x:tgt[0],z:tgt[1],sp:pnum('fight','rageSp',2.6)},chase:false}; } /* walking straight at you, firing */
+  const S=fightSpace(E,dt,dist); if(S) return S;
   const L=fightLight(E,dt,fighting,dist); if(L) return L;
   if(fighting&&armed(E)&&FGT.token&&FGT.token!==E&&E.role!=='hold'&&E.role!=='flank') return fightSpread(E,dt,dist);
+  return null; }
+/* no firing line: two armed men close to Ray who end up shoulder to shoulder on the same bearing step apart round him, each to his own
+   angle, at 2-4 m. Each steps away from the other, so they fan out instead of queueing in a doorway */
+function fightSpace(E,dt,dist){ const F=E.fx,now=GAME.t;
+  if(!armed(E)||!E.aware||dist>6||E.rage>0){ F.spc=null; return null; }
+  if(F.spc){ if(now>F.spc.until||Math.hypot(E.pos[0]-F.spc.x,E.pos[1]-F.spc.z)<.3||stuck(E,dt)&&now-F.spc.t0>.8){ F.spc=null; F.spcCd=now+1.5; return null; }
+    return {goal:{x:F.spc.x,z:F.spc.z,sp:1.7},chase:false}; }
+  if(now<(F.spcCd||0)) return null; F.spcCd=now+.4;
+  const T=[PL.x,PL.z],me=Math.atan2(E.pos[0]-T[0],E.pos[1]-T[1]);
+  for(const O of enemies){ if(O===E||O.dead||O.st!=='alert'||!armed(O)||O.civ||O.ally) continue;
+    if(Math.hypot(O.pos[0]-E.pos[0],O.pos[1]-E.pos[1])>1.5) continue;
+    const da=wrapA(me-Math.atan2(O.pos[0]-T[0],O.pos[1]-T[1])); if(Math.abs(da)>.6) continue;
+    const sg=da>=0?1:-1,r=clamp(dist,2.2,4);
+    for(const k of [1,.6,1.5]){ const nb=me+sg*.7*k,x=T[0]+Math.sin(nb)*r,z=T[1]+Math.cos(nb)*r;
+      if(fxFree(x,z)&&sightClear([x,1.4,z],[T[0],1.3,T[1]])){ F.spc={x,z,t0:now,until:now+2.4}; freshGoal(E); return {goal:{x,z,sp:1.7},chase:false}; } }
+    break; }
   return null; }
 /* out of the light: a man standing in a lit room who knows you're near gets into the dark within a second or two, and holds there */
 function fightLight(E,dt,fighting,dist){ const F=E.fx,now=GAME.t;

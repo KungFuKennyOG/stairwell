@@ -587,10 +587,13 @@ function pfLightAnim(l,t){ const k=l.kind; if(k==='flick'){ const on=(Math.sin(t
   if(k==='neon'){ const ph=(t*.23)%2; if(Math.sin(t*1.9+l.t0)>.97&&Math.sin(t*61)>0) return .15; return ph<1?1:-1; } return 1; }
 /* a flashlight's cone (10-engine.js lights it per pixel): from the hunt's aim (83-hunt.js torchPos/torchDir) or the way he faces; its reach stops
    half a metre past the first wall or furniture it meets, so it never lights the next room. And a light on his gun you can see */
-function pfTorchCone(E,k){ const o=E.torchPos&&E.torchDir&&E.torchDir.length===3?E.torchPos:[E.pos[0]+Math.sin(E.hd)*.25,1.25,E.pos[1]+Math.cos(E.hd)*.25];
+function pfTorchCone(E,k){ if(!E.pfTorch&&E.C&&E.C.wpn){ const t=N(E.C.wpn,0,-.042,.075,Math.PI/2,0,0); mk(cyl(.017,.015,.11,6),[mBlack,M(null,{color:0xfff4d6,unlit:true}),mBlack],t); E.pfTorch=t; }
+  if(E.C.support&&E.wpnHeld&&E.M&&(E.aimW||0)>.5){ const g=gunRay(E),h=rayBoxes(g.mz,g.d,9,null,true); /* the light is on his gun: the beam goes where the gun points (pistolStance) */
+    SPOT.pos.set(g.mz,k*3); SPOT.dir.set(g.d,k*3); SPOT.col.set([1.0,.96,.84],k*3); SPOT.rng[k]=h?Math.min(9,h.t+.5):9; return; }
+  const o=E.torchPos&&E.torchDir&&E.torchDir.length===3?E.torchPos:[E.pos[0]+Math.sin(E.hd)*.25,1.25,E.pos[1]+Math.cos(E.hd)*.25];
   const d=E.torchDir&&E.torchDir.length===3?E.torchDir:norm3([Math.sin(E.hd),-.18,Math.cos(E.hd)]),h=rayBoxes(o,d,9,null,true);
   SPOT.pos.set(o,k*3); SPOT.dir.set(d,k*3); SPOT.col.set([1.0,.96,.84],k*3); SPOT.rng[k]=h?Math.min(9,h.t+.5):9;
-  if(!E.pfTorch&&E.C&&E.C.wpn){ const t=N(E.C.wpn,0,-.042,.075,Math.PI/2,0,0); mk(cyl(.017,.015,.11,6),[mBlack,M(null,{color:0xfff4d6,unlit:true}),mBlack],t); E.pfTorch=t; } }
+ }
 function pfLightsTick(dt){ const e=camBasis().eye,t=GAME.t,K=Math.min(7,pnum('pfloor','roomSlots',7)); let slot=0;
   const tor=[]; for(const E of enemies){ if(!E.torchOn||E.dead) continue; const d=Math.hypot(E.pos[0]-e[0],E.pos[1]-e[2]); if(d<18) tor.push([d,E]); } tor.sort((a,b)=>a[0]-b[0]);
   let sk=0; for(const [,E] of tor.slice(0,2)){ let q,y=1.0; const o=E.torchPos,d3=E.torchDir; pfTorchCone(E,sk++);

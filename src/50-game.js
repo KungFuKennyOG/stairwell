@@ -227,16 +227,17 @@ function targetsFor(E,t,dt=1){
     if(E.kind==='cutter'){ A.r=[lerp(lerp(base,-2.9,wind),-.5,strike),0,.25*sg]; El.r=[lerp(-1.2,-.2,strike),0,0]; J.spine.r[0]=lerp(-.1,.35,strike); }
     else { A.r=[lerp(lerp(base,-.6,wind),-1.55,strike),0,lerp(.4,.05,strike)*sg]; El.r=[lerp(-1.9,-.15,strike),0,0]; J.spine.r[1]=lerp(.35,-.3,strike)*sg; } }
   if(st==='alert') for(const s of ['L','R']) if(E.hp['arm'+s]<.45&&!(E.wpnHeld&&E.wpnHand===s)){ J['arm'+s].r=[.15,0,s==='L'?.12:-.12]; J['elbow'+s].r=[-.35,0,0]; }
-  if(st==='alert'&&E.wpnHeld&&!E.oneHand&&E.aimPit) J.spine.r[0]-=E.aimPit;
+  if(st==='alert'&&E.wpnHeld&&!E.oneHand&&E.aimPit&&!E.C.support) J.spine.r[0]-=E.aimPit;
   if(st==='alert'&&E.wpnHeld&&E.oneHand&&RANGED[E.kind]){ /* one-handed: the good arm reaches out toward you, pistol style, instead of a mirrored two-hand pose */
     const s=E.wpnHand,M0=fkMats(J),sh=mulP(M0['arm'+s],[0,0,0]),pt=mtv(ryM(E.hd),[PL.x-E.pos[0],PROTO.on?fightAimPt()[1]-.03:1.42,PL.z-E.pos[1]]),a=norm3(v3.sub(pt,sh));
     ikArm(J,s,v3.add(sh,v3.add(v3.sc(a,.5),[s==='L'?-.05:.05,-.03,0]))); }
   if(st==='idle'){ J.spine.r[0]+=Math.sin(t*1.5+E.t0)*.02; J.head.r[1]+=Math.sin(t*.4+E.t0)*.3; }
+  if(st==='alert') pistolStance(E,J,t,dt); else E.aimW=0; /* two-handed pistol: aimed with the arms, not the whole body (pistolStance) */
   if(st==='alert') flinchPose(E,J); /* ducking from your shots, a shoulder turned to your gun (70-wounds.js) */
   if(throat&&(st==='kneel'||st==='down'&&pose!=='crawl'&&pose!=='scoot')){ J.neck.r=[.5,0,0]; J.head.r=[.35,0,0]; J.spine.r[0]=Math.max(J.spine.r[0],.45); }
   let M=fkMats(J);
   E.handRot={L:J.handL.r.slice(),R:J.handR.r.slice()};
-  if(!E.dead&&E.wounds.length&&(st==='kneel'&&(!E.near||throat)||throat&&st==='down'||st==='down'&&(pose==='writhe'||pose==='downbeg'||pose==='curl'||pose==='gasp'||pose==='still'))){ if(clutch(E,M)) M=fkMats(J); }
+  if(!E.dead&&!(E.knocked&&E.koT>0&&st==='down'&&E.downT<E.koT)&&E.wounds.length&&(st==='kneel'&&(!E.near||throat)||throat&&st==='down'||st==='down'&&(pose==='writhe'||pose==='downbeg'||pose==='curl'||pose==='gasp'||pose==='still'))){ if(clutch(E,M)) M=fkMats(J); }
   if(E.gShoot&&!E.dead&&st==='down'){ /* playing dead, now firing from the floor: the gun hand comes round at you. World point -> his hip frame -> pose space */
     const P0=posePts(J,E.o,M),H0=frameFrom(P0[PI_.hipL],P0[PI_.hipR],P0[PI_.pelvis],P0[PI_.chest]),Hw=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),X_(B,PI_.pelvis),X_(B,PI_.chest)),pw=X_(B,PI_.pelvis),sh=X_(B,PI_.shR);
     const tgt=v3.add(sh,v3.sc(norm3(v3.sub([PL.x,1.3,PL.z],sh)),.55));
@@ -252,10 +253,12 @@ function targetsFor(E,t,dt=1){
   let sup=0; if(!E.dead&&(st==='idle'||st==='alert')) sup=1; else if(!E.dead&&st==='kneel') sup=.95; else if(!E.dead&&st==='down'&&E.fallT>0) sup=.85*E.fallT/.8;
   if(rel) sup=0;
   sup*=clamp(c*1.7,0,1)*(1-(st==='down'?Math.min(E.stun,.5):E.stun))*E.rise*(E.grabbed?.35:1); E.sup=sup; /* held: off balance */
-  const twitch=E.dead?.008*Math.max(0,1-E.deadT/1.2):0;
+  const twitch=E.dead?.008*Math.max(0,1-E.deadT/1.2):0,cold=!E.dead&&E.knocked&&E.koT>0&&st==='down'&&E.downT<E.koT; /* out cold: a sack, no pose held */
   for(let i=0;i<NP;i++){ const limb=PD[i][4]; let s=E.drop?0:E.dead?twitch:c; /* dropping: no tone at all, nothing holds him up */
     if(!E.dead&&!E.drop){ if(limb==='legL') s*=.2+.8*E.hp.legL; else if(limb==='legR') s*=.2+.8*E.hp.legR; else if(limb==='armL') s*=.12+.88*clamp(E.hp.armL,0,1); else if(limb==='armR') s*=(.12+.88*clamp(E.hp.armR,0,1))*(E.gShoot?3:1); } /* firing from the floor: the gun arm comes up hard */
+    if(cold) s*=.3;
     E.K[i]=E.sevP[i]?0:(sup*.13+(1-sup)*PHYS.k)*s; E.KD[i]=E.sevP[i]?0:E.drop?(limb==='core'?.003:.01):E.dead?.003+.03*clamp((E.deadT-.4)/.8,0,1):(sup>.5?PHYS.kd:PHYS.kdDown)*s+.002; } /* a corpse on the floor: dead weight, its limbs don't keep swinging */
+  if(cold) for(let i=0;i<NP;i++) if(!E.sevP[i]) E.KD[i]=Math.max(E.KD[i],.025); /* dead weight: limbs land and stay, they don't swing */
   E.relMode=rel;
 }
 
@@ -519,6 +522,22 @@ function driveRig(E){
 /* both hands on the long gun, every frame: the gun rides the chest (low ready <-> shouldered), the arms are solved onto its grip and fore-end */
 function setCarry(E,c){ if(E.carry===c) return; E.carry=c; const w=E.C.wpn,J=E.J;
   if(c==='hang'){ setParent(w,J.handR); w.p=[0,-.08,.02]; w.r=[1.25,0,0]; setGrip(J,'L',false); } else { setParent(w,J.spine); setGrip(J,'L',true); } setGrip(J,'R',true); }
+/* two-handed pistol, a real stance instead of a gun held at the chest. Fighting: arms out, the gun up under his eyes on the line to you,
+   chin down to the sights. Searching with the light on his gun: the gun goes where the beam goes. Otherwise low ready, muzzle down in front.
+   Solved every frame with the same grip as the art rig (supportHand, 10-engine.js), so the barrel really points where he shoots */
+function pistolStance(E,J,t,dt){ const C=E.C;
+  if(!C.support||!E.wpnHeld||E.oneHand||E.wpnHand!=='R'||E.surr||E.civFreeze||E.atkT>=0||E.hp.armL<.45||E.hp.armR<.45){ E.aimW=0; return; }
+  const fighting=E.aware&&E.canSee,beam=!fighting&&E.torchOn&&E.torchPos&&E.torchDir&&E.torchDir.length===3,want=fighting?1:beam?.8:E.aware?.3:0;
+  E.aimW=lerp(E.aimW||0,want,Math.min(1,dt*(want>(E.aimW||0)?5:2.5))); const w=E.aimW,u=clamp(w/.8,0,1),uu=u*u*(3-2*u),ext=clamp((w-.8)/.2,0,1),br=Math.sin(t*1.6+E.t0);
+  J.spine.r[0]+=.07*uu+.012*br; J.neck.r[0]+=.03*uu; J.head.r[0]+=.08*uu; /* leaning into it, chin down to the sights, breathing */
+  const Ry=ryM(E.hd),toPose=p=>mtv(Ry,[p[0]-E.pos[0],p[1],p[2]-E.pos[1]]),eye=mulP(chainMat(J,'head'),[0,.07,.07]);
+  const tgt=fighting?toPose(PROTO.on?fightAimPt():[PL.x,1.45,PL.z]):beam?toPose(v3.add(E.torchPos,v3.sc(E.torchDir,4))):[0,.9,3];
+  const a=norm3(v3.sub(tgt,eye)),T1=v3.add(eye,v3.add(v3.sc(a,.46+.07*ext),[0,-.085,0])),d1=norm3(v3.sub(tgt,T1)),hf=E.o.hf||1,T0=[-.02,1.2*hf,.33],d0=norm3([0,-.6,1]);
+  const T=v3.add(v3.add(T0,v3.sc(v3.sub(T1,T0),uu)),[0,.004*br,0]),d=norm3(v3.add(d0,v3.sc(v3.sub(d1,d0),uu)));
+  const Y=v3.sc(d,-1),Z=norm3(v3.sub([0,1,0],v3.sc(d,d[1]))),X=v3.cross(Y,Z),R=fromCols(X,Y,Z,[0,0,0]),wR=v3.sub(T,mulP(R,C.wFight.p));
+  ikArm(J,'R',wR); setLocal(J.handR,chainMat(J,'elbowR'),fromCols(X,Y,Z,colOf(chainMat(J,'handR'),3)));
+  const P=colOf(chainMat(J,'handR'),3),wL=v3.add(P,v3.add(v3.sc(X,.082),v3.add(v3.sc(Y,.012),v3.sc(Z,-.01))));
+  ikArm(J,'L',wL); setLocal(J.handL,chainMat(J,'elbowL'),fromCols(X,Y,Z,colOf(chainMat(J,'handL'),3))); }
 function holdLongGun(E){ const J=E.J,w=E.C.wpn,k=E.aimK||0,a=E.gunLow,b=E.gunUp,G=GUNS[E.C.gun];
   w.p=a.p.map((v,i)=>lerp(v,b.p[i],k)); w.r=a.r.map((v,i)=>lerp(v,b.r[i],k));
   const loc=m4.make(),gm=m4.make(); m4.compose(loc,w.p,w.r,w.s); m4.mul(gm,chainMat(J,'spine'),loc);
@@ -675,7 +694,7 @@ function hitBlunt(E,seg,point,dir,key,o){ if(o.tier!=null) return melBlunt(E,seg
   E.stun=Math.min(1,E.stun+B.stun*pw); E.hitT=0; spray(point,v3.sc(dir,-1),3,1,.6,'dark',.008);
   if(key==='head'&&pw>.75&&!E.nose&&!E.dead){ E.nose=true; addWound(E,seg,point,dir,{rate:.35,art:false,part:'face',noDecal:true}); }
   E.daze=Math.min(1.5,(E.daze||0)+(B.daze||0)*pw); if(!E.dead){ vox(E,key==='belly'||key==='chest'?'oof':'grunt'); faceHold(E,'agony',.45+.3*pw); }
-  if(E.daze>=1&&!E.dead&&E.st!=='down'){ E.daze=0; toDown(E,true); E.knocked=true; E.koT=rnd(5,9); }
+  if(E.daze>=1&&!E.dead&&E.st!=='down'){ E.daze=0; toDown(E,true); startDrop(E,rnd(.75,.95)); E.knocked=true; E.koT=rnd(5,9); }
   else if(E.barkCd<1.2&&!E.dead) bark(E,pick(['Hnf—','*grunts*','Agh— fuck—','Ow— OW—']),1.6);
   setAware(E,'hit'); noise([E.pos[0],0,E.pos[1]],6,{alarm:true,from:E}); } /* the grunt and the scuffle: whoever's close comes over */
 function hitEnemy(E,seg,point,dir,weapon,o={}){ protoEmit('enemyHit',E,seg,weapon,o); /* 82-clinch.js: a hit on the man holding you */
@@ -847,8 +866,8 @@ function think(E,dt,t){
     E.moveDir=null; E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6)); E.atkCd=Math.max(E.atkCd,.5); E.atkT=-1; E.burstN=0;
     let dh=Math.atan2(toP[0],toP[1])-E.hd; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); E.hd+=clamp(dh,-1.2*dt,1.2*dt); pushOutXZ(E.pos,.28,'walker'); }
   else if(E.st==='alert'){
-    if(!(E.aware&&E.canSee)){ E.aimYaw=lerp(E.aimYaw||0,0,Math.min(1,dt*2)); E.aimPit=lerp(E.aimPit||0,0,Math.min(1,dt*2)); }
-    else if(armed(E)&&!E.oneHand&&E.M){ /* line the gun up on you: blade the body and lean until the barrel, not the chest, points at you */
+    if(!(E.aware&&E.canSee)||E.C.support&&!E.oneHand){ E.aimYaw=lerp(E.aimYaw||0,0,Math.min(1,dt*2)); E.aimPit=lerp(E.aimPit||0,0,Math.min(1,dt*2)); } /* a two-handed pistol is lined up by the arms (pistolStance) */
+    else if(armed(E)&&!E.oneHand&&E.M&&!E.C.support){ /* line the gun up on you: blade the body and lean until the barrel, not the chest, points at you */
       const g=gunRay(E),tp=norm3(v3.sub(PROTO.on?fightAimPt():[PL.x,1.45,PL.z],g.mz)); /* prototype: wherever Ray's head really is, crouched or under a bed (84-fight.js) */ let ye=Math.atan2(tp[0],tp[2])-Math.atan2(g.d[0],g.d[2]); ye=Math.atan2(Math.sin(ye),Math.cos(ye));
       const k=Math.min(1,dt*2.5); E.aimYaw=clamp((E.aimYaw||0)+ye*k,-.7,.7); E.aimPit=clamp((E.aimPit||0)+(Math.asin(tp[1])-Math.asin(g.d[1]))*k,-.35,.35); }
     const fighting=E.aware&&E.canSee,RO=(PROTO.on&&fightMove(E,dt,fighting,dist))||(E.role&&E.aware&&typeof twRoleMove==='function'?twRoleMove(E,dt,fighting,dist):null); /* the tower: hunters, holders, ambushers (66-tower.js); prototype: out of the light, waiting his turn, rage, retreat (84-fight.js) */
@@ -967,6 +986,7 @@ function wpnMat(E){ const w=E.C.wpn,loc=m4.make(),Wm=m4.make(); m4.compose(loc,w
 function gunRay(E){ const Wm=wpnMat(E),W=WPN[KIND_WPN[E.kind]]; const mz=mulP(Wm,W.muzzle); return {mz,d:norm3(v3.sub(mz,mulP(Wm,[0,W.axisY,0])))}; }
 function enemyShoot(E,inBurst){
   const g=gunRay(E),mz=g.mz,KS=kst(E),W=WPN[KIND_WPN[E.kind]],AP=PROTO.on?fightAimPt():[PL.x,1.45,PL.z]; /* prototype: aim at Ray's real head height (84-fight.js) */
+  if(!inBurst&&E.C.support&&!E.oneHand&&(E.aimW||0)<.8) return false; /* the gun comes up to the eyes before the first shot */
   if(!inBurst&&v3.dot(g.d,norm3(v3.sub(AP,mz)))<Math.cos(.6)) return false; /* not on target yet: hold fire instead of shooting the ceiling */
   if(!inBurst){ const blk=bodyInLine(mz,[AP[0],AP[1]-.05,AP[2]],E); if(blk&&!blk.E.dead&&Math.random()<.75){ if(E.barkCd<=0) bark(E,blk.E.grabbed?pick([`Let ${blk.E.name} go!`,'Let him go, man!','I can\'t get a shot—']):'Move!',1.6); return false; } } /* friends in the way: mostly hold fire */
   GAME.eShots=(GAME.eShots||0)+1; muzzle(mz,g.d,!!KS.shotgun); muzzleSmoke(mz,g.d,!!KS.shotgun,false); sfx(W.snd||'gun',.8,mz); noise([E.pos[0],0,E.pos[1]],14,{alarm:true,from:E}); /* his friends come to the shooting */
@@ -988,7 +1008,7 @@ function muzzle(p,d,big){ flash={t:big?.1:.06,pos:p,big:!!big}; if(d) MF.push({p
 /* a close load hits like a car: he's driven back off his feet, straight back (no spin, no hop) */
 function shotgunShove(E,d,n,t){ if(n<3||t>5.5) return; const fl=norm3([d[0],0,d[2]]),k=clamp((5.5-t)/3.5,0,1.2)*(.9+.22*n);
   for(let i=0;i<NP;i++){ const nm=PD[i][0],w=/^(toe|an)/.test(nm)?.25:/^kn/.test(nm)?.6:1; kickV(E.B,i,v3.sc(fl,k*w*1.5),H); }
-  E.settle=Math.max(E.settle||0,1.2); if(!E.dead){ E.stun=Math.min(1,E.stun+.35*k); if(n>=6&&t<2.6&&(E.st==='alert'||E.st==='idle')){ toDown(E,true); E.knocked=true; E.koT=rnd(2.5,4); } } }
+  E.settle=Math.max(E.settle||0,1.2); if(!E.dead){ E.stun=Math.min(1,E.stun+.35*k); if(n>=6&&t<2.6&&(E.st==='alert'||E.st==='idle')){ toDown(E,true); startDrop(E,rnd(.75,.95)); E.knocked=true; E.koT=rnd(2.5,4); } } }
 
 /* ---------- player actions ---------- */
 function shoot(){ useRight(); }
