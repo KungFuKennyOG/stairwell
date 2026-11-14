@@ -230,7 +230,7 @@ function melContact(h,S,E,c,hit,u,w,key){ const P=PROTO.melee;
   const bax=norm3(v3.sub(mulP(Mu,c.b),mulP(Mu,c.a))),edgeV=x=>Math.hypot(...v3.sub(x.vr,v3.sc(bax,v3.dot(x.vr,bax))));
   let speed=0; for(const x of V) speed=Math.max(speed,kind==='stab'||c.kind==='point'?v3.dot(x.vr,Zw):kind==='cut'&&c.b!==c.a?Math.max(edgeV(x),x.m*(.7+.3*x.cs)):x.m*(.7+.3*x.cs));
   const T0=P.tier,ts=kind==='blunt'?speed*Math.min(1.4,Math.sqrt(1+.6*melMass(w))):speed; /* a heavier club lands a little harder than its speed */
-  let tier=kind==='push'?0:ts<T0[0]?0:ts<T0[1]?1:ts<T0[2]?2:3;
+  let tier=kind==='push'?0:speed<T0[0]?0:ts<T0[1]?1:ts<T0[2]?2:3; /* weight raises the harder tiers, never turns a touch into a hit */
   if(grabbed) tier=Math.min(3,tier+1);
   if(kind==='cut'&&tier===0) kind=tang>.6?'slice':'push'; /* under push speed a blade only opens him if drawn along him */
   if(kind==='blunt'&&tier===0) kind='push';
@@ -249,7 +249,7 @@ function melTier(speed){ const T=PROTO.melee.tier; return speed<T[0]?0:speed<T[1
 function melHit(h,E,seg,p,dir,speed,bone,o){ const key=h.item?h.item.key:'fists',w=WPN[key],P=PROTO.melee;
   if(!o) o={tier:melTier(speed),kind:w.gun||w.melee!=='knife'?(speed<P.tier[0]?'push':'blunt'):(speed<P.tier[0]?'push':'cut'),cutK:1};
   const T=o.tier,part=seg[3],k=part.replace(/[LR]$/,''),m=melMass(w);
-  const dp=norm3([dir[0],clamp(dir[1],-.35,.12),dir[2]]); /* he's driven along the blow, never lifted */
+  const dp=norm3([dir[0],clamp(dir[1],-.35,.03),dir[2]]); /* he's driven along the blow, never lifted (an uppercut snaps the head, it doesn't hop him) */
   if(o.kind==='push'||o.kind==='blunt'){ hitEnemy(E,seg,p,dp,'blunt',{tier:T,speed,mk:Math.min(1.8,1+m*.6),push:o.kind==='push'}); /* -> hitBlunt -> melBlunt (a cut-off piece just gets knocked about) */
     if(o.kind==='push') sfx('bump',.5,p); else if(w.gun) sfx('bash',T>=2?1:.75,p); else { sfx('punch',T>=2?1:.7,p); if(T>=2) sfx(T>=3&&(k==='head'||k==='neck')?'crunch':'kick',T>=3?.6:.4,p); }
     if(T>=1&&w.uses&&w.melee==='knife'){ h.item.uses--; if(h.item.uses<=0){ sfx('glass'); spray(p,v3.sc(dir,-1),10,1.6,.8,'dust',.008); equip(h,null); } } }

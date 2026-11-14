@@ -217,7 +217,9 @@ window.__RIG=(function(){
       const g=grabTarget(mulP(L.M,FIST),.3); if(g) startGrab(L,g); for(let i=0;i<6;i++){ L.M.set(fromCols([0,0,-1],[0,1,0],[1,0,0],sub(X_(E.B,PI_.neck),FIST))); frame(); }
       const spec=swingSpec(E,'knife','slash','chest'),hit=surface(E,target(E,'chest'),spec.D); const Lg=hit?swing(h,E,spec,hit.p,1.0,'steady'):[];
       out.grabStab={grabbed:!!L.grab,contact:Lg.map(x=>x.tier+':'+x.kind+'@'+(+x.speed).toFixed(1)).join(' '),wounds:E.wounds.length};
-      const sp2=swingSpec(E,'knife','thrust','belly'),h2=surface(E,target(E,'belly'),sp2.D); park(h); for(let i=0;i<6;i++){ L.M.set(fromCols([0,0,-1],[0,1,0],[1,0,0],sub(X_(E.B,PI_.neck),FIST))); frame(); }
+      if(L.grab) endGrab(L.grab); E=fresh('gunman'); equip(h,newItem('knife')); park(h); L.M.set(fromCols([0,0,-1],[0,1,0],[1,0,0],sub(X_(E.B,PI_.neck),FIST))); { const g2=grabTarget(mulP(L.M,FIST),.3); if(g2) startGrab(L,g2); } /* a fresh man, freshly held */
+      const sp2=swingSpec(E,'knife','thrust','belly'),h2=surface(E,target(E,'belly'),sp2.D); for(let i=0;i<6;i++){ L.M.set(fromCols([0,0,-1],[0,1,0],[1,0,0],sub(X_(E.B,PI_.neck),FIST))); frame(); }
+      out.grabStab.heldForThrust=!!L.grab;
       const L2=h2?swing(h,E,sp2,h2.p,.8,'steady',{post:.04}):[]; out.grabStab.slowThrust=L2.map(x=>x.tier+':'+x.kind+'@'+(+x.speed).toFixed(1)).join(' ')+(h.stuck?' (stuck)':'');
       if(L.grab) endGrab(L.grab); equip(h,null); }
     /* stab depth: a thrust that sticks, then the hand keeps pushing along the blade */
@@ -250,7 +252,10 @@ const TIER_CASES = [
   { name: 'fist jaw 2.5 x3 (hits only: stays up)', w: 'fists', hits: [['jaw', 'hook', 2.5], ['jaw', 'hook', 2.5, .6], ['jaw', 'hook', 2.5, .6]] },
   { name: 'pistol-whip head 4.5 (stagger)', w: 'pistol', hits: [['head', 'butt', 4.5]] },
   { name: 'pistol-whip head 7 (knockdown)', w: 'pistol', hits: [['head', 'butt', 7]] },
-  { name: 'knife chest slash 1.0 (push, no cut)', w: 'knife', hits: [['chest', 'slash', 1.0]] },
+  { name: 'knife slash 1.0 drawn across (shallow slice)', w: 'knife', hits: [['chest', 'slash', 1.0]] },
+  { name: 'knife poke 0.8 point-first (push, no wound)', w: 'knife', hits: [['chest', 'thrust', 0.8]] },
+  { name: 'pipe overhead to the head 5 one-handed (drops him)', w: 'pipe', hits: [['head', 'chop', 5]] },
+  { name: 'pan face to the head 3 (stagger)', w: 'pan', hits: [['head', 'face', 3]] },
   { name: 'knife forearm slash 2.5 (cut)', w: 'knife', hits: [['farm', 'slash', 2.5]] },
   { name: 'knife belly thrust 3 (stab)', w: 'knife', hits: [['belly', 'thrust', 3]] },
   { name: 'knife chest flat 4 (flat: blunt)', w: 'knife', flat: true, hits: [['chest', 'slash', 4]] },
@@ -274,7 +279,7 @@ const TIER_CASES = [
     console.log(`  pistol, cm off the real hand moved at 1.5 / 2.5 / 5 m/s: ${JSON.stringify(r.gunGapCm)} (aiming stays 1:1 below 3 m/s)`);
     console.log(`  weapon stop on a 4 m/s jab to the chest: tier ${r.stop.contact}, fist held still ${r.stop.heldFrames} frames (${r.stop.heldMs} ms), real hand up to ${r.stop.gapCm} cm on before it catches up`);
     if (r.stamina) console.log(`  stamina (prototype): after each of 10 hard swings ${r.stamina.afterEachSwing.join(' ')}; after 3 s rest ${r.stamina.after3sRest}; machete lag ${r.stamina.machetLagMs_fresh} ms fresh, ${r.stamina.machetLagMs_tired} ms tired`);
-    console.log(`  grab and stab: collar held ${r.grabStab.grabbed}; a 1 m/s knife slash (a push on its own) -> ${r.grabStab.contact || 'none'}, wounds ${r.grabStab.wounds}; a 0.8 m/s thrust -> ${r.grabStab.slowThrust || 'none'}`);
+    console.log(`  grab and stab: collar held ${r.grabStab.grabbed}; a 1 m/s knife slash (a push on its own) -> ${r.grabStab.contact || 'none'}, wounds ${r.grabStab.wounds}; a 0.8 m/s thrust (held: ${r.grabStab.heldForThrust}) -> ${r.grabStab.slowThrust || 'none'}`);
     console.log(`  stab depth: stuck ${r.depth.stuck}, depth ${r.depth.depthStart} -> ${r.depth.depthEnd} m pushing on, full wound ${r.depth.full}, wounds ${r.depth.woundsBefore} -> ${r.depth.woundsAfter}, fatal ${r.depth.dead}; pulled back hard: ripped out ${r.depth.rippedOutAfterPull}`);
     console.log(`  flat screen, two clicks at his head with fists: tiers ${r.flat.tiers.join(',')}, down ${r.flat.down}`); }
   if (mode === 'one') { const a = JSON.parse(process.argv[4]); console.log(JSON.stringify(await p.evaluate(a => window.__RIG.one(...a), a))); }
@@ -298,6 +303,8 @@ const TIER_CASES = [
       const tierOf = v => v < 1.5 ? 0 : v < 3.5 ? 1 : v < 6 ? 2 : 3; for (const v of SP) { const a = rows.filter(r => r.v === v && r.det); const hist = [0, 1, 2, 3].map(t => a.filter(r => r.tier === t).length);
         const ms = a.filter(r => r.ms != null).map(r => r.ms); console.log(`  ${String(v).padStart(4)} m/s: tiers [push ${hist[0]}, hit ${hist[1]}, stagger ${hist[2]}, heavy ${hist[3]}]  expected ${['push', 'hit', 'stagger', 'heavy'][tierOf(v)]}, match ${pct(a.map(r => r.tier === tierOf(v)))}%, contact speed median ${ms.sort((x, y) => x - y)[ms.length >> 1]}`); } }
     if (NEW) { const a = rows.filter(r => r.det && r.ideal != null), tierOf = v => v < 1.5 ? 0 : v < 3.5 ? 1 : v < 6 ? 2 : 3, near = r => [1.5, 3.5, 6].some(b => Math.abs(r.ideal - b) / b < .12);
+      const heavy = r => ['pan', 'pipe', 'cutter', 'hammer', 'pistol'].includes(r.w) && r.kind === 'blunt', light = a.filter(r => !heavy(r));
+      { const c = light.filter(r => !near(r)); console.log(`tier vs real contact speed, everything but the clubs (whose weight lands them up to a tier higher by design): match ${pct(c.map(r => r.tier === tierOf(r.ideal)))}% of ${c.length}`); }
       const clean = a.filter(r => !near(r)); console.log(`tier vs the real speed of the point that touched him (ground truth from the scripted path): match ${pct(clean.map(r => r.tier === tierOf(r.ideal)))}% of ${clean.length} (excluding ${a.length - clean.length} within 12% of a boundary; with them ${pct(a.map(r => r.tier === tierOf(r.ideal)))}%)`);
       const ratio = a.map(r => r.ms / r.ideal).sort((x, y) => x - y); console.log(`measured / real contact speed: p10 ${ratio[Math.floor(ratio.length * .1)].toFixed(2)} median ${ratio[ratio.length >> 1].toFixed(2)} p90 ${ratio[Math.floor(ratio.length * .9)].toFixed(2)}`);
       const wrong = clean.filter(r => r.tier !== tierOf(r.ideal)); if (wrong.length) console.log('  off-tier (first 12): ' + wrong.slice(0, 12).map(r => `${r.w}/${r.part}/${r.type}/${r.prof}/${r.v}: real ${r.ideal} measured ${r.ms} -> t${r.tier}${r.kind ? ' ' + r.kind : ''}`).join(', ')); }
@@ -307,6 +314,8 @@ const TIER_CASES = [
     console.log(`\nMISSES (swept 5-10 cm past him, or stopping 5-10 cm short; checked against the drawn weapon and skin, kept if it never comes within 3 cm): ${M.length} valid (${bad} discarded as not clean), clearance min ${cls[0]} m median ${cls[cls.length >> 1]} m, false hits ${fh.length} (${M.length ? (100 * fh.length / M.length).toFixed(1) : 0}%)`);
     console.log(`  of those, ${M5.length} really 5 cm or more clear: false hits ${fh5.length}; ${M.length - M5.length} between 3 and 5 cm: false hits ${fh.length - fh5.length}`);
     if (fh.length) console.log('  false: ' + fh.slice(0, 16).map(m => `${m.w}/${m.part}/${m.type}/${m.clear * 100}cm(real ${Math.round(m.cl * 100)})/${m.v}->t${m.tier}`).join(', '));
+    { const big = rows.filter(r => r.v >= 1.5); console.log(JSON.stringify({ melee: 'registration', swings: big.length, registered: big.filter(r => r.reg).length, pct: +(100 * big.filter(r => r.reg).length / Math.max(1, big.length)).toFixed(1),
+      misses: M5.length, falseHits: fh5.length, weapons: W })); } /* one line for tools/proto/report.js */
     const fails = rows.filter(r => r.v >= 1.5 && !r.reg); if (fails.length) console.log('\nmissed hits (first 25): ' + fails.slice(0, 25).map(r => `${r.w}/${r.part}/${r.type}/${r.prof}/${r.v}${r.det ? '(t' + r.tier + ' ' + r.ms + ')' : ''}`).join(', '));
   }
   if (mode === 'tier' || mode === 'all') { console.log('\nTIERS on a fresh standing man (real hits, then watched 2.5 s; contacts are tier:part@measured m/s; "pushed back" is the most his pelvis moved in the first 1.2 s):'); out.tier = [];
