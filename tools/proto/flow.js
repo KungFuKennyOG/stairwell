@@ -10,6 +10,7 @@ const STEP = `window.requestAnimationFrame=()=>0; window.__Q=[]; window.setTimeo
 (async () => {
   const browser = await launch(); let bad = 0;
   const out = (name, ok, info) => { if (!ok) bad++; console.log(JSON.stringify({ check: name, ok, ...info })); };
+  try {
   { const { page, errs } = await open(browser, file, q); const E = s => page.evaluate(s => window.__eval(s), s);
     await E(STEP); await E('__st(1)');
     const r0 = await E(`({where:SHELL.where,mode:FLOOR.mode,run:SHELL.run&&SHELL.run.n,tag:$('floorTag').textContent,proto:document.body.classList.contains('proto')})`);
@@ -44,5 +45,7 @@ const STEP = `window.requestAnimationFrame=()=>0; window.__Q=[]; window.setTimeo
     await E('__st(3.6)'); const o2 = await E('({dead:PL.dead,fade:GAME.fade||0})');
     out('old game death', o1.msg && o1.h === 'YOU DIED' && !o1.card && !o1.proto && !o2.dead && o2.fade === 0, { o1, o2 });
     out('no errors (old)', errs.length === 0, { errs: errs.slice(0, 5) }); await page.close(); }
-  await browser.close(); process.exit(bad ? 1 : 0);
+  } catch (e) { out('flow ran', false, { error: String(e).split('\n')[0].slice(0, 240) }); }
+  finally { await browser.close(); }
+  process.exit(bad ? 1 : 0);
 })();

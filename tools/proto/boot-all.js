@@ -14,12 +14,13 @@ const T = [
 ].filter(t => !only || only.split(',').includes(t.name));
 (async () => {
   const browser = await launch(); let bad = 0; const rows = [];
-  for (const t of T) { let r;
-    try { const { page, errs } = await open(browser, file, t.q, { click: t.click, wait: 2500 });
+  for (const t of T) { let r, page = null;
+    try { const o = await open(browser, file, t.q, { click: t.click, wait: 2500 }); page = o.page;
       if (t.ev) { await page.evaluate(s => window.__eval(s), t.ev); await page.waitForTimeout(2500); }
       r = await page.evaluate(() => window.__eval(`({mode:FLOOR.mode,floor:FLOOR.def&&FLOOR.def.n,people:enemies.length,proto:PROTO.on,where:SHELL.where,t:+GAME.t.toFixed(1)})`));
-      r.errors = errs.slice(0, 6); await page.close();
-    } catch (e) { r = { errors: [String(e).slice(0, 240)] }; }
+      r.errors = o.errs.slice(0, 6);
+    } catch (e) { r = { errors: [String(e).slice(0, 240)], timeout: /TIMEOUT/.test(String(e)) }; }
+    finally { if (page) await page.close().catch(() => {}); }
     const ok = !r.errors.length && (!t.want || r.mode === t.want) && (!t.proto || r.proto) && r.t > 0;
     if (!ok) bad++; rows.push({ name: t.name, ok, ...r }); console.log(JSON.stringify({ boot: t.name, ok, ...r }));
   }

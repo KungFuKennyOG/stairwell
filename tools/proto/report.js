@@ -9,7 +9,7 @@ const bots = [walk, fetch, stand, sneak, pistol].filter(Boolean).flat();
 const ran = a => (a || []).filter(r => !r.ERR && !r.err);
 const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
 const rows = []; const row = (what, how, pass, res, measured, needs) => rows.push({ what, how, pass, res, measured, needs });
-const where = (bots.find(r => r.where) || {}).where || '?';
+const where = (bots.find(r => r.where) || (boot || []).find(o => o.boot === 'proto') || {}).where || '?';
 
 // still too easy: the pistol bot dies in 25-50% of its runs
 { const P = ran(pistol); const died = P.filter(r => r.died).length;
@@ -48,13 +48,13 @@ const where = (bots.find(r => r.where) || {}).where || '?';
 { const B = (boot || []).filter(o => o.boot), bf = B.filter(o => !o.ok), F = (flow || []).filter(o => o.check), ff = F.filter(o => !o.ok);
   const be = bots.filter(r => r.ERR || r.err || (r.errors && r.errors.length) || r.qErr);
   const old = B.filter(o => /^f=\d+$/.test(o.boot)).length;
-  row('Nothing broken', `${old} old levels + ${B.length - old} more boot; shell flow; bot pages`, 'zero errors', !B.length ? 'N/A' : bf.length || ff.length || be.length ? 'FAIL' : 'PASS',
+  row('Nothing broken', `${old} old + ${B.length - old} more levels, flow, bots`, 'zero errors', !B.length ? 'N/A' : bf.length || ff.length || be.length ? 'FAIL' : 'PASS',
     [`boot ${B.length - bf.length}/${B.length}` + (bf.length ? ' failed: ' + bf.map(o => o.boot + (o.errors && o.errors[0] ? ' (' + o.errors[0].slice(0, 80) + ')' : '')).join('; ') : ''),
      `flow ${F.length - ff.length}/${F.length}` + (ff.length ? ' failed: ' + ff.map(o => o.check).join(', ') : ''),
      `bot errors ${be.length}` + (be.length ? ': ' + be.slice(0, 3).map(r => r.bot + ' ' + String(r.ERR || r.err || r.qErr || r.errors[0]).slice(0, 80)).join('; ') : '')].join('; '), 'all'); }
 
 // info, from the plan's own sections
-{ const S = ran(stand); if (S.length) row('Found standing still', `stand bot, ${S.length} runs (plan 5.5)`, 'found within 20 s', 'INFO',
+{ const S = ran(stand); if (S.length) row('Found in the dark', `stand bot, ${S.length} runs (plan 5.5)`, 'found within 20 s', 'INFO',
     S.map(r => r.foundAfter != null ? `found after ${r.foundAfter} s` : `not found in ${r.t} s`).join(', ') + `; died ${S.filter(r => r.died).length}`, 'D'); }
 { const S = ran(sneak); if (S.length) row('Hide and sneak', `sneak bot, ${S.length} runs`, 'careful run 8-15 min', 'INFO',
     S.map(r => `${r.left ? 'out in ' + r.stats.exitT + ' s' : r.died ? 'killed by ' + ((r.stats.deaths[0] || {}).who || '?') + ' at ' + r.t + ' s' : 'still in at ' + r.t + ' s'}, hid ${r.hideN}x, seen ${r.seenN}x, grabbed ${r.grabbed}x`).join('; '), 'D, G'); }
@@ -62,11 +62,12 @@ const where = (bots.find(r => r.where) || {}).where || '?';
     row('Cutter to exit', `fetch bot, ${S.length} runs (plan 6.6)`, 'under 60 s', m.length ? (Math.max(...m) < 60 ? 'PASS' : 'FAIL') : 'N/A',
       S.map(r => r.toolFound ? (r.left ? `tool at ${r.toolT} s, out ${r.toolToExit} s later` : `tool at ${r.toolT} s, not out (at the exit: ${r.atExit != null})`) : (r.left ? `no tool needed: out in ${r.stats.exitT} s` : 'no cutter/keys found on the floor')).join('; '), 'F, H'); } }
 
-const W = [16, 34, 26, 6]; const pad = (s, n) => String(s).padEnd(n);
+const W = [17, 38, 26, 7]; const pad = (s, n) => String(s).padEnd(n);
 console.log(`\nFloor 01 prototype checks (floor booted: ${where}; data in ${dir})\n`);
 console.log(pad('Check', W[0]) + pad('How', W[1]) + pad('Pass', W[2]) + pad('Result', W[3]) + ' Measured');
 console.log('-'.repeat(120));
 for (const r of rows) console.log(pad(r.what, W[0]) + pad(r.how, W[1]) + pad(r.pass, W[2]) + pad(r.res, W[3]) + ' ' + r.measured + (r.needs ? `  [${r.needs}]` : ''));
+console.log('\n[ ] = whose work the check measures (agents in PROTO_BRIEF.md section 5)');
 if (where === 'old') console.log(`\nNote: ?proto=1 loaded the OLD floor 01 (no pfLoad in this build, or ?pf=0). "Still skippable" and "Still too easy" then measure the old floor, which has open stairs and no hunt controller; they only mean something once agent F's floor is merged.`);
 const fails = rows.filter(r => r.res === 'FAIL').length; console.log(`\n${fails ? fails + ' FAIL' : 'All checks pass or N/A'}`);
 process.exit(fails ? 1 : 0);

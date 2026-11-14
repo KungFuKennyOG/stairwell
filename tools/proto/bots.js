@@ -13,13 +13,13 @@ if (!file) { console.error('usage: node tools/proto/bots.js <index.html> <bot> [
 (async () => {
   const browser = await launch();
   for (let i = 0; i < runs; i++) {
-    const t0 = Date.now(); let res;
-    try { const { page, errs } = await open(browser, file, q);
+    const t0 = Date.now(); let res, page = null;
+    try { const o = await open(browser, file, q); page = o.page;
       await page.evaluate(s => window.__eval(s), CORE);
       res = await page.evaluate(([b, o]) => { try { return window.__PB.run(b, o); } catch (e) { return { ERR: String(e && e.stack || e).slice(0, 500) }; } }, [bot, opts]);
-      if (errs.length) res.errors = errs.slice(0, 8);
-      await page.close();
-    } catch (e) { res = { ERR: String(e).slice(0, 300) }; }
+      if (o.errs.length) res.errors = o.errs.slice(0, 8);
+    } catch (e) { res = { ERR: String(e).slice(0, 300), timeout: /TIMEOUT/.test(String(e)) }; }
+    finally { if (page) await page.close().catch(() => {}); }
     Object.assign(res, { bot, i: i + 1, q, wall: +((Date.now() - t0) / 1000).toFixed(1) });
     console.log(JSON.stringify(res));
   }

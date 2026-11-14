@@ -8,17 +8,24 @@ const ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swif
 const launch = () => chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ARGS });
 const fileUrl = f => 'file://' + path.resolve(f);
 
-// open a page on ?q, collect its errors, wait for the game, press Start
+// open a page on ?q, collect its errors, wait for the game, press Start. Generous timeouts and one retry: ten agents share two CPUs,
+// and a page that doesn't load in time says nothing about the game. A timeout that survives the retry is thrown as 'TIMEOUT ...'.
+// The game script is inline, so DOMContentLoaded means it ran; waiting for 'load' would also wait on the web fonts.
 async function open(browser, file, q, opts = {}) {
-  const page = await browser.newPage({ viewport: { width: 480, height: 270 } }); const errs = [];
-  page.on('pageerror', e => errs.push(String(e).slice(0, 240)));
-  page.on('console', m => { if (m.type() === 'error') errs.push(m.text().slice(0, 240)); });
-  await page.goto(fileUrl(file) + (q ? '?' + q : ''));
-  await page.waitForFunction(() => window.__eval && window.__game, null, { timeout: 90000 });
-  if (opts.click) await page.click(opts.click);
-  if (opts.start !== false) await page.click('#start');
-  await page.waitForTimeout(opts.wait ?? 200);
-  return { page, errs };
+  for (let attempt = 1; ; attempt++) {
+    const page = await browser.newPage({ viewport: { width: 480, height: 270 } }); const errs = [];
+    page.on('pageerror', e => errs.push(String(e).slice(0, 240)));
+    page.on('console', m => { if (m.type() === 'error' && !/fonts\.(googleapis|gstatic)\.com/.test((m.location() || {}).url || '')) errs.push(m.text().slice(0, 240)); }); /* the web fonts are online-only */
+    try {
+      await page.goto(fileUrl(file) + (q ? '?' + q : ''), { waitUntil: 'domcontentloaded', timeout: 180000 });
+      await page.waitForFunction(() => window.__eval && window.__game, null, { timeout: 180000, polling: 250 });
+      if (opts.click) await page.click(opts.click, { timeout: 120000 });
+      if (opts.start !== false) await page.click('#start', { timeout: 120000 });
+      await page.waitForTimeout(opts.wait ?? 200);
+      return { page, errs };
+    } catch (e) { await page.close().catch(() => {});
+      if (attempt >= 2 || !/Timeout/i.test(String(e))) throw new Error((/Timeout/i.test(String(e)) ? 'TIMEOUT (machine busy?) ' : '') + String(e).split('\n')[0].slice(0, 200)); }
+  }
 }
 
 const CORE = `

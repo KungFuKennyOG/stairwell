@@ -19,9 +19,10 @@ function shellNewRun(){ const def=FLOOR.def,where=FLOOR.mode==='proto'?'proto':F
 function shellEndRun(why){ const R=SHELL.run; if(!R||R.ended) return; R.ended=why;
   if(SHELL.hunt){ SHELL.hunt.len=+(R.t-SHELL.hunt.t0).toFixed(1); SHELL.hunt.open=true; SHELL.hunt=null; } /* cut short by the end of the run */
   for(const g of SHELL.grabs.values()){ g.result=why==='death'?'lost':'open'; g.len=+(R.t-g.t0).toFixed(1); } SHELL.grabs.clear();
-  const bad=enemies.filter(E=>!E.civ&&!E.ally),civ=enemies.filter(E=>E.civ);
-  R.men=bad.length; R.spared=bad.filter(E=>!E.dead).length; R.tenants=civ.length; R.tenantsDead=civ.filter(E=>E.dead).length;
-  R.tenantsHarmed=civ.filter(E=>E.dead||(E.wounds&&E.wounds.length)||R.civHit.includes(E.name)).length;
+  if(why!=='reset'){ /* on a reset the cast has already been replaced: who was left standing isn't known any more */
+    const bad=enemies.filter(E=>!E.civ&&!E.ally),civ=enemies.filter(E=>E.civ);
+    R.men=bad.length; R.spared=bad.filter(E=>!E.dead).length; R.tenants=civ.length; R.tenantsDead=civ.filter(E=>E.dead).length;
+    R.tenantsHarmed=civ.filter(E=>E.dead||(E.wounds&&E.wounds.length)||R.civHit.includes(E.name)).length; }
   R.t=+R.t.toFixed(1); R.hidden=+R.hidden.toFixed(1);
   /* a reset straight after another (boot, loading a floor) is not a run */
   if(why==='reset'&&R.t<.5&&!R.shots&&!R.deaths.length) return;
