@@ -40,13 +40,13 @@ const PF_ROOMS=[
   {id:'NX',name:'the stairs up',         rects:[[13,7.2,17,11.2]],paper:'stair',fl:'conc',env:'stair',floorRects:[],noFace:true}
 ];
 /* openings: [room a, room b, position along the wall they share, width, kind]. kind: open | sheet | hole (crouch) | chain (the way out) */
-const PF_OPEN=[
-  ['S0','S1',-11,1.0,'open'],['S1','H',-6.4,.95,'open'],['S1','S2',-6.6,1.0,'open'],['S2','S3',-4.8,1.0,'hole'],
-  ['S3','H',-3.0,1.0,'open'],['S3','S4',-2.1,.9,'sheet'],['S3','S5',-4.6,1.0,'hole'],['S5','H',4.9,1.0,'open'],['S5','S6',1.6,1.0,'open'],
-  ['S6','S7',-10.2,1.0,'hole'],['S7','S8',9.3,1.0,'open'],['S8','H',7.25,.95,'open'],
-  ['N1','H',-7.3,.95,'open'],['N1','N2',-8.7,1.0,'open'],['N2','N3',10.2,1.0,'hole'],['N3','H',-2.4,1.0,'open'],['N3','N4',8.4,1.0,'open'],
-  ['N4','N5',10.8,.8,'open'],['N4','N6',0.3,1.0,'hole'],['N6','H',2.9,1.0,'sheet'],['N6','N7',3.75,1.0,'open'],['N7','N8',6.4,1.0,'sheet'],
-  ['N8','H',6.2,1.0,'sheet'],['N8','NE',11.6,1.0,'open'],['NE','NX',9.9,1.1,'chain']
+const PF_OPEN=[ /* centres on the half-metre nav grid where they fit, so a walker's doorway cell is the middle of the doorway */
+  ['S0','S1',-11,1.0,'open'],['S1','H',-6.5,.95,'open'],['S1','S2',-6.5,1.0,'open'],['S2','S3',-5.0,1.0,'hole'],
+  ['S3','H',-3.0,1.0,'open'],['S3','S4',-2.5,.9,'sheet'],['S3','S5',-4.5,1.0,'hole'],['S5','H',5.0,1.0,'open'],['S5','S6',1.5,1.0,'open'],
+  ['S6','S7',-10.0,1.0,'hole'],['S7','S8',9.5,1.0,'open'],['S8','H',7.0,.95,'open'],
+  ['N1','H',-7.0,.95,'open'],['N1','N2',-8.5,1.0,'open'],['N2','N3',10.0,1.0,'hole'],['N3','H',-2.5,1.0,'open'],['N3','N4',8.5,1.0,'open'],
+  ['N4','N5',11.0,.8,'open'],['N4','N6',0.5,1.0,'hole'],['N6','H',3.0,1.0,'sheet'],['N6','N7',3.75,1.0,'open'],['N7','N8',6.5,1.0,'sheet'],
+  ['N8','H',6.0,1.0,'sheet'],['N8','NE',11.5,1.0,'open'],['NE','NX',9.9,1.1,'chain']
 ];
 /* partitions inside a room: [room, axis, line, from, to]. Every room off the hall has one a step inside its doorway, so the doorway opens
    into a short entry and you turn into the room: from the hall you see the entry, never the room (and never the room across the hall) */
@@ -128,9 +128,9 @@ function pfPaper(k){ if(k==='hall') return M(tTwHall); if(k==='stair') return M(
    H's prop() when it's there (it returns world-space solids and hiding spots and draws into the floor); until then the floor's own
    pieces (FURN) or boxes. Everything is in the room data below so the floor can be laid out before the models exist */
 const PF_FB={ /* fallback footprints [w,d,h] for kinds FURN doesn't build */
-  tub:[1.6,.75,.6],shelf:[1.2,.45,1.8],chair:[.45,.45,.9],cardtable:[1.0,1.0,.77],laundry:[2.4,.2,1.8],pipeburst:[.6,.6,2.8],rebar:[1.2,.3,1.2],sheeting:[2.0,.05,2.4],mattresses:[1.9,.95,1.1],
+  tub:[1.6,.75,.6],bed:[2.0,1.0,.68],shelf:[1.2,.45,1.8],chair:[.45,.45,.9],cardtable:[1.0,1.0,.77],laundry:[2.4,.2,1.8],pipeburst:[.6,.6,2.8],rebar:[1.2,.3,1.2],sheeting:[2.0,.05,2.4],mattresses:[1.9,.95,1.1],
   sofa:[2.0,.85,.9],kitchen:[2.0,.6,.92],drywall:[1.3,.3,1.75],cement:[.9,.6,.5],toilet:[.4,.6,.75],sink:[.5,.4,.85],washer:[.6,.6,.85],heater:[.5,.5,1.4],shrine:[.6,.35,.8],lamp:[.3,.3,1.4],crates:[1.2,.9,1.1] };
-const PF_FURN={sofa:'couch',kitchen:'counter',mattresses:null,cardtable:'table'};
+const PF_FURN={sofa:'couch',kitchen:'counter',mattresses:null,cardtable:'table',bed:null};
 function pfProp(kind,x,z,ry=0,o={}){ const G=floorN;
   if(typeof prop==='function'&&!o.own){ try{ const r=prop(kind,G,x,z,ry,o); if(r){ for(const s of r.solids||[]){ const b=addBox(s.x0,s.x1,s.z0,s.z1,s.y0||0,s.h,'furn'); if(s.y0>0) b.under=true; }
         for(const h of r.hides||[]) pfHide(Object.assign({room:pfRoomRaw(h.x,h.z)},h)); return r; } }catch(e){ console.warn('[pfloor] prop',kind,e); } }
@@ -139,16 +139,22 @@ function pfProp(kind,x,z,ry=0,o={}){ const G=floorN;
     if(!o.noBox) addBox(x-w/2,x+w/2,z-d/2,z+d/2,0,o.h||FURN_H[fk]||.8,'furn'); const rec={kind:fk,node,x,z,info}; PF.furn.push(rec); if(info.seat) PF.seats.push(rec); if(info.bed) PF.beds.push(rec); return rec; }
   const fb=PF_FB[kind]||[.6,.6,.8],[w0,d0,h]=fb,s=Math.abs(Math.sin(ry))>.5,w=s?d0:w0,d=s?w0:d0,n=N(G,x,0,z,0,ry,0);
   pfModel(kind,n,w0,d0,h,o);
-  if(!o.noBox&&kind!=='sheeting'&&kind!=='laundry') addBox(x-w/2,x+w/2,z-d/2,z+d/2,0,o.h||h,'furn');
+  if(!o.noBox&&kind!=='sheeting'&&kind!=='laundry'){ const b=addBox(x-w/2,x+w/2,z-d/2,z+d/2,kind==='bed'?PF_BED_UNDER:0,o.h||h,'furn'); if(kind==='bed') b.under=true; }
   return {kind,node:n,x,z}; }
 /* the floor's own pieces for what FURN doesn't have: plain, chunky, painted */
+const PF_BED_UNDER=.42; /* the underside of a bed frame: crouched or lying, Ray goes under (86-hide.js) */
 function pfModel(kind,n,w,d,h,o){ const mWh=M(tWhite),mGrey=M(null,{color:0x6a6c6a}),mRust=M(null,{color:0x5a3a26});
+  if(kind==='bed'){ const u=PF_BED_UNDER; for(const sx of [-1,1]) for(const sz of [-1,1]) mk(box(.06,u+.08,.06,{at:[0,(u+.08)/2,0]}),mWood,n,sx*(w/2-.05),0,sz*(d/2-.05));
+    mk(box(w,.08,d),mWood,n,0,u+.04,0); mk(box(.06,.5,d),mWood,n,-w/2+.03,u+.25,0); const m=N(n,0,u+.08,0); FURN.mattress(m); return; }
   if(kind==='tub'){ mk(box(w,h,d,{at:[0,h/2,0]}),F(mWh,mWh,M(null,{color:0x8a8e8a})),n); mk(box(w-.12,.02,d-.12),M(null,{color:0x3a4448}),n,0,h-.04,0);
-    mk(plane(w*.75,1.35),M(tPfPlastic,{cut:true,double:true}),n,-w*.12,h+.68,d/2-.03); mk(cyl(.008,.008,w,4),mSteel,n,0,1.98,d/2-.03,0,0,Math.PI/2); }
+    if(typeof addSheet==='function'&&Math.abs(Math.sin(n.r[1]))<.5) addSheet({x:n.p[0]-w*.12,z:n.p[2]+Math.cos(n.r[1])*(d/2-.03),axis:'x',w:w*.75,h:1.98,kind:'plastic',y0:h+.02});
+    else { mk(plane(w*.75,1.35),M(tPfPlastic,{cut:true,double:true}),n,-w*.12,h+.68,d/2-.03); mk(cyl(.008,.008,w,4),mSteel,n,0,1.98,d/2-.03,0,0,Math.PI/2); } }
   else if(kind==='shelf'){ for(const y of [.05,.6,1.15,1.7]) mk(box(w,.03,d),mGrey,n,0,y,0); for(const sx of [-1,1]) for(const sz of [-1,1]) mk(box(.03,h,.03,{at:[0,h/2,0]}),mGrey,n,sx*(w/2-.02),0,sz*(d/2-.02));
     const r=rng((n.p[0]*100+n.p[2]*7)|0); for(const y of [.07,.62,1.17]) for(let k=0;k<3;k++) if(r()<.75){ const bw=.2+r()*.2; mk(box(bw,.18+r()*.2,d*.8,{at:[0,.1,0]}),M(r()<.5?tTwBoxPlain:tCrate),n,-w/2+.2+k*(w/3),y,0,0,r()*.3,0); } }
   else if(kind==='chair'){ mk(box(.42,.04,.42),mWood,n,0,.45,0); mk(box(.42,.45,.04),mWood,n,0,.7,-.19); for(const [a,b] of [[-.18,-.18],[.18,-.18],[-.18,.18],[.18,.18]]) mk(box(.035,.45,.035,{at:[0,.225,0]}),mWood,n,a,0,b); }
   else if(kind==='mattresses'){ for(let k=0;k<4;k++){ const q=N(n,(k%2?.05:-.04),.14+k*.24,0,0,(k-1.5)*.08,0); mk(box(1.9,.22,.95,{at:[0,0,0]}),F(M(tMattress),M(tMattress),M(tMattress),M(tMattress,{repeat:[2,2]})),q); } }
+  else if(kind==='laundry'&&typeof addSheet==='function'){ const ax=Math.abs(Math.sin(n.r[1]))>.5?'z':'x'; addSheet({x:n.p[0],z:n.p[2],axis:ax,w,h:1.95,kind:'sheet',y0:.42}); }
+  else if(kind==='sheeting'&&typeof addSheet==='function'){ const ax=Math.abs(Math.sin(n.r[1]))>.5?'z':'x'; addSheet({x:n.p[0],z:n.p[2],axis:ax,w:o.len||w,h:2.7,kind:'plastic'}); }
   else if(kind==='laundry'){ /* a line strung across with sheets on it: sight goes no further, bodies push through */ mk(cyl(.005,.005,w,3),mBlack,n,0,1.95,0,0,0,Math.PI/2);
     const r=rng((n.p[0]*31+n.p[2]*17)|0); let x=-w/2+.15; while(x<w/2-.3){ const sw=.5+r()*.5; mk(plane(sw,1.5),M(tPfSheet[r()*3|0],{double:true}),n,x+sw/2,1.2,(r()-.5)*.06,0,(r()-.5)*.15,0); x+=sw+.04; } }
   else if(kind==='sheeting'){ const L=o.len||w; mk(plane(L,2.6),M(tPfPlastic,{cut:true,double:true}),n,0,1.35,0); mk(box(L,.04,.04),mWood,n,0,2.7,0); }
@@ -166,7 +172,7 @@ function pfModel(kind,n,w,d,h,o){ const mWh=M(tWhite),mGrey=M(null,{color:0x6a6c
     mk(plane(1.1,.9),M(tPfWater,{cut:true}),n,0,.012,.2,-Math.PI/2,0,0); }
   else mk(box(w,h,d,{at:[0,h/2,0]}),M(tCrate),n); }
 function pfHide(h){ const s=Object.assign({id:'pf'+PF.hides.length,kind:'corner',yaw:0,w:.9,d:.7,h:1.4},h); s.room=s.room||pfRoomRaw(s.x,s.z); PF.hides.push(s);
-  if(typeof addHideSpot==='function'){ try{ addHideSpot({id:s.id,kind:s.kind,x:s.x,z:s.z,yaw:s.yaw,w:s.w,d:s.d,h:s.h}); }catch(e){ console.warn('[pfloor] addHideSpot',e); } } return s; }
+  if(typeof addHideSpot==='function'){ try{ s.spot=addHideSpot({id:s.id,kind:s.kind,x:s.x,z:s.z,yaw:s.yaw,w:s.w,d:s.d,h:s.h,y0:s.y0||0,open:s.open||null}); }catch(e){ console.warn('[pfloor] addHideSpot',e); } } return s; }
 
 /* ---------- what's in each room: furniture, the details, the hiding spots, the lights ---------- */
 function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.push({p,c,d,kind:kind||null,room:PF.byId[room],t0:Math.random()*9,w:0}); };
@@ -192,20 +198,20 @@ function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.p
   { A.pic(tPfSalida,-11,2.35,-6.4+PF_T/2+.012,0,.42,.16,{unlit:true}); A.pic(tPfSalida,-11,2.35,-6.4-PF_T/2-.012,Math.PI,.42,.16,{unlit:true});
     L_([-11,2.25,-6.4],[.95,.13,.1],4.6,'exit','S0'); P('crates',-10.75,-9.8,.2); A.bulb(-12,-8.4,false); }
   /* S1: the empty front room. A sofa pulled out from the corner (behind it, in the dark) */
-  { P('sofa',-10.4,-2.4,Math.PI*.95); H({kind:'sofa',x:-10.4,z:-1.65,yaw:Math.PI,w:1.8,d:.55,h:.9,note:'behind the sofa'}); P('trash',-6.4,-5.6,0); P('wardrobe',-11.62,-4.3,Math.PI/2); A.bulb(-8.8,-3.8,false); A.tag(5,-9.2,1.5,0,{z:-6.4+PF_T/2+.01,ry:0}); }
+  { P('sofa',-10.4,-2.4,Math.PI*.95); H({kind:'sofa',x:-10.4,z:-1.65,yaw:Math.PI,w:1.8,d:.55,h:.9,note:'behind the sofa'}); P('trash',-9.0,-5.85,0); P('wardrobe',-11.62,-4.3,Math.PI/2); A.bulb(-8.8,-3.8,false); A.tag(5,-9.2,1.5,0,{z:-6.4+PF_T/2+.01,ry:0}); }
   /* S2: a dark bedroom */
-  { P('bed',-8.6,-11.2,0); H({kind:'bed',x:-8.6,z:-11.2,yaw:0,w:2.0,d:1.0,h:.5,note:'under the bed'}); P('wardrobe',-5.0,-11.62,0); P('trash',-9.4,-7.1,0); A.bulb(-7,-9.2,false); }
+  { P('bed',-8.6,-11.2,0); H({kind:'bed',x:-8.6,z:-11.2,yaw:0,w:2.0,d:1.0,h:PF_BED_UNDER,open:'+z',note:'under the bed'}); P('wardrobe',-5.0,-11.62,0); P('trash',-9.4,-7.1,0); A.bulb(-7,-9.2,false); }
   /* S3: the TV room. The TV on the west wall, the couch facing it, Rui watching */
-  { P('tv',-3.0,-2.8,Math.PI); P('sofa',-3.3,-4.7,0); twVest(-3.0,.47,-4.72,.2); /* a SWAT vest thrown on the couch */
+  { P('tv',-3.0,-2.8,Math.PI); P('sofa',-3.3,-4.7,0); H({kind:'sofa',x:-3.3,z:-5.55,yaw:0,w:1.9,d:.65,h:.9,open:'-z',note:'behind the TV room sofa'}); twVest(-3.0,.47,-4.72,.2); /* a SWAT vest thrown on the couch */
     for(const [x,z] of [[-2.6,-2.75],[-3.4,-2.85],[-1.9,-4.9]]) mk(cyl(.033,.033,.12,6,{at:[0,.06,0]}),[M(null,{color:0xb8b2a0}),M(null,{color:0x8a8478}),M(null,{color:0x8a8478})],floorN,x,x>-2?.04:.92,z);
-    P('trash',-5.1,-5.9,0); L_([-3.0,.95,-3.35],[.42,.58,1.15],4.4,'tv','S3'); A.bulb(-3.2,-4.2,false); PF.tvAt=[-3.0,1.0,-2.8]; }
+    P('trash',-.2,-5.9,0); L_([-3.0,.95,-3.35],[.42,.58,1.15],4.4,'tv','S3'); A.bulb(-3.2,-4.2,false); PF.tvAt=[-3.0,1.0,-2.8]; }
   /* S4: the bathroom. A curtain round the tub */
-  { P('tub',-2.8,-8.75,0); H({kind:'tub',x:-2.8,z:-8.75,yaw:0,w:1.6,d:.75,h:.6,note:'behind the tub curtain'}); P('toilet',-3.65,-7.0,Math.PI/2); P('sink',-1.95,-7.3,-Math.PI/2); }
+  { P('tub',-2.8,-8.75,0); H({kind:'tub',x:-2.8,z:-8.75,yaw:0,w:1.6,d:.75,h:1.9,open:'+z',note:'behind the tub curtain'}); P('toilet',-3.65,-7.0,Math.PI/2); P('sink',-3.73,-7.8,Math.PI/2); }
   /* S5: Doña Chela's kitchen. Her candles to the Virgin are the only light */
-  { P('kitchen',3.4,-5.98,0); P('fridge',5.95,-5.95,0); P('table',2.0,-3.2,Math.PI/2); P('shrine',.95,-1.5,Math.PI);
+  { P('kitchen',3.4,-5.98,0); P('fridge',5.95,-5.95,0); P('table',2.2,-4.4,Math.PI/2); P('shrine',.95,-1.5,Math.PI);
     L_([.95,1.15,-1.9],[1.15,.68,.3],3.6,'candle','S5'); A.bulb(3.4,-3.8,false); }
   /* S6: her bedroom, round behind the bathroom. The wardrobe in the alcove */
-  { P('bed',1.4,-11.2,0); P('wardrobe',-1.0,-9.55,0); H({kind:'wardrobe',x:-1.0,z:-9.55,yaw:0,w:1.0,d:.55,h:1.9,note:'in the wardrobe'}); P('crates',-3.3,-11.5,0); P('trash',3.7,-7.2,0);
+  { P('bed',1.4,-11.2,0); P('wardrobe',-1.0,-9.55,0); H({kind:'wardrobe',x:-1.0,z:-9.55,yaw:0,w:1.0,d:.55,h:1.9,open:'+z',note:'in the wardrobe'}); P('crates',-3.3,-11.5,0); P('trash',3.7,-7.2,0);
     A.frame(tTwPhotoMom,3.9,.92,-11.86,0); A.bulb(1.4,-9.2,false); }
   /* S7: the storeroom: mattresses piled up, shelves, crates */
   { P('mattresses',6.0,-11.3,0); H({kind:'mattress',x:6.0,z:-10.6,yaw:0,w:1.9,d:.6,h:1.1,note:'among the mattresses'}); P('shelf',9.95,-9.0,-Math.PI/2); P('shelf',8.6,-11.72,0); P('crates',5.1,-7.3,0); A.bulb(7.4,-9.2,false); }
@@ -219,9 +225,9 @@ function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.p
     A.blk(.26,.02,.26,M(tTwRice),-11.6,.935,3.35); A.blk(.22,.06,.22,M(tWhite),-11.62,.95,3.9); twWatch(-11.5,.93,3.0);
     A.pic(tTwPhotoKid,-11.27,1.18,5.62,Math.PI/2,.12,.16); A.pic(tTwDrawing,-11.27,1.42,5.82,Math.PI/2,.22,.22); }
   /* N2: Dani's back room */
-  { P('bed',-6.6,10.8,Math.PI); H({kind:'bed',x:-6.6,z:10.8,yaw:Math.PI,w:2.0,d:1.0,h:.5,note:'under the bed'}); P('wardrobe',-9.62,9.2,Math.PI/2); P('trash',-6.1,7.0,0); A.bulb(-7.8,9.2,false); }
+  { P('bed',-6.6,10.8,Math.PI); H({kind:'bed',x:-6.6,z:10.8,yaw:Math.PI,w:2.0,d:1.0,h:PF_BED_UNDER,open:'+z',note:'under the bed'}); P('wardrobe',-9.62,9.2,Math.PI/2); P('trash',-6.1,7.0,0); A.bulb(-7.8,9.2,false); }
   /* N3: Kev's room, right through to the street. A wardrobe stood across the middle; his mattress by the window; the neon outside */
-  { P('wardrobe',-4.1,6.5,0); P('crates',-5.0,6.4,Math.PI/2); P('mattress',-4.6,9.2,Math.PI/2); P('trash',-5.0,3.1,0);
+  { P('wardrobe',-4.1,6.5,0); P('crates',-5.0,6.4,Math.PI/2); H({kind:'corner',x:-4.1,z:7.05,yaw:0,w:.9,d:.5,h:1.9,open:'+z',note:'behind Kev\'s wardrobe'}); P('mattress',-4.6,8.55,Math.PI/2); P('trash',-5.0,3.1,0);
     A.frame(tTwPhotoMom,-2.8,.92,11.86,Math.PI); A.bulb(-3.5,3.8,false);
     L_([-3.2,1.8,11.75],[1.3,.3,.95],5.2,'neon','N3'); }
   /* N4: the card room. A hot bulb low over the table, the pot in the middle, a badge in it */
@@ -231,15 +237,15 @@ function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.p
     A.bulb(.75,9.4,true,true,2.0); L_([.75,1.85,9.4],[1.6,1.0,.5],4.8,null,'N4'); }
   /* N5: the closet off it: coats on a rail, you stand in among them */
   { P('shelf',3.75,11.75,Math.PI,{h:1.8}); for(let k=0;k<4;k++) mk(box(.08,.95,.45),M(tPfSheet[k%3]),floorN,3.2+k*.3,1.35,10.4,0,.2*k,0); mk(cyl(.01,.01,1.4,4),mSteel,floorN,3.75,1.9,10.4,0,0,Math.PI/2);
-    H({kind:'closet',x:3.75,z:10.3,yaw:Math.PI,w:1.2,d:.9,h:1.9,note:'in the closet'}); }
+    H({kind:'closet',x:3.75,z:10.6,yaw:Math.PI,w:1.2,d:1.5,h:1.9,open:'+z',note:'in the closet'}); }
   /* N6: the tenants' flat. A sheet in the doorway, a lamp, a wardrobe */
-  { P('sofa',1.5,5.9,Math.PI); P('table',3.4,3.0,Math.PI/2); P('wardrobe',-1.02,3.6,Math.PI/2); H({kind:'wardrobe',x:-1.02,z:3.6,yaw:Math.PI/2,w:1.0,d:.55,h:1.9,note:'in the wardrobe'});
+  { P('sofa',2.0,5.9,Math.PI); P('table',3.4,3.0,Math.PI/2); P('wardrobe',-1.02,3.6,Math.PI/2); H({kind:'wardrobe',x:-1.02,z:3.6,yaw:Math.PI/2,w:1.0,d:.55,h:1.9,open:'+z',note:'in the wardrobe'});
     P('lamp',4.05,5.9,0); L_([4.05,1.35,5.75],[1.0,.74,.44],3.8,null,'N6'); P('trash',-.8,1.7,0); }
   /* N7: the laundry: lines of sheets across it, a washer, a sink */
   { P('shelf',4.9,7.5,Math.PI/2); P('laundry',6.7,8.4,0); P('laundry',7.0,10.6,0,{own:true}); H({kind:'sheets',x:6.7,z:9.0,yaw:0,w:2.4,d:.7,h:1.8,note:'behind the sheets'}); P('washer',8.55,11.55,0); P('sink',3.4,6.9,Math.PI); A.bulb(6,9.2,false); }
   /* N8: the gutted flat: bare block, plastic sheeting on battens, rebar, cement, a stack of drywall to get behind */
   { P('sheeting',8.6,3.6,Math.PI/2,{len:2.6}); P('sheeting',10.6,2.4,0,{len:2.2}); P('rebar',12.4,5.6,-Math.PI/2); P('cement',5.4,5.7,0); P('cement',12.3,1.8,Math.PI/2);
-    P('drywall',6.0,4.2,Math.PI/2); H({kind:'corner',x:5.25,z:4.2,yaw:-Math.PI/2,w:.7,d:1.3,h:1.75,note:'behind the drywall'}); P('crates',11.8,4.1,0);
+    P('drywall',6.0,3.6,Math.PI/2); H({kind:'corner',x:5.25,z:3.5,yaw:-Math.PI/2,w:.7,d:1.3,h:1.75,open:'-z',note:'behind the drywall'}); P('crates',12.3,3.9,Math.PI/2); H({kind:'corner',x:11.45,z:3.9,yaw:Math.PI/2,w:1.2,d:.6,h:1.1,open:'-z',note:'behind the crates'});
     mk(box(.6,.3,.9),mRustM(),floorN,7.4,.3,5.6,0,.3,0); A.bulb(8.8,3.8,false); }
   /* NE: the stair door. Chained. A red sign over it */
   { A.pic(tPfSalida,13-PF_T/2-.012,2.35,9.9,-Math.PI/2,.42,.16,{unlit:true}); L_([12.5,2.3,9.9],[1.05,.15,.1],4.8,'exit','NE');
@@ -276,15 +282,15 @@ const PF_DEF={n:1,name:'Floor 01',proto:true,kit:'pistol',
   pairTalk:[['Tito','Landlord says six.'],['Jojo','I held the light. That\'s all I did.'],['Tito','Five helmets.'],['Jojo','There were six.'],['Tito','So where\'s the sixth?'],['Jojo','The girl was still breathing.'],['Tito','Don\'t. Keep looking.']],
   loot:[],clear:['FLOOR 01','You got out.']};
 /* the pair's walk: every room a walker can get into, the long way round, the landing you came up to last */
-const PF_ROUTE=[[4,9.0],[3.75,6.9],[3.3,5.6],[0,4.0],[1.3,1.75],[2.9,1.75],[2.9,.4],
-  [6.2,.4],[6.2,1.75],[8.3,1.75],[9.8,3.6],[11.6,5.6],[11.4,8.2],[10.6,9.8],[11.4,8.2],[11.6,5.6],[9.8,3.6],[8.3,1.75],[6.2,1.75],[6.2,.4],
-  [7.25,-.4],[7.25,-1.75],[9.5,-1.75],[9.6,-3.6],[9.3,-6.9],[7.4,-9.4],[9.3,-6.9],[9.6,-3.6],[9.5,-1.75],[7.25,-1.75],[7.25,-.4],
-  [4.9,-.4],[4.9,-1.75],[2.9,-1.75],[3.3,-4.2],[1.6,-6.9],[1.6,-9.6],[-2.6,-10.6],[1.6,-9.6],[1.6,-6.9],[3.3,-4.2],[2.9,-1.75],[4.9,-1.75],[4.9,-.4],
-  [-3.0,-.4],[-3.0,-1.8],[-4.8,-1.8],[-4.9,-3.6],[-2.1,-5.9],[-4.9,-3.6],[-4.8,-1.8],[-3.0,-1.8],[-3.0,-.4],
-  [-6.4,-.4],[-6.4,-1.75],[-8.4,-1.75],[-8.8,-3.6],[-6.6,-6.9],[-7.6,-9.2],[-6.6,-6.9],[-9.6,-4.6],[-11,-6.9],[-12.4,-8.4],[-11,-6.9],[-9.6,-4.6],[-8.4,-1.75],[-6.4,-1.75],[-6.4,-.4],
-  [-7.3,.4],[-7.3,1.75],[-8.8,1.75],[-8.6,5.2],[-8.7,6.9],[-7.4,8.8],[-8.7,6.9],[-8.6,5.2],[-8.8,1.75],[-7.3,1.75],[-7.3,.4],
-  [-2.4,.4],[-2.4,1.75],[-4.4,1.75],[-4.4,3.6],[-2.6,5.0],[-2.4,7.6],[-2.6,10.4],[-.6,8.4],[2.2,9.0],[2.4,10.8],[3.7,10.8],[2.4,10.8],[-.6,8.4],[-2.4,7.6],[-2.6,5.0],[-4.4,3.6],[-4.4,1.75],[-2.4,1.75],[-2.4,.4],
-  [2.9,.4],[2.9,1.75],[1.3,1.75],[0,4.0],[3.3,5.6],[3.75,6.9]];
+const PF_ROUTE=[[4,9.0],[3.75,6.9],[3.3,5.6],[0,4.0],[1.3,1.75],[3.0,1.75],[3.0,.4],
+  [6.0,.4],[6.0,1.75],[8.3,1.75],[9.8,3.6],[11.5,5.6],[11.4,8.2],[10.6,9.8],[11.4,8.2],[11.5,5.6],[9.8,3.6],[8.3,1.75],[6.0,1.75],[6.0,.4],
+  [7.0,-.4],[7.0,-1.75],[9.5,-1.75],[9.6,-3.6],[9.5,-6.9],[7.4,-9.4],[9.5,-6.9],[9.6,-3.6],[9.5,-1.75],[7.0,-1.75],[7.0,-.4],
+  [5.0,-.4],[5.0,-1.75],[2.9,-1.75],[3.3,-3.2],[1.5,-6.9],[1.5,-9.6],[-2.6,-10.6],[1.5,-9.6],[1.5,-6.9],[3.3,-3.2],[2.9,-1.75],[5.0,-1.75],[5.0,-.4],
+  [-3.0,-.4],[-3.0,-1.8],[-4.8,-1.8],[-4.9,-3.6],[-2.5,-5.9],[-4.9,-3.6],[-4.8,-1.8],[-3.0,-1.8],[-3.0,-.4],
+  [-6.5,-.4],[-6.5,-1.75],[-8.4,-1.75],[-8.8,-3.6],[-6.5,-6.9],[-7.6,-9.2],[-6.5,-6.9],[-9.6,-4.6],[-11,-6.9],[-12.4,-8.4],[-11,-6.9],[-9.6,-4.6],[-8.4,-1.75],[-6.5,-1.75],[-6.5,-.4],
+  [-7.0,.4],[-7.0,1.75],[-8.8,1.75],[-8.6,5.2],[-8.5,6.9],[-7.4,8.8],[-8.5,6.9],[-8.6,5.2],[-8.8,1.75],[-7.0,1.75],[-7.0,.4],
+  [-2.5,.4],[-2.5,1.75],[-4.4,1.75],[-4.4,3.6],[-2.6,5.0],[-2.4,7.6],[-2.6,10.4],[-.6,8.5],[2.2,9.0],[2.4,11.0],[3.7,11.0],[2.4,11.0],[-.6,8.5],[-2.4,7.6],[-2.6,5.0],[-4.4,3.6],[-4.4,1.75],[-2.5,1.75],[-2.5,.4],
+  [3.0,.4],[3.0,1.75],[1.3,1.75],[0,4.0],[3.3,5.6],[3.75,6.9]];
 
 function pfBuild(){ setWorld(18,12);
   disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true; if(typeof FIRES!=='undefined') FIRES.length=0;
@@ -447,7 +453,7 @@ function pfCast(){ for(const c of PF_DEF.cast) if(c.hunt&&!c.hunt.pts) c.hunt.pt
   PF.pair=[PF.lead,PF.follow].filter(Boolean); PF.pairC={i:0,t:rnd(2,5),dead:false};
   if(PF.follow){ PF.follow.patrol=PF.follow.followP; } }
 /* the improvised weapons where they'd be, ammo and first aid if A/H have them, and the bolt cutter in one of three places */
-const PF_CUTTER=[{room:'N1',p:[-9.45,.79,3.75],ry:.6},{room:'S7',p:[9.9,.665,-9.0],ry:Math.PI/2},{room:'N8',p:[5.45,.33,5.65],ry:2.1}];
+const PF_CUTTER=[{room:'N1',p:[-9.45,.79,3.75],ry:.6},{room:'S7',p:[9.9,.665,-9.0],ry:Math.PI/2},{room:'N8',p:[5.4,.535,5.7],ry:2.1}];
 function pfItems(){ pfEnsureTools(); PF.items.length=0;
   const put=(key,p,ry=0,o={})=>{ if(!WPN[key]) return null; const it=newItem(key); if(o.n!=null){ it.n=it.count=o.n; if(!WPN[key].gun) it.ammo=o.n; }
     const flat=o.stand?[0,ry,0]:[0,ry,Math.PI/2],Mw=m4.compose(m4.make(),p,flat,[1,1,1]),P=addPickup(it,Mw,[0,0,0],[0,0,0]); P.rest=true; PF.items.push({key,P,room:pfRoomRaw(p[0],p[2]),at:p}); return P; };
@@ -458,7 +464,7 @@ function pfItems(){ pfEnsureTools(); PF.items.length=0;
   if(WPN.pipe) put('pipe',[11.2,.04,5.1],.2);
   put('bottle',[.5,.8,9.6],1.1); put('bottle',[-9.3,.04,-7.4],2.0);
   if(WPN.rounds){ put('rounds',[.95,.8,9.3],0,{n:4}); put('rounds',[9.9,1.215,-9.2],0,{n:5}); put('rounds',[-9.3,.04,7.0],0,{n:3}); }
-  if(WPN.medkit){ put('medkit',[-1.95,.92,-7.3],0); put('medkit',[3.4,.8,3.2],0); } }
+  if(WPN.medkit){ put('medkit',[-3.73,.92,-7.8],0); put('medkit',[3.4,.8,3.2],0); } }
 
 /* ---------- every frame ---------- */
 const pfCalm=E=>!E.dead&&!E.aware&&(!E.mind||E.mind==='calm'||E.mind==='nervous')&&!E.goHome&&!E.grabbed&&(E.st==='alert'||E.st==='idle');
