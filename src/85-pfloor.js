@@ -116,7 +116,9 @@ const tPfLift=tex(32,48,'#5c6268',g=>{ R(g,'#6c7278',0,0,15,48); R(g,'#646a70',1
 const tPfHose=tex(16,24,'#8a1a14',g=>{ R(g,'#a8241c',1,1,14,22); R(g,'#2a3438',2,2,12,14); ell(g,8,9,4,4,'#c9473a'); ell(g,8,9,2,2,'#2a3438'); text(g,'AGUA',1,18,'#e8e2cf'); });
 const tPfWater=tex(32,32,null,g=>{ const r=rng(8501); for(let y=0;y<32;y++) for(let x=0;x<32;x++){ const d=Math.hypot((x-16)/15,(y-16)/12)+(r()-.5)*.3; if(d<1) R(g,d<.75?'rgba(20,28,32,.9)':'rgba(26,34,38,.75)',x,y,1,1); }
   for(let i=0;i<6;i++) R(g,'rgba(160,180,190,.35)',4+r()*24|0,4+r()*24|0,3,1); });
-const tPfPlastic=tex(16,32,null,g=>{ R(g,'rgba(196,206,200,.55)',0,0,16,32); for(let x=1;x<16;x+=4) R(g,'rgba(240,244,240,.3)',x,0,1,32); R(g,'rgba(90,80,60,.4)',0,26,16,6); R(g,'rgba(60,50,40,.5)',0,0,16,2); });
+/* plastic sheeting: the renderer cuts but doesn't blend, so it's see-through by a screen-door pattern, denser where it's folded and dirty */
+const tPfPlastic=tex(32,64,null,g=>{ const r=rng(8504); for(let y=0;y<64;y++) for(let x=0;x<32;x++){ const fold=(x%8===3)||(x%8===4),dirt=y>50||y<3,keep=fold||dirt||((x+y)&1)===0&&r()<.8; if(keep) R(g,dirt?'rgba(96,86,66,1)':fold?'rgba(214,220,212,1)':'rgba(170,180,176,1)',x,y,1,1); } });
+const tPfStream=tex(8,64,null,g=>{ const r=rng(8505); for(let y=0;y<64;y++) for(let x=0;x<8;x++) if(((x+y)&1)===0&&r()<.7||x===3&&r()<.8) R(g,r()<.3?'rgba(200,214,220,1)':'rgba(120,140,150,1)',x,y,1,1); });
 const tPfDrywall=cl(16,16,'#b8b4a8',10,8502,g=>{ R(g,'#9a968a',0,7,16,1); R(g,'rgba(80,70,50,.3)',0,12,16,4); });
 const tPfCement=cl(16,16,'#8a8270',12,8503,g=>{ R(g,'#6a6252',0,0,16,3); text(g,'CEM',2,6,'#3a3226'); });
 const tPfSheet=[tex(8,16,'#d8d2c2',g=>{ R(g,'#c4bca8',0,12,8,4); }),tex(8,16,'#8a9ab0',g=>{ for(let y=0;y<16;y+=4) R(g,'#7a8aa0',0,y,8,2); }),tex(8,16,'#b07a6a',g=>{ R(g,'#9a6a5a',3,0,2,16); })];
@@ -142,7 +144,7 @@ function pfProp(kind,x,z,ry=0,o={}){ const G=floorN;
 /* the floor's own pieces for what FURN doesn't have: plain, chunky, painted */
 function pfModel(kind,n,w,d,h,o){ const mWh=M(tWhite),mGrey=M(null,{color:0x6a6c6a}),mRust=M(null,{color:0x5a3a26});
   if(kind==='tub'){ mk(box(w,h,d,{at:[0,h/2,0]}),F(mWh,mWh,M(null,{color:0x8a8e8a})),n); mk(box(w-.12,.02,d-.12),M(null,{color:0x3a4448}),n,0,h-.04,0);
-    mk(box(.02,1.4,d),M(tPfPlastic,{cut:true,double:true}),n,0,h+.7,d*.0,0,0,0); mk(cyl(.008,.008,w,4),mSteel,n,0,1.95,-d/2+.02,0,0,Math.PI/2); }
+    mk(plane(w*.75,1.35),M(tPfPlastic,{cut:true,double:true}),n,-w*.12,h+.68,d/2-.03); mk(cyl(.008,.008,w,4),mSteel,n,0,1.98,d/2-.03,0,0,Math.PI/2); }
   else if(kind==='shelf'){ for(const y of [.05,.6,1.15,1.7]) mk(box(w,.03,d),mGrey,n,0,y,0); for(const sx of [-1,1]) for(const sz of [-1,1]) mk(box(.03,h,.03,{at:[0,h/2,0]}),mGrey,n,sx*(w/2-.02),0,sz*(d/2-.02));
     const r=rng((n.p[0]*100+n.p[2]*7)|0); for(const y of [.07,.62,1.17]) for(let k=0;k<3;k++) if(r()<.75){ const bw=.2+r()*.2; mk(box(bw,.18+r()*.2,d*.8,{at:[0,.1,0]}),M(r()<.5?tTwBoxPlain:tCrate),n,-w/2+.2+k*(w/3),y,0,0,r()*.3,0); } }
   else if(kind==='chair'){ mk(box(.42,.04,.42),mWood,n,0,.45,0); mk(box(.42,.45,.04),mWood,n,0,.7,-.19); for(const [a,b] of [[-.18,-.18],[.18,-.18],[-.18,.18],[.18,.18]]) mk(box(.035,.45,.035,{at:[0,.225,0]}),mWood,n,a,0,b); }
@@ -160,7 +162,8 @@ function pfModel(kind,n,w,d,h,o){ const mWh=M(tWhite),mGrey=M(null,{color:0x6a6c
   else if(kind==='shrine'){ mk(box(.6,.75,.35,{at:[0,.375,0]}),mWood,n); mk(plane(.32,.48),M(tTwVirgin),n,0,1.3,-.16); for(const [a,b] of [[-.18,.05],[-.06,.08],[.08,.04],[.2,.07]]) mk(cyl(.025,.025,.11,6,{at:[0,.055,0]}),[M(tTwCandle),M(null,{color:0xf2c230,unlit:true}),M(tTwCandle)],n,a,.75,b); }
   else if(kind==='lamp'){ mk(cyl(.12,.12,.03,8),mBlack,n,0,.02,0); mk(cyl(.012,.012,1.2,4,{at:[0,.6,0]}),mBlack,n); mk(cyl(.1,.18,.22,8),[M(null,{color:0xd8b880,unlit:true}),M(null,{color:0xf2e2a8,unlit:true}),M(null,{color:0xf2e2a8,unlit:true})],n,0,1.3,0); }
   else if(kind==='pipeburst'){ /* the pipe along the ceiling, split, water running down the wall into the room */ mk(cyl(.045,.045,3.2,6),M(tSteel,{color:0x6a6862}),n,0,RH-.14,0,0,0,Math.PI/2);
-    const sp=N(n,.2,0,0); sp.live=true; PF.spray=sp; for(let k=0;k<4;k++) mk(box(.03+k*.02,RH-.2,.02),M(null,{color:0x9ab4c0,unlit:true,double:true}),sp,(k-1.5)*.05,(RH-.2)/2,(k%2)*.04-.02); }
+    const sp=N(n,.2,0,0); sp.live=true; PF.spray=sp; for(let k=0;k<3;k++) mk(plane(.05+k*.03,RH-.2),M(tPfStream,{cut:true,double:true,emissive:0x0a1014}),sp,(k-1)*.05,(RH-.2)/2,(k%2)*.03-.015,0,k*.9,0);
+    mk(plane(1.1,.9),M(tPfWater,{cut:true}),n,0,.012,.2,-Math.PI/2,0,0); }
   else mk(box(w,h,d,{at:[0,h/2,0]}),M(tCrate),n); }
 function pfHide(h){ const s=Object.assign({id:'pf'+PF.hides.length,kind:'corner',yaw:0,w:.9,d:.7,h:1.4},h); s.room=s.room||pfRoomRaw(s.x,s.z); PF.hides.push(s);
   if(typeof addHideSpot==='function'){ try{ addHideSpot({id:s.id,kind:s.kind,x:s.x,z:s.z,yaw:s.yaw,w:s.w,d:s.d,h:s.h}); }catch(e){ console.warn('[pfloor] addHideSpot',e); } } return s; }
@@ -181,7 +184,7 @@ function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.p
     /* the dead lift at the west end, the hose cabinet at the east */
     A.pic(tPfLift,-8+PF_T/2+.012,1.1,0,Math.PI/2,1.3,2.2); mk(box(.06,2.3,1.5),mSteel,floorN,-8+PF_T/2+.03,1.15,0,0,0,0);
     mk(box(.12,.6,.42),F(M(tAxeRed),M(tPfHose)),floorN,8-PF_T/2-.06,1.3,-.3,0,-Math.PI/2,0);
-    A.tag(1,-4.6,1.45,1); A.tag(4,5.2,1.5,-1);
+    A.tag(1,-4.6,1.45,1); A.tag(4,2.6,1.5,-1);
     const pot=A.pot,mPipe=M(tSteel,{color:0x6a6862}),mRust=M(null,{color:0x4a3022});
     pot.cyl(mPipe,.045,.045,16,6,0,RH-.12,.72,0,0,Math.PI/2); pot.cyl(mRust,.03,.03,16,5,0,RH-.1,.55,0,0,Math.PI/2); pot.cyl(mPipe,.016,.016,16,4,0,RH-.05,-.7,0,0,Math.PI/2);
     for(let x=-7;x<=7;x+=2.2){ pot.box(mTr,.04,.1,.24,x,RH-.07,.64); pot.box(mTr,.03,.04,.06,x+.4,RH-.03,-.7); } }
@@ -220,7 +223,7 @@ function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.p
   /* N3: Kev's room, right through to the street. A wardrobe stood across the middle; his mattress by the window; the neon outside */
   { P('wardrobe',-4.1,6.5,0); P('crates',-5.0,6.4,Math.PI/2); P('mattress',-4.6,9.2,Math.PI/2); P('trash',-5.0,3.1,0);
     A.frame(tTwPhotoMom,-2.8,.92,11.86,Math.PI); A.bulb(-3.5,3.8,false);
-    A.pic(tPfNeon,-2.6,1.7,12.6,Math.PI,1.6,1.2,{unlit:true}); L_([-3.2,1.8,11.75],[1.3,.3,.95],5.2,'neon','N3'); }
+    L_([-3.2,1.8,11.75],[1.3,.3,.95],5.2,'neon','N3'); }
   /* N4: the card room. A hot bulb low over the table, the pot in the middle, a badge in it */
   { P('cardtable',.75,9.4,0); P('chair',.75,8.55,0); P('chair',.75,10.25,Math.PI); P('sofa',.75,11.5,Math.PI); P('crates',-.9,7.0,0);
     for(const [x,z,r] of [[.45,9.2,.2],[.6,9.65,-.4],[1.05,9.3,.9],[.95,9.6,.1]]) A.blk(.05,.003,.075,M(tTwCards),x,.775,z,r);
@@ -316,7 +319,7 @@ function pfBuild(){ setWorld(18,12);
   for(const o of [...PF.openings,...PF.runs.flatMap(R=>R.gaps.filter(g=>g.kind==='win'&&R.room===g.room))]){ const ax=o.axis==='x',c=o.c,T=PF_T,mJ=o.kind==='hole'?mRough:mJamb;
     const at=(s,y,off=0)=>ax?[s,y,c+off]:[c+off,y,s],U=ax?[0,0,1]:[1,0,0],A=ax?[1,0,0]:[0,0,1];
     if(o.kind==='win'){ /* glass you can see the city through, a frame, a sill; curtains in some */ const x=o.x,z=c-o.side*.06;
-      const gw=mk(plane(1.4,1.1),M(tNightWin,{unlit:true,color:0x8a8a8a}),G,x,1.45,z,0,o.side>0?Math.PI:0,0); gw.live=true; const wb=addBox(x-.7,x+.7,c-.07,c+.07,.9,2.0,'window'); wb.glass=gw; wb.side=o.side;
+      const gw=mk(plane(1.4,1.1),o.room.id==='N3'?M(tPfNeon,{unlit:true}):M(tNightWin,{unlit:true,color:0x8a8a8a}),G,x,1.45,z,0,o.side>0?Math.PI:0,0); gw.live=true; const wb=addBox(x-.7,x+.7,c-.07,c+.07,.9,2.0,'window'); wb.glass=gw; wb.side=o.side;
       const zi=c-o.side*.1; pot.box(mTrim,1.56,.05,.22,x,.88,zi); pot.box(mTrim,1.5,.07,.08,x,2.03,c-o.side*.05); for(const sx of [-1,1]) pot.box(mTrim,.07,1.15,.08,x+sx*.72,1.45,c-o.side*.05); pot.box(mTrim,.04,1.1,.04,x,1.45,c-o.side*.07);
       if(o.room.id!=='N3'&&r2()<.7){ const cm=[M(null,{color:0x6a2a24}),M(null,{color:0x8a7a52}),M(null,{color:0x3a4a5a})][r2()*3|0],sx=r2()<.5?-1:1; pot.box(cm,.5,1.35,.04,x+sx*.55,1.35,c-o.side*.18,0,0,sx*.03); pot.box(mTrim,1.8,.03,.03,x,2.1,c-o.side*.18); }
       continue; }
@@ -360,7 +363,9 @@ function pfBuild(){ setWorld(18,12);
     if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.25) continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; if(!b.hole) blH=true; if(blH) break; } }
     nav[id]=bl?1:0; navH[id]=blH?1:0; }
   /* a doorway cell sits on the wall line: the opening's own cells are open in both */
-  for(const o of PF.openings){ if(o.kind==='chain') continue; const tgt=o.kind==='hole'?[navH]:[nav,navH]; for(let s=o.s0+.25;s<=o.s1-.25+1e-3;s+=.5){ const c=o.axis==='x'?navCell(s,o.c):navCell(o.c,s); if(c>=0) for(const T_ of tgt) T_[c]=0; } }
+  /* (the cell column nearest the opening's middle, in the rows that sit in the wall: the jambs' padding would close a 1 m doorway on a .5 m grid) */
+  for(const o of PF.openings){ if(o.kind==='chain') continue; const tgt=o.kind==='hole'?[navH]:[nav,navH],sc=Math.round(o.pos*2)/2;
+    for(let d=-1;d<=1;d+=.5){ if(Math.abs(Math.round((o.c+d)*2)/2-o.c)>.36) continue; const rc=Math.round((o.c+d)*2)/2,c=o.axis==='x'?navCell(sc,rc):navCell(rc,sc); if(c>=0) for(const T_ of tgt) T_[c]=0; } }
   Object.assign(FLOOR,{nav,navHole:navH,space,seats:PF.seats,beds:PF.beds,furn:PF.furn,lights:PF.lights.map(l=>[l.p,l.c,l.d]),anim:[]});
   /* the room grid, and how many rooms apart each pair is */
   PF.gw=RX*8; PF.gh=RZ*8; PF.grid=new Int16Array(PF.gw*PF.gh).fill(-1); for(let k=0;k<PF.gh;k++) for(let i=0;i<PF.gw;i++){ const r=pfRoomRaw(-RX+(i+.5)/4,-RZ+(k+.5)/4); if(r) PF.grid[k*PF.gw+i]=r.i; }
@@ -397,7 +402,7 @@ function pfExitBuild(G){ const x=PF_EXIT.x,z0=PF_EXIT.z-PF_EXIT.w/2,z1=PF_EXIT.z
   mk(box(.04,.03,.18),mSteel,hinge,-.05,1.0,-(PF_EXIT.w-.14)); mk(box(.03,.12,.03),mSteel,hinge,-.06,1.0,-(PF_EXIT.w-.06)); /* the pull handle */
   mk(box(.02,.22,.12),M(null,{color:0x8a8478}),hinge,-.03,1.5,-(PF_EXIT.w-.04)/2); /* a sticker: the floor's number, half peeled */
   /* the chain: from the handle round a pipe on the wall, and the padlock */
-  const ch=N(G,0,0,0); ch.live=true; const mL=M(tSteel,{color:0xa8a8a2}),pp=[x-.06,1.0,z0+.07],pe=[x-.1,1.0,z0-.22];
+  const ch=N(G,0,0,0); ch.live=true; const mL=M(tSteel,{color:0xd8d8d0,emissive:0x2a2826}),pp=[x-.06,1.0,z0+.07],pe=[x-.1,1.0,z0-.22];
   mk(cyl(.025,.025,2.6,6),M(tSteel,{color:0x6a6862}),G,x-PF_T/2-.05,1.3,z0-.22); /* the pipe it's wrapped round */
   for(let k=0;k<9;k++){ const t=k/8,p=[pp[0]+(pe[0]-pp[0])*t-.02*Math.sin(t*Math.PI),pp[1]-.09*Math.sin(t*Math.PI)+(k%2)*.004,pp[2]+(pe[2]-pp[2])*t]; mk(torus(.024,.006,4,8),mL,ch,p[0],p[1],p[2],k%2?Math.PI/2:0,k%2?0:Math.PI/2,0); }
   for(let k=0;k<5;k++){ const a=k/5*Math.PI*2; mk(torus(.024,.006,4,8),mL,ch,pe[0]+Math.cos(a)*.045,1.0+Math.sin(a)*.03,pe[2]+Math.sin(a)*.045,0,a,0); }
