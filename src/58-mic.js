@@ -27,7 +27,8 @@ function micBtnLabel(){ const b=document.getElementById('micBtn'); if(!b) return
   b.textContent=MIC.state==='on'?'Mic on':MIC.state==='denied'?'Mic blocked':MIC.state==='asking'?'Mic…':'Allow mic'; b.setAttribute('aria-pressed',MIC.state==='on'?'true':'false'); }
 /* already allowed on an earlier visit: no prompt needed, start on the first tap (the audio context needs one anyway) */
 addEventListener('pointerdown',()=>{ if(MIC.state==='off'&&navigator.permissions) navigator.permissions.query({name:'microphone'}).then(p=>{ if(p.state==='granted') micStart(); }).catch(()=>{}); },{capture:true,once:true});
-{ const b=document.getElementById('micBtn'); if(b) b.addEventListener('click',micStart); }
+function micStop(){ if(MIC.stream) for(const t of MIC.stream.getTracks()) t.stop(); MIC.stream=null; MIC.an=null; MIC.state='off'; MIC.db=-90; micBtnLabel(); }
+{ const b=document.getElementById('micBtn'); if(b) b.addEventListener('click',()=>{ if(MIC.state==='on') micStop(); else micStart(); }); } /* the same button turns it off again */
 
 const rmsDb=(an,buf)=>{ an.getFloatTimeDomainData(buf); let s=0; for(let i=0;i<buf.length;i++) s+=buf[i]*buf[i]; return 10*Math.log10(s/buf.length+1e-12); };
 /* how loud the game itself is right now (the limiter's input), so its own gunshots and screams in the speakers don't count as you */
@@ -54,16 +55,17 @@ function micTick(dt){ MIC.flash=Math.max(0,MIC.flash-dt); MIC.talkCd-=dt;
   if(XR.on){ MIC.drawT-=dt; if(MIC.drawT<=0){ MIC.drawT=.1; drawMicBar(); } } }
 
 /* talking: a voice in the next room */
-function playerTalk(){ MIC.flash=.25; MIC.flashC='#e2a33d'; noise([PL.x,0,PL.z],4); }
+function playerTalk(){ MIC.flash=.25; MIC.flashC='#e2a33d'; noise([PL.x,0,PL.z],4,{kind:'talk'}); } /* prototype: 4 m, halved per wall (83-hunt.js) */
 
 /* shouting: the command */
 function playerShout(){ MIC.flash=.6; MIC.flashC='#ff3b30'; GAME.shoutT=0;
   if(XR.on){ buzz('left',.25,40); buzz('right',.25,40); }
-  noise([PL.x,0,PL.z],10,{alarm:true,voice:true}); /* a voice, not a gunshot: whoever can see you knows where you are; through a wall only the next room hears it, and comes to look (52-senses.js) */
+  noise([PL.x,0,PL.z],10,{alarm:true,voice:true,kind:'shout'}); /* prototype: 15 m, halved per wall, and it only sends them to look. A voice, not a gunshot: whoever can see you knows where you are; through a wall only the next room hears it, and comes to look (52-senses.js) */
   const eye=[PL.x,1.55,PL.z];
   for(const E of enemies){ if(E.dead||E.ally) continue;
     const pel=X_(E.B,PI_.pelvis),dist=Math.hypot(pel[0]-PL.x,pel[2]-PL.z); if(dist>MIC_CFG.range) continue;
     if(!sightClear(X_(E.B,PI_.head),eye)) continue; /* he has to see who's shouting at him */
+    if(PROTO.on&&!E.civ&&!E.canSee&&!E.surr&&E.st!=='down') continue; /* prototype: in the dark he can't see who it is, so no command; he comes to look (83-hunt.js) */
     E.shoutT=0; E.obey=null;
     if(E.st==='down'){ if(typeof downCanReact==='function'&&downCanReact(E)&&!E.fakeDead&&!E.gShoot){ E.dShot=Math.max(E.dShot||0,1.4); vox(E,'whimper',1); E.barkCd=Math.max(E.barkCd,2.2); } continue; }
     if(E.civ){ if(!E.panic&&typeof twCivPanic==='function') twCivPanic(E,'shout');

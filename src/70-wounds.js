@@ -36,6 +36,10 @@ function armNerve(E,seg,point,side){ if(E.dead||E.cut['arm'+side]||E.deadArm&&E.
   if(E.st==='alert'&&!E.civ&&!E.surr&&typeof psychOf==='function'&&psychOf(E)==='fight'&&Math.random()<.35&&typeof surrender==='function') surrender(E,'hit');
   return true; }
 
+/* ---- a limb comes off: he says the one he's looking at (it used to be "my arm" for a leg too) ---- */
+function limbLines(limb){ return limb.startsWith('leg')?['AAAAH—','*screaming*','My leg— where\'s my leg—','My— my leg— it\'s gone—','No no no no—']
+  :['AAAAH—','*screaming*','My— my arm— where\'s my arm—','My hand— where\'s my hand—','No no no no—']; }
+
 /* ---- your shots: who flinches. Called for every bullet and pellet you fire ---- */
 const FL_T=.38;
 function shotNear(o,d,tEnd,hitE){ if(!GAME.started) return; const end=v3.add(o,v3.sc(d,tEnd));
@@ -49,7 +53,8 @@ function shotNear(o,d,tEnd,hitE){ if(!GAME.started) return; const end=v3.add(o,v
     else if(E.st==='alert'&&near&&!E.surr&&!E.civ&&!E.civFreeze&&E.aware&&E.flinchT<-.35){ E.flinchT=FL_T; E.atkCd=Math.max(E.atkCd,.3); } } }
 
 /* a standing man's flinch and his bladed stance, layered on the pose (called from targetsFor) */
-function flinchPose(E,J){ if(E.st!=='alert'||E.dead||E.surr||E.civFreeze) return;
+function flinchPose(E,J){ if(E.wdPoint&&typeof wdPointPose==='function') wdPointPose(E,J); /* a tenant pointing you out (88-wounded.js) */
+  if(E.st!=='alert'||E.dead||E.surr||E.civFreeze) return;
   const f=E.flinchT>0?Math.sin(Math.PI*clamp(1-E.flinchT/FL_T,0,1)):0,b=E.bladeK||0; if(f<=.001&&b<=.001) return;
   const sg=E.bladeSg||1;
   J.spine.r[0]+=.26*f; J.neck.r[0]+=.25*f; J.head.r[0]+=.2*f; /* duck: head down, shoulders up */
@@ -65,7 +70,8 @@ function downCanReact(E){ if(E.dead||E.ally||E.fakeDead||E.gShoot||E.cons<=.3) r
   if(E.temper==='still'){ if(E.flinchy==null) E.flinchy=Math.random()<.5; if(!E.flinchy) return false; } /* some of the ones playing dead can't help it */
   return true; }
 /* picks his floor mode when your gun or your shots are on him. Called from think() with the mode it was going to use */
-function downReact(E,mode,dist,ctx){ if(!downCanReact(E)) return mode;
+function downReact(E,mode,dist,ctx){ if(PROTO.on&&typeof wdDownMode==='function') mode=wdDownMode(E,mode,dist,ctx); /* prototype: he crawls toward something (88-wounded.js) */
+  if(!downCanReact(E)) return mode;
   if(E.dShot>0) return 'cower'; /* shots: curled tight, arms over his head */
   if(!E.covered||E.coverT<.25||dist>7) return mode;
   if(dist<2.2) return mode; /* right over him: the close-up behaviour already covers it */

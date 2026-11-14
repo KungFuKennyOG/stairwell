@@ -234,10 +234,10 @@ function addSheet(o){ hideFloorCheck(); const kind=SHEET_K[o.kind]?o.kind:'sheet
   for(const p of S.panels) if(p.grid) for(let j=p.c0;j<p.c0+p.nc-1;j++) for(let i=1;i<R;i++) C.push(j*R+i,(j+1)*R+i,S.cols[j+1].u-S.cols[j].u,1);
   S.C=new Float32Array(C); S.ncs=C.length/4; S.maxTear=Math.max(0,Math.floor((S.seg-.04)/HIDEP.tearLen));
   /* the mesh: both faces (each lit from its own side), positions rewritten while it moves */
-  sheetBuildMesh(S); const t=HIDE_TEX[kind]; S.mF=M(t); S.mB=M(t);
+  sheetBuildMesh(S); const t=o.tex||HIDE_TEX[kind],mo=o.color?{color:o.color}:{}; S.mF=M(t,mo); S.mB=M(t,mo); /* tex, color: a prop's own cloth */
   S.node=mk(S.g,[S.mF,S.mB],floorN); S.node.live=true;
   const rod=kind==='plastic'?M(tWoodLight,{color:0x8a8070}):M(null,{color:0x2a2622}),ry=ax==='z'?Math.PI/2:0;
-  mk(box(2*hw+.08,.03,.03),rod,floorN,S.x,top+.015,S.z,0,ry,0);
+  if(o.rod!==false) mk(box(2*hw+.08,.03,.03),rod,floorN,S.x,top+.015,S.z,0,ry,0);
   /* the one box the game sees: eyes only */
   const b=ax==='x'?addBox(S.l-hw,S.l+hw,S.c-.02,S.c+.02,bot,top,'sheet'):addBox(S.c-.02,S.c+.02,S.l-hw,S.l+hw,bot,top,'sheet'); b.sightOnly=true; b.sheet=S; S.box=b; boxGridDirty=true;
   SHEETS.push(S); return S; }
@@ -358,12 +358,14 @@ function sheetHandsTick(B){ if(!XR.on||!SHEETS.length) return;
     h._hbusy=busy; } }
 /* a strip off the bottom of a panel: the hem rises, the strip goes to the hand (80-ray.js giveStrip, for a bandage) */
 function sheetTear(S,pi,h){ const p=S.panels[pi]; if(!p||!S.K.tear||p.torn>=S.maxTear){ if(h) sheetRelease(h); return false; }
+  /* the strip goes to a hand first (80-ray.js giveStrip: that hand or the free one; false if both are full, and then nothing tears).
+     It makes the rip and the noise; without it, this does */
+  if(typeof giveStrip==='function'){ let got=false; try{ got=giveStrip(h||HANDS.L)!==false; }catch(e){ console.error(e); } if(!got){ if(h) sheetRelease(h); return false; } }
+  else { hideSnd('rip',h&&h.M?mulP(h.M,FIST):[S.x,1.1,S.z],.7); noise([PL.x,0,PL.z],2.5); }
   p.torn++; const R=S.rows,last=Math.max(.04,S.seg-p.torn*HIDEP.tearLen),v=1-(S.seg*(R-2)+last)/S.L0;
   for(let j=p.c0;j<p.c0+p.nc;j++){ S.C[(j*(R-1)+R-2)*4+2]=last; const c=S.cols[j];
     for(let e=0;e<(c.rw?2:1);e++) for(let s=0;s<2;s++) S.TB[(c.vb+(R-1)*(c.rw?2:1)+e+s*S.V)*2+1]=v; }
-  sheetUpload(S,true); S.idle=0; const at=h&&h.M?mulP(h.M,FIST):[S.x,1.1,S.z]; hideSnd('rip',at,.7); if(h&&XR.on) buzz(h.hand,.8,70);
-  noise([PL.x,0,PL.z],2.5); /* tearing cloth isn't quiet */
-  if(typeof giveStrip==='function'){ try{ giveStrip(h||HANDS.L); }catch(e){ console.error(e); } }
+  sheetUpload(S,true); S.idle=0; if(h&&XR.on) buzz(h.hand,.8,70);
   protoEmit('sheetTear',S,h); if(h) sheetRelease(h); return true; }
 /* keyboard: B tears a strip off the nearest sheet within reach (the strip goes to the left hand) */
 function hideFlatTear(){ let best=null,bd=1.4; for(const S of SHEETS){ if(!S.K.tear) continue; const d=Math.hypot(S.x-PL.x,S.z-PL.z); if(d<bd){ bd=d; best=S; } } if(!best) return false;
@@ -389,11 +391,22 @@ function hideLocalBox(x,z,yaw,lx0,lx1,lz0,lz1,y0,h,kind){ const c=Math.cos(yaw),
 function hideNavBlock(list){ const nav=FLOOR.nav; if(!nav) return;
   for(const b of list){ if(b.y0>1.5||b.h<.25) continue; for(let k=0;k<NZ;k++){ const z=cellZ(k); if(z<=b.z0-.22||z>=b.z1+.22) continue; for(let i=0;i<NX;i++){ const x=cellX(i); if(x>b.x0-.22&&x<b.x1+.22) nav[k*NX+i]=1; } } }
   navDirty=true; }
-/* the props agent's furniture, when it's there (87-props.js): its solids and hiding spots */
-function hideTryProp(kind,x,z,yaw){ if(typeof prop!=='function') return false; try{ const r=prop(kind,floorN,x,z,yaw,{}); if(!r) return false;
-    const s=(r.solids||[]).map(b=>addBox(b.x0,b.x1,b.z0,b.z1,b.y0||0,b.h,'furn')); hideNavBlock(s); for(const h of r.hides||[]) addHideSpot(Object.assign({id:'test-'+kind},h)); return true; }
+/* a prop's curtain (87-props.js: wardrobe, closet, tub) as a live sheet: its baked pleats are hidden and a sheet in the same cloth
+   hangs where they were, so it swings, parts, glows and tears like the doorways. S: what prop() or propPlace() returned (propPlace's
+   sight-only box for the curtain is taken out: the sheet is its own). x, z, yaw: where the prop went. o.kind: the cloth's physics */
+function hideLiveCurtain(S,x,z,yaw,o={}){ const cn=S&&S.curtain; if(!cn||!cn.mesh) return null; const P=cn.mesh.geo.P; let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  for(let i=0;i<P.length;i+=3){ x0=Math.min(x0,P[i]); x1=Math.max(x1,P[i]); y0=Math.min(y0,P[i+1]); y1=Math.max(y1,P[i+1]); }
+  const lx=cn.p[0]+(x0+x1)/2,lz=cn.p[2],c=Math.cos(yaw),sn=Math.sin(yaw),m=cn.mesh.mats[0]||{};
+  cn.vis=false; if(S.boxes) for(const b of S.boxes.slice()) if(b.sightOnly){ removeBox(b); S.boxes.splice(S.boxes.indexOf(b),1); } S.sight=[];
+  return addSheet({x:x+lx*c+lz*sn,z:z-lx*sn+lz*c,axis:Math.abs(c)>.5?'x':'z',w:x1-x0,h:cn.p[1]+y1,y0:Math.max(.02,cn.p[1]+y0),kind:o.kind||'blanket',tex:m.tex,color:m.color,rod:false}); }
+/* the props agent's furniture, when it's there (87-props.js): its solids, sight boxes, hiding spots, and its curtain made live */
+function hideTryProp(kind,x,z,yaw){ if(typeof prop!=='function') return false; try{ const r=prop(kind,floorN,x,z,yaw,{liveCurtain:true}); if(!r||!r.node) return false;
+    if(r.curtain) hideLiveCurtain(r,x,z,yaw);
+    const s=(r.solids||[]).map(b=>addBox(b.x0,b.x1,b.z0,b.z1,b.y0||0,b.h,b.kind||'furn')); hideNavBlock(s);
+    for(const b of r.sight||[]){ const bb=addBox(b.x0,b.x1,b.z0,b.z1,b.y0,b.h,'sheet'); bb.sightOnly=true; } boxGridDirty=true;
+    for(const h of r.hides||[]) addHideSpot(Object.assign({id:'test-'+kind},h)); return true; }
   catch(e){ console.error('[hide] prop',kind,e); return false; } }
-function hideTestBed(x,z,yaw){ if(hideTryProp('bed',x,z,yaw)) return;
+function hideTestBed(x,z,yaw){ if(hideTryProp('bed',x,z,yaw+Math.PI/2)) return; /* the props agent's beds run along their own z; this one along its x */
   const W=2.0,D=1.0,UY=.3,g=N(floorN,x,0,z,0,yaw,0),wd=M(tWood),bl=M(tHideBlanket),mt=M(tMattress);
   for(const sx of [-1,1]) for(const sz of [-1,1]) mk(box(.06,UY,.06,{at:[0,UY/2,0]}),wd,g,sx*(W/2-.04),0,sz*(D/2-.04));
   for(const sz of [-1,1]) mk(box(W,.12,.04),wd,g,0,UY+.06,sz*(D/2-.02)); mk(box(.04,.12,D),wd,g,W/2-.02,UY+.06,0);

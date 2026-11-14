@@ -66,7 +66,8 @@ window.__C=(function(){
     const dirT=G.dir,out=G.kind==='choke'?norm3(v3.add(v3.sc(G.dir,-.45),[0,-.9,0])):null;
     const sL=kind==='tackle'?mover(A,dirT,.85,true):null,sR=kind==='tackle'?mover(A,dirT,.85,true):null,cR=kind==='choke'?mover(A,out,.85,true):null; let gripBase=null;
     let T=0; const maxT=12;
-    while(T<maxT){ const g=PL.grab;
+    let pSnap=null; /* Ray's place the moment the grab ends or he dies: after that the death card and restart move him, which is not the grab */
+    while(T<maxT){ const g=PL.grab; if(pSnap===null&&(!g||PL.dead)) pSnap=[PL.x,PL.z,PL.y||0,PL.yaw,PL.pitch];
       if(!g){ if(endT===null){ endT=T; res=res||'?'; } if(T-endT>.1) break; }
       else if(how==='stab'&&g.t>.6&&!g.stabbed){ g.stabbed=true; const ch=X_(E.B,PI_.chest),d=norm3(v3.sub(ch,camBasis().eye)); hitEnemy(E,SEGS[2],ch,d,'knife',{power:1.2}); }
       else if(how==='shoot'&&g.t>.6&&!g.shot){ g.shot=true; equip(HANDS.L,newItem('pistol')); const it=HANDS.L.item; it.cd=0; const ey=camBasis().eye,ch=X_(E.B,PI_.chest); fireHand(HANDS.L,{o:ey,d:norm3(v3.sub(ch,ey))}); }
@@ -82,7 +83,7 @@ window.__C=(function(){
     if(how==='mash') CLN.sim=true;
     /* after the grab: the hand you see is the tracked one again */
     if(kind==='wrist'){ const h=G.h; setHand(h,HP.R.p,HP.R.f,HP.R.u,HP.R.tw); const trk=mulP(h.M,FIST); protoEmit('handPose',h); const v=mulP(h.M,FIST); snapErr=+Math.hypot(...v3.sub(v,trk)).toFixed(4); }
-    W.on=false; const p1=[PL.x,PL.z,PL.y||0,PL.yaw,PL.pitch],drift=Math.max(...p0.map((v,i)=>Math.abs(v-p1[i])));
+    W.on=false; const p1=pSnap||[PL.x,PL.z,PL.y||0,PL.yaw,PL.pitch],drift=Math.max(...p0.map((v,i)=>Math.abs(v-p1[i])));
     const out_={kind,man,how,res:res||(PL.grab?'running':'none'),t:+(G.t).toFixed(2),need:+G.need.toFixed(2),A:+A.toFixed(2),hpLost:hp0-PL.hp,dead:PL.dead,viewWritesMine:W.mine.slice(0,3),viewDrift:+drift.toFixed(5),
       maxOff:+maxOff.toFixed(3),peak:+peak.toFixed(3),offAt50ms:+offAt05.toFixed(3),snapErr,gripped:kind==='choke'?gripped:undefined};
     if(PL.grab) clnEnd('free'); PL.dead=false; PL.hp=100; return out_; }

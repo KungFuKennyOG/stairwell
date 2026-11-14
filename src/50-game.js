@@ -193,6 +193,7 @@ function setPose(E,name,t){
       armL:[-.25,0,.5],elbowL:[-.35,0,0],armR:[-.2,0,-.45],elbowR:[-.25,0,0]}; break; }
     case 'crawl': { rel=true; const k=s(ph*2.4)*(E.pullAmp??1); j={spine:[-.15,0,.1*k],neck:[-.3,0,0],head:[-.45,0,0],armL:[-2.5+.75*k,0,.3],elbowL:[-.3-.7*Math.max(0,-k),0,0],armR:[-2.5-.75*k,0,-.3],elbowR:[-.3-.7*Math.max(0,k),0,0],
       thighL:[.1,0,.1],kneeL:[.25+.5*Math.max(0,k),0,0],thighR:[.1,0,-.1],kneeR:[.25+.5*Math.max(0,-k),0,0]}; break; }
+    case 'roll': rel=true; j=typeof wdRollPose==='function'?wdRollPose(E,ph):{}; break; /* back to front, before he crawls (88-wounded.js) */
     case 'scoot': { rel=true; const k=s(ph*2.6)*(E.pullAmp??1); j={spine:[.35,0,0],neck:[.3,0,0],head:[.35,0,0],armL:[.55,0,.45],elbowL:[-1.5,0,0],armR:[.55,0,-.45],elbowR:[-1.5,0,0],
       thighL:[-.7-.45*k,0,.12],kneeL:[1.2+.5*k,0,0],thighR:[-.7+.45*k,0,-.12],kneeR:[1.2-.5*k,0,0]}; break; }
   }
@@ -450,6 +451,7 @@ function physics(h){
   const live=enemies.filter(E=>!E.asleep&&!E.dormant&&!E.gone);
   for(const E of live) E.gs=gripOK(E)?gripRef(E):null;
   for(const E of live) stepBody(E,h);
+  if(PROTO.on) protoEmit('substep',h,live); /* prototype systems that move bodies themselves (88-wounded.js: a man rolling over) */
   applyGrabs(h);
   /* full joint stops while a limp body is moving: falling, or just hit, kicked or grabbed. A corpse that has come down and been left alone
      keeps the shape it landed in (self-contact stays on so limbs can't sink into it); pressing the stops against the floor any longer
@@ -771,7 +773,7 @@ function sever(E,limb,dir,blast){
   /* rotation memory for driving the loose piece */
   if(E.M){ const Mr=E.M[C_.bones[0]]; E.Rcut[limb]=rotOf(Mr); }
   if(limb==='head'){ E.headW=[rnd(-9,9),rnd(-4,4),rnd(-9,9)]; E.headshot=true; }
-  if(!E.dead&&limb!=='head'){ bark(E,pick(['AAAAH—','*screaming*','My— my arm— where\'s my—','No no no no—']),2.6); vox(E,'cry'); faceHold(E,'shock',1.6); setTimeout(()=>faceHold(E,'agony',4),1600); }
+  if(!E.dead&&limb!=='head'){ bark(E,pick(limbLines(limb)),2.6); /* the limb he's looking at (70-wounds.js) */ vox(E,'cry'); faceHold(E,'shock',1.6); setTimeout(()=>faceHold(E,'agony',4),1600); }
 }
 /* what a point-blank load does to a limb: a burst of meat and bone, a red mist, the wall behind painted */
 function goreBlast(at,dir,k=1){
@@ -945,7 +947,8 @@ function switchHand(E,s){ /* the good hand takes the weapon; a two-handed grip b
 /* where a man on the floor drags himself: somewhere he can reach that is farther from you, out of your sight if he can manage it
    (behind the counter, out the door), not straight away from you into whatever is behind him. Picked again when he gets there,
    every few seconds, or when you get closer to it than he is */
-function crawlGoal(E,pel){ const here=Math.hypot(pel[0]-PL.x,pel[2]-PL.z),g=E.cg;
+function crawlGoal(E,pel){ if(PROTO.on&&typeof wdCrawlGoal==='function'){ const w=wdCrawlGoal(E); if(w) return w; } /* prototype: toward his gun, a door, a friend (88-wounded.js) */
+  const here=Math.hypot(pel[0]-PL.x,pel[2]-PL.z),g=E.cg;
   if(g&&GAME.t<E.cgT&&Math.hypot(pel[0]-g[0],pel[2]-g[1])>.6&&Math.hypot(g[0]-PL.x,g[1]-PL.z)>here) return g;
   E.cg=null; E.cgT=GAME.t+5; if(!FLOOR.nav) return null; const F=fieldTo(pel[0],pel[2]); let best=null,bs=-1e9;
   for(let n=0;n<40;n++){ const a=Math.random()*6.283,d=rnd(1.5,6),x=pel[0]+Math.cos(a)*d,z=pel[2]+Math.sin(a)*d,c=navCell(x,z); if(c<0||FLOOR.nav[c]) continue;
@@ -1128,7 +1131,7 @@ function resetGame(){
   for(const D of FLOOR.doors) if(D.state==='open'&&D.u.doorState==='closed') setDoor(D,'closed',true);
   /* desk testing starts armed; in VR you start with your fists and walk to the rack */
   equip(HANDS.R,XR.on||FLOOR.camp?null:newItem('pistol')); equip(HANDS.L,XR.on||FLOOR.camp?null:newItem('knife')); /* the campaign starts with fists everywhere */
-  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='motel') motelReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); protoEmit('reset'); } /* the first room always starts with its three tenants */
+  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='motel') motelReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); else if(FLOOR.mode==='proto') pfReset(); protoEmit('reset'); } /* the first room always starts with its three tenants */
 /* dying restarts the level you're on, with whatever you carried into it (GAME.kit, set when a level is entered by its shaft or ladder) */
 function restartLevel(){ resetGame(); const k=GAME.kit; if(k&&k.mode===FLOOR.mode){ equip(HANDS.R,k.R?newItem(k.R):null); equip(HANDS.L,k.L?newItem(k.L):null); } if(XR.on) vrRecenter(); }
 /* into the next level with what's in your hands */

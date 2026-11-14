@@ -208,7 +208,9 @@ function rayClothNear(p,r){ if(typeof HIDES!=='undefined'&&Array.isArray(HIDES))
   for(const f of FLOOR.furn||[]){ if(!/bed|mattress|couch/.test(f.kind)) continue; const sz=f.info&&f.info.size||[1,1]; if(Math.hypot(p[0]-f.x,p[2]-f.z)<Math.max(sz[0],sz[1])/2+r&&p[1]<1.1) return f; }
   return null; }
 /* grip with an empty hand on nothing else grabbable: by a bed or sheet, it tears a strip */
-function rayGripCloth(h){ if(h.item||PL.dead) return false; return !!rayClothNear(rayHandPos(h),.15)&&giveStrip(h); }
+function rayGripCloth(h){ if(h.item||PL.dead) return false; const p=rayHandPos(h);
+  if(typeof sheetNearest==='function'&&sheetNearest(p,.2)) return false; /* a hung sheet (86-hide.js): the grip holds it aside; a yank down tears the strip */
+  return !!rayClothNear(p,.15)&&giveStrip(h); }
 /* the first-aid kit: held to the chest with the trigger squeezed (flat: U held), 25 hp over 3 s, then it's gone. Let go early and what's
    left stays in the kit */
 function rayMedTick(h,gdt,on){ const it=h.item; if(it.left==null) it.left=pnum('ray','heal',25);
