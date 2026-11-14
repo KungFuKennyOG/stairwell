@@ -213,7 +213,6 @@ function huntTakeOver(E,c,why){ if(HUNT.state!=='hunting'||E.civ) return false;
   if(why==='lost'&&c) huntSetLkp(c,Math.min(GAME.t,HUNT.lkpT||GAME.t)); return true; }
 
 /* where a man waits in his room while the others search: just inside the doorway, beside it (out of the line through it), out of the light */
-function huntRoomOf(x,z){ if(typeof pfRoomAt==='function') return pfRoomAt(x,z); return null; }
 function huntDoorOf(E){ const h=E.home||E.pos;
   if(typeof PF!=='undefined'&&PF&&PF.openings&&typeof pfRoomAt==='function'){ const R=pfRoomAt(h[0],h[1]); if(R){
       const os=PF.openings.filter(o=>o.a===R.id||o.b===R.id||o.a===R||o.b===R); if(os.length){ const lk=HUNT.lkp||[PL.x,PL.z];
