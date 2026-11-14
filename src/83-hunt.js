@@ -381,7 +381,8 @@ function huntTorchAim(E){ if(!huntBeamOn(E)){ E.torchSpot=null; E.torchPos=E.tor
       half=Math.max(S.w||1,S.d||1)/2*.8,sw=Math.sin((GAME.t+E.t0)*2.2)*half,tx=S.x+ax[0]*sw,ty=clamp((S.y0||0)+(S.h||1)*.5,.12,1.3),tz=S.z+ax[1]*sw;
     o[0]=E.pos[0]+dx/l*.3; o[1]=low?.42:1.25; o[2]=E.pos[1]+dz/l*.3; const vx=tx-o[0],vy=ty-o[1],vz=tz-o[2],L_=Math.hypot(vx,vy,vz)||1; d[0]=vx/L_; d[1]=vy/L_; d[2]=vz/L_; return; }
   const b=huntBeamDir(E); o[0]=E.pos[0]+b[0]*.25; o[1]=1.25; o[2]=E.pos[1]+b[1]*.25; const k=1/Math.hypot(1,.2); d[0]=b[0]*k; d[1]=-.2*k; d[2]=b[1]*k; }
-function huntTorchFx(){ const slot=(FLOOR.lights||[]).length; if(slot>=7) return; let best=null,bd=1e9;
+function huntTorchFx(){ if(FLOOR.mode==='proto'){ for(const E of enemies) if(E.torchN) E.torchN.vis=!!E.torchOn&&!E.dead; return; } /* the new floor's light picker (85-pfloor.js) gives torches their slots */
+  const slot=(FLOOR.lights||[]).length; if(slot>=7) return; let best=null,bd=1e9;
   for(const E of enemies){ if(E.torchN) E.torchN.vis=!!E.torchOn&&!E.dead; if(!huntBeamOn(E)) continue; const d=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z); if(d<bd){ bd=d; best=E; } }
   if(!best){ L.plCol.set([0,0,0],slot*3); return; }
   const o=best.torchPos,d=best.torchDir,r=best.torchSpot?1.1:1.9,q=o&&d?[o[0]+d[0]*r,o[2]+d[2]*r]:[best.pos[0]+Math.sin(best.hd)*1.9,best.pos[1]+Math.cos(best.hd)*1.9]; pushOutXZ(q,.1,'body');

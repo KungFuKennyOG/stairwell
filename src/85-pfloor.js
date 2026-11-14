@@ -587,8 +587,11 @@ function pfLightAnim(l,t){ const k=l.kind; if(k==='flick'){ const on=(Math.sin(t
   if(k==='neon'){ const ph=(t*.23)%2; if(Math.sin(t*1.9+l.t0)>.97&&Math.sin(t*61)>0) return .15; return ph<1?1:-1; } return 1; }
 function pfLightsTick(dt){ const e=camBasis().eye,t=GAME.t,K=Math.min(7,pnum('pfloor','roomSlots',7)); let slot=0;
   const tor=[]; for(const E of enemies){ if(!E.torchOn||E.dead) continue; const d=Math.hypot(E.pos[0]-e[0],E.pos[1]-e[2]); if(d<18) tor.push([d,E]); } tor.sort((a,b)=>a[0]-b[0]);
-  for(const [,E] of tor.slice(0,2)){ const f=E.torchDir||[Math.sin(E.hd),Math.cos(E.hd)],a=pnum('pfloor','torchAhead',1.9),q=E.torchP?[E.torchP[0],E.torchP[2]]:[E.pos[0]+f[0]*a,E.pos[1]+f[1]*a]; pushOutXZ(q,.1,'body');
-    L.plPos.set([q[0],1.0,q[1]],slot*3); L.plCol.set([1.25,1.2,1.05],slot*3); L.plDist[slot]=pnum('pfloor','torchR',4.4); slot++; }
+  for(const [,E] of tor.slice(0,2)){ let q,y=1.0; const o=E.torchPos,d3=E.torchDir;
+    if(o&&d3&&d3.length===3){ const r=E.torchSpot?1.1:1.9; q=[o[0]+d3[0]*r,o[2]+d3[2]*r]; y=Math.max(.35,o[1]+d3[1]*r+.2); } /* the hunt's beam (83-hunt.js): a 3D aim, low into a hiding spot */
+    else { const f=d3||[Math.sin(E.hd),Math.cos(E.hd)],a=pnum('pfloor','torchAhead',1.9); q=E.torchP?[E.torchP[0],E.torchP[2]]:[E.pos[0]+f[0]*a,E.pos[1]+f[1]*a]; }
+    pushOutXZ(q,.1,'body');
+    L.plPos.set([q[0],y,q[1]],slot*3); L.plCol.set([1.25,1.2,1.05],slot*3); L.plDist[slot]=pnum('pfloor','torchR',4.4); slot++; }
   const pr=PF.room,open=PF.exit&&PF.exit.open,C=[];
   for(const l of PF.lights){ if(l.kind==='stairs'&&!open){ l.want=0; } else { const d=Math.hypot(l.p[0]-e[0],l.p[2]-e[2]); l.s=d-l.d*.7-(pr&&l.room&&pfRoomsApart(pr,l.room)<=1?4:0); C.push(l); } }
   C.sort((a,b)=>a.s-b.s); const n=K-slot; C.forEach((l,i)=>{ l.want=i<n?1:0; });
