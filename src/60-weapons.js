@@ -201,9 +201,10 @@ function bullet(o,d,w,h){
     sfx('flesh',w.pellets?.45:.8,p); if(hit.t<1.3) screenBlood(w.pellets?1:3); hitMarker(); if(XR.on) buzz(h.hand,.4,40); return {E:hit.E,t:hit.t}; }
   else { const p=v3.add(v3.add(o,v3.sc(d,wall.t)),v3.sc(wall.n,.004)); if(wall.b&&wall.b.onHit) wall.b.onHit(p); addDecal(DEC.hole,p,wall.n,.028,140); if(!w.pellets||Math.random()<.3) sfx(Math.random()<.1?'ricw':'ric',w.pellets?.4:.6,p); if(h&&h.item&&h.item.sup) noise(p,3); impactFx(p,wall.n,!!w.pellets); } }
 function reloadHand(h){ const it=h.item; if(!it) return; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.ammo>=w.mag) return;
+  if(PROTO.on&&!rayCanLoad(h)) return; /* prototype: only what you carry; nothing left is a dry click (80-ray.js) */
   it.reload=w.loadOne?.42:1.35; sfx(w.loadOne?'shell':'reload'); }
 function tickItem(h,dt){ const it=h.item; h.rec=Math.max(0,h.rec-dt*7); h.cd-=dt; if(!it) return; it.cd-=dt;
-  if(it.reload>0){ it.reload-=dt; if(it.reload<=0){ const w=WPN[it.key]; it.reload=0; it.ammo=w.loadOne?Math.min(w.mag,it.ammo+1):w.mag; if(w.pump&&!it.chambered&&!XR.on){ it.chambered=true; it.spent=false; sfx('pump',.7); } } } } /* VR: a loaded tube still needs racking */
+  if(it.reload>0){ it.reload-=dt; if(it.reload<=0){ const w=WPN[it.key]; it.reload=0; it.ammo=PROTO.on?rayLoad(it,w):w.loadOne?Math.min(w.mag,it.ammo+1):w.mag; if(w.pump&&!it.chambered&&!XR.on){ it.chambered=true; it.spent=false; sfx('pump',.7); } } } } /* VR: a loaded tube still needs racking */
 
 /* ---------- melee ---------- */
 function meleeHit(h,E,seg,p,dir,speed,bone){
@@ -286,9 +287,10 @@ function grabOrDrop(h){
   if(h.item){ /* let go: it falls, or flies if the hand was moving */
     if(h.itemNode){ const Mi=itemM(h); h.canArm=true; addPickup(h.item,Mi,h.vel,Math.hypot(...h.vel)>3?[rnd(-2,2),rnd(-12,12),rnd(-2,2)]:null); }
     equip(h,null); sfx('swish',.4); return; }
-  const g=nearestGrabbable(mulP(h.M,FIST),.26); if(!g) return;
+  const g=nearestGrabbable(mulP(h.M,FIST),.26); if(!g){ if(PROTO.on) rayGripCloth(h); return; } /* prototype: by a bed or a sheet, tear a strip (80-ray.js) */
   if(g.rack){ if(g.rack.key==='fists') return; equip(h,newItem(g.rack.key)); g.rack.taken=.8; g.rack.node.vis=false; }
   else if(g.emb) takeEmbedded(h,g.emb);
+  else if(PROTO.on&&rayTakeLoose(h,g.pick)) return; /* loose rounds go in the pouch (80-ray.js) */
   else { equip(h,g.pick.item); removePickup(g.pick); }
   sfx('click',.6); buzz(h.hand,.5,40); }
 function tickRack(dt){ for(const R of RACK) if(R.taken>0){ R.taken-=dt; if(R.taken<=0) R.node.vis=true; } }
