@@ -475,7 +475,7 @@ function twAnim(){ for(const a of FLOOR.anim||[]){ const c=FLOOR.lights[a.i][1],
   else if(a.kind==='police'){ const ph=(t*1.6)%2; col=ph<1?[1.6,.15,.12]:[.15,.3,1.7]; k=.35+.65*Math.max(0,Math.sin((ph%1)*Math.PI)); }
   L.plCol.set([col[0]*k,col[1]*k,col[2]*k],a.i*3); } }
 
-function tickTower(dt){ if(FLOOR.mode!=='camp'&&typeof TW_MUSIC!=='undefined'&&TW_MUSIC.on) twMusicStop(); twStairs(dt); document.body.classList.toggle('camp',FLOOR.mode==='camp'); /* no test panel in the campaign */ if(FLOOR.mode!=='camp') return; twAnim();
+function tickTower(dt){ if(FLOOR.mode!=='camp'&&typeof TW_MUSIC!=='undefined'&&TW_MUSIC.on) twMusicStop(); twStairs(dt); document.body.classList.toggle('camp',FLOOR.mode==='camp'||FLOOR.mode==='proto'); /* no test panel in the campaign */ if(FLOOR.mode!=='camp') return; twAnim();
   if(!GAME.started) return;
   if(FLOOR.def.pro) proTick(dt); else { twTalk(dt*Math.max(GAME.ts,.3)); twHunt(dt); twRoles(dt*Math.max(GAME.ts,.3)); twBraceTick(dt*Math.max(GAME.ts,.3)); if(typeof twMusicTick==='function') twMusicTick(); twCivTick(dt*Math.max(GAME.ts,.3)); }
   /* the street: now and then a dog, far off */
