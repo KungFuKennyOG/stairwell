@@ -6,7 +6,7 @@
    - Your muzzle flash gives you away: anyone with a line to it within 40 m (6 m suppressed) knows exactly where you are and the
      shooter answers at once, dark or not. Men in a lit room who know you're near get out of the light.
    - The first shot is the dangerous one: 0.6-1.0 s after he's sure, and 55% inside 4 m for a pistol.
-   - One shooter at a time (a floor-level token). The others spread out or hold till it's their turn.
+   - One shooter at a time (a floor-level token). The others spread out or hold till it's their turn. Inside 3.5 m nobody waits.
    - Melee you can read: a 0.4 s wind-up with the arm up before every swing, one in five a feint. Catch the wrist in the wind-up
      (your empty hand on his weapon hand or elbow) and the swing dies; hold your weapon across the line of it and it clangs off.
    - Rage: a man who sees a friend die (12 m, line of sight) charges for 20 s, aims worse, never gives up (src.rage on his blows for
@@ -15,8 +15,11 @@
    - A fighter hurt early backs into the nearest dark room and waits beside its doorway for 15-30 s.
    - Nerve by floor (quit/fight/fake). Fakers come up shooting sooner when you look away or a friend of theirs is in view.
    - A surrendered quitter left alone with your gun off him for 10-20 s gets up and runs for his friends.
-   Fields other systems can read: E.rage (s left, agent C's tackles), E.fx.* (this file's per-man state), FGT.token (the shooter).
-   Reads: E.winded (agent B: s; slows his next swing), huntAlert (agent D), PF.rooms/PF.openings/pfRoomAt (agent F).
+   Fields other systems can read: E.rage (s left, agent C's tackles), E.fx.* (this file's per-man state), FGT.token (the man shooting).
+   Reads: E.winded (agent B: s; slows his next swing), huntAlert/huntLitAt (agent D), PF.rooms/PF.openings/pfIn (agent F),
+   rayHead/rayConcealment (agent G). Damage to Ray is agent A's: blows and rounds pass hurtPlayer(d,{E,kind,w,n,mz,dist,rage}).
+   With agent D: D's HUNT.flashT makes Ray 'lit' for 1.4 s within 16 m of a loud shot (the eyes). This file adds who learns where
+   he is, out to 40 m, and who answers; a suppressed shot only within 6 m.
    ===================================================================== */
 PROTO.fight={
   range:25,                                   /* m, every enemy gun */
@@ -27,6 +30,7 @@ PROTO.fight={
   freshGap:3,                                 /* s out of sight before a new sighting is fresh again (first-shot timing) */
   cdMul:1,                                    /* the shooter's cadence, x KSTAT cd (agent A's damage already makes each round count) */
   takeGap:[.3,.6],                            /* s a man who just took the token waits before firing */
+  closeFree:3.5,                              /* m: this close, nobody waits his turn (the token is for gunfights across a room, not arm's length) */
   flashR:40, flashSupR:6, flashT:2.5,         /* who sees your flash, and how long it shows you to him */
   flashAim:[.15,.3], darkAcc:.8,              /* the answer: time to swing the gun on; aimed at a flash, not a man */
   lightOut:[.2,.7], darkHold:[5,9],           /* s before a lit man moves for the dark, and how long he holds there */
@@ -37,7 +41,7 @@ PROTO.fight={
   retreat:.45, retreatBlood:60, retreatWait:[15,30], retreatR:12,
   nerve:[[4,[.4,.5,.1]],[9,[.25,.6,.15]],[99,[.1,.7,.2]]], /* up to floor n: [quit, fight, fake] */
   quitRun:[10,20], quitRunT:6 };
-const FGT={token:null,tokenT:0,loudT:-99,rooms:null};
+const FGT={token:null,tokenT:0,rooms:null};
 const fxOf=E=>E.fx||(E.fx={});
 const fxR=k=>{ const r=pnum('fight',k,[0,0]); return rnd(r[0],r[1]); };
 const fxFloorN=()=>FLOOR.mode==='proto'?1:(FLOOR.def&&FLOOR.def.n)||FLOOR.n||1;
@@ -47,16 +51,16 @@ function fightNerve(r){ const T=pnum('fight','nerve',[]),n=fxFloorN(),row=(T.fin
   return r<row[0]?'quit':r<row[0]+row[1]?'fight':'fake'; }
 
 /* ---------- light, rooms, open floor ---------- */
-/* lit: the prototype floor knows its rooms (agent F); elsewhere, inside a lamp's pool with a line to the lamp (as towerSeen does for you) */
-function fxLitAt(x,z){ if(FLOOR.mode==='proto'&&typeof pfRoomAt==='function'){ const r=pfRoomAt(x,z); if(r) return !!r.lit; }
+/* lit: inside a lamp's pool with a line to the lamp, the same rule agent D uses for Ray (huntLitAt), so "in the dark" means the same for both */
+function fxLitAt(x,z){ if(typeof huntLitAt==='function') return huntLitAt(x,z);
   for(const l of FLOOR.lights||[]){ const c=l[1]; if(c[0]+c[1]+c[2]<.4) continue; const p=l[0]; if(Math.hypot(p[0]-x,p[2]-z)<l[2]*.45&&sightClear([p[0],Math.max(p[1],1.2),p[2]],[x,1.3,z])) return true; }
   return false; }
 function fxFree(x,z){ const c=navCell(x,z); if(c<0||FLOOR.nav[c]) return false; const ci=c%NX;
   for(const q of [c-1,c+1,c-NX,c+NX]){ if(q<0||q>=FLOOR.nav.length||Math.abs((q%NX)-ci)>1||FLOOR.nav[q]) return false; } return true; }
-const fxIn=(r,x,z)=>r&&x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1;
+const fxIn=(r,x,z)=>!!r&&(r.src&&typeof pfIn==='function'?pfIn(r.src,x,z):x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1); /* the prototype's rooms can be L-shaped (85-pfloor.js) */
 function fxRooms(){ if(FGT.rooms) return FGT.rooms; const out=[];
-  if(FLOOR.mode==='proto'&&typeof PF!=='undefined'&&PF&&PF.rooms){ for(const r of PF.rooms){ const R={x0:Math.min(r.x0,r.x1),x1:Math.max(r.x0,r.x1),z0:Math.min(r.z0,r.z1),z1:Math.max(r.z0,r.z1),lit:!!r.lit,doors:[],id:r.id};
-      for(const o of PF.openings||[]){ if(o.a!==r.id&&o.b!==r.id) continue; for(const n of [[1,0],[-1,0],[0,1],[0,-1]]) if(fxIn(R,o.x+n[0]*.7,o.z+n[1]*.7)){ R.doors.push({x:o.x,z:o.z,n}); break; } }
+  if(FLOOR.mode==='proto'&&typeof PF!=='undefined'&&PF&&PF.rooms){ for(const r of PF.rooms){ const R={x0:Math.min(r.x0,r.x1),x1:Math.max(r.x0,r.x1),z0:Math.min(r.z0,r.z1),z1:Math.max(r.z0,r.z1),lit:!!r.lit,doors:[],id:r.id,src:r.rects?r:null};
+      for(const o of PF.openings||[]){ if(o.a!==r.id&&o.b!==r.id||o.kind==='chain'||o.kind==='hole') continue; for(const n of [[1,0],[-1,0],[0,1],[0,-1]]) if(fxIn(R,o.x+n[0]*.7,o.z+n[1]*.7)){ R.doors.push({x:o.x,z:o.z,n}); break; } }
       out.push(R); } }
   else if(FLOOR.mode==='camp'&&FLOOR.units){ for(const u of FLOOR.units){ const R={x0:u.x0,x1:u.x1,z0:u.side>0?1:-6,z1:u.side>0?6:-1,doors:[{x:u.door,z:u.side,n:[0,u.side]}],id:u.id};
       let n=0; for(let i=0;i<4;i++) for(let k=0;k<3;k++) if(fxLitAt(R.x0+(i+.5)*(R.x1-R.x0)/4,R.z0+(k+.5)*(R.z1-R.z0)/3)) n++; R.lit=n>=4; out.push(R); } }
@@ -103,7 +107,7 @@ function fightSense(E,dt,dist){ if(E.civ||E.ally) return; const F=fxOf(E),now=GA
 function fightMayFire(E,dist){ if(dist>pnum('fight','range',25)) return false; const F=E.fx||{};
   if(F.run) return false;
   if(F.ret&&F.ret.ph==='wait'&&dist>3) return false; /* lying in wait: not till you're through the door */
-  if(E.rage>0||E.sprung>0||GAME.t-(F.sprangT??-99)<2) return true; /* a man in a rage, and a faker coming up, don't wait their turn */
+  if(E.rage>0||E.sprung>0||GAME.t-(F.sprangT??-99)<2||dist<pnum('fight','closeFree',3.5)) return true; /* a man in a rage, a faker coming up and a man you're on top of don't wait their turn */
   return FGT.token===E; }
 /* the token: one man shoots, whoever has the best line. It moves when he loses you, goes down or runs dry of reasons */
 const fxTokOk=E=>E&&!E.dead&&!E.civ&&!E.ally&&E.st==='alert'&&!E.surr&&armed(E)&&E.aware&&!E.grabbed&&!(E.fx&&(E.fx.run||E.fx.ret&&E.fx.ret.ph==='wait'));
@@ -118,8 +122,7 @@ function fightToken(){ let T=FGT.token;
 
 /* ---------- the flash (the 'fire' event) ---------- */
 function fightFlash(info){ const now=GAME.t,mz=info.muzzle,sup=!!info.sup,R=sup?pnum('fight','flashSupR',6):pnum('fight','flashR',40);
-  if(sup) GAME.shotT=FGT.loudT; else FGT.loudT=now; /* a suppressed shot has no flash: the old 16 m "seen by the flash" doesn't apply to it */
-  let seen=0;
+  let seen=0; /* (agent D's HUNT.flashT does the short version for the eyes: Ray lit for 1.4 s within 16 m of a loud shot. This is the rest: who knows, how far, who answers) */
   for(const E of enemies){ if(E.dead||E.civ||E.ally||E.surr||!upright(E)) continue; const h=X_(E.B,PI_.head);
     if(Math.hypot(h[0]-mz[0],h[1]-mz[1],h[2]-mz[2])>R||!sightClear(h,mz)) continue;
     const F=fxOf(E); F.revealT=now+pnum('fight','flashT',1.6); F.rvT=0; seen++;

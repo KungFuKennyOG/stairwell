@@ -49,8 +49,8 @@ window.__F=(function(){
   const sumD=()=>L.dmg.reduce((s,d)=>s+d[1],0);
 
   /* ---- the pistol-fight bot (deep.js fight, plus kill distances, surrender and attack counts) ---- */
-  function bot(o){ reset(); L.god=false; const S={seen:new Map(),next:0,stuckT:0,lastP:[PL.x,PL.z],jit:0}; const t0=GAME.t; let exitT=null,shots=0,died=false,diedAt=null;
-    const bad=enemies.filter(E=>!E.civ&&!E.ally);
+  function bot(o){ reset(); L.god=false; const S={seen:new Map(),next:0,stuckT:0,lastP:[PL.x,PL.z],jit:0}; const t0=GAME.t; let exitT=null,shots=0,died=false,diedAt=null,idle=0;
+    const bad=enemies.filter(E=>!E.civ&&!E.ally),D_=new Map();
     function walk(tx,tz){ const d=navTo(PL.x,PL.z,tx,tz); let yaw=Math.atan2(-d[0],-d[2]); if(S.jit>0) yaw+=1.3; PL.yaw=yaw; PL.pitch=0; KEYS.KeyW=true; }
     while(GAME.t-t0<o.maxT){
       if(PL.dead){ died=true; diedAt=+(GAME.t-t0).toFixed(1); break; }
@@ -59,14 +59,17 @@ window.__F=(function(){
       const vis=T.find(q=>q.d<16&&sightClear(ey,X_(q.E.B,PI_.head)));
       if(vis){ const E=vis.E; if(!S.seen.has(E)) S.seen.set(E,GAME.t); const ch=X_(E.B,PI_.chest),nk=X_(E.B,PI_.neck),p=mid(ch,nk,.6); window.__game.aimAt(p);
         if(GAME.t-S.seen.get(E)>o.react&&GAME.t>=S.next&&HANDS.R.item){ const d=norm3(v3.sub(p,ey)),e=o.sigma*Math.PI/180; if(fireHand(HANDS.R,{o:ey,d:norm3([d[0]+gauss()*e,d[1]+gauss()*e,d[2]+gauss()*e])})){ shots++; S.next=GAME.t+o.gap; } } }
-      else if(T.length){ walk(T[0].E.pos[0],T[0].E.pos[1]); }
+      else if(T.length){ idle=0; walk(T[0].E.pos[0],T[0].E.pos[1]); }
+      else if(FLOOR.mode==='proto'){ if((idle+=dt)>30) break; } /* the prototype floor's exit is chained: nobody left in view for 30 s and it's over */
       else { if(PL.x>TL-.2&&Math.abs(PL.z)<1.2){ PL.yaw=-Math.PI/2; KEYS.KeyW=true; } else walk(TL+.1,0); }
-      step(); S.stuckT+=dt; if(S.stuckT>2.5){ const m=Math.hypot(PL.x-S.lastP[0],PL.z-S.lastP[1]); S.jit=m<.3&&KEYS.KeyW?.6:0; S.lastP=[PL.x,PL.z]; S.stuckT=0; } S.jit-=dt; }
+      if(vis) idle=0; step(); S.stuckT+=dt;
+      if(o.diag) for(const E of bad){ const q=D_.get(E)||{n:E.name,k:E.kind,see:0,tok:0,dark:0,wait:0,shots:0,how:''}; D_.set(E,q); if(E.dead||E.civ) continue;
+        if(E.aware&&E.canSee&&E.st==='alert'&&!E.surr){ q.see+=dt; if(typeof FGT!=='undefined'&&FGT.token===E) q.tok+=dt; else if(armed(E)) q.wait+=dt; } if(E.fx&&E.fx.dark) q.dark+=dt; } if(S.stuckT>2.5){ const m=Math.hypot(PL.x-S.lastP[0],PL.z-S.lastP[1]); S.jit=m<.3&&KEYS.KeyW?.6:0; S.lastP=[PL.x,PL.z]; S.stuckT=0; } S.jit-=dt; }
     KEYS.KeyW=false;
     const es=[...L.eshots.values()].reduce((a,b)=>a+b,0),gunHits=L.dmg.filter(d=>d[3]==='gun'),mel=L.dmg.filter(d=>d[3]!=='gun');
     return {floor:FLOOR.def.n,time:+(GAME.t-t0).toFixed(1),exit:exitT!=null,died,diedAt,dmg:Math.round(sumD()),bleed:Math.round(L.bleed||0),myShots:shots,enemyShots:es,gunHits:gunHits.length,meleeHits:mel.length,
       hostile:bad.length,attacked:bad.filter(E=>(L.eshots.get(E)||0)+(L.swings.get(E)||0)>0).length,surrendered:bad.filter(E=>L.surr.has(E)).length,dead:bad.filter(E=>E.dead).length,
-      kills:L.kills.slice(),psych:bad.map(E=>E.psych||'-').join(''),rage:bad.filter(E=>E.fx&&E.fx.raged).length,retreat:bad.filter(E=>E.fx&&E.fx.retreated).length,ran:bad.filter(E=>E.fx&&E.fx.ran).length,err:L.err}; }
+      diag:o.diag?[...D_.entries()].map(([E,q])=>Object.assign(q,{see:+q.see.toFixed(1),tok:+q.tok.toFixed(1),wait:+q.wait.toFixed(1),dark:+q.dark.toFixed(1),shots:L.eshots.get(E)||0,sw:L.swings.get(E)||0,how:E.dead?'dead':E.surr?'surr':E.st,ps:E.psych})):undefined,kills:L.kills.slice(),psych:bad.map(E=>E.psych||'-').join(''),rage:bad.filter(E=>E.fx&&E.fx.raged).length,retreat:bad.filter(E=>E.fx&&E.fx.retreated).length,ran:bad.filter(E=>E.fx&&E.fx.ran).length,err:L.err}; }
 
   /* ---- duel: one man who knows you're there, you stand still and never shoot ---- */
   function duel(o){ reset(); L.god=true; const px=o.lit?2:-8; PL.x=px; PL.z=0; PL.yaw=-Math.PI/2; PL.pitch=0; equip(HANDS.R,null); equip(HANDS.L,null);
@@ -165,14 +168,15 @@ window.__F=(function(){
 
   /* ---- retreat: a gunman takes a round in the arm early on. Where does he go? ---- */
   function retreat(o){ reset(); L.god=true; clearEnemies(); PL.x=-6; PL.z=0; PL.yaw=-Math.PI/2; equip(HANDS.R,newItem('pistol'));
-    const E=spawn(o.kind||'gunman','Pepe',o.x??0,0,-Math.PI/2,'fight'); E.fx=E.fx||{}; if(o.force) E.fx.retreatRoll=0; attachLabels(); for(let k=0;k<20;k++) step(); setAware(E,'see'); for(let k=0;k<10;k++) step();
+    const E=spawn(o.kind||'gunman','Pepe',o.x??0,o.z??0,-Math.PI/2,'fight'); E.fx=E.fx||{}; if(o.force) E.fx.retreatRoll=0; attachLabels(); for(let k=0;k<20;k++) step(); setAware(E,'see'); for(let k=0;k<10;k++) step();
     const t0=GAME.t; const p=X_(E.B,PI_.shL); fireHand(HANDS.R,{o:eye(),d:norm3(v3.sub(p,eye()))});
     const tl=[]; let last='',inRoom=null,atDoor=null; PL.x=-9; /* you back off into the dark of the hall end */
+    const roomOf=(x,z)=>FLOOR.mode==='proto'&&typeof pfRoomAt==='function'?(pfRoomAt(x,z)||{}).id:typeof twUnitOf==='function'?(twUnitOf(x,z)||{}).id:null;
     let waitT=null,door=null,closeT=null,ans=null;
     while(GAME.t-t0<o.secs){ KEYS.KeyW=false; const R_=E.fx&&E.fx.ret; if(R_&&R_.ph==='wait'&&waitT==null){ waitT=GAME.t; door=R_.door; }
       if(o.come&&door&&GAME.t-waitT>4&&Math.hypot(PL.x-door[0],PL.z-door[1])>.3){ const d=navTo(PL.x,PL.z,door[0],door[1]); PL.yaw=Math.atan2(-d[0],-d[2]); KEYS.KeyW=true; }
       if(closeT==null&&door&&Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)<2.7) closeT=GAME.t; const s0=L.eshots.get(E)||0;
-      step(); if(closeT!=null&&ans==null&&(L.eshots.get(E)||0)>s0) ans=+(GAME.t-closeT).toFixed(2); const u=typeof twUnitOf==='function'?twUnitOf(E.pos[0],E.pos[1]):null; const s=(E.fx&&E.fx.ret?E.fx.ret.ph:'-')+'/'+(u?'room'+u.id+(lit(E.pos[0],E.pos[1])?'(lit)':''):'hall');
+      step(); if(closeT!=null&&ans==null&&(L.eshots.get(E)||0)>s0) ans=+(GAME.t-closeT).toFixed(2); const u=roomOf(E.pos[0],E.pos[1]); const s=(E.fx&&E.fx.ret?E.fx.ret.ph:'-')+'/'+(u!=null&&u!=='H'?'room'+u+(lit(E.pos[0],E.pos[1])?'(lit)':''):'hall');
       if(s!==last){ last=s; tl.push([+(GAME.t-t0).toFixed(1),s]); } if(u&&inRoom==null) inRoom=+(GAME.t-t0).toFixed(1); }
     KEYS.KeyW=false; return {retreated:!!(E.fx&&E.fx.retreated),shotsBeforeYouCame:closeT==null?(L.eshots.get(E)||0):null,answeredIn:ans,tl:tl.slice(0,10),end:[+E.pos[0].toFixed(1),+E.pos[1].toFixed(1)],st:E.st,blood:Math.round(E.blood)}; }
 
@@ -199,7 +203,7 @@ window.__F=(function(){
   if (test === 'bot') { const R = [];
     for (let i = 0; i < (args.runs || 20); i++) { const p = await fresh(qs);
       if (args.wpn) await p.evaluate(([k, s]) => window.__eval(`equip(HANDS.R,newItem('${k}',undefined,${s}))`), [args.wpn, !!args.sup]);
-      const r = await p.evaluate(a => { try { return window.__F.bot(a); } catch (e) { return { ERR: String(e.stack).slice(0, 400) }; } }, { maxT: args.maxT || 240, sigma: args.sigma ?? 3, react: args.react ?? .6, gap: args.gap ?? .3 }); await p.close();
+      const r = await p.evaluate(a => { try { return window.__F.bot(a); } catch (e) { return { ERR: String(e.stack).slice(0, 400) }; } }, { maxT: args.maxT || 240, sigma: args.sigma ?? 3, react: args.react ?? .6, gap: args.gap ?? .3, diag: !!args.diag }); await p.close();
       if (!args.quiet) console.log(JSON.stringify(r)); R.push(r); }
     const ok = R.filter(r => !r.ERR), K = ok.flatMap(r => r.kills).filter(k => k.d != null), H = ok.reduce((s, r) => s + r.hostile, 0), sum = k => ok.reduce((s, r) => s + (r[k] || 0), 0);
     console.log('SUMMARY ' + JSON.stringify({ qs, runs: ok.length, wpn: args.wpn || 'kit', sup: !!args.sup, deaths: ok.filter(r => r.died).length, deathPct: Math.round(100 * ok.filter(r => r.died).length / ok.length),
@@ -217,7 +221,7 @@ window.__F=(function(){
   else if (test === 'rage') { for (let r = 0; r < (args.runs || 2); r++) console.log(JSON.stringify(await run(args.qs || 'f=3&proto=1&pf=0', 'rage', {}))); }
   else if (test === 'quitrun') { for (let r = 0; r < (args.runs || 2); r++) console.log(JSON.stringify(await run(args.qs || 'f=3&proto=1&pf=0', 'quitrun', { secs: args.secs || 40 }))); }
   else if (test === 'faker') { for (const c of [{}, { turn: true }, { friend: true }]) for (let r = 0; r < (args.runs || 2); r++) console.log(JSON.stringify(await run(args.qs || 'f=3&proto=1&pf=0', 'faker', Object.assign({ secs: args.secs || 15 }, c)))); }
-  else if (test === 'retreat') { for (let r = 0; r < (args.runs || 3); r++) console.log(JSON.stringify(await run(args.qs || 'f=1&proto=1&pf=0', 'retreat', { secs: args.secs || 30, force: args.force, x: args.x, kind: args.kind, come: args.come }))); }
+  else if (test === 'retreat') { for (let r = 0; r < (args.runs || 3); r++) console.log(JSON.stringify(await run(args.qs || 'f=1&proto=1&pf=0', 'retreat', { secs: args.secs || 30, force: args.force, x: args.x, z: args.z, kind: args.kind, come: args.come }))); }
   else if (test === 'token') { for (let r = 0; r < (args.runs || 2); r++) console.log(JSON.stringify(await run(args.qs || 'f=3&proto=1&pf=0', 'token', { secs: args.secs || 20 }))); }
   if (errs.length) console.log('ERRORS', JSON.stringify([...new Set(errs)].slice(0, 8)));
   await browser.close();
