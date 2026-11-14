@@ -343,14 +343,18 @@ function sheetNearest(p,r){ let best=null,bd=r*r;
   for(const S of SHEETS){ if(Math.abs(p[0]-S.x)>S.hw+1.5||Math.abs(p[2]-S.z)>S.hw+1.5) continue; const P=S.P;
     for(let i=0;i<S.n;i++){ const o=i*3,dx=P[o]-p[0],dy=P[o+1]-p[1],dz=P[o+2]-p[2],d=dx*dx+dy*dy+dz*dz; if(d<bd){ bd=d; best={S,i}; } } } return best; }
 function sheetPanelOf(S,i){ const j=Math.floor(i/S.rows); return S.panels.findIndex(p=>j>=p.c0&&j<p.c0+p.nc); }
-function sheetGrab(h,S,i,p){ S.held={i,h,p:p.slice(),y0:p[1]}; h._sh=S; S.idle=0; if(XR.on) buzz(h.hand,.2,25); hideSnd(S.kind==='plastic'?'crinkle':'rustle',p,.3); }
+function sheetGrab(h,S,i,p,B){ S.held={i,h,p:p.slice(),rel0:p[1]-B.y}; h._sh=S; S.idle=0; if(XR.on) buzz(h.hand,.2,25); hideSnd(S.kind==='plastic'?'crinkle':'rustle',p,.3); }
 function sheetRelease(h){ const S=h._sh; if(S&&S.held&&S.held.h===h) S.held=null; h._sh=null; }
-function sheetHandsTick(){ if(!XR.on||!SHEETS.length) return;
+/* the pull is measured against his head, so holding a sheet aside and then crouching to hide doesn't tear it: a yank down
+   (tearPull below where the hand was, relative to the head; or half that, fast) does */
+function sheetHandsTick(B){ if(!XR.on||!SHEETS.length) return;
   for(const h of [HANDS.L,HANDS.R]){ const gp=h.src&&h.src.gamepad,pr=!!(gp&&gp.buttons[1]&&gp.buttons[1].pressed),edge=pr&&!h._hgp; h._hgp=pr;
     const busy=!!(h.item||h.grab||h.stuck||h.supportOf);
-    if(h._sh){ const S=h._sh; if(!pr||busy||!S.held) sheetRelease(h); else { const p=mulP(h.M,FIST); S.held.p=p; S.idle=0;
-        if(S.K.tear&&(S.held.y0-p[1]>HIDEP.tearPull||h.vel&&h.vel[1]<-HIDEP.tearSpd)) sheetTear(S,sheetPanelOf(S,S.held.i),h); } }
-    else if(edge&&!busy&&!h._hbusy){ const p=mulP(h.M,FIST),hit=sheetNearest(p,.2); if(hit) sheetGrab(h,hit.S,hit.i,p); } /* the same press that dropped a gun doesn't grab */
+    if(h._sh){ const S=h._sh; if(!pr||busy||!S.held) sheetRelease(h); else { const p=mulP(h.M,FIST),o=S.held.i*3; S.held.p=p; S.idle=0;
+        const pull=S.held.rel0-(p[1]-B.y); /* metres the hand has come down, head-relative */
+        if(Math.hypot(p[0]-S.R[o],p[1]-S.R[o+1],p[2]-S.R[o+2])>S.L0+.5) sheetRelease(h); /* walked off still holding it: it slips out of the hand */
+        else if(S.K.tear&&(pull>HIDEP.tearPull||pull>HIDEP.tearPull/2&&h.vel&&h.vel[1]<-HIDEP.tearSpd)) sheetTear(S,sheetPanelOf(S,S.held.i),h); } }
+    else if(edge&&!busy&&!h._hbusy){ const p=mulP(h.M,FIST),hit=sheetNearest(p,.2); if(hit) sheetGrab(h,hit.S,hit.i,p,B); } /* the same press that dropped a gun doesn't grab */
     h._hbusy=busy; } }
 /* a strip off the bottom of a panel: the hem rises, the strip goes to the hand (80-ray.js giveStrip, for a bandage) */
 function sheetTear(S,pi,h){ const p=S.panels[pi]; if(!p||!S.K.tear||p.torn>=S.maxTear){ if(h) sheetRelease(h); return false; }
@@ -425,7 +429,7 @@ function hideHud(){ if(!HIDE.test||!GAME.started) return; const S=PL.hide,e=PL.h
 
 /* ---------- wiring ---------- */
 function hideFrame(dt){ dt=Math.min(dt,.05); let B=hideBody(); hideCrouchTick(dt,B); hideFlatSpeed(); B=hideBody();
-  hideSpotTick(dt,B); hideMouthTick(B); hideSaveTick(B); sheetsTick(dt,B); sheetHandsTick(); hideHud(); }
+  hideSpotTick(dt,B); hideMouthTick(B); hideSaveTick(B); sheetsTick(dt,B); sheetHandsTick(B); hideHud(); }
 function hideReset(){ if(!PROTO.on) return; const fresh=hideFresh(); if(fresh){ HIDES.length=0; SHEETS.length=0; }
   PL.hide=null; PL.hideExp=1; PL.crawl=false; HIDE.crawlD=0; HIDE.low=0; HIDE.passers.clear(); HIDE.soundT=-99; HIDE.sp=null; HIDE.lx=null;
   PL.dropY=PL.crouchT?(hideIsVR()?HIDE.togOff:1.62-HIDEP.flatEye):0; for(const k in HIDE_KIND_SAVES) delete HIDE_KIND_SAVES[k];

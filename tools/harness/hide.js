@@ -141,6 +141,14 @@ const torn=hideFlatTear();
 ok('B tears a strip: giveStrip got it', torn&&window.__strips===1&&door.panels.some(p=>p.torn===1), {torn,strips:window.__strips});
 run(3); const p0=door.panels.findIndex(p=>p.torn===1),uSide=p0===0?-7.2:-6.8;
 ok('the hem rose: you can see under that half now', !lowBefore&&sightClear([uSide,.17,0],[uSide,.17,-2.5]));
+/* VR: grip a sheet, crouch while holding it aside (no tear), then yank down (tear) */
+{ const h=HANDS.L,was=XR.on,pad={buttons:[{pressed:false},{pressed:false}]}; h.src={gamepad:pad}; XR.on=true; window.__strips=0; for(const p of door.panels) p.torn=0;
+  const at=(x,y,z)=>{ h.M=m4.make(); h.M[12]=x-FIST[0]; h.M[13]=y-FIST[1]; h.M[14]=z-FIST[2]; h.vel=[0,0,0]; }, Bh=y=>({y});
+  const k=door.cols.find(c=>c.u<-.3).j*door.rows+3,P=door.P; at(P[k*3],P[k*3+1],P[k*3+2]); pad.buttons[1].pressed=true; sheetHandsTick(Bh(1.6));
+  const held=h._sh===door; at(P[k*3],P[k*3+1]-.2,P[k*3+2]+.15); sheetHandsTick(Bh(1.42)); const afterCrouch=window.__strips;
+  at(P[k*3],P[k*3+1]-.45,P[k*3+2]); sheetHandsTick(Bh(1.42));
+  ok('VR grip: holds the sheet; crouching while holding it doesn\'t tear it; a yank down does', held&&afterCrouch===0&&window.__strips===1&&!h._sh, {held,afterCrouch,strips:window.__strips});
+  pad.buttons[1].pressed=false; sheetHandsTick(Bh(1.42)); XR.on=was; h.src=null; }
 delete window.giveStrip;
 
 /* ---- 8. a crouch hole ---- */
