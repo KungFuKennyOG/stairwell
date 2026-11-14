@@ -54,6 +54,7 @@ window.__PB=(function(){
     return {x:TL+.1,z:0,kind:'old'}; }
   const left=()=>!!(SHELL.end||(SHELL.run&&SHELL.run.exit)||(!PROTO.on&&GAME.climbing));
   function goExit(X){ if(X.kind==='old'){ if(PL.x>TL-.2&&Math.abs(PL.z)<1.2){ PL.yaw=-Math.PI/2; PL.pitch=0; stick.dy=0; KEYS.KeyW=true; } else walk(TL+.1,0); return; }
+    if(X.kind==='pf'&&typeof PF_EXIT!=='undefined'&&PF.exit&&PF.exit.open&&Math.hypot(X.x-PL.x,X.z-PL.z)<1.2){ face(PF_EXIT.x+1.2,PF_EXIT.z); stick.dy=0; KEYS.KeyW=true; return; } /* F's door is open: walk on through it, east into the stairwell */
     if(Math.hypot(X.x-PL.x,X.z-PL.z)<.9){ face(X.x,X.z); stick.dy=0; KEYS.KeyW=true; } else walk(X.x,X.z); }
   /* the thing that opens the chain, if it's lying on the floor (F/H: key 'cutter' or 'keys') */
   const tool=()=>LOOSE.find(P=>P.item&&/^(cutter|keys)$/.test(P.item.key));
