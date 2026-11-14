@@ -79,11 +79,15 @@ window.__RIG=(function(){
   const MAKERS={gunman:makeGunman,corner:makeCorner,cutter:makeCutter};
   let base=null;
   function fresh(kind){ clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); window.__Q=[];
-    if(!base) base={x:FLOOR.start.x,z:FLOOR.start.z};
+    if(!base) base=openBase();
     PL.x=base.x; PL.z=base.z; PL.yaw=-Math.PI/2; PL.pitch=0;
     const E=spawnEnemy({maker:MAKERS[kind||'gunman'],name:'Rig',x:base.x+1.0,z:base.z,hd:-Math.PI/2,extra:''}); enemies.push(E); attachLabels(); E.psych='fight';
     for(const h of hands){ equip(h,null); park(h); }
     for(let i=0;i<40;i++) frame(); return E; }
+  /* somewhere with room: Ray at x, the man a metre along +x, nothing solid within reach of either (the new floor has walls everywhere) */
+  function openBase(){ const S=FLOOR.start,clear=(x,z)=>!BOXES.some(b=>!b.sightOnly&&b.h>.25&&b.x1>x-.9&&b.x0<x+2.1&&b.z1>z-1.1&&b.z0<z+1.1)&&Math.abs(x+2.1)<RX&&Math.abs(x-.9)<RX&&Math.abs(z)+1.1<RZ;
+    if(clear(S.x,S.z)) return {x:S.x,z:S.z}; let best=null,bd=1e9; for(let x=-RX;x<RX;x+=.25) for(let z=-RZ;z<RZ;z+=.25){ const d=Math.hypot(x-S.x,z-S.z); if(d<bd&&clear(x,z)){ bd=d; best={x,z}; } }
+    return best||{x:S.x,z:S.z}; }
   /* a hand out of the way, low by Ray's side */
   function park(h){ const M=fromCols([0,0,1],[0,1,0],[-1,0,0],[PL.x-.1,.7,PL.z+(h===HANDS.R?.35:-.35)]); h.M.set(M); tele(h); h.prevPts=null; h.cd=0; }
   /* the rig moves a hand instantly; a real one never does: don't let the jump count as hand speed */
@@ -235,7 +239,29 @@ window.__RIG=(function(){
       for(let k=0;k<2;k++){ HANDS.R.cd=0; window.__game.aimAt(X_(E.B,PI_.head)); flatSwing(HANDS.R); for(let i=0;i<30;i++){ PL.hp=100; update(DT,performance.now()); updateWorld(world,null); runQ(); } }
       melHit=_mh; for(let i=0;i<60;i++){ update(DT,performance.now()); updateWorld(world,null); runQ(); } out.flat={tiers,down:E.st==='down'}; XR.on=true; }
     deaf=false; return out; }
-  return {reg,tierCase,perf,one,feel,NEW};
+  /* ---- walls: swing each weapon into the nearest wall, push on through it, then pull back ---- */
+  function wall(){ const out={}; deaf=true; DRY=false; clearEnemies(); const h=HANDS.R,ST=FLOOR.start;
+    let W=null; for(let i=0;i<16&&!W;i++){ const a=i/16*Math.PI*2,d=[Math.cos(a),0,Math.sin(a)],o=[ST.x,1.3,ST.z],r=rayBoxes(o,d,4,b=>b.kind==='wall');
+      if(r&&r.t>.9&&Math.abs(r.n[1])<.1){ const fp=add(o,sc(d,r.t)),stand=add(fp,sc(r.n,.75)); if(!rayBoxes([stand[0],1.3,stand[2]],sc(r.n,-1),.7,b=>b.kind!=='wall'&&!b.sightOnly)) W={p:fp,n:r.n,b:r.b,stand}; } }
+    if(!W) return {err:'no wall found near the start'}; out.where={x:+W.p[0].toFixed(2),z:+W.p[2].toFixed(2),n:W.n.map(x=>+x.toFixed(2))};
+    let EV=[]; protoOn('meleeWall',(hh,o)=>{ if(hh===h) EV.push(o); });
+    const D=sc(W.n,-1),up=[0,1,0];
+    const SP={fists:{spot:[0,-.035,-.008],lead:.05,R:()=>{ const Z=D,Y=up; return [cross(Y,Z),Y,Z]; }},
+      knife:{spot:[0,-.022,.15],lead:0,R:()=>{ const Y=sc(D,-1),Z=up; return [cross(Y,Z),Y,Z]; }}, machete:{spot:[0,-.047,.3],lead:0,R:()=>{ const Y=sc(D,-1),Z=up; return [cross(Y,Z),Y,Z]; }},
+      pistol:{spot:[0,-.08,-.02],lead:0,R:()=>{ const Y=sc(D,-1),Z=up; return [cross(Y,Z),Y,Z]; }}, pan:{spot:[0,0,.217],lead:0,R:()=>{ const X=D,Z=up; return [X,cross(Z,X),Z]; }},
+      pipe:{spot:[-.019,-.017,.45],lead:0,R:()=>{ const Y=sc(D,-1),Z=up; return [cross(Y,Z),Y,Z]; }} };
+    out.w={};
+    for(const [w,o] of Object.entries(SP)){ if(!WPN[w]) continue; equip(h,w==='fists'?null:newItem(w)); park(h); for(let i=0;i<4;i++) frame();
+      const R=o.R(),depthVis=()=>{ const L=m4.make(); m4.compose(L,h.node.p,h.node.r,[1,1,1]); const IW=h.itemNode&&h.itemL?(()=>{ const T=m4.make(); m4.mul(T,L,h.itemL); return h.itemW&&WPN[w].melee?h.itemW:T; })():L; return dot(sub(add(mulP(IW,o.spot),sc(D,o.lead)),W.p),D); };
+      const res={};
+      for(const v of [4,.8]){ EV=[]; let s=-.35; const P=s=>add(add(W.p,sc(D,s-o.lead)),[0,0,0]); placeItem(h,R,o.spot,P(s)); tele(h); for(let i=0;i<6;i++) frame();
+        let maxIn=-9,held=0,f=0; while(s<.25){ s=Math.min(.25,s+v*DT); placeItem(h,R,o.spot,P(s)); frame(); const dv=depthVis(); if(s>.05) maxIn=Math.max(maxIn,dv); if(s>.05&&dv<.015) held++; f++; }
+        for(let i=0;i<Math.round(.3/DT);i++){ frame(); const dv=depthVis(); maxIn=Math.max(maxIn,dv); if(dv<.015) held++; } /* keeps the hand through the wall a moment */
+        let back=-1; for(let i=0;i<40;i++){ s=Math.max(-.35,s-2*DT); placeItem(h,R,o.spot,P(s)); frame(); if(back<0&&Math.hypot(...sub(mulP(h.M,FIST),(()=>{ const L=m4.make(); m4.compose(L,h.node.p,h.node.r,[1,1,1]); return mulP(L,FIST); })()))<.01) back=i; }
+        res[v+'m/s']={wallHits:EV.length,speed:EV[0]?+EV[0].speed.toFixed(1):null,maxDepthCm:+(maxIn*100).toFixed(1),heldMs:Math.round(held*DT*1000),caughtUpMs:back<0?null:Math.round(back*DT*1000)}; }
+      out.w[w]=res; }
+    deaf=false; return out; }
+  return {reg,tierCase,perf,one,feel,wall,NEW};
 })();`;
 
 const TIER_CASES = [
@@ -274,6 +300,9 @@ const TIER_CASES = [
   const NEW = await p.evaluate(() => window.__RIG.NEW);
   const out = { new: NEW };
   console.log('melee rig on', path.basename(process.argv[2] || 'index.html'), NEW ? '(new melee)' : '(old melee)');
+  if ((mode === 'wall' || mode === 'all') && NEW) { const r = await p.evaluate(() => window.__RIG.wall()); out.wall = r;
+    if (r.err) console.log('\nWALLS: ' + r.err); else { console.log(`\nWALLS (each weapon driven into the nearest wall ${JSON.stringify(r.where)}, on 25 cm through it, held there 0.3 s, then pulled back):`);
+      for (const [w, x] of Object.entries(r.w)) console.log(`  ${w.padEnd(8)} ` + Object.entries(x).map(([v, q]) => `${v}: wall hits ${q.wallHits}${q.speed ? ' @' + q.speed : ''}, deepest the weapon you see went in ${q.maxDepthCm} cm, on the wall ${q.heldMs} ms, back on your hand ${q.caughtUpMs} ms after pulling out`).join(' | ')); } }
   if ((mode === 'feel' || mode === 'all') && NEW) { const r = await p.evaluate(() => window.__RIG.feel()); out.feel = r;
     console.log('\nFEEL'); console.log('  lag, cm the hand you see trails the real one (steady 4 m/s | 1.2 m/s): ' + Object.entries(r.lag).map(([k, v]) => `${k} ${v.at4}|${v.at1_2}`).join(', '));
     console.log(`  pistol, cm off the real hand moved at 1.5 / 2.5 / 5 m/s: ${JSON.stringify(r.gunGapCm)} (aiming stays 1:1 below 3 m/s)`);

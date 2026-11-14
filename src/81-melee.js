@@ -17,7 +17,8 @@
      tool   items that aren't weapons (keys, first-aid tin, rounds, cloth) hit like a fist and weigh nothing in the hand;
             the bolt cutter is the exception: a heavy club.
    Events: protoEmit('melee', h, E, {tier, speed, part, kind:'blunt'|'cut'|'stab'|'slice'|'push', weapon, grabbed, p})
-           for every contact, applied or not.
+           for every contact, applied or not; protoEmit('meleeWall', h, {speed, p, box}) when a swing hits a wall.
+   Walls (boxes of kind 'wall'): a swing that hits one stops on it, and stays on it while your real hand is through the wall.
    For the enemy-fight agent: E.winded = seconds his next attack is slowed by body blows (decays 1/s), E.openT = GAME.t
    until which a staggered man is open (can't start an attack). Both also push E.atkCd so they work on their own.
    ===================================================================== */
@@ -38,6 +39,7 @@ PROTO.melee={
   stabCos:.6, stabV:1.3, knifeStabV:1, grabStab:.5, /* point-first within ~53 deg and this fast along the blade */
   winded:.9,                 /* s his next attack is slowed per body blow, x tier */
   stam:{cost:.12,hard:3.5,rest:1,rec:.2,weak:.5}, /* PROTO.on only. weak: spring strength when empty */
+  wallHold:1.5,              /* s at most a weapon stays on a wall your hand has gone through (then it lets go, e.g. you walked into it) */
   dry:false                  /* the test rig: record contacts and stop the weapon, leave him untouched */
 };
 /* default strike volumes and masses for the items that exist today (an item's own fields win) */
@@ -63,7 +65,7 @@ function melLen(w){ if(w._len!==undefined) return w._len; let L=.05; for(const c
 /* ---------- per-hand state ---------- */
 function melState(h){ return h.mv||(h.mv={node:null,p:null,v:[0,0,0],q:null,lp:null,V:m4.make(),IW:m4.make(),RW:m4.make(),prevIW:null,hist:[],key:null,stopT:0,catchT:0,lock:new Map(),stam:1,restT:9,swing:false,clubK:0}); }
 /* put the hand you see back on your real hand at once (equip, teleports, the rig between swings) */
-function melSnap(h){ const S=melState(h); S.p=null; S.tp=null; S.q=null; S.v=[0,0,0]; S.prevIW=null; S.hist.length=0; S.stopT=0; S.catchT=0; S.clubK=0; S.lock.clear(); }
+function melSnap(h){ const S=melState(h); S.p=null; S.tp=null; S.wall=null; S.q=null; S.v=[0,0,0]; S.prevIW=null; S.hist.length=0; S.stopT=0; S.catchT=0; S.clubK=0; S.lock.clear(); }
 const melCols=M=>[colOf(M,0),colOf(M,1),colOf(M,2)];
 function melCompose(q,p){ /* a hand matrix from its rotation and where its fist centre is */ const [X,Y,Z]=qCols(q); return fromCols(X,Y,Z,v3.sub(p,v3.add(v3.sc(X,FIST[0]),v3.add(v3.sc(Y,FIST[1]),v3.sc(Z,FIST[2]))))); }
 function melTaus(h,w,S){ const m=melMass(w),P=PROTO.melee,two=!!(h.support||h.supportOf);
@@ -89,15 +91,19 @@ function melHand(h,dt){ const S=melState(h),it=h.item,key=it?it.key:'fists',w=WP
   const tied=h.grab||h.support||h.supportOf||h.stuck;
   let [tau,tr]=melTaus(h,w,S);
   if(w.gun){ const sp=Math.hypot(...(h.vel||[0,0,0])); S.clubK=sp>PROTO.melee.clubV?1:Math.max(0,S.clubK-dt/.3); tau*=S.clubK; tr*=S.clubK; } /* aiming stays 1:1 */
-  if(tied||!S.p||Math.hypot(...v3.sub(S.p,tp))>.35){ S.p=tp; S.q=tq; S.v=[0,0,0]; S.stopT=0; } /* tied, fresh, or torn away (it never trails by more than this) */
+  let tpW=tp; if(S.wall){ const dep=melWallDepth(h,S); /* on a wall: aim for your real hand pushed back out of it, so the weapon rests and slides on the wall */
+    if(dep<-.004){ S.wall=null; } /* your hand came back out: it follows again */
+    else if((S.wall.t-=dt)<=0){ S.wall=null; S.wallCd=GAME.t+1; } /* held long enough (you walked into it): it lets go, and won't catch on it again at once */
+    else { const Tm=m4.make(); Tm.set(T); for(let c=0;c<3;c++) Tm[12+c]-=S.wall.n[c]*(dep+.003); tpW=mulP(melLocal(Tm),FIST); } }
+  if(tied||!S.p||Math.hypot(...v3.sub(S.p,tpW))>(S.wall?.8:.35)){ S.p=tpW; S.q=tq; S.v=[0,0,0]; S.stopT=0; if(tied) S.wall=null; } /* tied, fresh, or torn away (it never trails by more than this) */
   else if(S.stopT>0){ S.stopT-=dt; S.v=[0,0,0]; if(S.stopT<=0) S.catchT=.1; } /* stopped on him: it holds while your hand goes on */
   else { if(S.catchT>0){ S.catchT-=dt; tau=Math.max(tau,.022); tr=Math.max(tr,.03); } /* then it catches up, quickly but not in one frame */
-    if(tau<8e-4){ S.p=tp; S.v=[0,0,0]; }
-    else { const om=2/tau,e=Math.exp(-om*dt),tq0=S.tp||tp; /* critically damped, solved exactly for a real hand moving steadily through the frame, */
-      for(let c=0;c<3;c++){ const vr=(tp[c]-tq0[c])/dt,ep=-2*vr/om,e0=S.p[c]-tq0[c],c1=e0-ep,c2=(S.v[c]-vr)+om*c1; /* so the lag is speed x tau at any frame rate */
-        S.p[c]=tp[c]+ep+(c1+c2*dt)*e; S.v[c]=vr+(c2-om*(c1+c2*dt))*e; } }
+    if(tau<8e-4){ S.p=tpW; S.v=[0,0,0]; }
+    else { const om=2/tau,e=Math.exp(-om*dt),tq0=S.tp||tpW; /* critically damped, solved exactly for a real hand moving steadily through the frame, */
+      for(let c=0;c<3;c++){ const vr=(tpW[c]-tq0[c])/dt,ep=-2*vr/om,e0=S.p[c]-tq0[c],c1=e0-ep,c2=(S.v[c]-vr)+om*c1; /* so the lag is speed x tau at any frame rate */
+        S.p[c]=tpW[c]+ep+(c1+c2*dt)*e; S.v[c]=vr+(c2-om*(c1+c2*dt))*e; } }
     S.q=tr<1e-3?tq:qNlerp(S.q,tq,1-Math.exp(-dt/tr)); }
-  S.tp=tp; melApply(h,S); }
+  S.tp=tpW; melApply(h,S); }
 /* the hand you see, and what it holds, from the spring state */
 function melApply(h,S){ const it=h.item,w=WPN[it?it.key:'fists'];
   const V=h.stuck?h.M:melWorld(melCompose(S.q,S.p)); S.V.set(V);
@@ -111,6 +117,38 @@ function melApply(h,S){ const it=h.item,w=WPN[it?it.key:'fists'];
   else S.IW.set(V);
   /* where it would be with no lag at all: contact speed takes the faster of the two, so weight never costs you a tier */
   if(h.itemNode&&h.itemL&&!h.support){ const R=m4.make(); m4.mul(R,h.M,h.itemL); S.RW.set(R); } else S.RW.set(h.support&&h.itemW?h.itemW:h.itemNode?S.IW:h.M); }
+
+/* ---------- walls ---------- */
+/* the points of a strike volume that would hit a wall first: both ends and the middle, pushed out to its surface along the motion */
+function melWallPts(c,M0,M1){ const out=[]; for(const u of c.a===c.b||c.kind==='point'?[0]:[0,.5,1]){ const q=[0,1,2].map(k=>c.a[k]+(c.b[k]-c.a[k])*u),p0=mulP(M0,q),p1=mulP(M1,q),d=v3.sub(p1,p0),L=Math.hypot(...d);
+  const lead=c.kind==='point'?.005:c.kind==='blunt'&&c.n&&c.r>=.06?.02:Math.min(c.r,.05); /* the real surface: not a point's wide stab zone, not round a pan's face */
+  const o=L>1e-5?v3.sc(d,lead/L):[0,0,0]; out.push({q,o,p0:v3.add(p0,o),p1:v3.add(p1,o),L}); } return out; }
+const melInBox=(b,p)=>p[0]>b.x0&&p[0]<b.x1&&p[2]>b.z0&&p[2]<b.z1&&p[1]>(b.y0||0)&&p[1]<b.h;
+function melWallAt(p){ for(const b of boxesAt(p[0],p[2])) if(b.kind==='wall'&&!b.sightOnly&&melInBox(b,p)) return b; return null; }
+/* a swing into a wall: it stops there, held while your real hand is through it */
+function melWallHit(h,S,w,key,caps,prev,cur){ if(typeof boxesAt!=='function') return null; const P=PROTO.melee;
+  let best=null; for(const c of caps) for(const pt of melWallPts(c,prev,cur)){ if(pt.L<1e-4) continue; const b=melWallAt(pt.p1); if(!b||melWallAt(pt.p0)) continue;
+    let lo=0,hi=1; for(let i=0;i<7;i++){ const m=(lo+hi)/2; if(melInBox(b,v3.add(pt.p0,v3.sc(v3.sub(pt.p1,pt.p0),m)))) hi=m; else lo=m; } /* where it went in */
+    if(!best||lo<best.f) best={f:lo,b,pt,c}; }
+  if(!best) return null;
+  const real=S.hist[1]?Math.hypot(...v3.sub(mulP(S.hist[0].R,best.pt.q),mulP(S.hist[1].R,best.pt.q)))/S.hist[0].dt:0,speed=Math.max(best.pt.L/S.hist[0].dt,real);
+  if(GAME.t<(S.wallCd||0)) return null;
+  const soft=speed<P.tier[0]; /* a slow touch just rests on it: no stop, no sound */
+  return {f:best.f,soft,apply:()=>{ if(S.stopT>0||h.stuck) return;
+  const Mu=melLerpM(prev,cur,best.f),back=m4.make(); m4.mul(back,Mu,rigidInv(cur)); const Vt=m4.make(); m4.mul(Vt,back,S.V); const L=melLocal(Vt);
+  const p=v3.add(best.pt.p0,v3.sc(v3.sub(best.pt.p1,best.pt.p0),best.f)),b=best.b,fd=[p[0]-b.x0,b.x1-p[0],p[2]-b.z0,b.z1-p[2],p[1]-(b.y0||0),b.h-p[1]],fi=fd.indexOf(Math.min(...fd));
+  const n=[[1,0,0],[-1,0,0],[0,0,1],[0,0,-1],[0,1,0],[0,-1,0]][fi]; /* into the wall through the face it came in by */
+  S.p=mulP(L,FIST); S.q=qFromCols(...melCols(L)); S.v=[0,0,0]; if(!soft) S.stopT=lerp(P.stop[0],P.stop[1],clamp(melMass(w)/.8,0,1));
+  const inv=rigidInv(cur); S.wall={b,t:P.wallHold,n,cp:p,pts:melWallPts(best.c,prev,cur).map(x=>mulP(inv,x.p1))}; /* its leading surface, in item space */
+  melApply(h,S); S.prevIW=new Float32Array(S.IW); S.hist[0].M=S.prevIW;
+  if(soft) return; const m=melMass(w),hard=speed>=P.tier[1];
+  sfx(m>.3||w.gun?'bash':'bump',clamp(speed/5,.3,1),p); if(hard&&m>.3) sfx('kick',.4,p);
+  if(XR.on) buzz(h.hand,hard?1:.5,hard?40:20);
+  noise([p[0],0,p[2]],clamp(2+speed*Math.sqrt(1+m),3,10)); /* a blow on a wall carries: someone near it comes to look */
+  protoEmit('meleeWall',h,{speed,p,box:best.b}); }}; }
+/* how far the real weapon's leading surface is through the wall it met (past the face it went in by); negative = back out */
+function melWallDepth(h,S){ const R=m4.make(); if(h.itemNode&&h.itemL) m4.mul(R,h.M,h.itemL); else R.set(h.M); let d=-9;
+  for(const q of S.wall.pts) d=Math.max(d,v3.dot(v3.sub(mulP(R,q),S.wall.cp),S.wall.n)); return d; }
 
 /* ---------- geometry ---------- */
 /* closest distance between segments p1-q1 and p2-q2 (Ericson 5.1.9), no allocations */
@@ -162,9 +200,10 @@ function melSweep(h,dt){ const S=melState(h);
   /* contacts held: let a man go once the weapon is well clear of him */
   for(const [E,t] of S.lock){ if(!enemies.includes(E)||GAME.t-t>1.2||GAME.t-t>.12&&melClear(E,caps,cur,.04)) S.lock.delete(E); }
   if(!prev||S.stopT>0||h.cd>0) return; /* h.cd: a hit knocked your hands (80-ray.js); that jolt is not a swing */
+  const wall=!S.wall&&(w.melee||!h.item||w.gun&&S.clubK>.5)&&!h.support?melWallHit(h,S,w,key,caps,prev,cur):null,wallU=wall?wall.f:2; /* a wall in the way this frame: only what comes before it counts */
   const hp=colOf(cur,3),cand=[];
   for(const E of enemies){ if(S.lock.has(E)) continue; const x=E.B.x; if(Math.hypot(x[0]-hp[0],x[2]-hp[2])<1.9){ cand.push(E); melTrack(E,dt); if(!E.melC) melSkin(E); } } /* x[0..2]: his pelvis. His skin index is built as he comes in reach, not on the frame you hit him */
-  if(!cand.length) return;
+  if(!cand.length){ if(wall) wall.apply(); return; }
   const mid=melLerpM(prev,cur,.5),steps=[[prev,mid,0],[mid,cur,.5]];
   for(const [M0,M1,u0] of steps) for(const c of caps){ const A0=mulP(M0,c.a),B0=mulP(M0,c.b),A1=mulP(M1,c.a),B1=mulP(M1,c.b);
     const disp=Math.max(Math.hypot(...v3.sub(A1,A0)),Math.hypot(...v3.sub(B1,B0))); if(disp<2e-4) continue;
@@ -177,8 +216,9 @@ function melSweep(h,dt){ const S=melState(h);
       if(!segs.length) continue;
       /* narrow phase: rays from the capsule's leading surface along its motion, onto his drawn skin */
       const hit=melNarrow(E,c,A0,B0,A1,B1,segs,M0,M1); if(!hit) continue;
-      const u=u0+.5*hit.f;
-      if(melContact(h,S,E,c,hit,u,w,key)){ S.lock.set(E,GAME.t); if(S.stopT>0||h.stuck) return; } } } }
+      const u=u0+.5*hit.f; if(u>wallU) continue; /* he's behind the wall it hit */
+      if(melContact(h,S,E,c,hit,u,w,key)){ S.lock.set(E,GAME.t); if(S.stopT>0||h.stuck) return; } } }
+  if(wall) wall.apply(); }
 /* is every strike volume at least m clear of his body capsules? */
 function melClear(E,caps,M,m){ const X=E.B.x; for(const c of caps){ const a=mulP(M,c.a),b=mulP(M,c.b);
   for(let si=0;si<SEGS.length;si++){ if(E.segOff.has(si)) continue; const sg=SEGS[si],i=sg[0]*3,j=sg[1]*3; if(melSegD(a[0],a[1],a[2],b[0],b[1],b[2],X[i],X[i+1],X[i+2],X[j],X[j+1],X[j+2])<c.r+sg[2]+m) return false; } } return true; }
