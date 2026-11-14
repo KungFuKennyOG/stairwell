@@ -22,17 +22,17 @@ window.__P=(function(){
   const dt=1/30;
   function sprint(maxT){ const t0=GAME.t; let atDoor=null,minHp=100;
     while(GAME.t-t0<maxT){ if(PL.dead) break; minHp=Math.min(minHp,PL.hp); KEYS.KeyW=false; if(PF.exited) break;
-      const d=Math.hypot(PL.x-12.45,PL.z-9.9); if(d<.6){ if(atDoor==null) atDoor=GAME.t-t0; PL.yaw=-Math.PI/2; KEYS.KeyW=true; } else walk(12.45,9.9); step(dt); }
+      const d=Math.hypot(PL.x-12.45,PL.z-9.9); if(d<.6){ if(atDoor==null) atDoor=GAME.t-t0; PL.yaw=Math.atan2(-(14.2-PL.x),-(9.9-PL.z)); KEYS.KeyW=true; } else walk(12.45,9.9); step(dt); }
     KEYS.KeyW=false; return {time:+(GAME.t-t0).toFixed(1),exit:!!PF.exited,atDoorAfter:atDoor&&+atDoor.toFixed(1),x:+PL.x.toFixed(2),z:+PL.z.toFixed(2),died:PL.dead,minHp:Math.round(minHp),hits:LOG.hits,aware:enemies.filter(E=>E.aware).map(E=>E.name)}; }
   function cutter(maxT,ghost){ const t0=GAME.t,C=PF.cutterAt,P=PF.items.find(i=>i.key==='cutter'); let got=null,cut=null,minHp=100; const tgt=C.p;
     if(ghost){ for(const E of enemies){ E.civ=true; E.atkCd=1e9; } }
     while(GAME.t-t0<maxT){ if(PL.dead) break; minHp=Math.min(minHp,PL.hp); KEYS.KeyW=false; if(PF.exited) break;
       if(got==null){ const d=Math.hypot(PL.x-tgt[0],PL.z-tgt[2]); if(d<1.3){ face(tgt[0],tgt[1],tgt[2]); pfUseQ=true; step(dt); if(HANDS.R.item&&HANDS.R.item.key==='cutter') got=GAME.t-t0; continue; } walk(tgt[0],tgt[2]); }
       else if(!PF.exit.open){ const d=Math.hypot(PL.x-12.2,PL.z-9.7); if(d<.5){ face(...PF.exit.at); pfUseQ=true; step(dt); if(PF.exit.open) cut=GAME.t-t0; continue; } walk(12.2,9.7); }
-      else { if(PL.x>12.3){ PL.yaw=-Math.PI/2; PL.pitch=0; KEYS.KeyW=true; } else walk(12.6,9.9); }
+      else { if(PL.x>12.3){ PL.yaw=Math.atan2(-(14.2-PL.x),-(9.9-PL.z)); PL.pitch=0; KEYS.KeyW=true; } else walk(12.6,9.9); }
       step(dt); }
-    KEYS.KeyW=false; const tE=PF.exited?GAME.t-t0:null;
-    return {spot:C.room,toCutter:got&&+got.toFixed(1),cutAt:cut&&+cut.toFixed(1),exitAt:tE&&+tE.toFixed(1),cutterToExit:got&&tE&&+(tE-got).toFixed(1),died:PL.dead,minHp:Math.round(minHp),hits:LOG.hits,events:LOG.events.filter(e=>e[1]!=='room')}; }
+    KEYS.KeyW=false; const tE=PF.exited?GAME.t-t0:null; if(!tE) LOG.at=[+PL.x.toFixed(2),+PL.z.toFixed(2)];
+    return {at:LOG.at,spot:C.room,toCutter:got&&+got.toFixed(1),cutAt:cut&&+cut.toFixed(1),exitAt:tE&&+tE.toFixed(1),cutterToExit:got&&tE&&+(tE-got).toFixed(1),died:PL.dead,minHp:Math.round(minHp),hits:LOG.hits,events:LOG.events.filter(e=>e[1]!=='room')}; }
   function patrol(maxT){ const t0=GAME.t,T=PF.lead,J=PF.follow,seen={T:new Set(),J:new Set()},track=[]; let maxGap=0,stuckT={T:0,J:0},stuckMax={T:0,J:0},last={T:null,J:null};
     for(const E of enemies) if(!E.hunter){ E.civ=true; } /* nobody else reacts; the pair walk */
     PL.x=-12.6; PL.z=-9.6;
