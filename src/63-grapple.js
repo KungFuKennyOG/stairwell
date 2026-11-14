@@ -43,25 +43,25 @@ function flatYank(G){ if(!G.wr) return; G.wr.tug+=.55*(1.2-clamp(G.E.cons*(1-G.E
 function wrestleShot(E,G){ const g=gunRay(E),KS=kst(E),W=WPN[KIND_WPN[E.kind]],sg=!!KS.shotgun;
   muzzle(g.mz,g.d,sg); muzzleSmoke(g.mz,g.d,sg,false); sfx(W.snd||'gun',.9,g.mz); noise([E.pos[0],0,E.pos[1]],14,{alarm:true,from:E}); GAME.eShots=(GAME.eShots||0)+1;
   if(XR.on){ buzz('left',1,70); buzz('right',1,70); }
-  const n=sg?6:1; let dmg=0;
+  const n=sg?6:1,parts=[]; let dmg=0;
   for(let k=0;k<n;k++){ const d=sg?norm3(v3.add(g.d,[rnd(-.05,.05),rnd(-.04,.04),rnd(-.05,.05)])):g.d;
     const room=rayRoom(g.mz,d),bx=rayBoxes(g.mz,d,room.t),L=bx?bx.t:room.t;
     /* first thing along the barrel: you, him, a friend of his, or the wall */
     let first={t:L,what:'wall'};
-    { const eye=camBasis().eye; for(const [p,r] of [[eye,.13],[[PL.x,1.25,PL.z],.21]]){ const t=v3.dot(v3.sub(p,g.mz),d); if(t>.02&&t<first.t){ const off=Math.hypot(...v3.sub(p,v3.add(g.mz,v3.sc(d,t)))); if(off<r){ first={t,what:'you'}; } else if(off<.6&&k===0&&t<6) sfx('whiz',.9,v3.add(g.mz,v3.sc(d,t))); } } }
+    { const eye=camBasis().eye; for(const [p,r,part] of [[eye,.13,'head'],[[PL.x,1.25,PL.z],.21,'torso']]){ const t=v3.dot(v3.sub(p,g.mz),d); if(t>.02&&t<first.t){ const off=Math.hypot(...v3.sub(p,v3.add(g.mz,v3.sc(d,t)))); if(off<r){ first={t,what:'you',part}; } else if(off<.6&&k===0&&t<6) sfx('whiz',.9,v3.add(g.mz,v3.sc(d,t))); } } }
     for(const S of SEGS){ if(E.segOff.has(SEGS.indexOf(S))) continue; const h=raySeg(g.mz,d,X_(E.B,S[0]),X_(E.B,S[1]),S[2]); if(h&&h.t>.03&&h.t<first.t) first={t:h.t,what:'self',seg:S}; } /* turned on himself */
     const bb=bodyInLine(g.mz,v3.add(g.mz,v3.sc(d,first.t)),E); if(bb&&bb.t<first.t) first={t:bb.t,what:'body',bb};
     const p=v3.add(g.mz,v3.sc(d,first.t));
-    if(first.what==='you') dmg+=sg?KS.dmg/n*1.4:(KS.dmg||10)*1.3;
+    if(first.what==='you'){ dmg+=sg?KS.dmg/n*1.4:(KS.dmg||10)*1.3; parts.push(first.part); }
     else if(first.what==='self') hitEnemy(E,first.seg,p,d,'gun',{bleed:sg?.5:1,sever:sg?.7:1,pellet:sg});
     else if(first.what==='body') hitEnemy(first.bb.E,first.bb.seg,first.bb.p,first.bb.dir,'gun',{bleed:sg?.5:1,sever:sg?.7:1,pellet:sg});
     else { const nrm=bx?bx.n:room.n,hp=v3.add(p,v3.sc(nrm,.004)); addDecal(DEC.hole,hp,nrm,.025,140); impactFx(hp,nrm,sg); if(k<2) sfx('ric',.6,hp); } }
-  if(dmg>0) hurtPlayer(Math.round(dmg)); }
+  if(dmg>0) hurtPlayer(Math.round(dmg),{E,kind:'gun',w:KIND_WPN[E.kind],n:parts.length,parts,mz:g.mz,dist:.5,wrestle:true}); }
 /* it's yours */
 function takeGun(G){ const E=G.E,h=G.h,key=KIND_WPN[E.kind],W=WPN[key];
   for(const O of GRABS.slice()) if(O.E===E&&O.name==='gun') endGrab(O);
   E.wpnHeld=false; if(E.C.wpn) E.C.wpn.vis=false; setGrip(E.J,'R',false); setGrip(E.J,'L',false); E.disarmed=true;
-  if(!h.item) equip(h,newItem(key,W.gun?Math.max(2,Math.round(W.mag*rnd(.4,.9))):undefined));
+  if(!h.item) equip(h,newItem(key,W.gun?(PROTO.on?rayDropRounds(key):Math.max(2,Math.round(W.mag*rnd(.4,.9)))):undefined));
   sfx('wrestle',1,mulP(h.M,FIST)); sfx('click',.9); if(XR.on) buzz(h.hand,1,110);
   E.stun=Math.min(1,E.stun+.4); const back=norm3([E.B.x[0]-PL.x,0,E.B.x[2]-PL.z]); for(const i of [PI_.chest,PI_.shL,PI_.shR,PI_['hd'+E.wpnHand]]) kickV(E.B,i,v3.sc(back,1.3),H);
   bark(E,pick(['No— no no no—','Wait— WAIT—','Okay— okay— okay—','Shit— shit—']),1.8); vox(E,'gasp');

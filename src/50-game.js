@@ -802,7 +802,7 @@ function die(E){ if(E.dead) return; protoEmit('death',E); startDrop(E); if(!E.he
 function dropWeapon(E){ if(E.ally||!E.wpnHeld||!E.C.wpn) return; /* the team keep their guns till the men who shot them take them */ E.wpnHeld=false; const w=E.C.wpn,J=E.J;
   const Wm=wpnMat(E); w.vis=false;
   const i=PI_['hd'+E.wpnHand]*3,v=[(E.B.x[i]-E.B.p[i])/H,(E.B.x[i+1]-E.B.p[i+1])/H,(E.B.x[i+2]-E.B.p[i+2])/H];
-  const key=KIND_WPN[E.kind],W=WPN[key]; addPickup(newItem(key,W.gun?Math.max(1,Math.round(W.mag*rnd(.25,.75))):undefined),Wm,v,[rnd(-4,4),rnd(-4,4),rnd(-4,4)]);
+  const key=KIND_WPN[E.kind],W=WPN[key]; addPickup(newItem(key,W.gun?(PROTO.on?rayDropRounds(key):Math.max(1,Math.round(W.mag*rnd(.25,.75)))):undefined),Wm,v,[rnd(-4,4),rnd(-4,4),rnd(-4,4)]);
   setGrip(J,'R',false); setGrip(J,'L',false); }
 
 /* ---------- enemy brain ---------- */
@@ -874,7 +874,7 @@ function think(E,dt,t){
     if(armed(E)){ if(E.burstN>0){ E.burstT-=dt; if(E.burstT<=0){ E.burstN--; E.burstT=.085; enemyShoot(E,true); } }
       else if(E.aware&&E.canSee&&!E.grabbed&&E.atkCd<=0&&E.stun<.3&&dist<KS.range){ E.atkCd=rnd(KS.cd[0],KS.cd[1]); if(enemyShoot(E)===false) E.atkCd=.25; else if(KS.burst){ E.burstN=KS.burst-1; E.burstT=.085; } } }
     else if(E.aware&&E.atkT<0&&E.atkCd<=0&&dist<keep+.35&&E.stun<.3){ E.atkT=0; }
-    if(E.atkT>=0){ const before=E.atkT; E.atkT+=dt; if(before<.44&&E.atkT>=.44){ const f=[Math.sin(E.hd),Math.cos(E.hd)]; if(dist<1.75&&(toP[0]*f[0]+toP[1]*f[1])/(dist||1)>.5) hurtPlayer(E.wpnHeld?(KSTAT[E.kind].melee||9):7); }
+    if(E.atkT>=0){ const before=E.atkT; E.atkT+=dt; if(before<.44&&E.atkT>=.44){ const f=[Math.sin(E.hd),Math.cos(E.hd)]; if(dist<1.75&&(toP[0]*f[0]+toP[1]*f[1])/(dist||1)>.5) hurtPlayer(E.wpnHeld?(KSTAT[E.kind].melee||9):7,{E,kind:'melee',w:E.wpnHeld?KIND_WPN[E.kind]:'fist'}); }
       if(E.atkT>.7){ E.atkT=-1; E.atkCd=rnd(1.4,2.4); } } }
   else E.atkT=-1;
   if(E.st==='down'){ E.modeT=(E.modeT||0)-dt; const prevMode=E.downMode;
@@ -969,15 +969,15 @@ function enemyShoot(E,inBurst){
   const toPl=Math.hypot(...v3.sub([PL.x,1.45,PL.z],mz)),n=KS.shotgun?6:1,hurtArm=Math.min(E.hp.armL,E.hp.armR)>=.45?1:.55;
   /* how likely a shot finds you: better close, worse far, worse with a hurt arm, worse while you're in bullet time? no: bullet time is yours */
   const pHit=clamp(KS.acc*hurtArm*(E.aimMul??1)*(KS.shotgun?clamp(1.6-toPl/5,0,1.4):clamp(1.35-toPl/14,.4,1.2)),0,.95);
-  let dmg=0;
+  let dmg=0,hits=0;
   for(let k=0;k<n;k++){ const tgt=[PL.x+rnd(-.35,.35),1.45+rnd(-.3,.25),PL.z+rnd(-.35,.35)],d=norm3(v3.add(norm3(v3.sub(tgt,mz)),KS.shotgun?[rnd(-.06,.06),rnd(-.05,.05),rnd(-.06,.06)]:[0,0,0]));
     const bl=rayBoxes(mz,d,toPl); if(bl){ const hp=v3.add(v3.add(mz,v3.sc(d,bl.t)),v3.sc(bl.n,.004)); addDecal(DEC.hole,hp,bl.n,.025,140); impactFx(hp,bl.n,!!KS.shotgun); if(k<2) sfx('ric',.7,hp); continue; } /* your cover takes it */
     const bb=bodyInLine(mz,v3.add(mz,v3.sc(d,toPl)),E); if(bb){ hitEnemy(bb.E,bb.seg,bb.p,bb.dir,'gun',{bleed:KS.shotgun?.5:1,sever:KS.shotgun?.7:1,pellet:!!KS.shotgun}); continue; } /* the body in front takes it */
-    if(Math.random()<pHit) dmg+=KS.shotgun?KS.dmg/n*clamp(1.4-toPl/7,.25,1.4):KS.dmg;
+    if(Math.random()<pHit){ dmg+=KS.shotgun?KS.dmg/n*clamp(1.4-toPl/7,.25,1.4):KS.dmg; hits++; }
     else { const r=rayRoom(mz,d),hp=v3.add(v3.add(mz,v3.sc(d,r.t)),v3.sc(r.n,.004)); addDecal(DEC.hole,hp,r.n,.025,140);
       const e=camBasis().eye,tc=clamp(v3.dot(v3.sub(e,mz),d),0,r.t),cp=v3.add(mz,v3.sc(d,tc)); if(k<2&&Math.hypot(...v3.sub(cp,e))<1.6&&tc>1) sfx('whiz',.9,cp); /* it went past your head */
       if(k<2) sfx(Math.random()<.12?'ricw':'ric',.6,hp); } }
-  if(dmg>0) hurtPlayer(Math.round(dmg));
+  if(dmg>0) hurtPlayer(Math.round(dmg),{E,kind:'gun',w:KIND_WPN[E.kind],n:hits,mz,dist:toPl}); /* src: who, what, how many, from where (80-ray.js decides where they land) */
   return true; }
 let flash={t:0,pos:[0,0,0]};
 function muzzle(p,d,big){ flash={t:big?.1:.06,pos:p,big:!!big}; if(d) MF.push({p,d,big:!!big,t:big?.05:.034,roll:Math.random()*6.28,k:rnd(.8,1.25)}); }
@@ -995,7 +995,7 @@ function kick(){ if(!GAME.started||PL.dead||PL.kickCd>0) return; PL.kickCd=.8; c
   if(!best){ const D=doorNear(PL.x+fl[0]*.7,PL.z+fl[2]*.7,.95); if(D&&D.state==='closed'){ kickDoor(D); return; } sfx('swish'); return; } const E=best.E; sfx('kick');
   for(const i of [PI_.pelvis,PI_.chest,PI_.hipL,PI_.hipR,PI_.neck]) kickV(E.B,i,v3.add(v3.sc(fl,5.5),[0,.6,0]),H);
   E.stun=Math.min(1,E.stun+1.1); E.shoveT=0; E.slamT=Math.max(E.slamT||0,.7); kickedDown(E,fl); setAware(E,'kick'); if(E.st==='kneel'){ toDown(E); } }
-function hurtPlayer(d,src){ if(PL.dead) return; protoEmit('hurt',d,src||{}); PL.hp-=d; PL.hurtT=0; XR.flash=.35; if(XR.on){ buzz('left',1,120); buzz('right',1,120); } $('flash').classList.remove('on'); void $('flash').offsetWidth; $('flash').classList.add('on'); screenBlood(2); sfx('hurt');
+function hurtPlayer(d,src){ if(PL.dead) return; src=src||{}; if(PROTO.on){ d=rayHurtDmg(d,src); if(d<=0) return; } /* by weapon and body part; 0 when his cover took it (80-ray.js) */ protoEmit('hurt',d,src); PL.hp-=d; PL.hurtT=0; XR.flash=PROTO.on?pnum('ray','flash',0):.35; if(XR.on){ buzz('left',1,120); buzz('right',1,120); } $('flash').classList.remove('on'); void $('flash').offsetWidth; $('flash').classList.add('on'); screenBlood(2); sfx('hurt');
   if(PL.hp<=0){ PL.hp=0; PL.dead=true; PL.deadT=0; showMsg('YOU DIED','Back to the start of the level.'); } }
 
 /* ---------- screen + sound ---------- */
@@ -1147,7 +1147,7 @@ addEventListener('keydown',e=>{ KEYS[e.code]=true; if(!GAME.started) return;
   else if(e.code==='KeyQ'&&HANDS.R.item){ HANDS.R.vel=v3.sc(camBasis().f,4); grabOrDrop(HANDS.R); } });
 addEventListener('mousedown',e=>{ if(e.button===0) KEYS.Mouse0=true; }); addEventListener('mouseup',e=>{ if(e.button===0) KEYS.Mouse0=false; });
 addEventListener('keyup',e=>{ KEYS[e.code]=false; });
-function toggleSlow(){ GAME.slow=!GAME.slow; sfx(GAME.slow?'slowin':'slowout'); $('bSlow').setAttribute('aria-pressed',String(GAME.slow)); $('bSlowT').setAttribute('aria-pressed',String(GAME.slow)); }
+function toggleSlow(){ if(PROTO.on) return; /* no bullet time in the prototype */ GAME.slow=!GAME.slow; sfx(GAME.slow?'slowin':'slowout'); $('bSlow').setAttribute('aria-pressed',String(GAME.slow)); $('bSlowT').setAttribute('aria-pressed',String(GAME.slow)); }
 let drag=null;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('pointerdown',e=>{ if(!GAME.started) return; audio();
@@ -1177,9 +1177,9 @@ const clip=(p)=>{ const v=mulP(view,p),c=[proj[0]*v[0]+proj[4]*v[1]+proj[8]*v[2]
 function update(dt,now){
   GAME.ts=lerp(GAME.ts,GAME.slow?.22:1,Math.min(1,dt*6)); const gdt=dt*GAME.ts; GAME.t+=gdt; GAME.barkGlobal-=gdt;
   if(GAME.started&&!PL.dead&&!XR.on){ let mx=(KEYS.KeyD||KEYS.ArrowRight?1:0)-(KEYS.KeyA||KEYS.ArrowLeft?1:0)+stick.dx,mz=(KEYS.KeyW||KEYS.ArrowUp?1:0)-(KEYS.KeyS||KEYS.ArrowDown?1:0)-stick.dy;
-    const l=Math.hypot(mx,mz); if(l>1){ mx/=l; mz/=l; } const sp=2.6*dt*Math.max(GAME.ts,.3),fx=-Math.sin(PL.yaw),fz=-Math.cos(PL.yaw),rx=Math.cos(PL.yaw),rz=-Math.sin(PL.yaw);
+    const l=Math.hypot(mx,mz); if(l>1){ mx/=l; mz/=l; } const sp=2.6*dt*Math.max(GAME.ts,.3)*(PROTO.on?raySpeedK():1),fx=-Math.sin(PL.yaw),fz=-Math.cos(PL.yaw),rx=Math.cos(PL.yaw),rz=-Math.sin(PL.yaw);
     PL.x+=(fx*mz+rx*mx)*sp; PL.z+=(fz*mz+rz*mx)*sp; collidePlayer(); }
-  if(GAME.started&&!PL.dead){ PL.hurtT+=dt; if(PL.hurtT>3.5) PL.hp=Math.min(100,PL.hp+9*dt); }
+  if(GAME.started&&!PL.dead){ PL.hurtT+=dt; if(PL.hurtT>3.5&&!PROTO.on) PL.hp=Math.min(100,PL.hp+9*dt); } /* prototype: it doesn't come back (80-ray.js) */
   if(GAME.started&&PL.dead){ PL.deadT=(PL.deadT||0)+dt; if(PL.deadT>3.5) restartLevel(); } /* a few seconds on the floor, then back to the start of the level */
   PL.kickCd-=dt; XR.flash=Math.max(0,XR.flash-dt);
   for(const h of [HANDS.L,HANDS.R]){ tickItem(h,dt); if(XR.on) tickCan(h); if(h.swingT>=0){ const hv=h.item&&WPN[h.item.key].heavy; h.swingT+=dt/(hv?.55:.34); if(!h.swingDone&&h.swingT>.42){ h.swingDone=true; flatSwingHit(h); } if(h.swingT>=1) h.swingT=-1; } }
@@ -1275,7 +1275,7 @@ function frame(now){
   m4.persp(proj,50*Math.PI/180,cv.width/cv.height,0.05,120); m4.lookAt(view,eye,v3.add(eye,f),[0,1,0]);
   const h=state.res,w=Math.max(1,Math.round(h*cv.width/cv.height)); ensureFB(w,h); gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderWith(w,h); post(null,0,0,cv.width,cv.height,w,h);
   for(const E of enemies){ const el=E.barkEl; if(E.barkT>0&&!E.dead){ const hp=X_(E.B,PI_.head),c=clip(v3.add(hp,[0,.32,0])); if(c[2]>.1){ el.hidden=false; el.style.transform=`translate(${(c[0]/c[2]*.5+.5)*innerWidth}px,${(.5-c[1]/c[2]*.5)*innerHeight}px) translate(-50%,-100%)`; el.style.opacity=Math.min(1,E.barkT*2); } else el.hidden=true; } else el.hidden=true; }
-  { const it=HANDS.R.item,w=it&&WPN[it.key]; $('ammo').textContent=!w?'FISTS':!w.gun?w.label.toUpperCase():it.reload>0?'RELOADING':`${it.ammo} / ${w.mag}`; } $('hp').style.width=`${PL.hp}%`;
+  { const it=HANDS.R.item,w=it&&WPN[it.key]; $('ammo').textContent=!w?'FISTS':!w.gun?w.label.toUpperCase():it.reload>0?'RELOADING':PROTO.on?`${it.ammo} | ${raySpare(it)} spare`:`${it.ammo} / ${w.mag}`; } $('hp').style.width=`${PL.hp}%`;
   $('slowTag').hidden=true;
   if(!window.__noRaf) requestAnimationFrame(frame); }
 window.__stepFrame=n=>{ for(let i=0;i<(n||1);i++){ const t=last+1000*(window.__fixedDt||1/60); frame(t); } }; /* test hook: run frames by hand */
@@ -1333,6 +1333,7 @@ function xrFrame(t,xf){
     const h=hand==='right'?HANDS.R:HANDS.L; h.src=src; XR.hands[hand]=h; const rp=src.targetRaySpace&&xf.getPose(src.targetRaySpace,XR.space); if(!rp) continue;
     const gpo=src.gripSpace&&xf.getPose(src.gripSpace,XR.space),gunIn=h.item&&WPN[h.item.key].gun,ray=poseMat(rp),base=m4.make(); /* guns aim down the controller ray; empty hands and blades sit in the grip pose like a real fist */
     m4.mul(base,gpo&&!gunIn?gripHand(poseMat(gpo)):handModel(ray),handTweak(h)); const k=h.rec,rec=m4.make(); rec.set([1,0,0,0, 0,Math.cos(k*.4),Math.sin(k*.4),0, 0,-Math.sin(k*.4),Math.cos(k*.4),0, 0,k*.01,-k*.04,1]); m4.mul(h.M,base,rec);
+    if(PROTO.on) rayHandFx(h,dt); /* knocked by a hit, an arm wound's sway, the shakes (80-ray.js); never the head */
     setLocal(h.node,m4.make(),h.M); h.node.vis=!PL.dead;
     const fp=mulP(h.M,FIST); if(h.prevPos) h.vel=v3.add(v3.sc(h.vel,.5),v3.sc(v3.sub(fp,h.prevPos),.5/Math.max(dt,1e-3))); h.prevPos=fp;
     const gp=src.gamepad; if(!gp) continue; const ax=gp.axes,b=gp.buttons,pressed=i=>!!(b[i]&&b[i].pressed),edge=i=>{ const kk=hand+i,p=pressed(i),was=XR.btn[kk]; XR.btn[kk]=p; return p&&!was; };
@@ -1340,11 +1341,11 @@ function xrFrame(t,xf){
     if(PL.dead){ if(trig) restartLevel(); continue; }
     if(grip){ if(!h.item&&!h.grab&&nearGoggles(fp,eye,f,u)) cycleVision(); else grabOrDrop(h); }
     if(h.item&&WPN[h.item.key].gun){ if(trig||(WPN[h.item.key].auto&&pressed(0))) fireHand(h); }
-    if(ab){ if(h.item&&WPN[h.item.key].melee) flipGrip(h); else reloadHand(h); } if(by) kick();
+    if(ab){ if(h.item&&WPN[h.item.key].melee) flipGrip(h); else if(!PROTO.on) reloadHand(h); } if(PROTO.on) rayABTick(h,pressed(4),dt); /* tap reloads, hold counts (80-ray.js) */ if(by) kick();
     /* point-down reload: aim the barrel at the floor for half a second (a shotgun keeps feeding shells while you hold it there) */
     if(h.item&&WPN[h.item.key].gun){ const it=h.item,w=WPN[it.key],Mi=itemM(h),bd=norm3(v3.sub(mulP(Mi,w.muzzle),mulP(Mi,[0,w.axisY,0])));
       h.downT=bd[1]<-.87?(h.downT||0)+dt:0; if(h.downT>.5&&!(it.reload>0)){ reloadHand(h); if(it.reload>0) buzz(h.hand,.35,40); } } else h.downT=0;
-    if(hand==='left'){ const sx=ax[2]||0,sz=ax[3]||0; if(GAME.started&&Math.hypot(sx,sz)>.15){ const fl=norm3([f[0],0,f[2]]),rl=[-fl[2],0,fl[0]],sp=2.2*dt*Math.max(GAME.ts,.3); /* bullet time slows you too */
+    if(hand==='left'){ const sx=ax[2]||0,sz=ax[3]||0; if(GAME.started&&Math.hypot(sx,sz)>.15){ const fl=norm3([f[0],0,f[2]]),rl=[-fl[2],0,fl[0]],sp=2.2*dt*Math.max(GAME.ts,.3)*(PROTO.on?rayStickK():1); /* bullet time slows you too; prototype: hit, leg wound, crouch (80-ray.js) */
         const before=[PL.x,PL.z]; PL.x+=(rl[0]*sx-fl[0]*sz)*sp; PL.z+=(rl[2]*sx-fl[2]*sz)*sp; collidePlayer(); XR.origin[0]+=PL.x-before[0]; XR.origin[2]+=PL.z-before[1]; }
       if(stickC) toggleSlow(); }
     else { const sx=ax[2]||0; if(Math.abs(sx)>.7&&!XR.snapHeld){ XR.snapHeld=true; const a=-Math.sign(sx)*Math.PI/6,c=Math.cos(a),s=Math.sin(a),dx=XR.origin[0]-eye[0],dz=XR.origin[2]-eye[2];
