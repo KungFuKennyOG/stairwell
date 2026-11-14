@@ -694,7 +694,7 @@ function proTick(dt){ const P=FLOOR.pro; if(!P) return; P.t+=dt; P.spkT=(P.spkT|
     return; } }
 
 /* ---------- the start card: which floor ---------- */
-function towerBoot(){ const i=towerSaved(); genTower(i); buildRack(); buildBoard();
+function towerBoot(){ const i=PROTO.on&&!new URLSearchParams(location.search).has('f')?1:towerSaved(); genTower(i); /* the prototype starts on floor 01, never on your saved floor */ buildRack(); buildBoard();
   const row=$('lvlRow'); if(!row) return;
   /* one button per built floor, generated from TOWER, before the motel and test buttons */
   const ref=row.querySelector('[data-lvl="motel"]')||row.querySelector('[data-lvl="test"]');
