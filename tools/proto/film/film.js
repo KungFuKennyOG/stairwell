@@ -28,7 +28,7 @@ const SCENES = fs.readFileSync(path.join(__dirname, 'scenes.js'), 'utf8');
     const dur = await p.evaluate(n => window.__eval(`FILM.begin(${JSON.stringify(n)})`), name);
     const n = Math.round(dur * FPS); let ff = null, tmp = null;
     if (mode === 'full') { tmp = path.join(out, `_${name}.mp4`);
-      const LABELS = { hall: 'Floor 01 prototype  /  the hall', hunt: 'Hiding behind the sofa: the flashlight pair searches', melee: 'A pipe, from behind', gun: "Gunfight in the tenants' flat", exit: 'Bolt cutter on the chained door' };
+      const LABELS = { hall: 'Floor 01 prototype  /  the hall', standoff: 'The two hunters: guns up, spreading out', hunt: 'Hiding behind the sofa: the flashlight pair searches', melee: 'A pipe, from behind', gun: "Gunfight in the tenants' flat", exit: 'Bolt cutter on the chained door' };
       const lab = (LABELS[name] || name).replace(/'/g, '\u2019').replace(/:/g, '\\:');
       const vf = `drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf:text='${lab}':fontsize=22:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw=8:x=28:y=h-56:alpha='if(lt(t,2.6),1,max(0,1-(t-2.6)/0.4))':enable='lt(t,3)'`;
       ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-c:v', 'mjpeg', '-framerate', String(FPS), '-i', '-', '-vf', vf, '-c:v', 'libx264', '-crf', '18', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-r', String(FPS), tmp], { stdio: ['pipe', 'inherit', 'inherit'] }); }

@@ -17,7 +17,7 @@ window.FILM = (() => {
   F.go = (x, z, slow, pitch = 0) => { const d = navTo(PL.x, PL.z, x, z); F.cam.yaw = Math.atan2(-d[0], -d[2]); F.cam.pitch = pitch;
     if (Math.hypot(x - PL.x, z - PL.z) < .15) { F.stop(); return 0; }
     if (slow) { KEYS.KeyW = false; stick.dy = -slow; } else { stick.dy = 0; KEYS.KeyW = true; } return Math.hypot(x - PL.x, z - PL.z); };
-  F.stop = () => { KEYS.KeyW = false; stick.dy = 0; };
+  F.stop = () => { KEYS.KeyW = false; KEYS.KeyS = false; stick.dy = 0; };
   F.shoot = (E, part) => { const p = F.pt(E, part), e = camBasis().eye, it = HANDS.R.item; if (!it) return; it.cd = 0; it.chambered = true; if (it.ammo < 1) it.ammo = 3;
     fireHand(HANDS.R, { o: e, d: norm3(v3.sub(p, e)) }); };
   F.ray = (x, z, look) => { PL.x = x; PL.z = z; PL.dead = false; if (look) { F.aim(look); F.snap(); } };
@@ -29,10 +29,14 @@ window.FILM = (() => {
     { name: 'hall', dur: 5.5, setup(F) { F.ray(-7.7, -.15, [0, 1.5, .1]); F.away(F.E('Tito')); F.away(F.E('Jojo')); },
       acts: [[0, 5.5, F => { F.aim([2, 1.45, .05], 2); KEYS.KeyW = false; stick.dy = -.32; }]] },
 
-    { name: 'hunt', dur: 10.8, setup(F) { equip(HANDS.R, null); PL.crouchT = true; F.ray(-10.4, -1.95, [-7.2, 1.0, -2.6]);
+    { name: 'hunt', dur: 8.2, setup(F) { equip(HANDS.R, null); PL.crouchT = true; F.ray(-10.4, -1.95, [-7.2, 1.0, -2.6]);
         const a = F.E('Tito'), b = F.E('Jojo'); F.tp(a, -2.5, 0, -Math.PI / 2); F.tp(b, -1.4, .3, -Math.PI / 2); },
       acts: [[.3, null, F => { huntAlert('noise', [-9.0, -3.2], 1); }],
         [0, 16, F => { const a = F.E('Tito'); if (!a || a.dead) return; const p = F.pt(a, 'chest'); F.aim([p[0], Math.min(p[1], 1.25), p[2]], 1.2); }]] },
+
+    { name: 'standoff', dur: 6.3, setup(F) { equip(HANDS.R, newItem('pistol')); for (const n of ['Dani', 'Kev', 'Mario', 'Rui']) F.away(F.E(n)); F.ray(6.6, -.1, [0, 1.4, 0]);
+        const a = F.E('Tito'), b = F.E('Jojo'); F.tp(a, 3.3, -.3, Math.PI / 2); F.tp(b, 2.5, .45, Math.PI / 2); for (const E of [a, b]) { setAware(E, 'seen'); E.st = 'alert'; } },
+      acts: [[0, 7, F => { const a = F.E('Tito'), b = F.E('Jojo'); const p = a && !a.dead ? F.pt(a, 'chest') : [0, 1.3, 0], q = b && !b.dead ? F.pt(b, 'chest') : p; F.aim([(p[0] + q[0]) / 2, 1.35, (p[2] + q[2]) / 2], 2); KEYS.KeyS = t < 4.5; }]] },
 
     { name: 'melee', dur: 10, setup(F) { equip(HANDS.R, newItem('pipe')); PL.crouchT = true; F.ray(-8.2, 2.55, [-10.85, 1.3, 3.6]);
         const d = F.E('Dani'); F.tp(d, -10.85, 3.6, -Math.PI / 2); F.away(F.E('Tito')); F.away(F.E('Jojo')); },
