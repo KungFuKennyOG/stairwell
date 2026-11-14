@@ -157,7 +157,7 @@ function melSweep(h,dt){ const S=melState(h);
   if(!GAME.started||PL.dead||h.stuck||h.supportOf||h.grab||!S.p){ S.prevIW=null; S.hist.length=0; return; }
   if(S.node!==h.itemNode){ S.node=h.itemNode; S.prevIW=null; S.hist.length=0; } /* a new item, or a knife flipped in the hand: start the sweep fresh */
   const key=h.item?h.item.key:'fists',w=WPN[key],caps=melStrikes(w),cur=new Float32Array(S.IW);
-  S.hist.unshift({M:cur,R:new Float32Array(S.RW),dt:Math.max(dt,1e-3)}); if(S.hist.length>7) S.hist.length=7;
+  S.hist.unshift({M:cur,R:new Float32Array(S.RW),dt:Math.max(dt,1e-3)}); if(S.hist.length>12) S.hist.length=12;
   const prev=S.prevIW; S.prevIW=cur;
   /* contacts held: let a man go once the weapon is well clear of him */
   for(const [E,t] of S.lock){ if(!enemies.includes(E)||GAME.t-t>1.2||GAME.t-t>.12&&melClear(E,caps,cur,.04)) S.lock.delete(E); }
@@ -214,8 +214,8 @@ function melContact(h,S,E,c,hit,u,w,key){ const P=PROTO.melee;
   const X0=E.melX0||B.x,X1=E.melX1||B.x,vb=[0,1,2].map(k=>((X1[i+k]-X0[i+k])*(1-s)+(X1[j+k]-X0[j+k])*s)/(E.melDt||1));
   const Zw=norm3(melRot(Mu,c.kind==='point'&&c.n?c.n:[0,0,1])); /* which way a point goes in */
   /* each of the last three frames, for the weapon you see and the one in your real hand: the contact point's velocity relative to him */
-  const lagF=3+Math.ceil(melTaus(h,w,S)[0]*1.5/Math.max(S.hist[0].dt,1e-3)); /* a lagging blade arrives carrying the swing your hand made a moment earlier */
-  const V=[]; for(let f=0;f+1<S.hist.length&&f<6;f++) for(const k of ['M','R']){ if(f>=(k==='M'?3:lagF)) continue; const vr=v3.sub(v3.sc(v3.sub(mulP(S.hist[f][k],ci),mulP(S.hist[f+1][k],ci)),1/S.hist[f].dt),vb),m=Math.hypot(...vr); if(m>1e-4) V.push({vr,m,cs:clamp(-v3.dot(vr,hit.n)/m,0,1),vis:k==='M'}); }
+  const lagF=Math.min(11,3+Math.ceil(melTaus(h,w,S)[0]*3/Math.max(S.hist[0].dt,1e-3))); /* a heavy weapon arrives carrying the swing your hand made while it was catching up (about 3 lag times) */
+  const V=[]; for(let f=0;f+1<S.hist.length&&f<11;f++) for(const k of ['M','R']){ if(f>=(k==='M'?3:lagF)) continue; const vr=v3.sub(v3.sc(v3.sub(mulP(S.hist[f][k],ci),mulP(S.hist[f+1][k],ci)),1/S.hist[f].dt),vb),m=Math.hypot(...vr); if(m>1e-4) V.push({vr,m,cs:clamp(-v3.dot(vr,hit.n)/m,0,1),vis:k==='M'}); }
   let dir=hit.d,raw=0,tang=0; for(const x of V) if(x.vis&&x.m>raw){ raw=x.m; dir=v3.sc(x.vr,1/x.m); tang=x.m*Math.sqrt(Math.max(0,1-x.cs*x.cs)); } /* the way the weapon you see was going */
   const ax=V.reduce((a,x)=>Math.max(a,v3.dot(x.vr,Zw)),0);
   const o=otherHand(h),grabbed=!!(o.grab&&o.grab.E===E&&!E.dead); /* the other hand holds him: he's steady, everything lands, a tier harder */
@@ -230,7 +230,8 @@ function melContact(h,S,E,c,hit,u,w,key){ const P=PROTO.melee;
   const bax=norm3(v3.sub(mulP(Mu,c.b),mulP(Mu,c.a))),edgeV=x=>Math.hypot(...v3.sub(x.vr,v3.sc(bax,v3.dot(x.vr,bax))));
   let speed=0; for(const x of V) speed=Math.max(speed,kind==='stab'||c.kind==='point'?v3.dot(x.vr,Zw):kind==='cut'&&c.b!==c.a?Math.max(edgeV(x),x.m*(.7+.3*x.cs)):x.m*(.7+.3*x.cs));
   const T0=P.tier,ts=kind==='blunt'?speed*Math.min(1.4,Math.sqrt(1+.6*melMass(w))):speed; /* a heavier club lands a little harder than its speed */
-  let tier=kind==='push'?0:speed<T0[0]?0:ts<T0[1]?1:ts<T0[2]?2:3; /* weight raises the harder tiers, never turns a touch into a hit */
+  const touch=c.kind==='point'?speed:V.reduce((a,x)=>Math.max(a,x.m),0); /* push or hit: how fast it met him at all. How square it landed and how heavy it is only shape the harder tiers */
+  let tier=kind==='push'?0:touch<T0[0]?0:ts<T0[1]?1:ts<T0[2]?2:3;
   if(grabbed) tier=Math.min(3,tier+1);
   if(kind==='cut'&&tier===0) kind=tang>.6?'slice':'push'; /* under push speed a blade only opens him if drawn along him */
   if(kind==='blunt'&&tier===0) kind='push';

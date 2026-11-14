@@ -1,7 +1,7 @@
 // Melee test rig: a simulated VR hand swings each weapon through a standing man and reports what registered.
 // It drives HANDS.R.M along scripted swing arcs and runs the same per-hand calls as xrFrame (meleeTick, vrMelee,
 // applySupport), then update() and updateWorld(), with requestAnimationFrame off and setTimeout on game time.
-// usage: node tools/melee-rig.js index.html [reg|tier|perf|all] [--quick] [--json out.json]
+// usage: node tools/melee-rig.js index.html [reg|tier|feel|perf|all|one] [--quick] [--json out.json]   (env RIG_Q: page query, default f=1)
 //   reg  : registration sweep. weapons x speeds x body parts x swing types x speed profiles, plus deliberate misses
 //          5-10 cm past him. The man is left unharmed between swings (hits are recorded, not applied).
 //   tier : what each tier does to a fresh man (real hits): pushes, staggers, knockdowns, winding, cuts, chops.
@@ -140,8 +140,8 @@ window.__RIG=(function(){
   function surface(E,T,D){ const o=sub(T,sc(D,.7)),r=skinRay(E,o,D,1.2); return r; }
   const tierOf=v=>v<1.5?0:v<3.5?1:v<6?2:3;
   /* ---- registration sweep ---- */
-  function reg(q){ DRY=true; deaf=true; if(NEW) PROTO.melee.dry=true; const E=fresh('gunman'); const h=HANDS.R,rows=[],miss=[];
-    const W=(q?['fists','knife','machete','pistol']:['fists','knife','bottle','machete','pistol']).concat(WPN.pan&&!q?['pan','hammer','pipe','cutter']:[]),SP=q?[1,1.5,4,8]:[1,1.5,2.5,4,6,8],PARTS=['head','jaw','neck','chest','belly','uarm','farm','thigh'],PROF=q?['pull']:['steady','pull'];
+  function reg(q,RIGW){ DRY=true; deaf=true; if(NEW) PROTO.melee.dry=true; const E=fresh('gunman'); const h=HANDS.R,rows=[],miss=[];
+    const W=RIGW||(q?['fists','knife','machete','pistol']:['fists','knife','bottle','machete','pistol']).concat(WPN.pan&&!q?['pan','hammer','pipe','cutter']:[]),SP=q?[1,1.5,4,8]:[1,1.5,2.5,4,6,8],PARTS=['head','jaw','neck','chest','belly','uarm','farm','thigh'],PROF=q?['pull']:['steady','pull'];
     for(const w of W){ equip(h,w==='fists'?null:newItem(w)); park(h); for(let i=0;i<6;i++) frame();
       for(const part of PARTS) for(const type of TYPES[w]) for(const prof of PROF) for(const v of SP){
         const spec=swingSpec(E,w,type,part),T=target(E,part),hit=surface(E,T,spec.D); if(!hit){ rows.push({w,part,type,prof,v,skip:'no surface'}); continue; }
@@ -269,7 +269,7 @@ const TIER_CASES = [
   const p = await b.newPage({ viewport: { width: 320, height: 200 } }); const errs = [];
   p.on('pageerror', e => errs.push(String(e).slice(0, 300))); p.on('console', m => { if (m.type() === 'error') errs.push(m.text().slice(0, 300)); });
   p.setDefaultTimeout(0); /* the machine is shared: loading can take a while */
-  await p.goto(file + '?f=1', { timeout: 300000 }); await p.waitForTimeout(400); await p.click('#start'); await p.waitForTimeout(300);
+  await p.goto(file + '?' + (process.env.RIG_Q || 'f=1'), { timeout: 300000 }); /* RIG_Q: another query, e.g. "f=1&proto=1&pf=0" */ await p.waitForTimeout(400); await p.click('#start'); await p.waitForTimeout(300);
   await p.evaluate(s => window.__eval(s), IN_PAGE);
   const NEW = await p.evaluate(() => window.__RIG.NEW);
   const out = { new: NEW };
@@ -284,7 +284,7 @@ const TIER_CASES = [
     console.log(`  flat screen, two clicks at his head with fists: tiers ${r.flat.tiers.join(',')}, down ${r.flat.down}`); }
   if (mode === 'one') { const a = JSON.parse(process.argv[4]); console.log(JSON.stringify(await p.evaluate(a => window.__RIG.one(...a), a))); }
   if (mode === 'reg' || mode === 'all') {
-    const t0 = Date.now(); const R = await p.evaluate(q => window.__RIG.reg(q), quick); out.reg = R;
+    const t0 = Date.now(); const R = await p.evaluate(([q, w]) => window.__RIG.reg(q, w), [quick, process.env.RIG_W ? process.env.RIG_W.split(',') : null]); /* RIG_W: only these weapons */ out.reg = R;
     const rows = R.rows.filter(r => !r.skip), W = [...new Set(rows.map(r => r.w))], SP = [...new Set(rows.map(r => r.v))].sort((a, b) => a - b);
     const pct = (a) => a.length ? Math.round(100 * a.filter(x => x).length / a.length) : '-';
     console.log('timing: ' + JSON.stringify(R.tm));
