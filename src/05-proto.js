@@ -13,7 +13,7 @@
      load()               a floor was loaded (after reset)
    ===================================================================== */
 const PROTO=(()=>{ const q=new URLSearchParams(location.search);
-  return { on:q.get('proto')==='1', floor:q.get('pf')!=='0', v:'0.1' }; })();
+  return { on:q.get('proto')==='1'||location.hash==='#proto', floor:q.get('pf')!=='0', v:'0.1' }; })();
 const PROTO_EV={};
 function protoOn(ev,fn){ (PROTO_EV[ev]||(PROTO_EV[ev]=[])).push(fn); }
 function protoEmit(ev,...a){ const L=PROTO_EV[ev]; if(!L) return; for(const fn of L){ try{ fn(...a); }catch(e){ console.error('[proto:'+ev+']',e); } } }

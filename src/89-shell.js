@@ -152,7 +152,9 @@ function drawWrist2(){ if(!wristN){ wristTex=tex(64,7,'#0a0b0d'); wristN=mk(plan
   if(wristTex.glt){ gl.bindTexture(gl.TEXTURE_2D,wristTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,wristTex.c); } }
 
 /* ---------- the start card: in and out of the prototype, the mic switch ---------- */
-function shellGo(on){ const q=new URLSearchParams(location.search); for(const k of ['proto','pf','f','pdbg']) q.delete(k); if(on) q.set('proto','1');
+function shellGo(on){ let framed=false; try{ framed=window.top!==window; }catch(_){ framed=true; }
+  if(framed){ location.hash=on?'proto':''; location.reload(); return; } /* in a frame (the claude.ai preview) a query string doesn't carry; #proto does */
+  const q=new URLSearchParams(location.search); for(const k of ['proto','pf','f','pdbg']) q.delete(k); if(on) q.set('proto','1');
   const s=q.toString(); location.href=location.pathname+(s?'?'+s:''); }
 for(const [id,on] of [['protoBtn',true],['protoBack',false],['pBack',false]]){ const b=$(id); if(b) b.addEventListener('click',()=>shellGo(on)); }
 { const b=$('pAgain'); if(b) b.addEventListener('click',()=>{ audio(); shellAgain(); if(!isTouch){ try{ const p=cv.requestPointerLock(); if(p&&p.catch) p.catch(()=>{}); }catch(_){} } }); }
