@@ -26,8 +26,9 @@ const upright=E=>!E.dead&&(E.st==='idle'||E.st==='alert');
 const say=(E,lines,dur)=>{ if(E.barkCd<=0&&GAME.barkGlobal<=0){ bark(E,pick(lines),dur); GAME.barkGlobal=.9; return true; } return false; };
 
 /* a sound at src [x,y,z], heard out to rad metres. o.alarm: gunshot/scream/kick. o.from: the enemy making it (doesn't hear himself) */
-function noise(src,rad,o={}){ if(!rad||!GAME.started) return; if(typeof twHush==='function') rad*=twHush(src); /* the party music swallows it (72-tower-money.js) */
-  protoEmit('noise',src,rad,o);
+function noise(src,rad,o={}){ if(!rad||!GAME.started) return; const hush=typeof twHush==='function'?twHush(src):1; /* the party music swallows it (72-tower-money.js) */
+  if(PROTO.on&&typeof huntNoise==='function'){ huntNoise(src,rad,o,hush); return; } /* the prototype: radius by kind, halved per wall (83-hunt.js) */
+  rad*=hush; protoEmit('noise',src,rad,o);
   for(const E of enemies){ if(E===o.from||!upright(E)||E.ally) continue;
     const d=Math.hypot(E.pos[0]-src[0],E.pos[1]-src[2]); if(d>rad) continue;
     const los=soundClear([E.pos[0],1.6,E.pos[1]],[src[0],1.2,src[2]]),r=los?rad:rad*(o.voice?.4:o.alarm?.6:.45); if(d>r) continue; /* through a wall: a gunshot still carries, a voice or a footstep doesn't */
@@ -44,41 +45,41 @@ const freshGoal=E=>{ E.pgT=0; E.pgP=null; };
 
 function hear(E,src,k,o){ if(!upright(E)) return; const at=navSnap(src[0],src[2]);
   if(E.aware){ if(!E.canSee){ E.lkp=at; E.lostT=Math.max(E.lostT||0,.7); } return; }
+  if(PROTO.on&&!E.civ&&typeof huntHeard==='function'){ huntHeard(E,src,k,o); return; } /* the floor decides who goes to look (83-hunt.js) */
   /* your shout: whoever has a line to you knows it's you; behind a wall only right next to it, the rest of the next room comes to look */
   if(o.voice){ if(o.los||k<.45||(E.mind&&E.mind!=='calm')) setAware(E,'voice',at); else investigate(E,at); return; }
   if(o.alarm&&(k<.65||(E.mind&&E.mind!=='calm'))) setAware(E,'noise',at);
   else investigate(E,at); }
 
 function investigate(E,at){ if(E.dead||E.aware||E.ally) return; if(E.civ) return; /* tenants don't go and look */
+  if(PROTO.on&&typeof huntLookJob==='function'){ huntLookJob(E,at); return; } /* a look: there, a check, 8-12 s, back (83-hunt.js) */
   if(typeof twBrace==='function'&&twBrace(E,at)) return; /* the tower: two go to look, the rest stay put (66-tower.js) */
   if(E.mind==='search'){ E.srcC=at; E.wp=at; E.pauseT=0; E.searchT=Math.max(E.searchT,6); return; }
   if(E.mind!=='investigate') say(E,LINES.huh,2);
   E.mind='investigate'; E.lkp=at; E.goalT=0; freshGoal(E); if(E.st==='idle') E.st='alert'; }
 
-function startSearch(E,c,why){ E.aware=false; E.mind='search'; E.srcC=navSnap(c[0],c[1]); E.wp=null; E.pauseT=0; E.goalT=0; freshGoal(E);
+function startSearch(E,c,why){ if(PROTO.on&&typeof huntTakeOver==='function'&&huntTakeOver(E,c,why)) return; /* a hunt is on: he joins it (83-hunt.js) */
+  E.aware=false; E.mind='search'; E.srcC=navSnap(c[0],c[1]); E.wp=null; E.pauseT=0; E.goalT=0; freshGoal(E);
   E.searchT=why==='body'?rnd(14,18):why==='inv'?rnd(6,9):rnd(10,14); E.sayT=rnd(3,6);
   if(why==='lost') say(E,LINES.lost,2.2); }
 
-function giveUp(E){ E.mind='nervous'; E.wp=null; E.lkp=null; E.goHome=true; freshGoal(E); say(E,LINES.giveup,2.4); }
+function giveUp(E){ E.mind='nervous'; E.wp=null; E.lkp=null; E.goHome=!(PROTO.on&&typeof HUNT!=='undefined'&&HUNT.state!=='calm'); freshGoal(E); say(E,LINES.giveup,2.4); } /* prototype: once the floor isn't calm nobody goes back to stand at his post */
 
 /* called from think() every frame for anyone alive: eyes, then what that means */
 function senses(E,dt,dist,toP,B){ if(E.ally){ E.canSee=false; return; } /* the team in the prologue: no eyes, no ears, no turning on you */
   E.sightT=(E.sightT||0)-dt; let tick=false;
-  if(E.sightT<=0){ E.sightT=.2; tick=true; E.canSee=sightClear(X_(B,PI_.head),[PL.x,1.55,PL.z])&&seenInDark(E,dist); }
+  if(E.sightT<=0){ E.sightT=.2; tick=true; E.canSee=PROTO.on&&typeof huntSight==='function'?huntSight(E,dist,B):sightClear(X_(B,PI_.head),[PL.x,1.55,PL.z])&&seenInDark(E,dist); }
   if(!GAME.started||!upright(E)) return;
   if(!E.aware){
-    const fwd=[Math.sin(E.hd),Math.cos(E.hd)],facing=(toP[0]*fwd[0]+toP[1]*fwd[1])/(dist||1),edgy=E.mind&&E.mind!=='calm',
+    if(PROTO.on&&typeof huntPerceive==='function'){ /* the prototype: a meter that fills while he sees you (83-hunt.js) */
+      if(huntPerceive(E,dt,dist,toP)){ E.pm=0; setAware(E,'see'); if(!E.civ&&typeof huntSpotted==='function') huntSpotted(E); } else if(tick) huntBodies(E,B); }
+    else { const fwd=[Math.sin(E.hd),Math.cos(E.hd)],facing=(toP[0]*fwd[0]+toP[1]*fwd[1])/(dist||1),edgy=E.mind&&E.mind!=='calm',
       range=edgy?8.5:6,cone=edgy?.2:.45,inView=E.canSee&&(dist<1.1&&facing>-.2||dist<.45||(dist<range&&facing>cone));
     /* a beat before it registers: someone calm across the room takes up to half a second, someone already looking is quick. You can duck back out */
     const need=edgy?.12:clamp((dist-1.5)*.12,0,.55);
     E.spotT=inView?(E.spotT||0)+dt:Math.max(0,(E.spotT||0)-dt*.5);
     if(inView&&E.spotT>=need){ E.spotT=0; setAware(E,'see'); }
-    /* bodies: a friend on the floor, dead or bleeding out */
-    else if(tick&&enemies.length>1){ for(const O of enemies){ if(O===E||!(O.dead||O.st==='down'||O.st==='kneel')||(E.seen&&E.seen.has(O))) continue;
-        const op=X_(O.B,PI_.pelvis),dx=op[0]-E.pos[0],dz=op[2]-E.pos[1],d=Math.hypot(dx,dz); if(d>8||(dx*fwd[0]+dz*fwd[1])/(d||1)<.1&&d>1.2) continue;
-        if(!sightClear(X_(B,PI_.head),[op[0],.45,op[2]])) continue;
-        (E.seen||(E.seen=new Set())).add(O); if(E.civ){ if(typeof twCivPanic==='function') twCivPanic(E,'body'); break; } if(!(E.concealed&&!E.wpnHeld)){ say(E,LINES.body(O.name),2.6); vox(E,'shout'); }
-        if(E.st==='idle') E.st='alert'; startSearch(E,[op[0],op[2]],'body'); noise([E.pos[0],0,E.pos[1]],9,{from:E}); break; } } }
+    else if(tick) huntBodies(E,B); } }
   if(E.aware){
     if(E.canSee||E.tracks){ E.lkp=[PL.x,PL.z]; E.lostT=0; E.mind='hunt';
       /* call it out: friends who are hunting but can't see you learn where you are */
@@ -89,12 +90,27 @@ function senses(E,dt,dist,toP,B){ if(E.ally){ E.canSee=false; return; } /* the t
       if(E.lkp&&Math.hypot(E.pos[0]-E.lkp[0],E.pos[1]-E.lkp[1])<1) startSearch(E,E.lkp,'lost');
       else if(E.lostT>(E.lkp?20:7)) startSearch(E,E.lkp||E.pos.slice(),'lost'); } } }
 
+/* bodies: a friend on the floor, dead or bleeding out. Prototype: in the dark only close up or under a light; finding one starts a hunt */
+function huntBodies(E,B){ if(enemies.length<2) return; const fwd=[Math.sin(E.hd),Math.cos(E.hd)];
+  for(const O of enemies){ if(O===E||!(O.dead||O.st==='down'||O.st==='kneel')||(E.seen&&E.seen.has(O))) continue;
+    const op=X_(O.B,PI_.pelvis),dx=op[0]-E.pos[0],dz=op[2]-E.pos[1],d=Math.hypot(dx,dz); if(d>8||(dx*fwd[0]+dz*fwd[1])/(d||1)<.1&&d>1.2) continue;
+    if(!sightClear(X_(B,PI_.head),[op[0],.45,op[2]])) continue;
+    if(PROTO.on&&(O.civ&&!O.dead||typeof huntBodyLit==='function'&&!huntBodyLit(E,op,d))) continue; /* prototype: a tenant on her knees isn't a body */
+    (E.seen||(E.seen=new Set())).add(O); if(E.civ){ if(typeof twCivPanic==='function') twCivPanic(E,'body'); break; }
+    if(PROTO.on&&typeof huntBodyKnown==='function'&&huntBodyKnown(O)) continue; /* the floor already knows about this one */
+    if(PROTO.on){ bark(E,pick(LINES.body(O.name)),2.6); GAME.barkGlobal=1.2; vox(E,'shout'); } /* he calls the dead man's name, every time */
+    else if(!(E.concealed&&!E.wpnHeld)){ say(E,LINES.body(O.name),2.6); vox(E,'shout'); }
+    if(E.st==='idle') E.st='alert'; if(PROTO.on&&typeof huntAlert==='function') huntAlert('body',[op[0],op[2]],1,E);
+    startSearch(E,[op[0],op[2]],'body'); noise([E.pos[0],0,E.pos[1]],9,{from:E,kind:'bodycall'}); break; } }
+
 /* where he's walking this frame and how fast, when he isn't closing on you in plain sight. Null: stand still */
 function aiGoal(E,dt,t){
   if(E.tracks&&E.aware) return {x:PL.x,z:PL.z,sp:1.6};
   if(E.aware){ const sp=armed(E)?1.5:2.1;
     if(E.via) return {x:E.via[0],z:E.via[1],sp}; /* sent round the other way by the flanking (30-floor.js): get to that side first */
     if(!E.lkp) return null; if(stuck(E,dt)){ startSearch(E,E.pos.slice(),'lost'); return null; } return {x:E.lkp[0],z:E.lkp[1],sp}; }
+  if(PROTO.on&&typeof huntGoal==='function'){ if(E.hReact>0) return null; /* the meter's filling: he stops and looks */
+    const g=huntGoal(E,dt,t); if(g!==undefined) return g; } /* a job from the floor: a pair, a look, holding his room, a loop (83-hunt.js) */
   if(E.mind==='investigate'){ E.goalT+=dt; const L=E.lkp;
     if(!L||Math.hypot(E.pos[0]-L[0],E.pos[1]-L[1])<1||E.goalT>15||stuck(E,dt)){ startSearch(E,L||E.pos.slice(),'inv'); return null; } return {x:L[0],z:L[1],sp:1.1}; }
   if(E.mind==='search'){ E.searchT-=dt; E.sayT-=dt; if(E.sayT<=0){ E.sayT=rnd(5,8); say(E,LINES.search,2.2); }
@@ -115,4 +131,5 @@ function footsteps(dt){ if(!GAME.started||PL.dead) return;
   PL.spdS=lerp(PL.spdS||0,v,Math.min(1,dt*6)); PL.stepT=(PL.stepT||0)-dt;
   if(typeof tunWet==='function'&&tunWet(PL.x,PL.z)){ /* wading: every step splashes, and it carries */
     if(PL.spdS>.45&&PL.stepT<=0){ PL.stepT=.55; sfx('splat',.22+.1*Math.min(1,PL.spdS/2)); noise([PL.x,0,PL.z],5+PL.spdS*1.5); } return; }
+  if(PROTO.on){ const P=PROTO.hunt,H_=P.hear; if(PL.spdS>.3&&PL.stepT<=0){ const cr=!!(PL.crouch||PL.crawl),run=!cr&&PL.spdS>P.runV,k=cr?'crouch':run?'run':'walk'; PL.stepT=cr?.7:run?.4:.55; noise([PL.x,0,PL.z],H_[k],{kind:k}); } return; } /* prototype: crouched 1 m, walking 3, running 8 */
   if(PL.spdS>1.5&&PL.stepT<=0){ PL.stepT=.45; noise([PL.x,0,PL.z],2.8+(PL.spdS-1.5)*2); } }
