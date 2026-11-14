@@ -97,6 +97,7 @@ function huntBodies(E,B){ if(enemies.length<2) return; const fwd=[Math.sin(E.hd)
     if(!sightClear(X_(B,PI_.head),[op[0],.45,op[2]])) continue;
     if(PROTO.on&&(O.civ&&!O.dead||typeof huntBodyLit==='function'&&!huntBodyLit(E,op,d))) continue; /* prototype: a tenant on her knees isn't a body */
     (E.seen||(E.seen=new Set())).add(O); if(E.civ){ if(typeof twCivPanic==='function') twCivPanic(E,'body'); break; }
+    if(PROTO.on&&typeof huntBodyKnown==='function'&&huntBodyKnown(O)) continue; /* the floor already knows about this one */
     if(PROTO.on){ bark(E,pick(LINES.body(O.name)),2.6); GAME.barkGlobal=1.2; vox(E,'shout'); } /* he calls the dead man's name, every time */
     else if(!(E.concealed&&!E.wpnHeld)){ say(E,LINES.body(O.name),2.6); vox(E,'shout'); }
     if(E.st==='idle') E.st='alert'; if(PROTO.on&&typeof huntAlert==='function') huntAlert('body',[op[0],op[2]],1,E);
@@ -130,5 +131,5 @@ function footsteps(dt){ if(!GAME.started||PL.dead) return;
   PL.spdS=lerp(PL.spdS||0,v,Math.min(1,dt*6)); PL.stepT=(PL.stepT||0)-dt;
   if(typeof tunWet==='function'&&tunWet(PL.x,PL.z)){ /* wading: every step splashes, and it carries */
     if(PL.spdS>.45&&PL.stepT<=0){ PL.stepT=.55; sfx('splat',.22+.1*Math.min(1,PL.spdS/2)); noise([PL.x,0,PL.z],5+PL.spdS*1.5); } return; }
-  if(PROTO.on){ const P=PROTO.hunt,H_=P.hear; if(PL.spdS>.3&&PL.stepT<=0){ const cr=!!PL.crouch,run=!cr&&PL.spdS>P.runV,k=cr?'crouch':run?'run':'walk'; PL.stepT=cr?.7:run?.4:.55; noise([PL.x,0,PL.z],H_[k],{kind:k}); } return; } /* prototype: crouched 1 m, walking 3, running 8 */
+  if(PROTO.on){ const P=PROTO.hunt,H_=P.hear; if(PL.spdS>.3&&PL.stepT<=0){ const cr=!!(PL.crouch||PL.crawl),run=!cr&&PL.spdS>P.runV,k=cr?'crouch':run?'run':'walk'; PL.stepT=cr?.7:run?.4:.55; noise([PL.x,0,PL.z],H_[k],{kind:k}); } return; } /* prototype: crouched 1 m, walking 3, running 8 */
   if(PL.spdS>1.5&&PL.stepT<=0){ PL.stepT=.45; noise([PL.x,0,PL.z],2.8+(PL.spdS-1.5)*2); } }

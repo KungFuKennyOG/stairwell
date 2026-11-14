@@ -523,7 +523,7 @@ const TW_UP=['Fine— I\'m coming!','Where is he?!','Okay. Okay. I\'m going.','C
 const TW_JUMP=['AAAAAH!','DIE, COP!','GOT YOU—','HERE!'];
 const twMelee=E=>!RANGED[E.kind]&&!(typeof RANGED[E.kind.replace(/^m/,'')]!=='undefined'&&RANGED[E.kind.replace(/^m/,'')]);
 const twUp=E=>!E.dead&&!E.surr&&(E.st==='idle'||E.st==='alert');
-function twUnitOf(x,z){ const c=navCell(x,z),id=c>=0?FLOOR.space[c]:-9; return FLOOR.units.find(u=>u.id===id)||null; }
+function twUnitOf(x,z){ if(!FLOOR.space||!FLOOR.units) return null; const c=navCell(x,z),id=c>=0?FLOOR.space[c]:-9; /* a floor without units (the prototype's room-built floor) */ return FLOOR.units.find(u=>u.id===id)||null; }
 function twFree(x,z){ const c=navCell(x,z); if(c<0||FLOOR.nav[c]) return false; const ci=c%NX; for(let a=-1;a<=1;a++) for(let b=-1;b<=1;b++){ const q=c+a*NX+b; if(q<0||q>=FLOOR.nav.length||Math.abs((q%NX)-ci)>1||FLOOR.nav[q]) return false; } return true; } /* open all round: not in a doorway, not against a wall */
 /* where a holder waits: a blade beside the doorway inside, a gun deep in the room looking at it */
 function twHoldSpot(E){ if(PROTO.on&&typeof huntHoldSpot==='function'){ const s=huntHoldSpot(E); if(s) return s; } /* prototype: just inside the doorway, beside it, out of the light (83-hunt.js) */
@@ -569,7 +569,7 @@ function twBraceTick(dt){ if(PL.dead) return; let next=null,nd=1e9;
   if(next&&twOut(next)<2){ FLOOR.braceUpT=(FLOOR.braceUpT??rnd(3,6))-dt; if(FLOOR.braceUpT<=0){ FLOOR.braceUpT=null; const at=next.braceAt; next.mind='calm'; investigate(next,at||next.pos.slice()); } }
   else FLOOR.braceUpT=null; }
 function twFlank(E){ E.role='flank'; E.fl={ph:'go',t:0,spot:null}; E.silent=true; }
-function twRoles(dt){ if(PL.dead) return;
+function twRoles(dt){ if(PL.dead) return; FLOOR.rolesT=GAME.t; /* 83-hunt.js runs it on floors the tower tick doesn't */
   const awake=enemies.filter(E=>E.aware&&twUp(E)&&!E.ally&&!E.civ);
   for(const E of enemies) if(E.role&&(!E.aware||!twUp(E))){ if(E.role==='flank'&&!E.dead) E.silent=false; if(!E.aware) E.role=null; }
   const live=r=>awake.filter(E=>E.role===r);

@@ -45,7 +45,12 @@ function huntSetState(s){ if(HUNT.state===s) return; HUNT.state=s; huntLog('stat
 /* ---------- lines through the level, walking the 1 m box buckets instead of every box on the floor ----------
    sight: the same boxes sightClear() stops at (walls, doors, anything over 1.5 m, and hung sheets). count: how many walls a sound
    passes through at 1.2 m (sheets and plastic don't stop sound; chunks of one wall touching each other count once) */
-let HUNT_STAMP=0;
+let HUNT_STAMP=0,HUNT_SO=null,HUNT_SON=-1;
+/* where a segment from o along unit u enters box bx, or -1 (starting inside it doesn't count, as in rayBoxes) */
+function huntSlab(bx,o,u,L){ let t0=0,t1=L,ent=false; const lo0=bx.x0,lo1=bx.y0,lo2=bx.z0,hi0=bx.x1,hi1=bx.h,hi2=bx.z1;
+  for(let q=0;q<3;q++){ const lo=q===0?lo0:q===1?lo1:lo2,hi=q===0?hi0:q===1?hi1:hi2; if(Math.abs(u[q])<1e-9){ if(o[q]<lo||o[q]>hi) return -1; continue; }
+    let ta=(lo-o[q])/u[q],tb=(hi-o[q])/u[q]; if(ta>tb){ const s_=ta; ta=tb; tb=s_; } if(ta>t0){ t0=ta; ent=true; } if(tb<t1) t1=tb; if(t0>t1) return -1; }
+  return ent?t0:-1; }
 function huntLine(a,b,count){ if(boxGridDirty) buildBoxGrid(); const st=++HUNT_STAMP,ox=a[0],oy=a[1],oz=a[2],dx=b[0]-ox,dy=b[1]-oy,dz=b[2]-oz,L=Math.hypot(dx,dy,dz);
   if(L<1e-3) return count?0:true; const u=[dx/L,dy/L,dz/L],o=[ox,oy,oz];
   let i=Math.floor(ox+RX),k=Math.floor(oz+RZ); const ie=Math.floor(b[0]+RX),ke=Math.floor(b[2]+RZ),si=dx>0?1:dx<0?-1:0,sk=dz>0?1:dz<0?-1:0;
@@ -54,14 +59,14 @@ function huntLine(a,b,count){ if(boxGridDirty) buildBoxGrid(); const st=++HUNT_S
   for(let g=0;g<400;g++){
     if(i>=0&&k>=0&&i<BG_W&&k<BG_H) for(const bx of boxGrid[k*BG_W+i]){ if(bx._hs===st) continue; bx._hs=st;
       if(count?!((bx.kind==='wall'||bx.kind==='door')&&!bx.sightOnly&&bx.y0<=1.2&&bx.h>=1.2):!(bx.kind==='wall'||bx.kind==='door'||bx.h>1.5||bx.sightOnly)) continue;
-      let t0=0,t1=L,ok=true,ent=false; const lo=[bx.x0,bx.y0,bx.z0],hi=[bx.x1,bx.h,bx.z1];
-      for(let q=0;q<3;q++){ if(Math.abs(u[q])<1e-9){ if(o[q]<lo[q]||o[q]>hi[q]){ ok=false; break; } continue; }
-        let ta=(lo[q]-o[q])/u[q],tb=(hi[q]-o[q])/u[q]; if(ta>tb){ const s_=ta; ta=tb; tb=s_; } if(ta>t0){ t0=ta; ent=true; } if(tb<t1) t1=tb; if(t0>t1){ ok=false; break; } }
-      if(!ok||!ent) continue; /* starting inside a box doesn't count (as in rayBoxes) */
+      const t0=huntSlab(bx,o,u,L); if(t0<0) continue;
       if(!count) return false; if(t0>.05&&t0<L-.05) (T||(T=[])).push(t0); }
     if(i===ie&&k===ke) break;
     if(tMx<tMz){ if(tMx>L) break; i+=si; tMx+=tDx; } else { if(tMz>L) break; k+=sk; tMz+=tDz; } }
-  if(!count) return true; if(!T) return 0; if(T.length<2) return T.length; T.sort((p,q)=>p-q); let n=1; for(let j=1;j<T.length;j++) if(T[j]-T[j-1]>.35) n++; return n; }
+  if(!count){ /* what sightClear also stops at: other sight-only cover (not in the buckets), and a hung sheet where the cloth is */
+    if(HUNT_SON!==BOXES.length){ HUNT_SON=BOXES.length; HUNT_SO=BOXES.filter(x=>x.sightOnly&&!x.sheet); } for(const bx of HUNT_SO) if(huntSlab(bx,o,u,L)>=0) return false;
+    return !(typeof SHEETS!=='undefined'&&SHEETS.length&&typeof sheetsBlock==='function'&&sheetsBlock(a,b)); }
+  if(!T) return 0; if(T.length<2) return T.length; T.sort((p,q)=>p-q); let n=1; for(let j=1;j<T.length;j++) if(T[j]-T[j-1]>.35) n++; return n; }
 const huntSees=(a,b)=>huntLine(a,b,false);
 
 /* ---------- light: is Ray lit for this man ---------- */
@@ -74,7 +79,8 @@ function huntInBeam(E,x,z,y=1){ const dx=x-E.pos[0],dz=z-E.pos[1],d=Math.hypot(d
   const b=huntBeamDir(E); if((b[0]*dx+b[1]*dz)/d<PROTO.hunt.torchCos) return false; return huntSees([E.pos[0],1.25,E.pos[1]],[x,y,z]); }
 /* once per sight period for everyone: Ray under a lamp, Ray in somebody's beam */
 const HL={t:-9,lit:false,beam:null};
-function huntRayLight(){ if(Math.abs(GAME.t-HL.t)<.1) return HL; HL.t=GAME.t; const e=camBasis().eye; HL.lit=huntLitAt(PL.x,PL.z,e[1]-.3); HL.beam=null;
+const huntRayHead=()=>typeof rayHead==='function'?rayHead():camBasis().eye; /* G's: crouched or under a bed it's low */
+function huntRayLight(){ if(Math.abs(GAME.t-HL.t)<.1) return HL; HL.t=GAME.t; const e=huntRayHead(); HL.lit=huntLitAt(PL.x,PL.z,e[1]-.3); HL.beam=null;
   for(const E of enemies) if(huntBeamOn(E)&&huntInBeam(E,PL.x,PL.z,e[1]-.35)){ HL.beam=E; break; } return HL; }
 /* against the light: a lit doorway or room behind Ray, seen from this man */
 function huntSilhouette(he){ const dx=PL.x-he[0],dz=PL.z-he[2],d=Math.hypot(dx,dz)||1,ux=dx/d,uz=dz/d;
@@ -86,7 +92,7 @@ const huntLook=E=>E.hd+(E.lookYaw||0)*.7;
 
 /* ---------- eyes (from senses(), five times a second): can he see Ray at all, and how much of him ---------- */
 function huntSight(E,dist,B){ const P=PROTO.hunt; E.hLos=0; E.hLit=false; if(dist>P.litRange+1) return false;
-  const he=X_(B,PI_.head),eye=camBasis().eye,ch=[PL.x,eye[1]-.45,PL.z];
+  const he=X_(B,PI_.head),eye=huntRayHead(),ch=[PL.x,Math.max(.15,eye[1]-.45),PL.z];
   const cv=huntSees(he,ch),hv=cv||huntSees(he,eye); E.hLos=cv?2:hv?1:0; if(!E.hLos) return false; /* 1: only his head shows past the edge */
   E.hConc=typeof rayConcealment==='function'?clamp(+rayConcealment(E)||0,0,1):1; if(E.hConc<=0) return false;
   const L_=huntRayLight(); let lit=L_.lit||!!L_.beam||GAME.t-HUNT.flashT<1.4&&dist<16; /* under a lamp, in a beam, or lit by his own muzzle flash */
@@ -110,6 +116,8 @@ function huntWhere(){ if(typeof pfRoomAt==='function'){ const r=pfRoomAt(PL.x,PL
   if(FLOOR.mode==='camp'&&FLOOR.space){ const c=navCell(PL.x,PL.z); if(c>=0&&(FLOOR.space[c]===-1||FLOOR.space[c]===-2)) return HL_.hall; } return null; }
 function huntSpotted(E){ const w=huntWhere(); if(w&&!(E.concealed&&!E.wpnHeld)){ bark(E,w,1.8); GAME.barkGlobal=Math.max(GAME.barkGlobal,1); }
   huntLog('spotted',{by:E.name,d:+Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z).toFixed(1),lit:!!E.hLit,peek:E.hLos===1}); huntAlert('seen',[PL.x,PL.z],1,E); }
+/* a body found once is known to the whole floor: the next man to see it doesn't start it all again */
+function huntBodyKnown(O){ const H=HUNT; if(!H.bodies) H.bodies=new Set(); if(H.bodies.has(O)) return true; H.bodies.add(O); return false; }
 /* a body on the floor in the dark: he has to be close, or have a light on it */
 function huntBodyLit(E,op,d){ return d<3||huntLitAt(op[0],op[2],.5)||enemies.some(T=>huntBeamOn(T)&&huntInBeam(T,op[0],op[2],.3)); }
 
@@ -147,7 +155,7 @@ function huntHeard(E,src,k,o){ const ev=o.ev,kind=o.kind||'thing',w=o.walls||0;
 /* ---------- the floor's brain ---------- */
 const huntFree=E=>!E.dead&&!E.civ&&!E.ally&&!E.aware&&upright(E)&&!E.surr&&!E.grabbed&&!E.civFreeze&&!E.obey&&!(E.hsStand>0)&&!E.outT;
 function huntLen(){ const P=PROTO.hunt; return Math.min(P.lenMax,P.len0+P.lenAdd*(HUNT.n-1)); }
-function huntSetLkp(pos,t){ const H=HUNT; H.lkp=navSnap(pos[0],pos[1]); H.lkpT=t??GAME.t;
+function huntSetLkp(pos,t){ const H=HUNT; H.lkp=navSnap(pos[0],pos[1]); H.lkpT=t??GAME.t; H.rayAt=[PL.x,PL.z]; /* where he really was then: the steer measures how far he's gone since (a thrown bottle doesn't count) */
   if(H.state==='hunting'&&(!H.planAt||Math.hypot(H.planAt[0]-H.lkp[0],H.planAt[1]-H.lkp[1])>5)) huntPlanSpots(); }
 /* reason: 'seen'|'body'|'shot'|'scream'|'noise'|'radio'|'glimpse'. E: the man who saw or heard it (optional). ev: the noise it came from */
 function huntAlert(reason,pos,strength=1,E=null,ev=null,walls=0){ if(!PROTO.on||!GAME.started) return; const H=HUNT,P=PROTO.hunt;
@@ -177,11 +185,11 @@ function huntNearestPair(pos){ let best=null,bd=1e9; for(const p of HUNT.pairs){
   if(best&&bd<20){ best.tgt=navSnap(pos[0],pos[1]); best.spot=null; best.ph='go'; best.goT=0; best.fast=true; freshGoal(best.L); } }
 
 function huntStart(reason,pos){ const H=HUNT; huntSetState('hunting'); H.n++; H.len=huntLen(); H.t=H.len; H.t0=GAME.t; H.reason=reason; H.pending=null; H.ev.length=0;
-  H.savedBy=new Set(); H.limpSaid=false; H.planAt=null; H.pairs.length=0; huntGrid(true); huntSetLkp(pos); huntArm(); huntPairs(true);
+  H.savedBy=new Set(); H.limpSaid=false; H.planAt=null; H.steerSpot=false; H.pairs.length=0; huntGrid(true); huntSetLkp(pos); huntArm(); huntPairs(true);
   const L=H.pairs[0]&&H.pairs[0].L; if(L){ bark(L,pick(HL_.start),2.2); GAME.barkGlobal=1; vox(L,'shout',.8); }
   huntLog('huntStart',{reason,len:H.len,n:H.n}); protoEmit('huntStart',reason); protoEmit('stat','huntStart',reason); }
 function huntEnd(){ const H=HUNT,P=PROTO.hunt,len=GAME.t-H.t0; huntSetState('edge'); H.breatherT=rnd(P.breath[0],P.breath[1]);
-  if(PL.hide&&PL.hide.kind) H.saves[PL.hide.kind]=(H.saves[PL.hide.kind]||0)+1; /* he made it through hidden there */
+  if(PL.hide&&PL.hide.kind&&typeof HIDE_KIND_SAVES==='undefined') H.saves[PL.hide.kind]=(H.saves[PL.hide.kind]||0)+1; /* he made it through hidden there (G counts its own) */
   const sp=H.pairs.map(p=>p.L).find(E=>E&&!E.dead)||enemies.find(E=>huntFree(E)); if(sp){ bark(sp,pick(HL_.gone),2.8); GAME.barkGlobal=1.2; vox(sp,'mutter',1.2); }
   for(const p of H.pairs) for(const E of [p.L,p.F]) if(E) huntUnjob(E); H.pairs.length=0;
   for(const E of enemies) if(E.hj&&E.hj.k==='hold') huntUnjob(E); /* the holders come out: on edge everyone walks */
@@ -267,7 +275,10 @@ function huntHides(){ if(typeof HIDES!=='undefined'&&HIDES&&HIDES.length) return
   if(!H.fbHides||H.fbFor!==FLOOR.furn){ H.fbFor=FLOOR.furn; const K={bed:'bed',wardrobe:'wardrobe',couch:'sofa',mattress:'mattress',crates:'corner'};
     H.fbHides=(FLOOR.furn||[]).filter(f=>K[f.kind]).map((f,i)=>{ const sz=f.info&&f.info.size||[1,1]; return {id:'fb'+i,kind:K[f.kind],x:f.x,z:f.z,yaw:0,w:sz[0],d:sz[1],h:FURN_H[f.kind]||.8}; }); }
   return H.fbHides; }
+/* a searcher has looked into a spot: G's hideProbe for G's spots; on an old floor's furniture, Ray within a metre of it */
+function huntProbeSpot(E,s){ if(typeof hideProbe==='function'&&typeof HIDES!=='undefined'&&HIDES.includes(s)) return !!hideProbe(E,s); return Math.hypot(PL.x-s.x,PL.z-s.z)<1; }
 const huntShine=k=>k==='wardrobe'||k==='closet'?3:k==='bed'?2:k==='corner'?1.5:2.5;
+const huntKindSaves=k=>typeof HIDE_KIND_SAVES!=='undefined'?(HIDE_KIND_SAVES[k]||0):(HUNT.saves[k]||0); /* G counts passes and misses (86-hide.js) */
 function huntSpotKey(s){ return s.id??(s.x.toFixed(1)+','+s.z.toFixed(1)); }
 /* the spots each pair will check: near where he was last known; the one somebody saw him go into first, then the kind that's fooled them */
 function huntPlanSpots(){ const H=HUNT,P=PROTO.hunt; if(!H.lkp) return; H.planAt=H.lkp.slice(); const lk=H.lkp,F=fieldTo(lk[0],lk[1]),now=GAME.t;
@@ -275,14 +286,14 @@ function huntPlanSpots(){ const H=HUNT,P=PROTO.hunt; if(!H.lkp) return; H.planAt
   const S=huntHides().filter(s=>{ if(s===seen) return true; /* somebody saw him go in there: that one, wherever it is */
       const ck=H.checked.get(huntSpotKey(s)); if(ck!=null&&now-ck<30) return false; const d=Math.hypot(s.x-lk[0],s.z-lk[1]); if(d>P.spotR) return false;
       const c=navSnap(s.x,s.z),cc=navCell(c[0],c[1]); return !F||cc<0||F[cc]/20<=P.spotR*1.6; })
-    .map(s=>({s,sc:(s===seen?-100:0)+((H.saves[s.kind]||0)>=3?-50:0)+Math.hypot(s.x-lk[0],s.z-lk[1])})).sort((a,b)=>a.sc-b.sc).map(o=>o.s);
+    .map(s=>({s,sc:(s===seen?-100:0)+(huntKindSaves(s.kind)>=3?-50:0)+Math.hypot(s.x-lk[0],s.z-lk[1])})).sort((a,b)=>a.sc-b.sc).map(o=>o.s);
   for(const p of H.pairs) p.spots=[];
   const ps=H.pairs.filter(p=>p.L); if(!ps.length) return;
   const quota=new Map(ps.map(p=>[p,Math.round(rnd(P.spotsPer[0],P.spotsPer[1]))]));
   for(const s of S){ let bp=null,bd=1e9; for(const p of ps){ if(p.spots.length>=quota.get(p)) continue; const d=Math.hypot(p.L.pos[0]-s.x,p.L.pos[1]-s.z)+p.spots.length*4; if(d<bd){ bd=d; bp=p; } }
     if(!bp) break; bp.spots.push(s); }
   if(seen){ for(const p of ps) if(p.spots[0]===seen&&p.ph!=='shine'){ p.tgt=null; p.ph='go'; } } }
-function huntApproach(s,from){ const half=Math.max(s.w||.8,s.d||.8)/2+.6,dx=from[0]-s.x,dz=from[1]-s.z,d=Math.hypot(dx,dz)||1,cands=[[dx/d,dz/d],[1,0],[-1,0],[0,1],[0,-1]];
+function huntApproach(s,from){ if(typeof hideLookPoint==='function'&&typeof HIDES!=='undefined'&&HIDES.includes(s)) return hideLookPoint(s); const half=Math.max(s.w||.8,s.d||.8)/2+.6,dx=from[0]-s.x,dz=from[1]-s.z,d=Math.hypot(dx,dz)||1,cands=[[dx/d,dz/d],[1,0],[-1,0],[0,1],[0,-1]];
   for(const v of cands){ const x=s.x+v[0]*half,z=s.z+v[1]*half,c=navCell(x,z); if(c>=0&&!FLOOR.nav[c]) return [x,z]; } return navSnap(s.x,s.z); }
 
 /* ---------- pairs: two men and one light ---------- */
@@ -308,7 +319,7 @@ function huntNext(p){ const L=p.L; p.goT=0; p.ph='go'; freshGoal(L);
     const who=p.F&&Math.random()<.5?p.F:L; if(line&&who.barkCd<=0){ bark(who,line,2.2); GAME.barkGlobal=Math.max(GAME.barkGlobal,.8); } return; }
   p.spot=null; p.alt=true; p.tgt=huntPick(p); }
 /* the man with the light */
-function huntLeadGoal(E,p,dt){ if(p.ph==='shine'){ p.shineT-=dt; const s=p.spot; if(s) E.hWant=Math.atan2(s.x-E.pos[0],s.z-E.pos[1]); E.hScan=0; if(p.shineT<=0) huntProbe(E,p); return null; }
+function huntLeadGoal(E,p,dt){ E.torchSpot=p.ph==='shine'?p.spot:null; if(p.ph==='shine'){ p.shineT-=dt; const s=p.spot; if(s) E.hWant=Math.atan2(s.x-E.pos[0],s.z-E.pos[1]); E.hScan=0; if(p.shineT<=0) huntProbe(E,p); return null; }
   if(p.ph==='sweep'){ p.sweepT-=dt; E.hScan=1.2; if(p.sweepT<=0){ p.fast=false; huntNext(p); } return null; }
   if(!p.tgt) huntNext(p); if(!p.tgt) return null;
   const d=Math.hypot(E.pos[0]-p.tgt[0],E.pos[1]-p.tgt[1]); p.goT+=dt;
@@ -320,7 +331,7 @@ function huntFollowGoal(E,p,dt){ const L=p.L; if(!L||L===E) return null; const f
   E.hWant=p.ph==='shine'&&p.spot?Math.atan2(p.spot.x-E.pos[0],p.spot.z-E.pos[1]):L.hd+sd*(p.ph==='sweep'?1.6:2.4); E.hScan=.4;
   if(d<.75) return null; return {x:q[0],z:q[1],sp:d>3?1.9:Math.max(1.1,p.fast?1.75:1.3)}; }
 function huntProbe(E,p){ const H=HUNT,s=p.spot; p.spot=null; if(!s){ huntNext(p); return; } H.checked.set(huntSpotKey(s),GAME.t);
-  const caught=typeof hideProbe==='function'?!!hideProbe(E,s):Math.hypot(PL.x-s.x,PL.z-s.z)<1;
+  const caught=huntProbeSpot(E,s);
   huntLog('probe',{by:E.name,kind:s.kind,caught});
   if(caught){ huntCaught(E,s,p); return; }
   if(PL.hide&&PL.hide!==s&&Math.hypot(PL.hide.x-s.x,PL.hide.z-s.z)<6) huntSaved(PL.hide);
@@ -329,7 +340,7 @@ function huntCaught(E,s,p){ bark(E,pick(HL_.caught),2); GAME.barkGlobal=1; vox(E
   if(!(typeof enemyGrab==='function'&&enemyGrab(E,'collar',{spot:s}))) setAware(E,'see');
   if(p&&p.F&&!p.F.dead) setAware(p.F,'see');
   protoEmit('hideFound',E,s); huntAlert('seen',[PL.x,PL.z],1,E); }
-function huntSaved(s){ const H=HUNT,k=huntSpotKey(s); if(!H.savedBy||H.savedBy.has(k)) return; H.savedBy.add(k); H.saves[s.kind]=(H.saves[s.kind]||0)+1; huntLog('saved',{kind:s.kind,n:H.saves[s.kind]}); }
+function huntSaved(s){ if(typeof HIDE_KIND_SAVES!=='undefined') return; const H=HUNT,k=huntSpotKey(s); if(!H.savedBy||H.savedBy.has(k)) return; H.savedBy.add(k); H.saves[s.kind]=(H.saves[s.kind]||0)+1; huntLog('saved',{kind:s.kind,n:H.saves[s.kind]}); }
 
 /* aiGoal() (52-senses.js) asks here first for a man with a job. undefined: not ours */
 function huntGoal(E,dt,t){ const J=E.hj; if(!J) return undefined; const P=PROTO.hunt;
@@ -352,9 +363,9 @@ function huntGoal(E,dt,t){ const J=E.hj; if(!J) return undefined; const P=PROTO.
       E.hScan=.4; return {x:a[0],z:a[1],sp:1.1}; }
     J.t-=dt; if(J.t<=0){ huntLookDone(E); return null; }
     if(J.spot){ if(Math.hypot(E.pos[0]-J.wp[0],E.pos[1]-J.wp[1])>.5&&!stuck(E,dt)) return {x:J.wp[0],z:J.wp[1],sp:1};
-      E.hWant=Math.atan2(J.spot.x-E.pos[0],J.spot.z-E.pos[1]); E.hScan=0; J.shineT-=dt;
-      if(J.shineT<=0){ const s=J.spot; J.spot=null; J.wp=null; HUNT.checked.set(huntSpotKey(s),GAME.t);
-        const caught=typeof hideProbe==='function'?!!hideProbe(E,s):Math.hypot(PL.x-s.x,PL.z-s.z)<1; huntLog('probe',{by:E.name,kind:s.kind,caught,look:true});
+      E.hWant=Math.atan2(J.spot.x-E.pos[0],J.spot.z-E.pos[1]); E.hScan=0; J.shineT-=dt; E.torchSpot=J.spot;
+      if(J.shineT<=0){ const s=J.spot; J.spot=null; J.wp=null; E.torchSpot=null; HUNT.checked.set(huntSpotKey(s),GAME.t);
+        const caught=huntProbeSpot(E,s); huntLog('probe',{by:E.name,kind:s.kind,caught,look:true});
         if(caught) huntCaught(E,s,null); else if(PL.hide&&PL.hide!==s) huntSaved(PL.hide); } return null; }
     if(J.wait>0){ J.wait-=dt; E.hScan=1; return null; }
     if(!J.wp||Math.hypot(E.pos[0]-J.wp[0],E.pos[1]-J.wp[1])<.7||stuck(E,dt)){ if(J.wp){ J.wp=null; J.wait=rnd(1.2,2.4); E.hScanBase=E.hd; return null; } J.wp=navSpotNear(a[0],a[1],3)||a; freshGoal(E); }
@@ -364,10 +375,18 @@ function huntGoal(E,dt,t){ const J=E.hj; if(!J) return undefined; const P=PROTO.
 /* ---------- the flashlights: one light slot is free, so the beam nearest you is the one that's drawn ---------- */
 function huntTorchMesh(E){ if(E.torchN||E.hunter||!E.J||!E.J.handL) { if(E.torchN) E.torchN.vis=!!E.torchOn; return; }
   const t=N(E.J.handL,0,-.06,.03,Math.PI/2,0,0); mk(cyl(.02,.017,.15,6),[mBlack,M(null,{color:0xfff2c8,unlit:true}),mBlack],t); E.torchN=t; t.vis=!!E.torchOn; }
+/* where each light is and where it points, every frame: walking, ahead and a little down; checking a spot, from low down for a bed,
+   swept along the spot while he looks (G's rayConcealment reads these: furniture blocks the beam, so it has to come in under) */
+function huntTorchAim(E){ if(!huntBeamOn(E)){ E.torchSpot=null; E.torchPos=E.torchDir=null; return; } const o=E.torchPos||(E.torchPos=[0,0,0]),d=E.torchDir||(E.torchDir=[0,0,1]),S=E.torchSpot;
+  if(S){ const dx=S.x-E.pos[0],dz=S.z-E.pos[1],l=Math.hypot(dx,dz)||1,low=(S.h||1)<.9,ax=(S.w||1)>=(S.d||1)?[Math.cos(S.yaw||0),-Math.sin(S.yaw||0)]:[Math.sin(S.yaw||0),Math.cos(S.yaw||0)],
+      half=Math.max(S.w||1,S.d||1)/2*.8,sw=Math.sin((GAME.t+E.t0)*2.2)*half,tx=S.x+ax[0]*sw,ty=clamp((S.y0||0)+(S.h||1)*.5,.12,1.3),tz=S.z+ax[1]*sw;
+    o[0]=E.pos[0]+dx/l*.3; o[1]=low?.42:1.25; o[2]=E.pos[1]+dz/l*.3; const vx=tx-o[0],vy=ty-o[1],vz=tz-o[2],L_=Math.hypot(vx,vy,vz)||1; d[0]=vx/L_; d[1]=vy/L_; d[2]=vz/L_; return; }
+  const b=huntBeamDir(E); o[0]=E.pos[0]+b[0]*.25; o[1]=1.25; o[2]=E.pos[1]+b[1]*.25; const k=1/Math.hypot(1,.2); d[0]=b[0]*k; d[1]=-.2*k; d[2]=b[1]*k; }
 function huntTorchFx(){ const slot=(FLOOR.lights||[]).length; if(slot>=7) return; let best=null,bd=1e9;
   for(const E of enemies){ if(E.torchN) E.torchN.vis=!!E.torchOn&&!E.dead; if(!huntBeamOn(E)) continue; const d=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z); if(d<bd){ bd=d; best=E; } }
   if(!best){ L.plCol.set([0,0,0],slot*3); return; }
-  const b=huntBeamDir(best),q=[best.pos[0]+b[0]*1.9,best.pos[1]+b[1]*1.9]; pushOutXZ(q,.1,'body'); L.plPos.set([q[0],1.0,q[1]],slot*3); L.plCol.set([1.25,1.2,1.05],slot*3); L.plDist[slot]=4.2; }
+  const o=best.torchPos,d=best.torchDir,r=best.torchSpot?1.1:1.9,q=o&&d?[o[0]+d[0]*r,o[2]+d[2]*r]:[best.pos[0]+Math.sin(best.hd)*1.9,best.pos[1]+Math.cos(best.hd)*1.9]; pushOutXZ(q,.1,'body');
+  L.plPos.set([q[0],o&&d?Math.max(.35,o[1]+d[1]*r+.2):1.0,q[1]],slot*3); L.plCol.set([1.25,1.2,1.05],slot*3); L.plDist[slot]=4.2; }
 
 /* ---------- every frame: heads and bodies turning, the meter's reaction, the floor's clock ---------- */
 
@@ -384,9 +403,12 @@ function huntTick(gdt){ if(!PROTO.on||!GAME.started||!FLOOR.nav) return; const H
       else if(!E.moveDir&&E.hScan>.9&&E.hScanBase!=null) E.hd+=clamp(wrapA(E.hScanBase+Math.sin((t+E.t0)*.9)*1.1-E.hd),-1.5*gdt,1.5*gdt);
       look=Math.sin((t+E.t0)*1.1)*.55*Math.min(1,E.hScan||0); E.hWant=null; }
     if(look!=null&&E.Rs){ E.hLk=lerp(E.hLk??E.lookYaw??0,look,Math.min(1,gdt*5)); E.lookYaw=E.hLk; } else E.hLk=E.lookYaw;
-    if(E.hj&&E.st==='idle') E.st='alert'; if(E.patrol&&H.state!=='calm'&&!E.hj&&E.st==='idle') E.st='alert'; }
+    if(E.hj&&E.st==='idle') E.st='alert'; if(E.patrol&&!E.hj&&E.st==='idle'&&(E.mind==='calm'||E.mind==='nervous')&&!E.goHome) E.st='alert'; } /* a man walking a beat walks it */
+  /* the tower's roles (who hunts, who flanks, who holds) on a floor the tower tick doesn't run (the prototype's own floor) */
+  if(FLOOR.mode!=='camp'&&FLOOR.rolesT!==GAME.t&&typeof twRoles==='function') twRoles(gdt);
   /* someone saw where he went in */
   if(PL.hide!==H.hideWas){ if(PL.hide&&H.lastSeen&&t-H.lastSeen.t<2.5){ H.seenIn={spot:PL.hide,t}; huntLog('seenIn',{kind:PL.hide.kind}); } H.hideWas=PL.hide; }
+  for(const E of enemies) if(E.torchOn) huntTorchAim(E);
   huntTorchFx();
   H.acc+=gdt; if(H.acc>=.25){ const dt=H.acc; H.acc=0; huntThink(dt); }
   if(H.dbg) huntDbg(); }
@@ -396,7 +418,7 @@ function huntFall(E){ const p=X_(E.B,PI_.pelvis); setTimeout(()=>noise([p[0],0,p
 function huntThink(dt){ const H=HUNT,P=PROTO.hunt,now=GAME.t;
   /* contact: somebody who knows is looking right at him */
   let contact=null; for(const E of enemies) if(E.aware&&E.canSee&&!E.civ&&!E.dead&&upright(E)){ contact=E; E.hSawT=now; }
-  if(contact){ H.lastSight=now; H.lkp=[PL.x,PL.z]; H.lkpT=now; if(H.state!=='hunting') huntAlert('seen',[PL.x,PL.z],1,contact); }
+  if(contact){ H.lastSight=now; H.lkp=[PL.x,PL.z]; H.lkpT=now; H.rayAt=[PL.x,PL.z]; if(H.state!=='hunting') huntAlert('seen',[PL.x,PL.z],1,contact); }
   else if(H.state!=='hunting'){ const A=enemies.find(E=>E.aware&&!E.civ&&!E.dead&&upright(E)&&E.lkp&&now-(E.hRadioT??-99)>20); if(A){ A.hRadioT=now; huntAlert('radio',A.lkp,1,A); } } /* one of them knows (a friend's shout, a hit): the rest are told */
   for(const E of enemies) if(!E.civ&&!E.dead&&(E.aware&&E.canSee||E.pmUp&&E.pm>.5)&&(PL.limp||0)>.3&&!H.limpSaid&&E.barkCd<=0){ H.limpSaid=true; bark(E,HL_.limp,2); GAME.barkGlobal=1; break; }
   if(H.state==='hunting'){ if(!contact){ H.t-=dt; if(H.t<=0){ huntEnd(); return; } }
@@ -407,11 +429,11 @@ function huntThink(dt){ const H=HUNT,P=PROTO.hunt,now=GAME.t;
   if(PL.hide&&H.state==='hunting') for(const E of enemies) if(E.hj&&!E.dead&&Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)<3) huntSaved(PL.hide);
   huntBlood(); huntPush(dt); }
 /* The Last of Us' trick: if he's got well away from where they think he is, the nearest pair drifts his way anyway */
-function huntSteer(){ const H=HUNT,P=PROTO.hunt,now=GAME.t; if(!H.lkp||now-H.lastSight<4||now-H.steerT<P.steerEvery) return;
-  if(Math.hypot(PL.x-H.lkp[0],PL.z-H.lkp[1])<P.steerD) return; let best=null,bd=1e9;
+function huntSteer(){ const H=HUNT,P=PROTO.hunt,now=GAME.t; if(!H.lkp||!H.rayAt||now-H.lastSight<4||now-H.steerT<P.steerEvery||now-H.t0<5) return;
+  if(Math.hypot(PL.x-H.rayAt[0],PL.z-H.rayAt[1])<P.steerD) return; let best=null,bd=1e9; /* he's moved 6 m since they last had a fix on him */
   for(const p of H.pairs){ if(!p.L||p.ph==='shine') continue; const d=Math.hypot(p.L.pos[0]-PL.x,p.L.pos[1]-PL.z); if(d<bd){ bd=d; best=p; } } if(!best) return;
   H.steerT=now; const a=Math.random()*6.283,r=rnd(1,2.5); best.tgt=navSnap(PL.x+Math.cos(a)*r,PL.z+Math.sin(a)*r); best.spot=null; best.ph='go'; best.goT=0; best.steered=true; freshGoal(best.L);
-  if(PL.hide&&Math.random()<P.steerProbe&&!best.spots.includes(PL.hide)) best.spots.unshift(PL.hide);
+  if(PL.hide&&!H.steerSpot&&Math.random()<P.steerProbe&&!best.spots.includes(PL.hide)){ H.steerSpot=true; best.spots.unshift(PL.hide); } /* once a hunt at most: hiding has to work */
   huntLog('steer',{d:+bd.toFixed(1)}); }
 /* calling into the dark while they look */
 function huntCalls(dt){ for(const p of HUNT.pairs){ const E=p.L; if(!E) continue; E.hCallT=(E.hCallT??rnd(4,7))-dt; if(E.hCallT>0) continue; E.hCallT=rnd(6,10);
@@ -434,7 +456,7 @@ protoOn('tick',gdt=>huntTick(gdt));
 protoOn('reset',()=>huntReset()); protoOn('load',()=>huntReset());
 function huntReset(){ const H=HUNT; Object.assign(H,{state:'calm',lkp:null,lkpT:0,n:0,breatherT:0,t:0,len:0,t0:0,reason:'',lastEvT:-99,body:false,grid:null,saves:{},seenIn:null,lastSeen:null,
   lastSight:-99,pending:null,steerT:-99,flashT:-99,fireK:null,eShotT:-99,fightT:0,pushAt:rnd(PROTO.hunt.push[0],PROTO.hunt.push[1]),bloodT:-99,limpSaid:false,acc:0,fbHides:null,hideWas:null,planAt:null});
-  H.ev=[]; H.pairs=[]; H.checked=new Map(); H.bloodSaid=new Set(); if(!PROTO.on) return; huntLog('reset');
+  H.ev=[]; H.pairs=[]; H.checked=new Map(); H.bloodSaid=new Set(); H.bodies=new Set(); if(!PROTO.on) return; huntLog('reset');
   for(const E of enemies) if(!E.civ&&!E.ally) huntTorchMesh(E); } /* every man carries a flashlight, off: built now, not in the middle of a hunt */
 
 /* ---------- ?huntdbg=1: the state on the flat screen (never in the headset) ---------- */

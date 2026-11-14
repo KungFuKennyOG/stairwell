@@ -119,6 +119,9 @@ window.__D=(function(){
     return {floor:FLOOR.def.n,hunter:H.name,kind:H.kind,spawnLit:lit(PL.x,PL.z),sawYouAt:aw,closest:+minD.toFixed(1),closestAt:+arr.toFixed(0),calls:L.barks.filter(b=>b[1]===H.name).map(b=>[+(b[0]-t0).toFixed(0),b[2]]).slice(0,8),routePts:H.hunter.pts.length,othersAware:enemies.filter(E=>E!==H&&E.aware&&!E.civ).length}; }
 
   /* ---- the hunt (83-hunt.js; ?proto=1). Shared: hunt events on a log, Ray made unseeable for the timing tests ---- */
+  /* Ray can't be seen (a stand-in for being well hidden): G's rayConcealment is a declaration in the game's scope, so swap the binding */
+  const RC0=typeof rayConcealment==='function'?rayConcealment:null;
+  function rayHidden(on){ if(RC0) rayConcealment=on?()=>0:RC0; else if(on) window.rayConcealment=()=>0; else delete window.rayConcealment; }
   const HE=[]; if(typeof protoOn==='function'){ protoOn('huntStart',r=>HE.push(['start',+GAME.t.toFixed(1),r])); protoOn('huntEnd',()=>HE.push(['end',+GAME.t.toFixed(1)])); }
   const men=()=>enemies.filter(E=>!E.civ&&!E.ally);
   const found=()=>men().find(E=>!E.dead&&E.aware&&E.canSee);
@@ -126,28 +129,28 @@ window.__D=(function(){
   function shootDown(){ PL.pitch=-1.2; const b=camBasis(); const r=fireHand(HANDS.R,{o:b.eye,d:b.f}); PL.pitch=0; return r; }
   /* stand still in the dark after one unsuppressed shot: how long until one of them is looking at you? */
   function darkshot(o){ reset(); L.god=true; HE.length=0; equip(HANDS.R,newItem('pistol')); PL.x=o.at[0]; PL.z=o.at[1]; PL.yaw=o.yaw||0; for(let k=0;k<30;k++) step();
-    const t0=GAME.t,lit=__D.lit(PL.x,PL.z); shootDown(); let fT=null,who=null,how=null;
+    const t0=GAME.t,lit=__D.lit(PL.x,PL.z); shootDown(); if(o.noflash&&typeof HUNT!=='undefined'){ HUNT.flashT=-99; GAME.shotT=-99; } let fT=null,who=null,how=null; /* noflash: found by the search, not by the muzzle flash */
     while(GAME.t-t0<(o.secs||45)){ step(); const F=found(); if(F){ fT=+(GAME.t-t0).toFixed(1); who=F.name; how=(F.torchOn?'torch ':'')+(F.hLit?'lit':'dark')+' '+Math.hypot(F.pos[0]-PL.x,F.pos[1]-PL.z).toFixed(1)+'m'; break; } }
-    return {at:o.at,lit,foundAt:fT,who,how,state:hstate(),hunts:HE.slice()}; }
+    return {at:o.at,noflash:!!o.noflash,lit,foundAt:fT,who,how,state:hstate(),hunts:HE.slice()}; }
   /* hunt length and breathers: one shot, then Ray can't be seen (a stub for the hiding system); more noise in the breather */
-  function cycle(o){ reset(); L.god=true; HE.length=0; window.rayConcealment=()=>0; equip(HANDS.R,newItem('pistol')); PL.x=o.at[0]; PL.z=o.at[1]; for(let k=0;k<30;k++) step();
+  function cycle(o){ reset(); L.god=true; HE.length=0; rayHidden(true); equip(HANDS.R,newItem('pistol')); PL.x=o.at[0]; PL.z=o.at[1]; for(let k=0;k<30;k++) step();
     const t0=GAME.t; shootDown(); const shots=[0]; let endN=0,lastEnd=null,nextShot=null; const snaps=[];
     while(GAME.t-t0<o.secs){ step(); const t=GAME.t-t0, ends=HE.filter(h=>h[0]==='end');
       if(ends.length>endN){ endN=ends.length; lastEnd=t; nextShot=t+(o.after||10); }
       if(nextShot!=null&&t>=nextShot){ nextShot=null; shootDown(); shots.push(+t.toFixed(1)); }
       if(Math.floor(t)%5===0&&Math.floor(t)!==(snaps.length?snaps[snaps.length-1].t:-1)) snaps.push({t:Math.floor(t),s:hstate(),idle:men().filter(E=>!E.dead&&E.st==='idle').length}); }
-    delete window.rayConcealment;
+    rayHidden(false);
     const H=HE.map(h=>[h[0],+(h[1]-t0).toFixed(1),h[2]||'']),runs=[]; let cur=null; for(const h of H){ if(h[0]==='start') cur={start:h[1],why:h[2]}; else if(cur){ cur.len=+(h[1]-cur.start).toFixed(1); cur.end=h[1]; runs.push(cur); cur=null; } } if(cur) runs.push(cur);
     const gaps=runs.slice(1).map((r,i)=>({gap:+(r.start-runs[i].end).toFixed(1),why:r.why}));
     return {runs,gaps,shots,log:typeof HUNT!=='undefined'?HUNT.log.filter(l=>l.ev!=='alert'&&l.ev!=='probe').slice(0,40):null}; }
   /* a body is found: from then on, is any man ever idle at his post? */
-  function idle(o){ reset(); L.god=true; HE.length=0; window.rayConcealment=()=>0; PL.x=o.hide[0]; PL.z=o.hide[1]; for(let k=0;k<30;k++) step();
+  function idle(o){ reset(); L.god=true; HE.length=0; rayHidden(true); PL.x=o.hide[0]; PL.z=o.hide[1]; for(let k=0;k<30;k++) step();
     const V=enemies.find(E=>E.name===o.victim); V.headshot=true; const t0=GAME.t; let bodyT=null; const per={},still={};
-    while(GAME.t-t0<o.secs){ step(); const t=GAME.t-t0; if(bodyT==null&&typeof HUNT!=='undefined'&&HUNT.body) bodyT=+t.toFixed(1);
+    while(GAME.t-t0<o.secs){ step(); const t=GAME.t-t0; if(bodyT==null&&(typeof HUNT!=='undefined'?HUNT.body:men().some(E=>E.seen&&E.seen.has(V)))) bodyT=+t.toFixed(1);
       if(bodyT!=null) for(const E of men()){ if(E.dead||E.st==='down'||E.st==='kneel') continue; const P=per[E.name]||(per[E.name]={idle:0,maxStill:0,jobs:new Set()});
         if(E.st==='idle'&&!E.aware) P.idle+=dt; if(E.hj) P.jobs.add(E.hj.k); if(E.aware) P.jobs.add('aware');
         const S=still[E.name]||(still[E.name]={p:E.pos.slice(),t:t}); if(Math.hypot(E.pos[0]-S.p[0],E.pos[1]-S.p[1])>.6){ S.p=E.pos.slice(); S.t=t; } P.maxStill=Math.max(P.maxStill,t-S.t); } }
-    delete window.rayConcealment;
+    rayHidden(false);
     return {victim:o.victim,bodyFoundAt:bodyT,hunts:HE.map(h=>[h[0],+(h[1]-t0).toFixed(1),h[2]||'']),per:Object.fromEntries(Object.entries(per).map(([k,v])=>[k,{idleS:+v.idle.toFixed(1),maxStillS:+v.maxStill.toFixed(1),jobs:[...v.jobs].join('/')}]))}; }
   /* walk at a calm man's face in the dark: is there a warning first? */
   function face(o){ reset(); L.god=true; HE.length=0; equip(HANDS.R,null); const sg=o.ex>0?1:-1; /* he stands at ex looking back toward the middle; you come from the middle */
@@ -167,21 +170,34 @@ window.__D=(function(){
     while(GAME.t-t0<8){ PL.x=o.ex-o.dist; PL.z=0; step(); if(E.aware){ full=+(GAME.t-t0).toFixed(2); break; } }
     return {state:o.state||'calm',dist:o.dist,lit:!!o.lit,peek:!!o.peek,spottedAfter:full}; }
   /* cost: senses() and the hunt's own tick, per frame, nine people, during a hunt */
-  function cost(o){ reset(); L.god=true; window.rayConcealment=()=>0; equip(HANDS.R,newItem('pistol')); PL.x=o.at[0]; PL.z=o.at[1]; for(let k=0;k<30;k++) step(); shootDown();
+  function cost(o){ reset(); L.god=true; rayHidden(true); equip(HANDS.R,newItem('pistol')); PL.x=o.at[0]; PL.z=o.at[1]; for(let k=0;k<30;k++) step(); shootDown();
     let tS=0,tH=0,tU=0,n=0; const _s=senses; senses=function(){ const a=performance.now(); const r=_s.apply(this,arguments); tS+=performance.now()-a; return r; };
     const _h=typeof huntTick==='function'?huntTick:null; if(_h) huntTick=function(){ const a=performance.now(); const r=_h.apply(this,arguments); tH+=performance.now()-a; return r; };
     for(let k=0;k<30*o.secs;k++){ const a=performance.now(); step(); tU+=performance.now()-a; n++; }
-    senses=_s; if(_h) huntTick=_h; delete window.rayConcealment;
+    senses=_s; if(_h) huntTick=_h; rayHidden(false);
     return {frames:n,people:enemies.length,state:hstate(),sensesMs:+(tS/n).toFixed(3),huntTickMs:+(tH/n).toFixed(3),bothMs:+((tS+tH)/n).toFixed(3),wholeUpdateMs:+(tU/n).toFixed(2)}; }
   /* hiding spot checks: a hunt starts near a bed Ray was seen getting into (a stand-in for the hiding system: PL.hide set, Ray at its centre) */
-  function hidecheck(o){ reset(); L.god=true; HE.length=0; window.rayConcealment=()=>0; equip(HANDS.R,newItem('pistol'));
+  function hidecheck(o){ reset(); L.god=true; HE.length=0; rayHidden(true); equip(HANDS.R,newItem('pistol'));
     const S=huntHides().filter(s=>s.kind===o.kind).sort((a,b)=>Math.hypot(a.x-o.near[0],a.z-o.near[1])-Math.hypot(b.x-o.near[0],b.z-o.near[1]))[0]; if(!S) return {err:'no spot'};
     PL.x=S.x; PL.z=S.z; for(let k=0;k<30;k++) step(); if(o.seen){ HUNT.lastSeen={t:GAME.t,x:PL.x,z:PL.z}; } PL.hide=S; step();
     const t0=GAME.t; huntAlert('shot',huntApproach(S,[S.x,0]),1); let caught=null; const probes=[];
     while(GAME.t-t0<o.secs){ step(); for(const l of HUNT.log) if(l.ev==='probe'&&l.t>=t0&&!l._seen){ l._seen=true; probes.push([+(l.t-t0).toFixed(1),l.by,l.kind,l.caught]); if(l.caught&&caught==null) caught=+(l.t-t0).toFixed(1); } if(caught!=null) break; }
-    delete window.rayConcealment; PL.hide=null;
+    rayHidden(false); PL.hide=null;
     return {kind:o.kind,seenIn:!!o.seen,spotAt:[+S.x.toFixed(1),+S.z.toFixed(1)],caughtAt:caught,probes:probes.slice(0,8)}; }
-  return {duel,detect,fight,siege,body,surr,level,hunter,darkshot,cycle,idle,face,meter,cost,hidecheck,step,L,lit};
+
+  /* the real hiding system (86-hide.js, ?hidetest=1): crawl under the test bed or into the wardrobe, then a hunt starts close by */
+  function realhide(o){ reset(); L.god=true; HE.length=0; equip(HANDS.R,null); for(const k in KEYS) KEYS[k]=false;
+    const S=HIDES.find(h=>h.id===o.id); if(!S) return {err:'no '+o.id};
+    const lp=hideLookPoint(S); PL.x=lp[0]; PL.z=lp[1]; HIDE.lx=null; if(o.crawl){ hideCrouchToggle(); for(let k=0;k<15;k++) step(); }
+    PL.yaw=Math.atan2(-(S.x-PL.x),-(S.z-PL.z)); KEYS.KeyW=true; for(let k=0;k<150&&PL.hide!==S;k++) step(); for(let k=0;k<20;k++) step(); KEYS.KeyW=false; /* in, then fully in */
+    for(let k=0;k<60;k++) step(); /* settle, keep still */
+    const inIt=PL.hide===S,exp=+PL.hideExp.toFixed(2); if(o.saves) HIDE_KIND_SAVES[S.kind]=o.saves;
+    if(o.seen){ HUNT.seenIn={spot:S,t:GAME.t}; }
+    const t0=GAME.t; huntAlert('shot',[lp[0]+(o.off||0),lp[1]],1); let caught=null,seen=null; const probes=[];
+    while(GAME.t-t0<o.secs){ step(); for(const l of HUNT.log) if(l.ev==='probe'&&l.t>=t0&&!l._s){ l._s=true; probes.push([+(l.t-t0).toFixed(1),l.by,l.kind,l.caught]); if(l.caught&&caught==null) caught=+(l.t-t0).toFixed(1); }
+      if(seen==null&&men().some(E=>E.aware&&E.canSee)) seen=+(GAME.t-t0).toFixed(1); if((caught!=null||seen!=null)&&!o.stay) break; if(o.stay&&HE.some(h=>h[0]==='end')) break; }
+    return {spot:o.id,kind:S.kind,inIt,exp,seenIn:!!o.seen,away:o.off||0,caughtAt:caught,seenAt:seen,probes:probes.slice(0,6),hunt:hstate(),ended:HE.filter(h=>h[0]==='end').map(h=>+(h[1]-t0).toFixed(1)),steers:HUNT.log.filter(l=>l.ev==='steer'&&l.t>=t0).length}; }
+  return {realhide,duel,detect,fight,siege,body,surr,level,hunter,darkshot,cycle,idle,face,meter,cost,hidecheck,step,L,lit};
 })();`;
 
 (async () => {
@@ -200,13 +216,15 @@ window.__D=(function(){
   else if (test === 'surr') { for (const psych of ['quit', 'fake', 'fight']) for (const a of [{ dist: 3, hold: 2, turn: false }, { dist: 3, hold: 2, turn: true }, { dist: 7, hold: 2, turn: true }]) for (let r = 0; r < 2; r++) await run(3, 'surr', Object.assign({ psych, secs: 40 }, a)); }
   else if (test === 'level') { for (let f = 1; f <= 15; f++) await run(f, 'level'); }
   else if (test === 'hunter') { for (const f of args.floors || [1, 2, 4, 7, 14]) for (const dark of [false, true]) await run(f, 'hunter', { secs: 150, dark }); }
-  else if (test === 'darkshot') { for (const at of args.ats || [[6, 0], [5, -3.5], [8, 3.5], [-12, 0], [12.5, -3.5]]) for (let r = 0; r < (args.runs || 1); r++) await run(F0, 'darkshot', { at, secs: args.secs || 45 }); }
+  else if (test === 'darkshot') { for (const at of args.ats || [[6, 0], [5, -3.5], [8, 3.5], [-12, 0], [12.5, -3.5]]) for (let r = 0; r < (args.runs || 1); r++) await run(F0, 'darkshot', { at, secs: args.secs || 45, noflash: !!args.noflash }); }
   else if (test === 'cycle') { for (let r = 0; r < (args.runs || 1); r++) await run(F0, 'cycle', { at: args.at || [-12, -0.4], secs: args.secs || 330, after: args.after || 10 }); }
   else if (test === 'idle') { for (const v of args.victims || ['Rui', 'Dani']) await run(F0, 'idle', { victim: v, hide: args.hide || [12.5, -3.5], secs: args.secs || 240 }); }
   else if (test === 'face') { for (const a of [{ ex: 12, from: 7 }, { ex: 12, from: 7, slow: .5 }, { ex: 8, from: 7 }, { ex: 12, from: 7, behind: true, slow: .5 }, { ex: 12, from: 7, behind: true }]) for (let r = 0; r < (args.runs || 2); r++) await run(F0, 'face', a); }
   else if (test === 'meter') { for (const a of [{ state: 'calm', dist: 5, lit: true }, { state: 'edge', dist: 5, lit: true }, { state: 'hunting', dist: 5, lit: true }, { state: 'calm', dist: 1.6 }, { state: 'calm', dist: 12, lit: true }, { state: 'calm', dist: 5, lit: true, peek: true }, { state: 'calm', dist: 4 }, { state: 'edge', dist: 2.6 }]) await run(F0, 'meter', Object.assign({ ex: 8 }, a)); }
   else if (test === 'cost') { await run(F0, 'cost', { at: args.at || [-12, -0.4], secs: args.secs || 40 }); }
   else if (test === 'hidecheck') { for (const a of [{ kind: 'bed', near: [-8.5, -5], seen: true }, { kind: 'wardrobe', near: [-5, -5.6], seen: true }, { kind: 'bed', near: [-8.5, -5], seen: false }]) await run(F0, 'hidecheck', Object.assign({ secs: 60 }, a)); }
+  else if (test === 'realhide' && args.away) { for (let r = 0; r < (args.runs || 3); r++) await run(F0, 'realhide', { id: args.id || 'test-bed', crawl: (args.id || 'test-bed') === 'test-bed', seen: false, off: args.away, secs: 80, stay: true }); }
+  else if (test === 'realhide') { for (const a of [{ id: 'test-bed', crawl: true, seen: true }, { id: 'test-bed', crawl: true, seen: false }, { id: 'test-wardrobe', seen: true }, { id: 'test-wardrobe', seen: false, off: 3 }]) await run(F0, 'realhide', Object.assign({ secs: 60 }, a)); }
   if (errs.length) console.log('ERRORS', JSON.stringify(errs.slice(0, 8)));
   await browser.close();
 })();
