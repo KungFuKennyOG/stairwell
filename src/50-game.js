@@ -193,8 +193,17 @@ function setPose(E,name,t){
       armL:[-1.3+tr,0,.28],elbowL:[-1.15,0,0],armR:[-1.3-tr,0,-.28],elbowR:[-1.15,0,0]}; break; } /* arms out toward you, not back over his head */
     case 'catch': { rel=true; /* shot down and falling: folding at the hips and knees, both hands thrown out in front to break the fall. Relative to the pelvis, so it
          holds nothing up: gravity takes him, the pose only decides how he lands */
-      j={spine:[.65,0,0],neck:[.15,0,0],head:[.2,0,0],thighL:[-1.0,0,.12],kneeL:[1.5,0,0],thighR:[-1.0,0,-.12],kneeR:[1.5,0,0],
+      j={spine:[.5,0,0],neck:[.15,0,0],head:[.2,0,0],thighL:[-.45,0,.12],kneeL:[.95,0,0],thighR:[-.45,0,-.12],kneeR:[.95,0,0],
       armL:[-1.25,0,.3],elbowL:[-.3,0,0],armR:[-1.25,0,-.3],elbowR:[-.3,0,0]}; break; }
+    case 'pcurl': { rel=true; const en=E.energy??1,rk=.05*s(ph*.8)*c*en; /* face down: flat, arms tucked under his stomach, one knee drawn up to the side */
+      j={spine:[.12+rk,0,.12],neck:[-.15,0,0],head:[-.2,0,.3],thighL:[-.75,0,.35],kneeL:[1.1,0,0],thighR:[-.1,0,-.05],kneeR:[.25,0,0],
+      armL:[-.35,0,.15],elbowL:[-1.75,0,0],armR:[-.35,0,-.15],elbowR:[-1.75,0,0]}; break; }
+    case 'pcower': { rel=true; const tr=.03*s(ph*9); /* face down with you over him: flat, hands clasped over the back of his head, one knee drawn up */
+      j={spine:[.1,0,0],neck:[.2,0,0],head:[.25,0,0],thighL:[-.6,0,.3],kneeL:[.9,0,0],thighR:[-.08,0,-.05],kneeR:[.2,0,0],
+      armL:[-2.6+tr,0,.85],elbowL:[-2.2,0,0],armR:[-2.6-tr,0,-.85],elbowR:[-2.2,0,0]}; break; }
+    case 'slump': { rel=true; /* from his knees onto his side: the legs slide out from under him (kept folded, he went face down onto his knees) */
+      j={spine:[.25,0,0],neck:[.1,0,0],head:[.15,0,0],thighL:[-.25,0,.15],kneeL:[.45,0,0],thighR:[-.25,0,-.15],kneeR:[.45,0,0],
+      armL:[-.5,0,.35],elbowL:[-1.2,0,0],armR:[-.5,0,-.35],elbowR:[-1.2,0,0]}; break; }
     case 'still': { rel=true; const br=.015*s(ph*1.3); /* playing dead, or too far gone to move: flat, slack, just breathing */
       j={spine:[.05+br,0,0],neck:[.05,0,0],head:[0,0,0],thighL:[-.08,0,.08],kneeL:[.15,0,0],thighR:[-.05,0,-.08],kneeR:[.1,0,0],
       armL:[-.25,0,.5],elbowL:[-.35,0,0],armR:[-.2,0,-.45],elbowR:[-.25,0,0]}; break; }
@@ -223,7 +232,7 @@ function targetsFor(E,t,dt=1){
   const throat=!E.dead&&E.wounds.some(w=>w.part==='neck'&&!w.piece); /* a man holding his throat shut doesn't beg */
   if(st==='idle') pose='idle'; else if(st==='alert') pose=E.surr?(E.surr.ph==='reach'?'reach':'hands'):E.civFreeze?'freeze':'fight';
   else if(st==='kneel') pose=E.civMode==='shield'&&E.shielder?'shield':E.surr&&!throat?'kneelup':E.near&&!throat?'beg':'kneel';
-  else if(st==='down'){ pose=E.fallT>0?'catch':E.downMode||'writhe'; } /* going down: falling, hands out (buckle), then whatever he does on the floor */
+  else if(st==='down'){ pose=E.fallT>0?(E.fallKneel?'slump':'catch'):E.downMode||'writhe'; if((E.downUp??0)<-.3&&(pose==='curl'||pose==='cower')) pose='p'+pose; } /* face down, knees-to-chest is a man kneeling with his face on the floor: the face-down way instead */ /* going down: falling, hands out (buckle), then whatever he does on the floor */
   else pose='writhe';
   if(E.drop){ E.drop.t+=dt; if(E.drop.t>=E.drop.T){ E.drop=null; E.settle=Math.max(E.settle||0,.9); } }
   const rel=setPose(E,pose,t);
@@ -914,7 +923,7 @@ function think(E,dt,t){
       if(E.atkT>.7){ E.atkT=-1; E.atkCd=rnd(1.4,2.4); } } } }
   else E.atkT=-1;
   if(E.st==='down'){ E.modeT=(E.modeT||0)-dt; const prevMode=E.downMode;
-    const Rh=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),pel,X_(B,PI_.chest)),up=Rh[2][1];
+    const Rh=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),pel,X_(B,PI_.chest)),up=Rh[2][1]; E.downUp=up;
     const canMove=E.cons>.35&&Math.max(E.hp.armL,E.hp.armR)>.35&&!E.wounds.some(w=>w.part==='neck');
     const lying=pel[1]<.35&&X_(B,PI_.chest)[1]<.45; /* actually on the floor, not still kneeling or slumped against a table */
     /* How a man on the floor behaves. From how people actually go down: a belly wound lies still and curls up (moving hurts), a chest
@@ -990,11 +999,11 @@ function crawlGoal(E,pel){ if(PROTO.on&&typeof wdCrawlGoal==='function'){ const 
     const sc=dp-walk*.35+(sightClear([PL.x,1.5,PL.z],[x,.4,z])?0:2.5); if(sc>bs){ bs=sc; best=[cellX(c%NX),cellZ((c-c%NX)/NX)]; } }
   return E.cg=best; }
 function toDown(E,hard){ /* unless knocked flat, they buckle: held up on the way down to a knee, then let go */
-  const faker=!E.dead&&!E.ally&&!E.civ&&armed(E)&&psychOf(E)==='fake'&&Math.random()<.7; /* some go down and play dead with the gun under them (69-standoff.js) */
+  const wasKneel=E.st==='kneel',faker=!E.dead&&!E.ally&&!E.civ&&armed(E)&&psychOf(E)==='fake'&&Math.random()<.7; /* some go down and play dead with the gun under them (69-standoff.js) */
   E.st='down'; E.downT=0; E.settle=Math.max(E.settle||0,1.4); E.surr=null; E.civFreeze=false; if(faker) fakeDeadStart(E); else dropWeapon(E);
   const B=E.B,Rh=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),X_(B,PI_.pelvis),X_(B,PI_.chest)),fw=Rh[2];
   E.pos=[B.x[0],B.x[2]]; if(Math.hypot(fw[0],fw[2])>.3){ /* keep the heading he had unless his hips really turned: snapping to a noisy hip frame yanks the whole body round */
-    const h2=Math.atan2(fw[0],fw[2]),d=Math.atan2(Math.sin(h2-E.hd),Math.cos(h2-E.hd)); if(Math.abs(d)>.7) E.hd+=d*.5; } E.fallT=hard?0:.55; if(!hard&&!E.dead) buckle(E); }
+    const h2=Math.atan2(fw[0],fw[2]),d=Math.atan2(Math.sin(h2-E.hd),Math.cos(h2-E.hd)); if(Math.abs(d)>.7) E.hd+=d*.5; } E.fallT=hard?0:.55; if(!hard&&!E.dead) buckle(E,wasKneel); }
 /* shot down: the bad leg goes at once (the knee pitched forward, the hips dropping) and the trunk carries on the way it was going or was hit, so there's no
    frozen beat held upright. Then he falls under his own weight (pose 'catch'), not lowered onto a knee by a puppet */
 /* a round in the body that misses the heart and the vessels: it doesn't bleed him out (LOSS), it puts him down. Most men fold within a second or so from the
@@ -1006,10 +1015,15 @@ function torsoShock(E,key){ if(E.dead||E.st==='down') return; E.torsoN=(E.torsoN
     if(Math.random()>=.7) return; } /* and some never fold */
   const at=GAME.t+(now?rnd(.35,1.3):rnd(10,30));
   if(!E.incapT||at<E.incapT) E.incapT=at; if(E.incapK!=='chest') E.incapK=key; }
-function buckle(E){ const B=E.B,fw=[Math.sin(E.hd),0,Math.cos(E.hd)],d=E.hitDir||[0,0,0],dh=norm3([d[0],0,d[2]]),bad=E.hp.legL<E.hp.legR?'L':'R',good=bad==='L'?'R':'L';
-  kickV(B,PI_.pelvis,[0,-.9,0],H); for(const s of ['L','R']) kickV(B,PI_['hip'+s],[0,-.75,0],H);
-  kickV(B,PI_['kn'+bad],v3.add(v3.sc(fw,1.1),[0,-.35,0]),H); kickV(B,PI_['kn'+good],v3.sc(fw,.45),H);
-  const top=v3.add(v3.sc(fw,.3),v3.sc(dh,.35)); for(const i of [PI_.chest,PI_.neck,PI_.shL,PI_.shR,PI_.head]) kickV(B,i,top,H); }
+/* He topples: forward and to one side as the legs go (a bullet doesn't push anyone, so the hit direction plays no part; it used to cancel the
+   forward lean and drop him straight down into a squat). Already on his knees, he tips over onto his side */
+function buckle(E,wasKneel){ const B=E.B,fw=[Math.sin(E.hd),0,Math.cos(E.hd)],rt=[fw[2],0,-fw[0]],bad=E.hp.legL<E.hp.legR?'L':'R',good=bad==='L'?'R':'L';
+  const sd=E.hp.legL!==E.hp.legR?(bad==='L'?1:-1)*(Math.random()<.75?1:-1):(Math.random()<.5?1:-1); /* the side of the bad leg, mostly */
+  let top; E.fallKneel=!!wasKneel; if(wasKneel){ E.fallT=.6; top=v3.add(v3.sc(rt,sd*2.3),[0,-.4,0]); kickV(B,PI_.pelvis,v3.sc(rt,sd*.7),H); for(const s of ['L','R']) kickV(B,PI_['kn'+s],v3.sc(rt,-sd*.4),H); }
+  else { kickV(B,PI_.pelvis,[0,-.7,0],H); for(const s of ['L','R']) kickV(B,PI_['hip'+s],[0,-.6,0],H);
+    kickV(B,PI_['kn'+bad],v3.add(v3.sc(fw,.9),[0,-.3,0]),H); kickV(B,PI_['kn'+good],v3.sc(fw,.35),H);
+    top=v3.add(v3.sc(fw,.85),v3.sc(rt,sd*.45)); }
+  for(const i of [PI_.chest,PI_.neck,PI_.shL,PI_.shR,PI_.head]) kickV(B,i,top,H); }
 /* the weapon's world matrix: pistols ride in the hand, long guns are braced on the chest (two-handed hold) */
 function wpnMat(E){ const w=E.C.wpn,loc=m4.make(),Wm=m4.make(); m4.compose(loc,w.p,w.r,w.s); const pb=BONES.find(b=>E.J[b]===w.par)||('hand'+E.wpnHand); m4.mul(Wm,E.M[pb],loc); return Wm; }
 function gunRay(E){ const Wm=wpnMat(E),W=WPN[KIND_WPN[E.kind]]; const mz=mulP(Wm,W.muzzle); return {mz,d:norm3(v3.sub(mz,mulP(Wm,[0,W.axisY,0])))}; }
