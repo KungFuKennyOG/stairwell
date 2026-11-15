@@ -12243,7 +12243,7 @@ function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.p
 function mRustM(){ return M(null,{color:0x5a3a26}); }
 
 /* ---------- building it ---------- */
-const PF_DEF={n:1,name:'Floor 01',proto:true,kit:'pistol',
+const PF_DEF={n:1,name:'Floor 01',proto:true,kit:null, /* empty-handed: a bottle, a knife, a pan, the hammer are lying around; guns come off the men */
   cast:[
     {kind:'corner',name:'Dani',spots:[[-10.85,3.6,-Math.PI/2]],pose:'lean',extra:'I got a daughter— she\'s six—'},
     {kind:'vecino1',hidden:true,look:'any',name:'Kev',spots:[[-3.3,11.25,0],[-3.7,11.2,.2]],pose:'phone',extra:'I just held the door— I didn\'t shoot—'},
@@ -12603,7 +12603,7 @@ function pfLoad(){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removeP
 function pfReset(){ GAME.fade=0; PF.exited=false; PF.exitT=null; PF.exitShown=false; PF.room=null; PF.lead=PF.follow=PF.keyMan=null; PF.keysN=null; for(const r of PF.rooms) r.who=[];
   FLOOR.flanked=false; FLOOR.upT=null; FLOOR.braceUpT=null; for(const l of PF.lights) l.w=0;
   pfExitReset(); pfCast(); pfItems();
-  if(!GAME.kit) equip(HANDS.R,newItem(PF_DEF.kit,undefined,true)); /* Novak's pistol, can on (A sets what's in it) */
+  if(!GAME.kit&&PF_DEF.kit) equip(HANDS.R,newItem(PF_DEF.kit,undefined,true)); /* Novak's pistol, can on (A sets what's in it) */
   if(XR.on) vrToast('Floor 01',2.5); }
 protoOn('tick',(gdt,dt)=>{ if(FLOOR.mode!=='proto'){ if(PF.snd) pfAudioStop(); return; }
   pfRoomTick(); pfLightsTick(dt); pfAudioTick(dt); if(!GAME.started) pfCullPeople(); for(const S of PF.ticks) S.tick(GAME.t); if(PF.spray){ PF.spray.s=[1,1+.04*Math.sin(GAME.t*31),1]; PF.spray.p[0]=.2+.01*Math.sin(GAME.t*47); }
@@ -12686,7 +12686,7 @@ function pfMap(){ const S=.5,rows=[]; const W=Math.round(2*RX/S),Hh=Math.round(2
            stat('timeHidden',secs)
    ===================================================================== */
 PROTO.hide={
-  crouchH:1.2, standH:1.28,         /* VR: a real head under crouchH is crouched; it has to come back over standH to stand (no flicker) */
+  crouchH:1.42, standH:1.5, crouchK:.8, standK:.86, /* VR: crouched under 80% of your standing head height (cap crouchH), standing again over 86% */
   flatEye:.95,                      /* keyboard: eye height crouched */
   togEye:.95, togMin:.3, togMax:.8, /* VR toggle: a fixed drop, taken at the click, that puts a standing head near togEye (a seated one drops less) */
   crawlMin:.24,                     /* crouched, Ray crawls under anything whose underside is at least this far off the floor */
@@ -12768,7 +12768,9 @@ function hideCrouchToggle(){ if(!PROTO.on) return; if(PL.crouchT&&PL.crawl) retu
   PL.crouchT=!PL.crouchT; if(PL.crouchT){ const B=hideBody(); HIDE.togOff=B.vr?clamp(B.real-HIDEP.togEye,HIDEP.togMin,HIDEP.togMax):1.62-HIDEP.flatEye; }
   if(XR.on) buzz('left',.25,30); }
 function hideCrouchTick(dt,B){ const P=HIDEP;
-  if(B.vr){ if(B.real<P.crouchH) HIDE.realC=true; else if(B.real>P.standH) HIDE.realC=false; } else HIDE.realC=false;
+  if(B.vr){ /* crouched is relative to how tall you stand: a slow-falling high-water mark of your head (sitting players get the toggle) */
+    HIDE.tall=Math.max(B.real,(HIDE.tall||1.6)-dt*.004); const tall=clamp(HIDE.tall,1.3,1.9),cH=Math.min(P.crouchH,tall*P.crouchK),sH=Math.min(P.standH,tall*P.standK);
+    if(B.real<cH) HIDE.realC=true; else if(B.real>sH) HIDE.realC=false; } else HIDE.realC=false;
   const was=PL.crouch; PL.crouch=!!(PL.crouchT||HIDE.realC); if(PL.crouch!==was) protoEmit('crouch',PL.crouch);
   const low=PL.crouch?hideLowAbove(B.x,B.z):0,prev=HIDE.low; HIDE.low=low; PL.crawl=low>0;
   const tog=PL.crouchT?(B.vr?HIDE.togOff:1.62-P.flatEye):0,eff=B.real-tog; let crawl=0;

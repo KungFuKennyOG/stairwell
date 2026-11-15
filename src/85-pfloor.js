@@ -278,7 +278,7 @@ function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.p
 function mRustM(){ return M(null,{color:0x5a3a26}); }
 
 /* ---------- building it ---------- */
-const PF_DEF={n:1,name:'Floor 01',proto:true,kit:'pistol',
+const PF_DEF={n:1,name:'Floor 01',proto:true,kit:null, /* empty-handed: a bottle, a knife, a pan, the hammer are lying around; guns come off the men */
   cast:[
     {kind:'corner',name:'Dani',spots:[[-10.85,3.6,-Math.PI/2]],pose:'lean',extra:'I got a daughter— she\'s six—'},
     {kind:'vecino1',hidden:true,look:'any',name:'Kev',spots:[[-3.3,11.25,0],[-3.7,11.2,.2]],pose:'phone',extra:'I just held the door— I didn\'t shoot—'},
@@ -638,7 +638,7 @@ function pfLoad(){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removeP
 function pfReset(){ GAME.fade=0; PF.exited=false; PF.exitT=null; PF.exitShown=false; PF.room=null; PF.lead=PF.follow=PF.keyMan=null; PF.keysN=null; for(const r of PF.rooms) r.who=[];
   FLOOR.flanked=false; FLOOR.upT=null; FLOOR.braceUpT=null; for(const l of PF.lights) l.w=0;
   pfExitReset(); pfCast(); pfItems();
-  if(!GAME.kit) equip(HANDS.R,newItem(PF_DEF.kit,undefined,true)); /* Novak's pistol, can on (A sets what's in it) */
+  if(!GAME.kit&&PF_DEF.kit) equip(HANDS.R,newItem(PF_DEF.kit,undefined,true)); /* Novak's pistol, can on (A sets what's in it) */
   if(XR.on) vrToast('Floor 01',2.5); }
 protoOn('tick',(gdt,dt)=>{ if(FLOOR.mode!=='proto'){ if(PF.snd) pfAudioStop(); return; }
   pfRoomTick(); pfLightsTick(dt); pfAudioTick(dt); if(!GAME.started) pfCullPeople(); for(const S of PF.ticks) S.tick(GAME.t); if(PF.spray){ PF.spray.s=[1,1+.04*Math.sin(GAME.t*31),1]; PF.spray.p[0]=.2+.01*Math.sin(GAME.t*47); }

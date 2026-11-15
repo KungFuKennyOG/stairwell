@@ -17,7 +17,7 @@
            stat('timeHidden',secs)
    ===================================================================== */
 PROTO.hide={
-  crouchH:1.2, standH:1.28,         /* VR: a real head under crouchH is crouched; it has to come back over standH to stand (no flicker) */
+  crouchH:1.42, standH:1.5, crouchK:.8, standK:.86, /* VR: crouched under 80% of your standing head height (cap crouchH), standing again over 86% */
   flatEye:.95,                      /* keyboard: eye height crouched */
   togEye:.95, togMin:.3, togMax:.8, /* VR toggle: a fixed drop, taken at the click, that puts a standing head near togEye (a seated one drops less) */
   crawlMin:.24,                     /* crouched, Ray crawls under anything whose underside is at least this far off the floor */
@@ -99,7 +99,9 @@ function hideCrouchToggle(){ if(!PROTO.on) return; if(PL.crouchT&&PL.crawl) retu
   PL.crouchT=!PL.crouchT; if(PL.crouchT){ const B=hideBody(); HIDE.togOff=B.vr?clamp(B.real-HIDEP.togEye,HIDEP.togMin,HIDEP.togMax):1.62-HIDEP.flatEye; }
   if(XR.on) buzz('left',.25,30); }
 function hideCrouchTick(dt,B){ const P=HIDEP;
-  if(B.vr){ if(B.real<P.crouchH) HIDE.realC=true; else if(B.real>P.standH) HIDE.realC=false; } else HIDE.realC=false;
+  if(B.vr){ /* crouched is relative to how tall you stand: a slow-falling high-water mark of your head (sitting players get the toggle) */
+    HIDE.tall=Math.max(B.real,(HIDE.tall||1.6)-dt*.004); const tall=clamp(HIDE.tall,1.3,1.9),cH=Math.min(P.crouchH,tall*P.crouchK),sH=Math.min(P.standH,tall*P.standK);
+    if(B.real<cH) HIDE.realC=true; else if(B.real>sH) HIDE.realC=false; } else HIDE.realC=false;
   const was=PL.crouch; PL.crouch=!!(PL.crouchT||HIDE.realC); if(PL.crouch!==was) protoEmit('crouch',PL.crouch);
   const low=PL.crouch?hideLowAbove(B.x,B.z):0,prev=HIDE.low; HIDE.low=low; PL.crawl=low>0;
   const tog=PL.crouchT?(B.vr?HIDE.togOff:1.62-P.flatEye):0,eff=B.real-tog; let crawl=0;
