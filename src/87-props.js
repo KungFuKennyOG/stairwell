@@ -160,6 +160,9 @@ const PR_TX={
   reed:()=>prSurf(32,32,1850,'#9a7c44','foam',{rim:.3,fn:I=>{ for(let y=0;y<32;y++) for(let x=0;x<32;x++){ const a=((x>>2)+(y>>2))&1,u=a?x%4:y%4; mul(I,x,y,u===0?.55:u===3?.8:1.08); } }}),
   /* kitchen */
   kitBase:()=>prSurf(64,32,1851,'#7e9a90','plaster',{low:.35,fn:(I,r,w,h)=>{ softLine(I,0,4,64,4,'#5a6e66',.4,1); prChips(I,r,14,'#6a6a64',w,h,{s:2}); prScuff(I,r,14,w,h,h*.6,h,'#2a2420',.4); prTide(I,22,22,8,7,'#5a5038',.3); }}),
+  kitFront:()=>prSurf(32,32,2101,'#86a296','paint',{low:.3,fn:(I,r,w,h)=>{ softRect(I,3,3,w-6,h-6,'#6c867a',.35,1); softLine(I,3,3,w-3,3,'#a8c0b4',.3,1); prChips(I,r,10,'#6a5a46',w,h,{s:1.5}); prScuff(I,r,10,w,h,h*.55,h,'#2a2420',.35); blob(I,w*.7,h*.35,5,4,.12,'#4a4434'); }}),
+  drawerWood:()=>prSurf(32,16,2102,'#9a7a52','woodx',{rim:.25,fn:(I,r,w,h)=>{ prDots(I,r,14,'#3a2a1a',0,0,w,h,.5); prTide(I,12,8,5,3,'#6a5030',.3); }}),
+  fridgeIn:()=>prSurf(16,32,2103,'#b9b39a','enamel',{rim:0,grime:.25,fn:(I,r,w,h)=>{ blob(I,8,4,10,6,.18,'#dcd6be'); blob(I,8,h-2,12,10,.3,'#6e6a58'); for(const y of [10,20]) softLine(I,0,y,w,y,'#8a846c',.5,.8); prTide(I,8,h-5,6,3,'#8a7a48',.4); }}),
   ctrTile:()=>prSurf(32,32,1852,'#d2ccb8','enamel',{rim:0,grime:.3,fn:(I,r)=>{ for(let k=0;k<32;k+=8){ softLine(I,k,0,k,32,'#6a6450',.85,.7); softLine(I,0,k,32,k,'#6a6450',.85,.7); } for(let i=0;i<3;i++) prTide(I,r()*32,r()*32,3,2.4,'#8a6a3a',.35); softLine(I,9,3,14,6,'#5a5a50',.6,.5); }}),
   ctrEdge:()=>prSurf(32,8,1853,'#3e6a8a','enamel',{rim:.2,fn:(I,r)=>{ for(let k=0;k<32;k+=8) softLine(I,k,0,k,8,'#5a5a50',.8,.7); prChips(I,r,4,'#8a8270',32,8,{s:1}); }}),
   splash:()=>prSurf(32,32,1854,'#cfd0c4','enamel',{rim:0,grime:.3,fn:(I,r)=>{ for(let k=0;k<32;k+=8){ softLine(I,k,0,k,32,'#7a7a6c',.8,.6); softLine(I,0,k,32,k,'#7a7a6c',.8,.6); } prDots(I,r,30,'#6a5a30',0,0,32,32,.6); softLine(I,20,8,26,20,'#4a4a42',.5,.5); }}),
@@ -467,7 +470,20 @@ PROP_B.chair=(g,o,S)=>{ const mW=prM('legPaint'),sh=.45,w=.42,e=w/2-.03;
    at the end, tiles behind, a plank shelf of pots. opts.len */
 PROP_B.kitchen=(g,o,S)=>{ const L=o.len||2.0,D=.62,T=.92,bay=.44,bL=L-bay,sx=-L/2+.5,stx=L/2-.32,wz=-D/2,mK=prM('kitBase'),mC=prM('chrome'),mA=prM('alu'),mD=prM('steelDark');
   prShadow(g,L+.08,D+.08);
-  prCB(g,mK,bL,T-.05,D-.02,-L/2+bL/2,(T-.05)/2,-.01,0,0,0,{cell:.6}); prBox(g,mK,.04,T-.05,D-.02,L/2-.02,(T-.05)/2,-.01);
+  /* the base: solid under the sink (the curtain hangs in front of it), then a unit of two drawers over a pair of cupboard doors with a dark
+     carcass behind them, then the open bay with the gas bottle. Drawers and doors are live nodes (S.opens, 87b-openables.js moves them) */
+  const ux1=-L/2+bL,uw=.68,ux0=ux1-uw,ucx=(ux0+ux1)/2,BH=T-.05,fz=D/2-.01,mIn=prC(0x17140f),mF=prM('kitFront'),mW=prM('drawerWood'); S.opens=[];
+  prCB(g,mK,ux0+L/2,BH,D-.02,(-L/2+ux0)/2,BH/2,-.01,0,0,0,{cell:.6}); prBox(g,mK,.04,BH,D-.02,L/2-.02,BH/2,-.01);
+  prBox(g,mK,.02,BH,D-.02,ux1-.01,BH/2,-.01); prBox(g,mIn,uw-.02,BH,.02,ucx,BH/2,-D/2+.02); prBox(g,mK,uw-.02,.05,D-.04,ucx,.025,-.01);
+  prBox(g,mIn,.02,.62,D-.06,ucx,.36,-.03); prBox(g,mK,uw-.02,.03,D-.04,ucx,.685,-.01); prBox(g,mIn,.02,.17,D-.06,ucx,.785,-.03); prBox(g,mIn,uw-.04,.014,D-.08,ucx,.37,-.04);
+  prCyl(g,mA,.09,.08,.13,6,ux0+.13,.115,-.06); prBox(g,prM('jar'),.08,.13,.08,ux1-.12,.443,-.08,0,.3,0); prBox(g,prC(0x8a7a5a),.14,.18,.09,ux1-.14,.14,-.1,0,-.2,0);
+  for(const k of [-1,1]){ const dcx=ucx+k*uw/4,dw=uw/2-.02,dn=N(g,dcx,0,0); dn.live=true;
+    prBox(dn,mF,dw,.145,.02,0,.7775,fz); prBox(dn,mC,.1,.014,.016,0,.79,fz+.018); for(const s2 of [-1,1]) prBox(dn,mC,.012,.014,.02,s2*.044,.79,fz+.008);
+    prBox(dn,mW,dw-.03,.01,.46,0,.71,fz-.24); for(const s2 of [-1,1]) prBox(dn,mW,.01,.09,.46,s2*(dw/2-.02),.755,fz-.24); prBox(dn,mW,dw-.03,.09,.01,0,.755,fz-.47);
+    S.opens.push({kind:'drawer',n:dn,lx:dcx,lz0:dn.p[2],max:.36,w:dw,y0:.69,y1:.87,fz,grip:[0,.79,fz+.022],tray:[dcx,.716,fz-.25]}); }
+  for(const dir of [1,-1]){ const lw=uw/2-.012,hx=dir>0?ux0+.004:ux1-.004,hn=N(g,hx,0,fz); hn.live=true;
+    prBox(hn,mF,lw,.615,.02,dir*lw/2,.3625,0); prCyl(hn,mC,.014,.014,.022,6,dir*(lw-.045),.6,.016,Math.PI/2,0,0);
+    S.opens.push({kind:'cupboard',n:hn,hx,hz:fz,dir,len:lw,max:1.9,y0:.05,y1:.68,grip:[dir*(lw-.045),.6,.028],shelf:[hx+dir*lw/2,.377,fz-.2]}); }
   prCyl(g,[prM('gasCyl'),prM('gasTop'),prM('gasTop')],.15,.15,.55,8,L/2-.23,.28,-.04); prCyl(g,mD,.03,.05,.07,6,L/2-.23,.59,-.04); prCyl(g,prC(0x1e1e1e),.007,.007,.36,4,L/2-.23,.76,wz+.06,.5,0,0);
   const mE=prM('ctrEdge',{repeat:[L/.64,1]}); prBox(g,prF6(prM('ctrEdge'),prM('ctrEdge'),prM('ctrTile',{repeat:[L/.64,1]}),mK,mE,mE),L+.02,.05,D+.03,0,T-.025,.005);
   mk(plane(L,.5,Math.ceil(L/.6),1),prM('splash',{repeat:[L/.64,.5/.64]}),g,0,T+.25,wz+.004);
@@ -481,15 +497,28 @@ PROP_B.kitchen=(g,o,S)=>{ const L=o.len||2.0,D=.62,T=.92,bay=.44,bL=L-bay,sx=-L/
   prCyl(g,mA,.1,.1,.11,7,shx-.25,1.62,wz+.11); prCyl(g,mA,.08,.07,.09,6,shx-.02,1.61,wz+.11); prBox(g,prM('jar'),.075,.12,.075,shx+.22,1.625,wz+.1,0,.4,0);
   S.solids.push([-L/2,-D/2,L/2,D/2,0,T],[shx-.45,wz,shx+.45,wz+.22,1.42,1.68]); S.sink=[sx,0]; S.top=T; };
 /* old round-shouldered fridge, yellowed, magnets and a note on the door, rust coming through at the bottom, a radio on top */
-PROP_B.fridge=(g,o,S)=>{ const W=.7,D=.68,H=1.62,mD=prM('fridge'),mS=prM('fridgeSide'),mT=prM('enamelPlain'),mC=prM('chrome');
+PROP_B.fridge=(g,o,S)=>{ const W=.7,D=.68,H=1.62,mD=prM('fridge'),mS=prM('fridgeSide'),mT=prM('enamelPlain'),mC=prM('chrome'),mDk=prC(0x1a1814),mIn=o.dead?prM('fridgeIn',{color:0x6a6656}):prM('fridgeIn',{unlit:true}); /* o.dead: dumped, unplugged: dark inside, no hum */
   prShadow(g,W+.08,D+.08);
-  prCB(g,prF6(mS,mS,mT,mT,prC(0x1a1814),mS),W,H-.16,D-.035,0,.06+(H-.16)/2,-.0175,0,0,0,{cell:.6});
-  prCB(g,prF6(mT,mT,mT,mT,mD,mT),W-.012,H-.2,.03,0,.08+(H-.2)/2,D/2-.016,0,0,0,{cell:.6});
+  /* a shell, not a block: the door opens on a lit inside (unlit liner = the bulb's on), two wire shelves and what's left in it */
+  const ch=H-.16,cy=.06+ch/2,bk=-D/2+.03,fz=D/2-.035;
+  for(const s2 of [-1,1]) prBox(g,prF6(mS,mS,mT,mT,mDk,mS),.03,ch,D-.035,s2*(W/2-.015),cy,-.0175);
+  prBox(g,mS,W-.06,ch,.03,0,cy,-D/2+.015); prBox(g,prF6(mT,mT,mT,mT,mDk,mT),W-.06,.06,fz-bk,0,.09,(fz+bk)/2);
   prBox(g,mT,W,.1,D,0,H-.05,0,0,0,0,{tw:.93,td:.9}); prBox(g,prM('grille'),W-.04,.06,.02,0,.03,D/2-.02);
-  prBox(g,mC,.025,.32,.03,W/2-.07,1.1,D/2+.035); for(const y of [.96,1.24]) prBox(g,mC,.02,.02,.04,W/2-.07,y,D/2+.015);
+  prBox(g,mIn,W-.065,ch-.13,.004,0,cy+.03,bk+.003); for(const s2 of [-1,1]) prBox(g,mIn,.004,ch-.13,fz-bk-.01,s2*(W/2-.033),cy+.03,(fz+bk)/2-.005);
+  prBox(g,mIn,W-.065,.004,fz-bk-.01,0,.122,(fz+bk)/2-.005); prBox(g,mIn,W-.065,.004,fz-bk-.01,0,H-.102,(fz+bk)/2-.005);
+  for(const y of [.55,.98]) prBox(g,mC,W-.07,.008,fz-bk-.04,0,y,(fz+bk)/2-.02);
+  for(let i=0;i<3;i++) prCyl(g,prC(0x4a2a10),.027,.027,.21,6,-.2+i*.07,1.09,-.12+i*.02); prCyl(g,mC,.012,.012,.04,5,-.2,1.215,-.12);
+  prCyl(g,prC(0x5a5a58),.11,.1,.13,7,.12,.62,-.06); prBox(g,prC(0xe8e4d8),.09,.18,.07,.22,1.08,-.18,0,.3,0); prBox(g,prC(0xb8b0a0),.28,.08,.11,-.05,.165,-.05);
+  /* the door, hinged on the left: the face, the handle, the Virgin and whatever's taped to it ride on it (o.pics: [tex, x, y, w, h]) */
+  const hx=-W/2+.006,hz=D/2-.016,hn=N(g,hx,0,hz); hn.live=true; S.door=hn;
+  prCB(hn,prF6(mT,mT,mT,mT,mD,mT),W-.012,H-.2,.03,(W-.012)/2,.08+(H-.2)/2,0,0,0,0,{cell:.6});
+  prBox(hn,mC,.025,.32,.03,W/2-.07-hx,1.1,.051); for(const y of [.96,1.24]) prBox(hn,mC,.02,.02,.04,W/2-.07-hx,y,.031);
+  mk(plane(.06,.09),prM(tTwVirgin),hn,-.13-hx,1.27,.019); for(const q of o.pics||[]) mk(plane(q[3],q[4]),prM(q[0]),hn,q[1]-hx,q[2],.019);
+  for(const y of [.42,.82,1.22]){ prBox(hn,mT,W-.1,.02,.07,(W-.012)/2,y,-.05); prBox(hn,mT,W-.1,.05,.008,(W-.012)/2,y+.025,-.083); }
+  for(let i=0;i<2;i++) prCyl(hn,prC(i?0x2a5a2a:0xc8a038),.025,.025,.17,6,.18+i*.08,.515,-.05);
   for(const y of [.25,1.35]) prBox(g,mC,.03,.06,.02,-W/2+.03,y,D/2+.008);
-  mk(plane(.06,.09),prM(tTwVirgin),g,-.13,1.27,D/2+.003);
   prBox(g,prC(0x2a2826),.26,.14,.1,-.1,H+.07,-.1,0,.2,0); prCyl(g,mC,.003,.003,.3,4,-.2,H+.27,-.12,.3,0,.25);
+  S.opens=[{kind:'fridge',n:hn,hx,hz,dir:1,len:W-.012,max:1.9,y0:.08,y1:H-.12,grip:[W/2-.07-hx,1.1,.06],seal:true,dead:!!o.dead,shelf:[-.16,.555,-.02]}];
   S.solids.push([-W/2,-D/2,W/2,D/2,0,H]); };
 /* old wood-cased CRT on a black metal cart, rabbit ears, a VCR blinking 12:00 underneath. S.screen is its own node with its own
    material (never merged): S.setTV(on, brightness) switches it and makes it flicker */
