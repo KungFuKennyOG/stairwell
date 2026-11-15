@@ -5277,13 +5277,16 @@ const armed=E=>E.wpnHeld&&RANGED[E.kind];
 const kst=E=>E.ks||KSTAT[E.kind]; /* a man's own numbers (Dale is a worse shot than the men minding him), or his kind's */
 const DMG={ head:{gun:{kill:1},knife:{bleed:2.6,stun:1,art:.3}},
   neck:{gun:{bleed:6,art:1,stun:.8},knife:{bleed:8,art:1,stun:1}},
-  chest:{gun:{bleed:2.4,stun:.7,art:.15},knife:{bleed:3.4,stun:.8,art:.3}},
-  belly:{gun:{bleed:2.0,stun:.6},knife:{bleed:3.1,stun:.75,art:.15}},
-  thigh:{gun:{bleed:1.4,leg:.8,stun:.5,art:.45},knife:{bleed:2.1,leg:.6,stun:.6,art:.6}},
+  chest:{gun:{bleed:2.4,stun:.7,art:.1},knife:{bleed:3.4,stun:.8,art:.3}},
+  belly:{gun:{bleed:2.0,stun:.6,art:.08},knife:{bleed:3.1,stun:.75,art:.15}},
+  thigh:{gun:{bleed:1.4,leg:.8,stun:.5,art:.25},knife:{bleed:2.1,leg:.6,stun:.6,art:.6}},
   shin:{gun:{bleed:.9,leg:.8,stun:.45},knife:{bleed:1.3,leg:.55,stun:.45}},
   foot:{gun:{bleed:.5,leg:.6,stun:.35},knife:{bleed:.6,leg:.4,stun:.3}},
-  uarm:{gun:{bleed:1.1,arm:.6,stun:.35,art:.25},knife:{bleed:1.6,arm:.5,stun:.35,art:.3}},
+  uarm:{gun:{bleed:1.1,arm:.6,stun:.35,art:.12},knife:{bleed:1.6,arm:.5,stun:.35,art:.3}},
   farm:{gun:{bleed:.8,arm:.65,stun:.3},knife:{bleed:1.2,arm:.45,stun:.3}} };
+/* how much of what a wound visibly bleeds is blood he can't spare. A hole in an arm, a leg or the gut drips and pools as before, but he loses
+   it slowly: the part is out of action, he isn't bleeding out. The heart, an opened vessel, the throat and a lost limb (LOSS 1) still do */
+const LOSS={uarm:.3,farm:.3,thigh:.35,shin:.35,foot:.35,chest:.32,belly:.25,face:.5};
 const LINES={
   alert:['Who the fuck—','Hey! HEY!','It\'s the cop!','He\'s still alive!','Get him!'],
   leg:['My leg! My leg!','Ahh— I can\'t stand—','Fuck— my knee—'],
@@ -5793,7 +5796,7 @@ function addWound(E,seg,point,dir,o){
   const upL=mtv(R,[0,1,0]); let Y=v3.sub(upL,v3.sc(ln,v3.dot(upL,ln))); Y=Math.hypot(...Y)>1e-3?norm3(Y):(Math.abs(ln[1])<.9?norm3(v3.cross(ln,[1,0,0])):[1,0,0]);
   const X=v3.cross(Y,ln),node=N(E.J[bone]); node.p=v3.sub(lp,v3.sc(Y,.032)); node.r=eul([X,Y,ln]);
   if(!o.noDecal) mk(plane(.05,.1),o.knife?mStab:mWound,node);
-  E.wounds.push({bone,lp,ln,rate:o.rate,art:o.art,part:o.part,acc:0}); }
+  E.wounds.push({bone,lp,ln,rate:o.rate,art:o.art,part:o.part,acc:0,loss:o.loss??1}); }
 function bleedFx(E,dt){
   const pr=clamp((E.blood-8)/92,0,1);
   for(const w of E.wounds){ const M=E.M[w.bone],p=mulP(M,w.lp),n=norm3(mv(rotOf(M),w.ln));
@@ -5906,7 +5909,8 @@ function hitEnemy(E,seg,point,dir,weapon,o={}){ protoEmit('enemyHit',E,seg,weapo
     spray(point,weapon==='gun'?dir:v3.sc(dir,-1),50,3.2,.5,'bright',.014);
     const up=!E.dead&&E.st!=='down'; if(up) toDown(E,fatal==='heart'); E.dieT=fatal==='heart'?rnd(.6,1.1):rnd(1.8,2.6); if(up&&fatal==='heart') startDrop(E,E.dieT+.3); }
   else if(D.kill){ E.headshot=true; spray(point,dir,70,4.2,.55,'bright',.014); spray(point,v3.sc(dir,-1),18,1.6,.6,'dark',.012); addWound(E,seg,point,dir,{rate:5,art:true,part:key}); E.spurtT=.4; }
-  else { const art=Math.random()<(D.art||0)*(behind?1.6:1)*(o.chop?1.6:1); addWound(E,seg,point,dir,{rate:D.bleed*ob*(art?2.3:1)*(behind?1.5:1),art,part:key,knife:weapon==='knife'});
+  else { const art=Math.random()<(D.art||0)*(behind?1.6:1)*(o.chop?1.6:1); addWound(E,seg,point,dir,{rate:D.bleed*ob*(art?2.3:1)*(behind?1.5:1),art,part:key,knife:weapon==='knife',loss:art?(key==='uarm'||key==='farm'?.5:1):LOSS[key]??1}); /* an opened vessel bleeds him out; the arm's artery slower (you can clamp an arm) */
+    if(weapon==='gun'&&(key==='chest'||key==='belly')&&!art) torsoShock(E,key);
     if(weapon==='gun'){ spray(point,dir,26,3.6,.4,'dark',.012); spray(point,v3.sc(dir,-1),8,1.4,.5,'bright',.01); }
     else { spray(point,v3.sc(dir,-1),22,2.2,.6,'bright',.012); }
     if(art) E.spurtT=.35; }
@@ -6013,7 +6017,7 @@ function think(E,dt,t){
   if(E.outT){ E.stun=1; E.atkT=-1; return; } /* out the window: nothing left to decide (64-environment.js) */
   if(E.koT&&E.st==='down'&&E.downT<E.koT) E.stun=1; /* out cold */
   /* blood and the heart */
-  const bleed=E.wounds.reduce((s,w)=>s+(w.piece?0:w.rate),0)*(.3+.7*E.blood/100);
+  const bleed=E.wounds.reduce((s,w)=>s+(w.piece?0:w.rate*(w.loss??1)),0)*(.3+.7*E.blood/100); /* LOSS: the drip you see vs the blood he can't spare */
   E.blood=Math.max(0,E.blood-bleed*dt*((kst(E)&&kst(E).tough)||1)); E.cons=clamp((E.blood-12)/46,0,1);
   shockTick(E,dt); /* shock stages, pallor, flinch timers (70-wounds.js) */
   const hr=1.15+(1-E.blood/100)*1.9+(E.aware?.4:0); E.heartPh+=dt*hr; if(E.heartPh>=1){ E.heartPh-=1; if(E.wounds.some(w=>w.art)) E.spurtT=.13; }
@@ -6024,11 +6028,14 @@ function think(E,dt,t){
   if(PROTO.on) fightSense(E,dt,dist); /* the flash, first-shot timing, rage, hurt early (84-fight.js) */
   const legs=Math.min(E.hp.legL,E.hp.legR);
   /* state changes */
+  if(E.incapT&&GAME.t>=E.incapT&&!E.dead){ E.incapT=0; /* the shock of a body round catches up with him (torsoShock) */
+    if(E.st==='idle'||E.st==='alert'){ if(E.incapK==='belly'&&Math.random()<.6){ E.st='kneel'; E.aware=true; E.surr=null; dropWeapon(E); faceHold(E,'hurt',2); E.slumpT=GAME.t+rnd(5,18); } else toDown(E); }
+    else if(E.st==='kneel'&&E.incapK==='chest') toDown(E); }
   if(E.st==='idle'||E.st==='alert'){
     if(legs<.5){ toDown(E); if(E.barkCd<=0) bark(E,pick(LINES.leg)); }
     else if(E.blood<58){ E.st='kneel'; dropWeapon(E); }
     else { if(pel[1]<E.fightY*.62) E.lowT+=dt; else E.lowT=0; if(E.lowT>.35){ toDown(E,true); E.knocked=true; } } }
-  else if(E.st==='kneel'){ if(E.blood<36||legs<.3) toDown(E); else if(pel[1]<.25) E.lowT+=dt; }
+  else if(E.st==='kneel'){ if(E.blood<36||legs<.3||E.slumpT&&GAME.t>E.slumpT){ E.slumpT=0; toDown(E); } /* doubled over from a belly round, he can't stay on his knees for long */ else if(pel[1]<.25) E.lowT+=dt; }
   else if(E.st==='down'){ E.downT+=dt; E.fallT=Math.max(0,(E.fallT||0)-dt);
     if(E.knocked&&legs>=.5&&E.blood>60&&E.downT>(E.koT||2.4)){ E.koT=0; E.st='alert'; E.rise=0; E.knocked=false; E.pos=[pel[0],pel[2]]; E.hd=Math.atan2(toP[0],toP[1]); } }
   if(E.wpnHeld&&E.hp['arm'+E.wpnHand]<.45){ const o=E.wpnHand==='R'?'L':'R';
@@ -6162,6 +6169,13 @@ function toDown(E,hard){ /* unless knocked flat, they buckle: held up on the way
     const h2=Math.atan2(fw[0],fw[2]),d=Math.atan2(Math.sin(h2-E.hd),Math.cos(h2-E.hd)); if(Math.abs(d)>.7) E.hd+=d*.5; } E.fallT=hard?0:.55; if(!hard&&!E.dead) buckle(E); }
 /* shot down: the bad leg goes at once (the knee pitched forward, the hips dropping) and the trunk carries on the way it was going or was hit, so there's no
    frozen beat held upright. Then he falls under his own weight (pose 'catch'), not lowered onto a knee by a puppet */
+/* a round in the body that misses the heart and the vessels: it doesn't bleed him out (LOSS), it puts him down. Most men fold within a second or so from the
+   shock and the pain; a fighter can stay up through the first one and fold when the adrenaline runs out; a second one drops anybody */
+function torsoShock(E,key){ if(E.dead||E.st==='down') return; E.torsoN=(E.torsoN||0)+1; const ps=E.civ?'quit':psychOf(E);
+  const p=E.torsoN>=2?.95:ps==='quit'?.9:ps==='fake'?.85:.6, now=Math.random()<p;
+  if(!now&&Math.random()>=.7) return; /* the odd one keeps going */
+  const at=GAME.t+(now?rnd(.35,1.3):rnd(10,30));
+  if(!E.incapT||at<E.incapT) E.incapT=at; if(E.incapK!=='chest') E.incapK=key; }
 function buckle(E){ const B=E.B,fw=[Math.sin(E.hd),0,Math.cos(E.hd)],d=E.hitDir||[0,0,0],dh=norm3([d[0],0,d[2]]),bad=E.hp.legL<E.hp.legR?'L':'R',good=bad==='L'?'R':'L';
   kickV(B,PI_.pelvis,[0,-.9,0],H); for(const s of ['L','R']) kickV(B,PI_['hip'+s],[0,-.75,0],H);
   kickV(B,PI_['kn'+bad],v3.add(v3.sc(fw,1.1),[0,-.35,0]),H); kickV(B,PI_['kn'+good],v3.sc(fw,.45),H);

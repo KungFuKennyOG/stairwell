@@ -27,6 +27,9 @@ window.__T=(function(){
     switch(part){ case 'neck': return mid(P('neck'),P('head'),.35); case 'head': return P('head');
       case 'chest': { const c=mid(P('chest'),P('neck'),.45),r=norm3(v3.sub(P('shR'),P('shL'))); return v3.add(c,v3.sc(r,.09)); }
       case 'belly': return mid(P('pelvis'),P('chest'),.45);
+      case 'chestL': { const c=mid(P('chest'),P('neck'),.62),r=norm3(v3.sub(P('shR'),P('shL'))); return v3.add(c,v3.sc(r,-.12)); } /* upper left chest, above and outside the heart */
+      case 'flank': { const c=mid(P('pelvis'),P('chest'),.3),r=norm3(v3.sub(P('shR'),P('shL'))); return v3.add(c,v3.sc(r,.13)); }
+      case 'shoulder': return mid(P('shR'),P('chest'),.2); case 'pelvis': return P('pelvis');
       case 'uarmR': return mid(P('shR'),P('elR'),.55); case 'farmR': return mid(P('elR'),P('hdR'),.5);
       case 'thighR': return mid(P('hipR'),P('knR'),.5); case 'thighL': return mid(P('hipL'),P('knL'),.5); case 'shinR': return mid(P('knR'),P('anR'),.5); case 'footR': return mid(P('anR'),P('toeR'),.5); } }
   const eye=()=>[PL.x,1.62,PL.z];
@@ -49,6 +52,15 @@ window.__T=(function(){
     const art=E.wounds.some(w=>w.wd?!w.wd.ok||w.wd.r0>0&&w.part==='thigh'&&w.art:w.art)||E.wounds.some(w=>w.wd&&!w.wd.ok);
     return {part:o.part,alive:!E.dead,deathT,art:E.wounds.map(w=>w.part+(w.wd&&!w.wd.ok?'(no clot)':'')+':'+(w.wd?w.wd.r0.toFixed(1):w.rate.toFixed(1))).join(' '),noClot:E.wounds.some(w=>w.wd&&!w.wd.ok),
       blood:Math.round(E.blood),st:E.dead?'dead':E.st,stable:!!E.wdStable,cons:+E.cons.toFixed(2),pale:+(E.paleK||0).toFixed(2),tl}; }
+
+  /* ---- torso: one or two rounds to one spot, return fire off, watched 4 minutes ---- */
+  function torso(o){ reset(); ray(-1,0); if(!window.__noHurt){ window.__noHurt=1; hurtPlayer=()=>{}; }
+    const E=gunman(2,0,o.back?Math.PI/2:-Math.PI/2,{psych:o.psych||'fight'}); equip(HANDS.R,newItem('pistol')); step(30);
+    for(let k=0;k<(o.n||1);k++){ shoot(E,o.part); step(9); } gunOff(); const t0=GAME.t; let incap=null,downT=null,deathT=null; const marks=[10,30,60,120,240],tl=[];
+    while(GAME.t-t0<240){ step(); const t=GAME.t-t0; if(incap==null&&(E.st==='kneel'||E.st==='down')) incap=+t.toFixed(1); if(downT==null&&E.st==='down') downT=+t.toFixed(1);
+      if(E.dead){ deathT=+t.toFixed(0); break; } if(tl.length<marks.length&&t>=marks[tl.length]) tl.push([marks[tl.length],Math.round(E.blood),E.st]); }
+    return {part:(o.back?'back:':'')+o.part,n:o.n||1,incap,downT,deathT,alive:!E.dead,blood:Math.round(E.blood),fatal:E.dieT!=null,
+      wounds:E.wounds.filter(w=>!w.piece).map(w=>w.part+':'+(w.wd?w.wd.r0:w.rate).toFixed(1)+(w.art||w.wd&&w.wd.r0>4?'a':'')+(w.wd&&!w.wd.ok?'!':'')).join(' '),tl}; }
 
   /* ---- crawling ---- */
   function crawl(o){ reset(); ray(-1,0); const E=gunman(o.x??2,o.z??0,o.hd??-Math.PI/2,{psych:o.psych,temper:'crawl'}); let F=null; if(o.friend) F=gunman(o.friend[0],o.friend[1],0,{name:'Friend',psych:'fight'});
@@ -114,7 +126,7 @@ window.__T=(function(){
     PL.x=pel0[0]-2; PL.z=pel0[2]; for(let k=0;k<120;k++){ PL.x+=4/120; step(); gunOff(); const p=X_(E.B,PI_.pelvis); maxP=Math.max(maxP,Math.hypot(p[0]-pel0[0],p[2]-pel0[2])); for(let i=0;i<NP;i++){ const q=X_(E.B,i); maxAny=Math.max(maxAny,Math.hypot(q[0]-snap[i][0],q[1]-snap[i][1],q[2]-snap[i][2])); } }
     let dy=(hipYaw(E)??y0)-(y0??0); dy=Math.atan2(Math.sin(dy),Math.cos(dy));
     return {mode:E.downMode,pelvisMoved:+maxP.toFixed(3),anyPartMoved:+maxAny.toFixed(3),hipTurnDeg:+(dy*57.3).toFixed(1)}; }
-  return {flip,clot,crawl,beg,tenant100,tenantOnce,shush,kill,still,EV};
+  return {flip,torso,clot,crawl,beg,tenant100,tenantOnce,shush,kill,still,EV};
 })();`;
 (async () => {
   const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'] });
@@ -125,6 +137,8 @@ window.__T=(function(){
   await fresh();
   if (test === 'clot') { const parts = ['thighR', 'shinR', 'uarmR', 'farmR', 'chest', 'belly']; let n = 0;
     for (const part of parts) for (let i = 0; i < (N || 4); i++) { if (++n % 6 === 0) await fresh(); await run('clot', { part }); } }
+  else if (test === 'torso') { const C = []; const P = process.env.PARTS ? process.env.PARTS.split(',') : ['uarmR', 'farmR', 'thighR', 'shinR', 'chest', 'chestL', 'belly', 'flank', 'pelvis']; for (const part of P) for (const n of [1, 2]) C.push({ part, n });
+    let k = 0; for (const c of C) for (let i = 0; i < (N || 2); i++) { if (++k % 6 === 0) await fresh(); await run('torso', c); } }
   else if (test === 'crawl') { const C = [{ psych: 'fight' }, { psych: 'quit' }, { psych: 'quit', friend: [9, 0] }, { psych: 'fight', part: 'shinR' }, { psych: 'quit', tenant: [7, -3.5] }, { psych: 'fight', hideRay: true }, { psych: 'quit', back: true }, { psych: 'fight', back: true }];
     let n = 0; for (const c of C) for (let i = 0; i < (N || 3); i++) { if (++n % 5 === 0) await fresh(); await run('crawl', c); } }
   else if (test === 'beg') { for (const rx of [-.2, -6, -15]) await run('beg', { rx }); await run('beg', { rx: -3, cover: true }); await run('beg', { rx: -15, temper: 'crawl' }); }
