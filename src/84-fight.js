@@ -15,6 +15,8 @@
    - A fighter hurt early backs into the nearest dark room and waits beside its doorway for 15-30 s.
    - Nerve by floor (quit/fight/fake). Fakers come up shooting sooner when you look away or a friend of theirs is in view.
    - A surrendered quitter left alone with your gun off him for 10-20 s gets up and runs for his friends.
+   - Close quarters (84b-close.js, asked first in fightMove after rage): doorway lean-outs, 3-6 m spacing and sidesteps, a hurt man
+     falling back to a friend and coming back as a pair, blades circling between swings, nobody standing in your face.
    Fields other systems can read: E.rage (s left, agent C's tackles), E.fx.* (this file's per-man state), FGT.token (the man shooting).
    Reads: E.winded (agent B: s; slows his next swing), E.openT (agent B: no swing till then), huntAlert/huntLitAt (agent D), PF.rooms/PF.openings/pfIn (agent F),
    rayHead/rayConcealment (agent G). Damage to Ray is agent A's: blows and rounds pass hurtPlayer(d,{E,kind,w,n,mz,dist,rage}).
@@ -107,6 +109,7 @@ function fightSense(E,dt,dist){ if(E.civ||E.ally) return; const F=fxOf(E),now=GA
 function fightMayFire(E,dist){ if(dist>pnum('fight','range',25)) return false; const F=E.fx||{};
   if(F.run) return false;
   if(F.ret&&F.ret.ph==='wait'&&dist>3) return false; /* lying in wait: not till you're through the door */
+  if(typeof closeHolding==='function'&&closeHolding(E)&&dist>3) return false; /* behind the doorframe: he fires when he leans out (84b-close.js) */
   if(E.rage>0||E.sprung>0||GAME.t-(F.sprangT??-99)<2||dist<pnum('fight','closeFree',3.5)) return true; /* a man in a rage, a faker coming up and a man you're on top of don't wait their turn */
   return FGT.token===E; }
 /* the token: one man shoots, whoever has the best line. It moves when he loses you, goes down or runs dry of reasons */
@@ -135,12 +138,14 @@ function fightFlash(info){ const now=GAME.t,sup=!!info.sup,R=sup?pnum('fight','f
 
 /* ---------- moving: called from think(); {goal,chase} overrides the role/hunt walk, null leaves it alone ---------- */
 function fightMove(E,dt,fighting,dist){ const F=E.fx; if(!F||E.civ||E.ally) return null;
+  if(typeof cqGuard==='function') cqGuard(E); /* nobody stands in your head (84b-close.js) */
   if(F.run) return fightRun(E,dt);
   if(F.ret){ fxFree2(E); const r=fightRetreat(E,dt,fighting,dist); if(r) return r; }
   if(E.rage>0&&E.aware){ fxFree2(E); const tgt=E.canSee?[PL.x,PL.z]:E.lkp; if(!tgt) return null;
     if(!armed(E)) return dist<1.3&&E.canSee?{goal:null,chase:false}:{goal:{x:tgt[0],z:tgt[1],sp:(kst(E)||{}).run||3},chase:E.canSee}; /* blades already come flat out; a rage just never stops coming */
     if(Math.hypot(tgt[0]-E.pos[0],tgt[1]-E.pos[1])<2.2) return {goal:null,chase:false};
     return {goal:{x:tgt[0],z:tgt[1],sp:pnum('fight','rageSp',2.6)},chase:false}; } /* walking straight at you, firing */
+  if(typeof closeMove==='function'){ const Q=closeMove(E,dt,fighting,dist); if(Q) return Q; } /* doorways, spacing, regroup, blades circling (84b-close.js) */
   const S=fightSpace(E,dt,dist); if(S) return S;
   const L=fightLight(E,dt,fighting,dist); if(L) return L;
   if(fighting&&armed(E)&&FGT.token&&FGT.token!==E&&E.role!=='hold'&&E.role!=='flank') return fightSpread(E,dt,dist);
@@ -197,8 +202,8 @@ function fxFree2(E){ if(E.role==='flank'||E.role==='hold'){ E.role='hunt'; E.hol
 /* ---------- hurt early: back into a dark room and wait by its door ---------- */
 function fightHurt(E,dist){ const F=fxOf(E); if(F.retreated||E.rage>0||!E.aware||E.st!=='alert'||E.surr||E.grabbed) return;
   if(psychOf(E)!=='fight'||E.blood<pnum('fight','retreatBlood',60)||E.wounds.length>2||dist<2.4) return;
-  if(F.retreatRoll==null) F.retreatRoll=Math.random(); if(F.retreatRoll>=pnum('fight','retreat',.45)) return;
-  const s=fightRetreatSpot(E); if(!s) return;
+  if(F.retreatRoll==null) F.retreatRoll=Math.random(); if(F.retreatRoll>=pnum('fight','retreat',.45)){ if(typeof cqRegroupStart==='function') cqRegroupStart(E); return; } /* not the ambush: back to a friend (84b-close.js) */
+  const s=fightRetreatSpot(E); if(!s){ if(typeof cqRegroupStart==='function') cqRegroupStart(E); return; }
   fxFree2(E); F.retreated=true; F.ret={ph:'go',x:s.x,z:s.z,door:s.door,room:s.room,t:0,wait:fxR('retreatWait')}; freshGoal(E); if(FGT.token===E) FGT.token=null; }
 function fightRetreatSpot(E){ const rooms=fxRooms(); if(!rooms.length) return null; const W=fieldTo(E.pos[0],E.pos[1]); if(!W) return null;
   const mine=fxRoomOf(E.pos[0],E.pos[1]),yours=fxRoomOf(PL.x,PL.z),me=[PL.x,1.5,PL.z]; let best=null,bs=-1e9;
