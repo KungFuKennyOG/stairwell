@@ -29,6 +29,7 @@ window.__T=(function(){
       case 'belly': return mid(P('pelvis'),P('chest'),.45);
       case 'chestL': { const c=mid(P('chest'),P('neck'),.62),r=norm3(v3.sub(P('shR'),P('shL'))); return v3.add(c,v3.sc(r,-.12)); } /* upper left chest, above and outside the heart */
       case 'flank': { const c=mid(P('pelvis'),P('chest'),.3),r=norm3(v3.sub(P('shR'),P('shL'))); return v3.add(c,v3.sc(r,.13)); }
+      case 'heart': { const c=mid(P('chest'),P('neck'),.3),r=norm3(v3.sub(P('shR'),P('shL'))); return v3.add(c,v3.sc(r,-.035)); }
       case 'shoulder': return mid(P('shR'),P('chest'),.2); case 'pelvis': return P('pelvis');
       case 'uarmR': return mid(P('shR'),P('elR'),.55); case 'farmR': return mid(P('elR'),P('hdR'),.5);
       case 'thighR': return mid(P('hipR'),P('knR'),.5); case 'thighL': return mid(P('hipL'),P('knL'),.5); case 'shinR': return mid(P('knR'),P('anR'),.5); case 'footR': return mid(P('anR'),P('toeR'),.5); } }
@@ -56,10 +57,10 @@ window.__T=(function(){
   /* ---- torso: one or two rounds to one spot, return fire off, watched 4 minutes ---- */
   function torso(o){ reset(); ray(-1,0); if(!window.__noHurt){ window.__noHurt=1; hurtPlayer=()=>{}; }
     const E=gunman(2,0,o.back?Math.PI/2:-Math.PI/2,{psych:o.psych||'fight'}); equip(HANDS.R,newItem('pistol')); step(30);
-    for(let k=0;k<(o.n||1);k++){ shoot(E,o.part); step(9); } gunOff(); const t0=GAME.t; let incap=null,downT=null,deathT=null; const marks=[10,30,60,120,240],tl=[];
+    for(let k=0;k<(o.n||1);k++){ shoot(E,o.part); step(9); } gunOff(); E.firedAfter=0; protoOn('fire',()=>{}); const _es=enemyShoot; window.enemyShoot=enemyShoot=function(X,b){ const r=_es.apply(this,arguments); if(r!==false&&X===E) E.firedAfter++; return r; }; const t0=GAME.t; let incap=null,downT=null,deathT=null; const marks=[10,30,60,120,240],tl=[];
     while(GAME.t-t0<240){ step(); const t=GAME.t-t0; if(incap==null&&(E.st==='kneel'||E.st==='down')) incap=+t.toFixed(1); if(downT==null&&E.st==='down') downT=+t.toFixed(1);
       if(E.dead){ deathT=+t.toFixed(0); break; } if(tl.length<marks.length&&t>=marks[tl.length]) tl.push([marks[tl.length],Math.round(E.blood),E.st]); }
-    return {part:(o.back?'back:':'')+o.part,n:o.n||1,incap,downT,deathT,alive:!E.dead,blood:Math.round(E.blood),fatal:E.dieT!=null,
+    return {part:(o.back?'back:':'')+o.part,n:o.n||1,incap,downT,deathT,alive:!E.dead,mode:E.downMode||'',fired:E.firedAfter||0,blood:Math.round(E.blood),fatal:E.dieT!=null,
       wounds:E.wounds.filter(w=>!w.piece).map(w=>w.part+':'+(w.wd?w.wd.r0:w.rate).toFixed(1)+(w.art||w.wd&&w.wd.r0>4?'a':'')+(w.wd&&!w.wd.ok?'!':'')).join(' '),tl}; }
 
   /* ---- crawling ---- */

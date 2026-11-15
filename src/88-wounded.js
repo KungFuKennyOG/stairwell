@@ -46,11 +46,12 @@ function wdVoice(E){
   if(WD_SCREAM_RE.test(txt)){ r=pnum('wounded','screamR',20); kind='scream'; }
   else if(E.cons<.4||txt.startsWith('...')){ r=pnum('wounded','whisperR',4); kind='whisper'; } /* fading: "Mom..." is barely a breath */
   else { r=pnum('wounded','begR',12); kind='beg'; }
+  const fade=E.st==='down'?clamp(1-((E.downT||0)-60)/240,.3,1):1; r*=fade; /* a man lying there for minutes calls less and less loud */
   noise([pel[0],0,pel[2]],r,{from:E,alarm:kind==='scream',beg:kind});
   if(kind==='scream'&&typeof huntAlert==='function') huntAlert('scream',[pel[0],pel[2]],.6);
   protoEmit('wdBeg',E,r,kind);
   /* begging at you he doesn't stop; alone he calls in bouts with breaths between, and once he's stopped bleeding only now and then */
-  if(!E.near&&!(E.covered&&(E.coverT||0)>.3)){ const cd=E.wdStable?PROTO.wounded.stableCd:PROTO.wounded.callCd; E.barkCd=Math.max(E.barkCd,rnd(cd[0],cd[1])); } }
+  if(!E.near&&!(E.covered&&(E.coverT||0)>.3)){ const cd=E.wdStable?PROTO.wounded.stableCd:PROTO.wounded.callCd; E.barkCd=Math.max(E.barkCd,rnd(cd[0],cd[1])/fade); } }
 
 /* ---------- 2. clotting ---------- */
 /* the throat, the thigh artery, the gut, a lost limb and anything fatal keep bleeding; the rest stop */

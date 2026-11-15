@@ -732,7 +732,9 @@ function hitEnemy(E,seg,point,dir,weapon,o={}){ protoEmit('enemyHit',E,seg,weapo
   else if(fatal){ /* heart or opened throat: he drops where he stands and is gone in a second or two */
     addWound(E,seg,point,dir,{rate:fatal==='heart'?12:10,art:true,part:key,knife:weapon==='knife'}); E.spurtT=.5;
     spray(point,weapon==='gun'?dir:v3.sc(dir,-1),50,3.2,.5,'bright',.014);
-    const up=!E.dead&&E.st!=='down'; if(up) toDown(E,fatal==='heart'); E.dieT=fatal==='heart'?rnd(.6,1.1):rnd(1.8,2.6); if(up&&fatal==='heart') startDrop(E,E.dieT+.3); }
+    const up=!E.dead&&E.st!=='down';
+    if(fatal==='heart'){ const sag=rnd(1.6,2.9); E.dieT=up?sag+rnd(1,2.2):rnd(1.2,2.4); if(up){ E.heartT=GAME.t+sag; E.stun=Math.max(E.stun,.5); E.atkCd=Math.max(E.atkCd,99); E.atkT=-1; E.burstN=0; faceHold(E,'hurt',4); } } /* the heart: he sags and stumbles a second or so, his gun hand doesn't answer, then his legs go (heartT) */
+    else { if(up) toDown(E); E.dieT=rnd(1.8,2.6); } }
   else if(D.kill){ E.headshot=true; spray(point,dir,70,4.2,.55,'bright',.014); spray(point,v3.sc(dir,-1),18,1.6,.6,'dark',.012); addWound(E,seg,point,dir,{rate:5,art:true,part:key}); E.spurtT=.4; }
   else { const art=Math.random()<(D.art||0)*(behind?1.6:1)*(o.chop?1.6:1); addWound(E,seg,point,dir,{rate:D.bleed*ob*(art?2.3:1)*(behind?1.5:1),art,part:key,knife:weapon==='knife',loss:art?(key==='uarm'||key==='farm'?.5:1):LOSS[key]??1}); /* an opened vessel bleeds him out; the arm's artery slower (you can clamp an arm) */
     if(weapon==='gun'&&(key==='chest'||key==='belly')&&!art) torsoShock(E,key);
@@ -842,7 +844,7 @@ function think(E,dt,t){
   if(E.outT){ E.stun=1; E.atkT=-1; return; } /* out the window: nothing left to decide (64-environment.js) */
   if(E.koT&&E.st==='down'&&E.downT<E.koT) E.stun=1; /* out cold */
   /* blood and the heart */
-  const bleed=E.wounds.reduce((s,w)=>s+(w.piece?0:w.rate*(w.loss??1)),0)*(.3+.7*E.blood/100); /* LOSS: the drip you see vs the blood he can't spare */
+  const bleed=E.wounds.reduce((s,w)=>s+(w.piece||w.part==='belly'&&!w.art&&E.blood<32?0:w.rate*(w.loss??1)),0)*(.3+.7*E.blood/100); /* LOSS: the drip you see vs the blood he can't spare. The gut alone bleeds him down to grey and weak, then he lingers (hours, in life) */ /* LOSS: the drip you see vs the blood he can't spare */
   E.blood=Math.max(0,E.blood-bleed*dt*((kst(E)&&kst(E).tough)||1)); E.cons=clamp((E.blood-12)/46,0,1);
   shockTick(E,dt); /* shock stages, pallor, flinch timers (70-wounds.js) */
   const hr=1.15+(1-E.blood/100)*1.9+(E.aware?.4:0); E.heartPh+=dt*hr; if(E.heartPh>=1){ E.heartPh-=1; if(E.wounds.some(w=>w.art)) E.spurtT=.13; }
@@ -853,6 +855,7 @@ function think(E,dt,t){
   if(PROTO.on) fightSense(E,dt,dist); /* the flash, first-shot timing, rage, hurt early (84-fight.js) */
   const legs=Math.min(E.hp.legL,E.hp.legR);
   /* state changes */
+  if(E.heartT&&!E.dead){ if(GAME.t>=E.heartT){ E.heartT=0; if(E.st!=='down'){ dropWeapon(E); toDown(E); } } else { E.stun=Math.max(E.stun,.45); E.atkCd=Math.max(E.atkCd,9); E.atkT=-1; } } /* sagging on his feet, the gun hand dead */
   if(E.incapT&&GAME.t>=E.incapT&&!E.dead){ E.incapT=0; /* the shock of a body round catches up with him (torsoShock) */
     if(E.st==='idle'||E.st==='alert'){ if(E.incapK==='belly'&&Math.random()<.6){ E.st='kneel'; E.aware=true; E.surr=null; dropWeapon(E); faceHold(E,'hurt',2); E.slumpT=GAME.t+rnd(5,18); } else toDown(E); }
     else if(E.st==='kneel'&&E.incapK==='chest') toDown(E); }
@@ -931,8 +934,8 @@ function think(E,dt,t){
     else if(wantCrawl&&dist<9){ mode=up>(E.downMode==='crawl'?.45:.2)?'scoot':up<(E.downMode==='scoot'?-.45:-.2)?'crawl':(E.downMode==='scoot'||E.downMode==='crawl'?E.downMode:'curl');
       if(mode==='scoot'&&Math.min(E.hp.legL,E.hp.legR)<.5) mode='downbeg'; } /* on his back he pushes with his heels: not on shot legs */
     else if(chestW) mode='gasp';
-    else if(E.temper==='still') mode='still';
-    else mode='curl';
+    else if(E.temper==='still'&&!belly) mode='still';
+    else mode='curl'; /* a belly wound curls up round it */
     mode=downReact(E,mode,dist,{canMove,lying,up,en,legs}); /* your gun or your shots on him (70-wounds.js) */
     E.downMode=mode;
     if(mode==='crawl'||mode==='scoot'){ /* effort in pulls, then a rest; the rests get longer as he weakens */
@@ -997,8 +1000,10 @@ function toDown(E,hard){ /* unless knocked flat, they buckle: held up on the way
 /* a round in the body that misses the heart and the vessels: it doesn't bleed him out (LOSS), it puts him down. Most men fold within a second or so from the
    shock and the pain; a fighter can stay up through the first one and fold when the adrenaline runs out; a second one drops anybody */
 function torsoShock(E,key){ if(E.dead||E.st==='down') return; E.torsoN=(E.torsoN||0)+1; const ps=E.civ?'quit':psychOf(E);
-  const p=E.torsoN>=2?.95:ps==='quit'?.9:ps==='fake'?.85:.6, now=Math.random()<p;
-  if(!now&&Math.random()>=.7) return; /* the odd one keeps going */
+  const p=E.torsoN>=2?.95:ps==='quit'?.9:ps==='fake'?.85:.75, now=Math.random()<p;
+  if(!now){ /* the one in five who pushes through: you can see it. He roars and comes at you, bleeding */
+    if(PROTO.on&&!E.civ){ E.rage=Math.max(E.rage||0,8); bark(E,pick(['ARGH! You motherfucker!','Is that it?! IS THAT IT?!','You\'re dead! You\'re fucking dead!','Come here!']),2); }
+    if(Math.random()>=.7) return; } /* and some never fold */
   const at=GAME.t+(now?rnd(.35,1.3):rnd(10,30));
   if(!E.incapT||at<E.incapT) E.incapT=at; if(E.incapK!=='chest') E.incapK=key; }
 function buckle(E){ const B=E.B,fw=[Math.sin(E.hd),0,Math.cos(E.hd)],d=E.hitDir||[0,0,0],dh=norm3([d[0],0,d[2]]),bad=E.hp.legL<E.hp.legR?'L':'R',good=bad==='L'?'R':'L';
