@@ -20,6 +20,7 @@ window.FILM = (() => {
   F.stop = () => { KEYS.KeyW = false; KEYS.KeyS = false; stick.dy = 0; };
   F.shoot = (E, part) => { const p = F.pt(E, part), e = camBasis().eye, it = HANDS.R.item; if (!it) return; it.cd = 0; it.chambered = true; if (it.ammo < 1) it.ammo = 3;
     fireHand(HANDS.R, { o: e, d: norm3(v3.sub(p, e)) }); };
+  F.shootAt = p => { const e = camBasis().eye, it = HANDS.R.item; if (!it) return; it.cd = 0; it.chambered = true; if (it.ammo < 1) it.ammo = 3; fireHand(HANDS.R, { o: e, d: norm3(v3.sub(p, e)) }); };
   F.ray = (x, z, look) => { PL.x = x; PL.z = z; PL.dead = false; if (look) { F.aim(look); F.snap(); } };
   function runQ() { if (!window.__Q.length) return; const due = window.__Q.filter(q => q[0] <= GAME.t); window.__Q = window.__Q.filter(q => q[0] > GAME.t); for (const q of due) { try { q[1](); } catch (e) { } } }
   function step() { const a = Math.min(1, dt * F.cam.k); PL.yaw = wrap(PL.yaw + wrap(F.cam.yaw - PL.yaw) * a); PL.pitch += (F.cam.pitch - PL.pitch) * a;
@@ -54,6 +55,17 @@ window.FILM = (() => {
         F.ray(-5.4, -.45, [-2.5, 1.0, .25]); },
       acts: [[0, 4.5, F => { const E = F.E('Beto'); F.aim(E.st === 'alert' || E.st === 'idle' ? F.pt(E, 'pelvis') : F.pt(E, 'pelvis'), 4); }],
         [1.0, null, F => F.shoot(F.E('Beto'), 'thighR')], [1.2, null, F => F.shoot(F.E('Beto'), 'thighR')]] },
+
+    { name: 'armshot', dur: 7, setup(F) { equip(HANDS.R, newItem('pistol')); for (const n of ['Dani', 'Kev', 'Mario', 'Rui', 'Tito', 'Jojo']) F.away(F.E(n));
+        const E = spawnEnemy({ maker: makeGunman, name: 'Beto', x: -2.5, z: .25, hd: -Math.PI / 2, extra: 'I got a kid—' }); enemies.push(E); attachLabels(); E.psych = 'fight';
+        F.ray(-5.4, -.2, [-2.5, 1.2, .25]); if (!window.__noHurt) { window.__noHurt = 1; hurtPlayer = () => {}; } },
+      acts: [[0, 7, F => { const E = F.E('Beto'); F.aim(F.pt(E, 'chest'), 4); }], [1.0, null, F => { const E = F.E('Beto'), B = E.B; F.shootAt(v3.add(X_(B, PI_.shR), v3.sc(v3.sub(X_(B, PI_.elR), X_(B, PI_.shR)), .5))); }],
+        [2.6, null, F => { const E = F.E('Beto'), B = E.B; F.shootAt(v3.add(X_(B, PI_.elR), v3.sc(v3.sub(X_(B, PI_.hdR), X_(B, PI_.elR)), .5))); }]] },
+
+    { name: 'bellyshot', dur: 9, setup(F) { equip(HANDS.R, newItem('pistol')); for (const n of ['Dani', 'Kev', 'Mario', 'Rui', 'Tito', 'Jojo']) F.away(F.E(n));
+        const E = spawnEnemy({ maker: makeGunman, name: 'Beto', x: -2.5, z: .25, hd: -Math.PI / 2, extra: 'I got a kid—' }); enemies.push(E); attachLabels(); E.psych = 'fight';
+        F.ray(-5.4, -.2, [-2.5, 1.2, .25]); if (!window.__noHurt) { window.__noHurt = 1; hurtPlayer = () => {}; } },
+      acts: [[0, 9, F => { const E = F.E('Beto'); F.aim(E.st === 'down' ? F.pt(E, 'pelvis') : F.pt(E, 'chest'), 4); }], [1.0, null, F => F.shoot(F.E('Beto'), 'belly')]] },
 
     { name: 'exit', dur: 8.4, setup(F) { equip(HANDS.R, newItem('cutter')); F.ray(11.3, 9.55, PF.exit.at); },
       acts: [[0, 2, F => F.aim(PF.exit.at, 3)], [1.6, null, () => pfBotOpen()], [2, 4.5, F => F.aim([13.6, 1.4, 9.9], 1.5)], [4.5, 11, F => { F.aim([15.2, 1.5, 9.9], 3); KEYS.KeyW = true; }]] },
