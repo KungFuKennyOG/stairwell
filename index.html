@@ -6353,6 +6353,10 @@ function sfx(type,vol=1,pos){ const ac=audio(); if(!ac) return; const t=ac.curre
   else if(type==='grab'){ noise(700,200,.12,.5,1.2); tone(140,90,.08,.3); }
   else if(type==='door'){ noise(400,120,.35,.35,1.5); tone(90,60,.3,.25); }
   else if(type==='doorkick'){ tone(70,35,.25,1); noise(900,90,.4,.9); }
+  else if(type==='smash'){ noise(6000,2000,.18,.7,1.4,'highpass'); noise(2500,900,.12,.6,2,'bandpass'); tone(1650,1400,.05,.25); tone(2300,2050,.04,.18,.025); tone(3100,2900,.03,.08,.09); tone(2700,2600,.03,.06,.16); } /* a mug or a plate breaking */
+  else if(type==='tin'){ tone(820,700,.07,.35); tone(1240,1100,.05,.22,.004); noise(5000,2000,.1,.35,3,'bandpass'); tone(900,780,.05,.2,.11); noise(4500,2000,.07,.2,3,'bandpass',.11); tone(1000,900,.04,.1,.19); } /* a can bouncing */
+  else if(type==='thud'){ tone(95,55,.11,.7); noise(420,120,.1,.45); }
+  else if(type==='clink'){ tone(1050,950,.12,.3); tone(1580,1450,.08,.18,.003); noise(3000,1200,.06,.25,2,'bandpass'); tone(1100,1000,.06,.12,.13); }
   else if(type==='hurt'){ tone(160,60,.25,.5); noise(800,100,.2,.4); } }
 
 /* ---------- viewmodel ---------- */
@@ -7478,15 +7482,16 @@ function updatePickups(dt){ for(const P of LOOSE){ P.age+=dt; if(P.rest) continu
   /* a thrown blade or bottle that reaches someone hurts him */
   if(P.thrown&&P.age>.05){ const d=v3.sub(n.p,old),len=Math.hypot(...d); if(len>1e-4){ const dir=v3.sc(d,1/len),hit=rayEnemies(old,dir,len+.05,.05);
     if(hit){ const ex=rayMesh(hit.E,old,dir,0,len+.1),p=ex?v3.add(old,v3.sc(dir,ex.t)):v3.add(old,v3.sc(dir,hit.t)),seg=ex?segFor(hit.E,ex.bone,p):hit.seg,w=WPN[P.item.key],sp=Math.hypot(...P.v);
+      if(w.clutter){ if(clutterHitMan(P,hit.E,p,dir,sp)) return updatePickups(0); continue; } /* a mug or a can: a flinch, no harm (87c-clutter.js) */
       const pointFirst=w.melee==='knife'&&Math.random()<.65;
       if(pointFirst) hitEnemy(hit.E,seg,p,dir,'knife',{bleed:w.bleed||1,sever:(w.sever||1)*.6,stun:1.2,push:.8,power:clamp(sp/5,.6,1.4)}); else hitEnemy(hit.E,seg,p,dir,'blunt',{power:clamp(sp/5,.5,1.4)});
       if(pointFirst&&STICKS[P.item.key]&&ex&&sp>4&&enemies.includes(hit.E)&&!hit.E.segOff.has(SEGS.indexOf(seg))&&embedThrown(P,hit.E,ex.bone,seg,p,dir)){ sfx('stick'); hitMarker(); return updatePickups(0); } /* it sticks in him */
       if(P.item.key==='bottle'){ sfx('glass',1,p); spray(p,v3.sc(dir,-1),12,1.5,.8,'dust',.008); removePickup(P); return updatePickups(0); }
       sfx(w.melee==='knife'?'stab':'punch'); hitMarker(); P.v=v3.sc(P.v,-.15); P.thrown=false; } } }
   const r=.04,q=[n.p[0],n.p[2]]; let floorY=r;
-  for(const b of boxesAt(n.p[0],n.p[2])){ if(n.p[0]>b.x0&&n.p[0]<b.x1&&n.p[2]>b.z0&&n.p[2]<b.z1){ if(old[1]>=b.h-.02&&b.kind!=='wall'&&b.kind!=='door') floorY=Math.max(floorY,b.h+r); else if(n.p[1]<b.h&&n.p[1]>b.y0){ n.p[0]=old[0]; n.p[2]=old[2]; P.v[0]*=-.3; P.v[2]*=-.3; if(P.thrown) clatter(P); P.thrown=false; } } }
+  for(const b of boxesAt(n.p[0],n.p[2])){ if(n.p[0]>b.x0&&n.p[0]<b.x1&&n.p[2]>b.z0&&n.p[2]<b.z1){ if(old[1]>=b.h-.02&&b.kind!=='wall'&&b.kind!=='door') floorY=Math.max(floorY,b.h+r); else if(n.p[1]<b.h&&n.p[1]>b.y0){ const sp0=Math.hypot(...P.v),at=n.p.slice(); n.p[0]=old[0]; n.p[2]=old[2]; P.v[0]*=-.3; P.v[2]*=-.3; if(WPN[P.item.key].clutter&&clutterHit(P,sp0,at)) return updatePickups(0); if(P.thrown) clatter(P); P.thrown=false; } } }
   n.p[0]=clamp(n.p[0],-RX+.05,RX-.05); n.p[2]=clamp(n.p[2],-RZ+.05,RZ-.05); n.p[1]=Math.min(n.p[1],RH-.05);
-  if(n.p[1]<floorY){ n.p[1]=floorY; if(Math.abs(P.v[1])<1.2){ P.rest=true; P.thrown=false; n.r=[0,n.r[1],Math.PI/2]; } else { P.v[1]*=-.25; P.v[0]*=.5; P.v[2]*=.5; if(P.thrown) clatter(P); P.thrown=false; if(P.item.key==='bottle'&&Math.hypot(...P.v)>2.5){ sfx('glass'); removePickup(P); return updatePickups(0); } } } } }
+  if(n.p[1]<floorY){ n.p[1]=floorY; if(Math.abs(P.v[1])<1.2){ P.rest=true; P.thrown=false; n.r=[0,n.r[1],Math.PI/2]; } else { const sp0=Math.hypot(...P.v); P.v[1]*=-.25; P.v[0]*=.5; P.v[2]*=.5; if(WPN[P.item.key].clutter&&clutterHit(P,sp0,n.p)) return updatePickups(0); if(P.thrown) clatter(P); P.thrown=false; if(P.item.key==='bottle'&&Math.hypot(...P.v)>2.5){ sfx('glass'); removePickup(P); return updatePickups(0); } } } } }
 
 /* a thrown thing hitting a wall or the floor: someone nearby comes to see what it was (a bottle smashing carries further) */
 function clatter(P){ const p=P.node.p; noise([p[0],0,p[2]],P.item.key==='bottle'?8:5.5); sfx('bump',.5,p.slice()); }
@@ -12470,6 +12475,7 @@ function pfItems(){ pfEnsureTools(); PF.items.length=0; const SP=PF.spot||{}; if
   if(WPN.hammer) put(item('hammer'),SP.guttedCrates); else put(item('machete'),[12.1,0,3.2,2.4]);
   if(WPN.pipe) put(item('pipe'),SP.guttedFloor);
   put(item('bottle'),SP.cardTable); put(item('bottle'),[-9.3,0,-7.4,2.0]);
+  if(typeof pfThrowables==='function') pfThrowables(put); /* mugs, plates, cans, a shoe: things to throw (87c-clutter.js) */
   /* loose rounds (A's) in three places, 12 in all; two first-aid tins */
   put(rounds(4),SP.cardPot); put(rounds(5),SP.storeShelf&&[SP.storeShelf[0],SP.storeShelf[1],SP.storeShelf[2]-.32,0]); inside('N1','cupboard',1,()=>rounds(3),SP.daniBack);
   if(WPN.medkit){ put(item('medkit'),SP.bathroom); inside('S5','cupboard',0,()=>item('medkit'),SP.tenantsTable); inside('N1','fridge',0,()=>item('bottle')); } }
@@ -14090,6 +14096,111 @@ function openTick(dt){ const L=PF.openables; if(!L||!L.length) return;
 function openUse(eye,f){ let best=null,bd=OPENP.useR; for(const o of PF.openables||[]){ const v=v3.sub(o.at,eye),d=Math.hypot(...v); if(d<bd&&v3.dot(v,f)/d>.78){ bd=d; best=o; } } return best?{o:best,d:bd}:null; }
 function openToggle(o){ if(o.held) return; const shut=o.v>o.max*.15; o.auto=shut?0:(o.kind==='drawer'?o.max*.85:o.max*.8); o.w=0;
   if(!shut){ if(o.seal) openSnd('pop',o.at,.7); else if(o.kind==='drawer') openSnd('slide',o.at,.6); else openSnd('creak',o.at,.5); } }
+
+/* =====================================================================
+   CLUTTER (floor 01 prototype): household junk you pick up and throw to pull a man away from where you are.
+   Mugs, plates, a glass, beer cans, a tin ashtray, a shoe, on the tables and the floors (pfThrowables, called from pfItems).
+   They are ordinary pickups (LOOSE, grabOrDrop, updatePickups): grip to take one, let go with the hand moving to throw it; Q on a
+   keyboard throws what the right hand holds, U picks one up.
+   Where it lands is what the men hear (noise() at the impact point, never at you): a mug or a plate smashing carries, a can
+   clatters, a shoe thuds. 83-hunt.js sends one man to look there (or moves the search there, during a hunt).
+   Thrown hard, the ceramic and the glass break: a few shards stay on the floor. A mug in the face makes a man flinch and look
+   back the way it came; it does him no harm.
+   WPN[k].clutter: {brk, snd, hit, kind, rad}. Event: clutterLand(item, point, {broke, man}) on the first real impact of a throw.
+   ===================================================================== */
+
+/* ---------- paint ---------- */
+const clChips=(n,hex,s=1)=>(I,r,w,h)=>{ for(let i=0;i<n;i++) blob(I,r()*w,r()*h,1.1*s,.8*s,.65,hex); };
+Object.assign(PR_TX,{
+  clMugOut:()=>prSurf(16,16,2201,(x,y)=>y===6||y===9?['#6e4426','enamel']:y===7||y===8?['#a4683c','enamel']:['#e2d8bc','enamel'],'enamel',{rim:0,grime:.28,fn:clChips(4,'#8c7c62')}),
+  clMugIn:()=>prSurf(8,8,2202,'#4e3220','enamel',{rim:0,grime:.3,low:0}),
+  clMugRed:()=>prSurf(16,16,2203,'#962a1e','enamel',{rim:0,grime:.3,fn:clChips(6,'#221c18',1.3)}),
+  clMugRedIn:()=>prSurf(8,8,2204,'#d4cdbd','enamel',{rim:0,grime:.4,low:0,fn:clChips(2,'#6a5a44')}),
+  clPlate:()=>prSurf(16,16,2205,(x,y)=>y===6||y===9?['#284682','enamel']:y===4||y===11?['#5a72a6','enamel']:['#e6e0d0','enamel'],'enamel',{rim:0,grime:.22,fn:clChips(2,'#a89c84')}),
+  clGlass:()=>prSurf(16,8,2206,(x,y)=>['#9db0ac','enamel',x%4===0?1.28:1],'enamel',{rim:0,grime:.12,low:.05}),
+  clCan:()=>prSurf(16,16,2207,(x,y)=>y<2||y>13?['#b6b2a6','steel']:y>=6&&y<=9?['#a2231a','paint']:['#c4962e','paint'],'paint',{rim:0,grime:.18,
+    fn:(I,r)=>{ blob(I,8,7.5,2.6,1.3,.9,'#e6dabd'); blob(I,8,7.5,1.2,.6,.9,'#a2231a'); for(let i=0;i<3;i++) blob(I,r()*16,2+r()*12,.9,.6,.5,'#6a5a3a'); }}),
+  clCanEnd:()=>prSurf(8,8,2208,'#a8a59a','steel',{rim:.3,grime:.25}),
+  clTin:()=>prSurf(16,8,2209,'#857550','steel',{rim:0,grime:.4,fn:clChips(3,'#3a3226')}),
+  clAsh:()=>prSurf(8,8,2210,'#57534c','conc',{rim:0,grime:.2,low:0,fn:clChips(4,'#1c1a18',1.2)}),
+  clShoe:()=>prSurf(16,16,2211,'#4a3424','paint',{grime:.32,fn:(I,r)=>{ for(let i=0;i<5;i++) blob(I,r()*16,r()*16,1.6,1,.45,'#7a5a40');
+    for(let y=3;y<10;y+=2) softLine(I,6,y,10,y,'#1c1612',.8,.6); }}),
+  clSole:()=>prSurf(16,8,2212,'#7e705a','conc',{rim:.2,grime:.3})
+});
+
+/* ---------- the things (item space as in 87-props.js: lying at rest +x is up, the lowest point 4 cm below the origin) ---------- */
+const clUp=(g,x=-.04,z=0)=>N(g,x,0,z,0,0,-Math.PI/2); /* a lathe or cylinder's +y turned to item +x, its base at x */
+function pclMug(g,red){ const n=clUp(g),mO=prM(red?'clMugRed':'clMugOut'),mI=prM(red?'clMugRedIn':'clMugIn');
+  mk(prLathe(red?[[0,0,.5],[0,.039,.5],[.004,.041,.5],[.09,.041,.5],[.092,.0425,.5],[.092,.038,.5]]:[[0,0,.5],[0,.034,.5],[.004,.039,.5],[.088,.042,.5],[.095,.041,.5],[.095,.0365,.5]],8),mO,n);
+  mk(prLathe([[red?.092:.095,red?.038:.0365,.5],[.012,.034,.5],[.012,0,.5]],8),mI,n);
+  mk(torus(.024,.0062,4,8),mO,n,0,.05,-.047,0,Math.PI/2,0); return g; }
+function pclPlate(g){ const n=clUp(g,-.04,.1); /* the plate's middle 10 cm in front of the hand, held by the rim */
+  mk(prLathe([[.016,0,0],[.016,.065,.29],[.023,.1,.45],[.025,.112,.5],[.018,.113,.5],[.004,.08,.64],[0,.07,.69],[0,0,1]],10),prM('clPlate'),n); return g; }
+function pclTumbler(g){ const n=clUp(g);
+  mk(prLathe([[0,0,.5],[0,.03,.5],[.1,.036,.5],[.1,.033,.5],[.01,.027,.5],[.01,0,.5]],8),prM('clGlass'),n); return g; }
+function pclCan(g,crushed){ const k=crushed?.55:1,n=clUp(g,-.04+.061*k); if(crushed){ n.s=[1.08,k,.9]; n.r[0]=.25; }
+  prCyl(n,[prM('clCan'),prM('clCanEnd'),prM('clCanEnd')],.033,.033,.122,8); return g; }
+function pclAshtray(g){ const n=clUp(g);
+  mk(prLathe([[0,0,.5],[0,.052,.5],[.008,.06,.5],[.022,.064,.5],[.022,.056,.5]],10),prM('clTin'),n);
+  mk(prLathe([[.022,.056,.5],[.009,.046,.5],[.009,0,.5]],10),prM('clAsh'),n);
+  for(const [a,l] of [[.3,.03],[2.4,.022],[4.2,.026]]){ const b=N(n,Math.sin(a)*.045,.024,Math.cos(a)*.045,0,a,Math.PI/2-.15); prCyl(b,prC(0xd6ccb4),.0042,.0042,l,5); prCyl(b,prC(0xb4783a),.0044,.0044,.009,5,0,l/2+.004,0); }
+  return g; }
+function pclShoe(g){ const s=prM('clSole'),u=prM('clShoe'); /* a man's worn work shoe, the toe forward of the hand that holds it by the heel */
+  prBox(g,s,.026,.1,.29,-.027,0,.1,0,0,0,{tw:1,td:1});
+  prCB(g,u,.07,.092,.19,.02,0,.06,0,0,0,{cell:.1,puff:[.008,.008,.01,0,.004,.006]});
+  prCB(g,u,.045,.088,.1,.008,0,.19,0,0,0,{cell:.1,puff:[.01,.01,.008,0,.012,0]}); return g; }
+
+const PR_FIST_C=p=>[{a:p.slice(),b:p.slice(),r:.05,kind:'blunt'}];
+const clDef=(label,build,grip,mass,c)=>({label,build,grip,fwd:true,melee:'blunt',reach:1.05,pts:[grip.slice()],speed:1.5,mass,tool:'clutter',clutter:c,strike:PR_FIST_C(grip)});
+Object.assign(WPN,{
+  mug:     clDef('Mug',g=>pclMug(g,false),[.01,0,-.06],.32,{brk:true,snd:'smash',hit:'clink',kind:'smash',shards:12}),
+  mugTin:  clDef('Enamel mug',g=>pclMug(g,true),[.01,0,-.058],.2,{brk:false,snd:'clink',kind:'clatter'}),
+  plate:   clDef('Plate',pclPlate,[-.02,0,0],.4,{brk:true,snd:'smash',hit:'clink',kind:'smash',shards:16}),
+  tumbler: clDef('Glass',pclTumbler,[.01,0,0],.22,{brk:true,snd:'glass',hit:'clink',kind:'smash',shards:10}),
+  beercan: clDef('Beer can',g=>pclCan(g,false),[.02,0,0],.03,{brk:false,snd:'tin',kind:'clatter'}),
+  beercanC:clDef('Crushed can',g=>pclCan(g,true),[0,0,0],.03,{brk:false,snd:'tin',kind:'clatter'}),
+  ashtray: clDef('Tin ashtray',pclAshtray,[-.03,0,-.055],.15,{brk:false,snd:'tin',kind:'clatter'}),
+  shoe:    clDef('Shoe',pclShoe,[0,0,-.02],.55,{brk:false,snd:'thud',kind:'thud'})
+});
+if(typeof PICK_NAMES!=='undefined') Object.assign(PICK_NAMES,{mug:'Mug',mugTin:'Enamel mug',plate:'Plate',tumbler:'Glass',beercan:'Beer can',beercanC:'Crushed can',ashtray:'Tin ashtray',shoe:'Shoe'});
+/* what the men hear, by kind (83-hunt.js reads PROTO.hunt.hear; each wall in between halves it) */
+if(PROTO.hunt&&PROTO.hunt.hear) Object.assign(PROTO.hunt.hear,{smash:12,clatter:7,thud:3.5});
+if(typeof HUNT_K!=='undefined') Object.assign(HUNT_K,{smash:['noise',1],clatter:['noise',.6],thud:['noise',.5]});
+const CL_RAD={smash:12,clatter:7,thud:3.5}; /* the same, for the old noise() off the prototype */
+
+/* ---------- landing (updatePickups calls these for clutter) ---------- */
+/* a wall or the floor at speed sp, at point at. True if it broke (it's gone from LOOSE) */
+function clutterHit(P,sp,at){ const w=WPN[P.item.key],c=w&&w.clutter; if(!c) return false;
+  const flung=P.thrown,first=!P.clN; P.thrown=false; if(sp<1.4) return false; P.clN=(P.clN||0)+1;
+  const p=[at[0],Math.max(at[1],.03),at[2]];
+  if(c.brk&&flung&&sp>3.2){ sfx(c.snd,1,p); spray(p,[0,1,0],c.shards||10,1.3,.9,'glass',.022); noise(p,CL_RAD.smash,{kind:'smash'});
+    protoEmit('clutterLand',P.item,p,{broke:true}); removePickup(P); return true; }
+  const loud=flung||sp>3.5,kind=c.kind==='smash'?'clatter':c.kind;
+  sfx(c.hit||c.snd,clamp(sp/6,.25,1)*(first?1:.55),p);
+  if(loud&&(first||sp>3)) noise(p,CL_RAD[kind],{kind});
+  if(first&&flung) protoEmit('clutterLand',P.item,p,{broke:false});
+  return false; }
+/* it reached a man: a flinch and a look back the way it came, no harm. True if it broke on him */
+function clutterHitMan(P,E,p,dir,sp){ const c=WPN[P.item.key].clutter; P.thrown=false; P.clN=(P.clN||0)+1;
+  if(!E.dead&&E.B){ kickV(E.B,PI_.head,v3.sc(dir,.35*clamp(sp/6,.3,1)),H); faceHold(E,'hurt',.6); E.stun=Math.max(E.stun||0,.25);
+    if(!E.aware&&!E.civ&&typeof investigate==='function'){ const back=v3.sub(p,v3.sc(dir,3)); investigate(E,navSnap(back[0],back[2])); } }
+  noise(p,CL_RAD.thud,{kind:'thud'});
+  const broke=c.brk&&sp>5; sfx(broke?c.snd:'thud',.8,p); protoEmit('clutterLand',P.item,p.slice(),{broke,man:E});
+  if(broke){ spray(p,v3.sc(dir,-1),c.shards||10,1.4,.9,'glass',.022); removePickup(P); return true; }
+  P.v=v3.sc(P.v,-.2); return false; }
+
+/* ---------- where it lies on floor 01: [key, x, surface y, z, yaw]. Floor spots are skipped if furniture is there ---------- */
+const PF_CLUTTER=[
+  ['mug',-9.85,.76,3.5,.4],['plate',-9.05,.76,4.05,0],                 /* Dani's kitchen table, by his rice */
+  ['plate',3.18,.76,3.38,0],['mugTin',3.62,.76,2.65,2.1],               /* the tenants' table */
+  ['ashtray',.42,.72,9.55,0],['beercan',.68,.72,9.7,0],                  /* the card table */
+  ['tumbler',3.15,.92,-6.0,0],['mug',2.45,.76,-4.15,1.2],               /* Doña Chela's counter and table */
+  ['beercanC',-8.8,0,-3.0,.7],['beercan',-3.0,0,7.6,2.2],              /* the front room floor, Kev's floor */
+  ['shoe',-6.2,0,-8.0,1.9],['shoe',-7.6,0,9.0,-.6]                      /* by the bedroom door, Dani's back room */
+];
+function pfThrowables(put){ if(!PROTO.on) return;
+  const free=(x,z)=>!boxesAt(x,z).some(b=>!b.sightOnly&&b.h>.05&&x>b.x0-.06&&x<b.x1+.06&&z>b.z0-.06&&z<b.z1+.06);
+  for(const [k,x,y,z,yaw] of PF_CLUTTER){ if(!WPN[k]) continue; if(y<.01&&!free(x,z)) continue; put(newItem(k),[x,y,z,yaw]); } }
 
 /* =====================================================================
    THE WOUNDED AND THE TENANTS (prototype, ?proto=1).

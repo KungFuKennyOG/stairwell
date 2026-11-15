@@ -501,6 +501,7 @@ function pfItems(){ pfEnsureTools(); PF.items.length=0; const SP=PF.spot||{}; if
   if(WPN.hammer) put(item('hammer'),SP.guttedCrates); else put(item('machete'),[12.1,0,3.2,2.4]);
   if(WPN.pipe) put(item('pipe'),SP.guttedFloor);
   put(item('bottle'),SP.cardTable); put(item('bottle'),[-9.3,0,-7.4,2.0]);
+  if(typeof pfThrowables==='function') pfThrowables(put); /* mugs, plates, cans, a shoe: things to throw (87c-clutter.js) */
   /* loose rounds (A's) in three places, 12 in all; two first-aid tins */
   put(rounds(4),SP.cardPot); put(rounds(5),SP.storeShelf&&[SP.storeShelf[0],SP.storeShelf[1],SP.storeShelf[2]-.32,0]); inside('N1','cupboard',1,()=>rounds(3),SP.daniBack);
   if(WPN.medkit){ put(item('medkit'),SP.bathroom); inside('S5','cupboard',0,()=>item('medkit'),SP.tenantsTable); inside('N1','fridge',0,()=>item('bottle')); } }
