@@ -1316,7 +1316,8 @@ void main(){
   c += uSlow * (vec3(0.055, 0.048, 0.036) + c * 0.24);
   c = mix(c, c * vec3(1.3, 0.82, 0.78), red * uSlow * 0.5);
   /* hurt: the colour drains out of the world as Ray's health goes (blood keeps its red). Never darker, never at the edges */
-  c = mix(c, vec3(lum) * vec3(1.02, 0.97, 0.93), uHurt * 0.8 * (1.0 - red));
+  float blood = clamp((c.r - max(c.g, c.b) * 1.7) * 6.0, 0.0, 1.0); /* blood only: a deep red, not a warm-lit wall */
+  c = mix(c, vec3(lum) * vec3(1.02, 0.97, 0.93), uHurt * 0.85 * (1.0 - blood));
   c = mix(c, vec3(0.5, 0.0, 0.0), uFlash);
   c *= 1.0 - uFade; /* the whole view to black and back: the prologue only. Even, edge to edge, never a vignette */
   float L = 31.0; c += (bayer4(px) - 0.5) / L; c = floor(c * L + 0.5) / L;

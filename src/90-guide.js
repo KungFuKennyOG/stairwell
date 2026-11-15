@@ -165,7 +165,7 @@ function guideReset(){ GUIDE.t=0; GUIDE.hint=null; GUIDE.lastT=-9; for(const k i
 function guideHintsXR(dt,eye,f){ const C=GUIDE.hintC,H=GUIDE.hint;
   if(H){ const d=H.d,k='h|'+d.id; gSet(C,k,c=>gDrawHint(c,d.btn||null,d.text,d.sub||null,d.id.length*13)); }
   gPop(C,!!H,dt); if(!C.node.vis) return;
-  if(H&&H.at&&H.at!==true){ const p=H.at,to=norm3([eye[0]-p[0],0,eye[2]-p[2]]),y=Math.max(p[1]+.28,.6),q=[p[0]+to[0]*.18,Math.min(y,eye[1]-.05),p[2]+to[2]*.18];
+  if(H&&H.at&&H.at!==true){ const p=H.at,dx=Math.hypot(eye[0]-p[0],eye[2]-p[2]),to=norm3([eye[0]-p[0],0,eye[2]-p[2]]),nu=clamp((dx-.9)*.3,0,.18),y=Math.max(p[1]+(dx<.9?.2:.28),.6),q=[p[0]+to[0]*nu,Math.min(y,eye[1]+.1),p[2]+to[2]*nu]; /* close up it rises over the thing instead of coming at your face */
     C.p=C.p&&!C.free?v3.add(C.p,v3.sc(v3.sub(q,C.p),Math.min(1,dt*6))):q; C.free=false; gFace(C,C.p,eye); }
   else { if(!C.free){ C.free=true; C.p=null; } gPlace(C,eye,f,.85,-.3,dt); } }
 /* the wrist: the left hand empty, held still in the middle of your view, a forearm's length off your face */

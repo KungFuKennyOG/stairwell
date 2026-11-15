@@ -83,6 +83,30 @@ window.FILM = (() => {
     { name: 'exit', dur: 8.4, setup(F) { equip(HANDS.R, newItem('cutter')); F.ray(11.3, 9.55, PF.exit.at); },
       acts: [[0, 2, F => F.aim(PF.exit.at, 3)], [1.6, null, () => pfBotOpen()], [2, 4.5, F => F.aim([13.6, 1.4, 9.9], 1.5)], [4.5, 11, F => { F.aim([15.2, 1.5, 9.9], 3); KEYS.KeyW = true; }]] },
   ];
+  SC.push({ name: 'tutorial', dur: 21, setup(F) { for (const n of ['Dani', 'Kev', 'Mario', 'Rui', 'Tito', 'Jojo']) F.away(F.E(n));
+      if (!document.getElementById('noguide')) { const st = document.createElement('style'); st.id = 'noguide'; st.textContent = '#guide{display:none!important}'; document.head.appendChild(st); }
+      F.ray(PF_START.x, PF_START.z, [-11, 1.5, -6.4]); GUIDE.done = {}; guideReset(); guideTitle('Floor 01', 'Get out. The stairwell door is chained.', 5); },
+    acts: [[0, 21, F => { const b = camBasis(); guideXR(1 / 30, b.eye, b.f); }], [0, 2.5, F => F.aim([-11, 1.3, -6.4], 2)],
+      [5.5, 15.5, F => F.go(-9.0, -7.2)], [15.5, 21, F => { F.stop(); F.aim([-9.3, .3, -7.4], 3); }]] });
+  const GX = F => { const b = camBasis(); guideXR(1 / 30, b.eye, b.f); };
+  const fresh = () => { GUIDE.done = {}; guideReset(); if (!document.getElementById('noguide')) { const st = document.createElement('style'); st.id = 'noguide'; st.textContent = '#guide{display:none!important}'; document.head.appendChild(st); } };
+  const near = (list, x, z) => list.slice().sort((a, b) => Math.hypot(a.at[0] - x, a.at[2] - z) - Math.hypot(b.at[0] - x, b.at[2] - z))[0];
+  const key = c => dispatchEvent(new KeyboardEvent('keydown', { code: c })), keyUp = c => dispatchEvent(new KeyboardEvent('keyup', { code: c }));
+  const park = F => { let i = 0; for (const n of ['Dani', 'Kev', 'Mario', 'Rui', 'Tito', 'Jojo']) { const E = F.E(n); if (E) { F.tp(E, -16.5 + (i % 3) * .8, -9.8 + (i / 3 | 0) * .8, 0); E.st = 'idle'; E.patrol = null; } i++; } };
+  const inward = (p, d) => { const c = [-8.75, 3.75], v = norm3([c[0] - p[0], 0, c[1] - p[2]]); return [p[0] + v[0] * d, p[2] + v[2] * d]; };
+  SC.push({ name: 'kitchen', dur: 17, setup(F) { park(F); fresh(); GUIDE.done.start = GUIDE.done.take = GUIDE.done.swing = GUIDE.done.sheet = GUIDE.done.hideSpot = true;
+      const D = near(PF.openables.filter(o => (o.room && o.room.id || o.room) === 'N1' && o.kind === 'drawer'), -11, 3.6); F.D = D; F.SW = PF.switches.find(s => (s.room && s.room.id || s.room) === 'N1');
+      F.MUG = LOOSE.filter(P => WPN[P.item.key] && WPN[P.item.key].clutter).sort((a, b) => Math.hypot(a.node.p[0] + 9.4, a.node.p[2] - 3.8) - Math.hypot(b.node.p[0] + 9.4, b.node.p[2] - 3.8))[0];
+      F.ray(D.at[0] + 1.0, D.at[2], D.at); window.__ev = []; },
+    acts: [[0, 17, GX], [0, 3.2, F => F.aim(F.D.at, 3)], [3.2, null, () => { pfUseQ = true; }], [3.4, 6, F => F.aim(v3.add(F.D.at, [.25, -.1, 0]), 3)],
+      [6.2, null, F => { const q = inward(F.SW.at, .55); F.ray(q[0], q[1], F.SW.at); F.snap(); }], [6.2, 9.5, F => F.aim(F.SW.at, 4)], [8.0, null, () => { pfUseQ = true; }],
+      [9.6, null, F => { const p = F.MUG.node.p; F.ray(p[0] + .85, p[2] + .25, p); F.snap(); }], [9.6, 12, F => F.aim(F.MUG.node.p, 4)], [11.0, null, () => { pfUseQ = true; }],
+      [12.2, 17, F => F.aim([-11.5, 1.0, 5.6], 3)], [13.6, null, () => { key('KeyQ'); keyUp('KeyQ'); }]] });
+  SC.push({ name: 'hurt', dur: 8, setup(F) { park(F); fresh(); for (const k in GUIDE.ev) GUIDE.ev[k] = 0; F.ray(-8.3, 2.4, [-11.6, 1.2, 4.2]); equip(HANDS.R, newItem('knife')); GUIDE.done.swing = GUIDE.done.flip = GUIDE.done.drawer = GUIDE.done.switch = GUIDE.done.clutter = GUIDE.done.hideSpot = true; },
+    acts: [[0, 8, GX], [0, 8, F => F.aim([-11.6, 1.2, 4.2], 2)], [1.0, 3.5, (F, t) => { PL.hp = 100 - t * 26; }], [3.5, null, () => { PL.hp = 34; }]] });
+  SC.push({ name: 'exitcut', dur: 12, setup(F) { park(F); fresh(); GUIDE.done.start = GUIDE.done.take = GUIDE.done.sheet = true; PL.hp = 100;
+      const X = PF.exit; F.ray(X.at[0] - 1.6, X.at[2] - .9, X.at); },
+    acts: [[0, 12, GX], [0, 5, F => F.aim(PF.exit.at, 3)], [5.0, null, F => { const c = PF.cutterAt.p; F.ray(c[0] + 1.6, c[2] + .4, c); F.snap(); }], [5.0, 12, F => F.aim(PF.cutterAt.p, 3)]] });
   F.list = () => SC.map(s => s.name);
   F.seed = k => { let s = k >>> 0; Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
   F.begin = name => { S = SC.find(s => s.name === name); let h = 7; for (const ch of name + (S.seed || '')) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); F.seed(h); F.stop(); PL.crouchT = false; for (const h of [HANDS.L, HANDS.R]) equip(h, null);
