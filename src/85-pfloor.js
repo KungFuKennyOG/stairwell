@@ -379,6 +379,7 @@ function pfBuild(){ setWorld(18,12);
   /* what's in it, who lives there */
   const furn=[],seats=[],beds=[],lights=[],anim=[],A=twKit(G,furn,seats,beds,lights,anim); A.pot=pot;
   A.tag=(i,x,y,side,o)=>{ if(o) mk(plane(1.6,.4),M(TAGS[i],{cut:true}),G,x,y,o.z,0,o.ry,0); else mk(plane(1.6,.4),M(TAGS[i],{cut:true}),G,x,y,side*(1.1-PF_T/2-.01),0,side>0?Math.PI:0,0); };
+  if(typeof pfSwKit==='function') pfSwKit(A); /* light switches (85b-switches.js): it keeps the bulbs */
   pfDress(A); pfExitBuild(G,pot); pfClutter(pot,r2);
   pot.flush(G);
   GEO_TEMP=false;
@@ -603,7 +604,7 @@ function pfLightsTick(dt){ const e=camBasis().eye,t=GAME.t,K=Math.min(7,pnum('pf
     L.plPos.set([q[0],y,q[1]],slot*3); L.plCol.set([.5,.48,.42],slot*3); L.plDist[slot]=pnum('pfloor','torchR',4.4); slot++; } SPOT.n=sk; /* the cone does the lighting; the point light is its bounce */
   for(const E of enemies) if(E.pfTorch) E.pfTorch.vis=!!E.torchOn&&!E.dead&&!!E.wpnHeld;
   const pr=PF.room,open=PF.exit&&PF.exit.open,C=[];
-  for(const l of PF.lights){ if(l.kind==='stairs'&&!open){ l.want=0; } else { const d=Math.hypot(l.p[0]-e[0],l.p[2]-e[2]); l.s=d-l.d*.7-(pr&&l.room&&pfRoomsApart(pr,l.room)<=1?4:0); C.push(l); } }
+  for(const l of PF.lights){ if(l.off||l.kind==='stairs'&&!open){ l.want=0; } else { const d=Math.hypot(l.p[0]-e[0],l.p[2]-e[2]); l.s=d-l.d*.7-(pr&&l.room&&pfRoomsApart(pr,l.room)<=1?4:0); C.push(l); } }
   C.sort((a,b)=>a.s-b.s); const n=K-slot; C.forEach((l,i)=>{ l.want=i<n?1:0; });
   for(const l of PF.lights) l.w=clamp((l.w||0)+clamp((l.want||0)-(l.w||0),-dt*3,dt*3),0,1);
   const lit=PF.lights.filter(l=>l.w>0).sort((a,b)=>b.w-a.w||a.s-b.s);
