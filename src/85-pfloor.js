@@ -142,6 +142,7 @@ function pfProp(kind,x,z,ry=0,o={}){ const G=floorN,hasH=typeof prop==='function
       if(typeof addSheet==='function') for(const b of S.sight){ const bb=addBox(b.x0,b.x1,b.z0,b.z1,b.y0,b.h,'sheet'); bb.sightOnly=true; S.boxes.push(bb); }
       for(const hd of S.hides) pfHide(Object.assign({},hd,{note:o.hide&&o.hide.note||hd.kind,id:'pf-'+kind+'-'+PF.hides.length}));
       if(S.curtain&&typeof hideLiveCurtain==='function'){ try{ S.live=hideLiveCurtain(S,x,z,ry+(PF_HYAW[kind]||0)); }catch(e){ console.warn('[pfloor] live curtain',kind,e); } } /* G: a curtain you push through, that stops eyes */
+      if(S.opens&&typeof openReg==='function') openReg(S,x,z,ry+(PF_HYAW[kind]||0)); /* drawers, cupboard and fridge doors (87b-openables.js) */
       if(S.tick) PF.ticks.push(S); S.h=true; return S; }catch(e){ console.warn('[pfloor] prop',kind,e); } }
   if(o.hide) pfHide(o.hide);
   const fk=PF_FURN[kind]!==undefined?PF_FURN[kind]:kind;
@@ -198,7 +199,7 @@ function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.p
     addBox(.7,1.5,-.2,1.1,0,1.8,'barricade');
     H({kind:'corner',x:2.1,z:.75,yaw:Math.PI/2,w:.7,d:.6,h:1.5,open:'-z',note:'behind the barricade'});
     /* the tenants' things put out in the hall: a fridge, a wardrobe. They also cut the long looks across it from door to door */
-    P('fridge',-6.15,1.03-.35,Math.PI); P('wardrobe',4.05,1.03-.36,Math.PI); P('trash',-7.5,-.6,0);
+    P('fridge',-6.15,1.03-.35,Math.PI,{opts:{dead:true}}); P('wardrobe',4.05,1.03-.36,Math.PI); P('trash',-7.5,-.6,0);
     /* the dead lift at the west end, the hose cabinet at the east */
     A.pic(tPfLift,-8+T2+.012,1.1,0,Math.PI/2,1.3,2.2); mk(box(.06,2.3,1.5),mSteel,floorN,-8+T2+.03,1.15,0,0,0,0);
     mk(box(.12,.6,.42),F(M(tAxeRed),M(tPfHose)),floorN,8-T2-.06,1.3,-.3,0,-Math.PI/2,0);
@@ -238,10 +239,9 @@ function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.p
     const mW=M(tPfWater,{cut:true}); for(const [x,z,s2] of [[10.4,-4.6,2.4],[8.6,-3.2,2.0],[11.2,-2.6,1.6],[9.4,-5.6,1.4],[9.5,-7.2,1.1]]) A.pot.quad(mW,[x,.006,z],[0,1,0],[1,0,0],[0,0,-1],s2,s2*.8);
     A.bulb(9.4,-3.8,false); }
   /* N1: Dani's kitchen. A bulb over the counter, rice on a plate, Dunne's watch beside it. His daughter on the fridge */
-  { const k=P('kitchen',-12+T2+.31,3.6,Math.PI/2,{opts:{len:2.0}}); P('fridge',-12+T2+.34,5.7,Math.PI/2); const t=P('table',-9.4,3.8,0); P('trash',-6.1,5.8,0);
+  { const k=P('kitchen',-12+T2+.31,3.6,Math.PI/2,{opts:{len:2.0}}); P('fridge',-12+T2+.34,5.7,Math.PI/2,{opts:{pics:[[tTwPhotoKid,.08,1.18,.12,.16],[tTwDrawing,-.12,1.42,.22,.22]]}}); /* his daughter on the fridge door: it swings with it */ const t=P('table',-9.4,3.8,0); P('trash',-6.1,5.8,0);
     const ct=top(k,.92); A.bulb(-11.0,3.6,true); L_([-11.0,2.25,3.6],[1.55,.9,.42],5.4,null,'N1');
     A.blk(.26,.02,.26,M(tTwRice),-11.6,ct+.015,3.35); A.blk(.22,.06,.22,M(tWhite),-11.62,ct+.03,3.95); twWatch(-11.5,ct+.01,3.0);
-    A.pic(tTwPhotoKid,-11.27,1.18,5.62,Math.PI/2,.12,.16); A.pic(tTwDrawing,-11.27,1.42,5.82,Math.PI/2,.22,.22);
     SP.daniTable=[-9.45,top(t,.77),3.75,.6]; SP.daniCounter=[-11.5,ct,4.3,.4]; SP.daniStove=[-11.5,ct,2.85,1.2]; }
   /* N2: Dani's back room */
   { P('bed',-6.6,10.8,Math.PI,{hide:{kind:'bed',x:-6.6,z:10.8,yaw:Math.PI,w:2.0,d:1.0,h:PF_BED_UNDER,open:'+z',note:'under the bed'}}); P('wardrobe',-10+T2+.36,9.2,Math.PI/2); P('trash',-6.1,7.0,0); A.bulb(-7.8,9.2,false); SP.daniBack=[-9.3,.0,7.1,.4]; }
@@ -322,7 +322,7 @@ function pfBuild(){ setWorld(18,12);
   setLang(false); if(GAME.vision&&GAME.vision!=='off'&&typeof visionApply==='function'){ GAME.vision='off'; visionApply(); }
   const G=floorN; GEO_TEMP=true;
   PF.rooms=PF_ROOMS.map((r,i)=>Object.assign({},r,{i,x0:Math.min(...r.rects.map(q=>q[0])),z0:Math.min(...r.rects.map(q=>q[1])),x1:Math.max(...r.rects.map(q=>q[2])),z1:Math.max(...r.rects.map(q=>q[3])),lit:false,hides:[],props:[],who:[]}));
-  PF.byId={}; for(const r of PF.rooms) PF.byId[r.id]=r; PF.grid=null; PF.hides.length=0; PF.lights.length=0; PF.furn=[]; PF.seats=[]; PF.beds=[]; PF.spray=null; PF.tube=null; PF.ticks=[]; PF.tvS=null;
+  PF.byId={}; for(const r of PF.rooms) PF.byId[r.id]=r; PF.grid=null; PF.hides.length=0; PF.lights.length=0; PF.furn=[]; PF.seats=[]; PF.beds=[]; PF.spray=null; PF.tube=null; PF.ticks=[]; PF.openables=[]; PF.tvS=null;
   PF.exitH=typeof PROP_B!=='undefined'&&!!PROP_B.exitchain; /* H's door, chain and sign when 87-props.js is in */
   PF.runs=pfBoundaries(); pfPlaceOpenings();
   /* the paint: each room its own side of every wall it has */
@@ -485,21 +485,24 @@ function pfCast(){ for(const c of PF_DEF.cast) if(c.hunt&&!c.hunt.pts) c.hunt.pt
 /* the improvised weapons where they'd be, ammo and first aid if A/H have them, and the bolt cutter in one of three places */
 /* the bolt cutter is in one of three places, picked each load: Dani's kitchen table, the storeroom shelf, the gutted flat (on the cement) */
 const PF_CUTTER=[{room:'N1',spot:'daniTable'},{room:'S7',spot:'storeShelf'},{room:'N8',spot:'gutted'}];
-function pfItems(){ pfEnsureTools(); PF.items.length=0; const SP=PF.spot||{};
+function pfItems(){ pfEnsureTools(); PF.items.length=0; const SP=PF.spot||{}; if(typeof openReset==='function') openReset();
   /* q: [x, surface y, z, yaw]; the item lies on it (H's propItemM when it's there: it knows how each model rests) */
   const put=(it,q)=>{ if(!it||!q) return null; const Mw=typeof propItemM==='function'?propItemM(q[0],q[1],q[2],q[3]||0):m4.compose(m4.make(),[q[0],q[1]+.04,q[2]],[0,q[3]||0,Math.PI/2],[1,1,1]);
     const P=addPickup(it,Mw,[0,0,0],[0,0,0]); P.rest=true; PF.items.push({key:it.key,P,room:pfRoomRaw(q[0],q[2]),at:q.slice(0,3)}); return P; };
   const item=k=>WPN[k]?newItem(k):null;
   const rounds=n=>typeof rayRoundsItem==='function'?rayRoundsItem(n):typeof newRounds==='function'?newRounds(n):WPN.rounds?Object.assign(newItem('rounds'),{n,count:n}):null;
   const ci=PF.cutterI!=null?PF.cutterI:Math.random()*3|0,C=PF_CUTTER[ci],q=SP[C.spot]; PF.cutterAt={room:C.room,spot:C.spot,p:q?q.slice(0,3):[0,0,0]}; put(item('cutter'),q);
-  put(item('knife'),SP.daniCounter); put(item('knife'),SP.chelaCounter);
+  /* the kitchen knives are in the drawers, and some of the rest in cupboards and fridges (87b-openables.js: made on first opening); the
+     pans, the bottles and the hammer stay out where you can see them: Ray starts empty-handed */
+  const inside=(room,kind,i,mk,q)=>{ if(!(typeof openStock==='function'&&openStock(room,kind,i,mk))&&q) put(mk(),q); };
+  inside('N1','drawer',0,()=>item('knife'),SP.daniCounter); inside('S5','drawer',1,()=>item('knife'),SP.chelaCounter);
   if(WPN.pan){ put(item('pan'),SP.daniStove); put(item('pan'),SP.chelaStove); }
   if(WPN.hammer) put(item('hammer'),SP.guttedCrates); else put(item('machete'),[12.1,0,3.2,2.4]);
   if(WPN.pipe) put(item('pipe'),SP.guttedFloor);
   put(item('bottle'),SP.cardTable); put(item('bottle'),[-9.3,0,-7.4,2.0]);
   /* loose rounds (A's) in three places, 12 in all; two first-aid tins */
-  put(rounds(4),SP.cardPot); put(rounds(5),SP.storeShelf&&[SP.storeShelf[0],SP.storeShelf[1],SP.storeShelf[2]-.32,0]); put(rounds(3),SP.daniBack);
-  if(WPN.medkit){ put(item('medkit'),SP.bathroom); put(item('medkit'),SP.tenantsTable); } }
+  put(rounds(4),SP.cardPot); put(rounds(5),SP.storeShelf&&[SP.storeShelf[0],SP.storeShelf[1],SP.storeShelf[2]-.32,0]); inside('N1','cupboard',1,()=>rounds(3),SP.daniBack);
+  if(WPN.medkit){ put(item('medkit'),SP.bathroom); inside('S5','cupboard',0,()=>item('medkit'),SP.tenantsTable); inside('N1','fridge',0,()=>item('bottle')); } }
 
 /* ---------- every frame ---------- */
 const pfCalm=E=>!E.dead&&!E.aware&&(!E.mind||E.mind==='calm'||E.mind==='nervous')&&!E.goHome&&!E.grabbed&&(E.st==='alert'||E.st==='idle');
@@ -563,8 +566,10 @@ function pfTools(dt){ const X=PF.exit; if(!X||PL.dead) return; const kp=pfKeysPo
   const looking=(p,r)=>{ const v=v3.sub(p,eye),d=Math.hypot(...v); return d<r&&v3.dot(v,f)/d>.75; };
   const tl=pfToolOf(h.item); if(tl&&!X.open&&looking(X.at,R_)){ pfOpen(tl==='cutter'?'cut':'keys'); return; }
   if(kp&&pfOut(PF.keyMan)&&looking(kp,2.0)){ pfTakeKeys(h); return; }
-  const aTool=it=>it&&WPN[it.key]&&/^(medkit|rounds|strip)$/.test(WPN[it.key].tool||''); if(KEYS.Mouse0||aTool(h.item)) return; /* strips, kits and rounds are A's (80-ray.js, also on U) */
-  let best=null,bd=1e9; for(const P of LOOSE){ if(aTool(P.item)) continue; const v=v3.sub(P.node.p,eye),d=Math.hypot(...v); if(d<2.1&&v3.dot(v,f)/d>.8&&d<bd){ bd=d; best=P; } }
+  const aTool=it=>it&&WPN[it.key]&&/^(medkit|rounds|strip)$/.test(WPN[it.key].tool||'');
+  let best=null,bd=1e9; if(!KEYS.Mouse0&&!aTool(h.item)) for(const P of LOOSE){ if(aTool(P.item)) continue; const v=v3.sub(P.node.p,eye),d=Math.hypot(...v); if(d<2.1&&v3.dot(v,f)/d>.8&&d<bd){ bd=d; best=P; } }
+  const op=!KEYS.Mouse0&&!aTool(h.item)&&typeof openUse==='function'?openUse(eye,f):null; if(op&&(!best||op.d<bd)){ openToggle(op.o); return; } /* a drawer or door you're looking at (87b-openables.js) */
+  if(KEYS.Mouse0||aTool(h.item)) return; /* strips, kits and rounds are A's (80-ray.js, also on U) */
   if(best){ if(h.item) grabOrDrop(h); equip(h,best.item); removePickup(best); sfx('click',.6); } }
 /* J's bots: standing at the chain with a cutter (or the keys) in hand, open it */
 function pfBotOpen(){ const X=PF.exit; if(!X) return false; if(X.open) return true; const h=[HANDS.R,HANDS.L].find(h=>pfToolOf(h.item)); if(!h) return false;
@@ -641,7 +646,7 @@ function pfReset(){ GAME.fade=0; PF.exited=false; PF.exitT=null; PF.exitShown=fa
   if(!GAME.kit&&PF_DEF.kit) equip(HANDS.R,newItem(PF_DEF.kit,undefined,true)); /* Novak's pistol, can on (A sets what's in it) */
   if(XR.on) vrToast('Floor 01',2.5); }
 protoOn('tick',(gdt,dt)=>{ if(FLOOR.mode!=='proto'){ if(PF.snd) pfAudioStop(); return; }
-  pfRoomTick(); pfLightsTick(dt); pfAudioTick(dt); if(!GAME.started) pfCullPeople(); for(const S of PF.ticks) S.tick(GAME.t); if(PF.spray){ PF.spray.s=[1,1+.04*Math.sin(GAME.t*31),1]; PF.spray.p[0]=.2+.01*Math.sin(GAME.t*47); }
+  pfRoomTick(); if(typeof openTick==='function') openTick(dt); pfLightsTick(dt); pfAudioTick(dt); if(!GAME.started) pfCullPeople(); for(const S of PF.ticks) S.tick(GAME.t); if(PF.spray){ PF.spray.s=[1,1+.04*Math.sin(GAME.t*31),1]; PF.spray.p[0]=.2+.01*Math.sin(GAME.t*47); }
   if(!GAME.started) return;
   pfAwake(dt); pfCullPeople(); pfHunters(gdt); pfPairTalk(gdt); twTalk(gdt); twCivTick(gdt); if(typeof HUNT==='undefined') twRoles(gdt);
   pfTools(dt); pfWet(dt); pfExitTick(dt); });

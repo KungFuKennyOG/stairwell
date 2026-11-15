@@ -351,7 +351,7 @@ function sheetRelease(h){ const S=h._sh; if(S&&S.held&&S.held.h===h) S.held=null
    (tearPull below where the hand was, relative to the head; or half that, fast) does */
 function sheetHandsTick(B){ if(!XR.on||!SHEETS.length) return;
   for(const h of [HANDS.L,HANDS.R]){ const gp=h.src&&h.src.gamepad,pr=!!(gp&&gp.buttons[1]&&gp.buttons[1].pressed),edge=pr&&!h._hgp; h._hgp=pr;
-    const busy=!!(h.item||h.grab||h.stuck||h.supportOf);
+    const busy=!!(h.item||h.grab||h.stuck||h.supportOf||h._op); /* h._op: a drawer or door handle in it (87b-openables.js) */
     if(h._sh){ const S=h._sh; if(!pr||busy||!S.held) sheetRelease(h); else { const p=mulP(h.M,FIST),o=S.held.i*3; S.held.p=p; S.idle=0;
         const pull=S.held.rel0-(p[1]-B.y); /* metres the hand has come down, head-relative */
         if(Math.hypot(p[0]-S.R[o],p[1]-S.R[o+1],p[2]-S.R[o+2])>S.L0+.5) sheetRelease(h); /* walked off still holding it: it slips out of the hand */
