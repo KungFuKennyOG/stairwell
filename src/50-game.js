@@ -1176,6 +1176,10 @@ function sfx(type,vol=1,pos){ const ac=audio(); if(!ac) return; const t=ac.curre
   else if(type==='grab'){ noise(700,200,.12,.5,1.2); tone(140,90,.08,.3); }
   else if(type==='door'){ noise(400,120,.35,.35,1.5); tone(90,60,.3,.25); }
   else if(type==='doorkick'){ tone(70,35,.25,1); noise(900,90,.4,.9); }
+  else if(type==='smash'){ noise(6000,2000,.18,.7,1.4,'highpass'); noise(2500,900,.12,.6,2,'bandpass'); tone(1650,1400,.05,.25); tone(2300,2050,.04,.18,.025); tone(3100,2900,.03,.08,.09); tone(2700,2600,.03,.06,.16); } /* a mug or a plate breaking */
+  else if(type==='tin'){ tone(820,700,.07,.35); tone(1240,1100,.05,.22,.004); noise(5000,2000,.1,.35,3,'bandpass'); tone(900,780,.05,.2,.11); noise(4500,2000,.07,.2,3,'bandpass',.11); tone(1000,900,.04,.1,.19); } /* a can bouncing */
+  else if(type==='thud'){ tone(95,55,.11,.7); noise(420,120,.1,.45); }
+  else if(type==='clink'){ tone(1050,950,.12,.3); tone(1580,1450,.08,.18,.003); noise(3000,1200,.06,.25,2,'bandpass'); tone(1100,1000,.06,.12,.13); }
   else if(type==='hurt'){ tone(160,60,.25,.5); noise(800,100,.2,.4); } }
 
 /* ---------- viewmodel ---------- */
