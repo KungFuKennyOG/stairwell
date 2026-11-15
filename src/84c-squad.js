@@ -14,7 +14,7 @@
    Anyone Ray walks up to (3 m), or a man who sees Ray close, just fights: a job never stops a man defending himself.
    Hooked from fightMove() after rage. PROTO only.
    ===================================================================== */
-PROTO.squad={press:2,tick:.33,coverMin:6,flankWait:[5,9],siege:[10,18],selfDefence:3,barkCd:3.2};
+PROTO.squad={press:2,apart:3.5,avoidR:2.2,tick:.33,coverMin:6,flankWait:[5,9],siege:[10,18],selfDefence:3,barkCd:3.2};
 const SQ={t:0,T:null,R:null,jobs:new Map(),sawT:-99,siege:null,barkT:0,last:'',ents:[]};
 const SQ_L={press:['I got him!','On him!','He\'s here! Here!'],flank:['Going round!','I\'ll come round the back!','Other door! Go!'],
   cut:['I got the stairs!','Don\'t let him out!','Watch the back!'],cover:['Stay on him!','Hold here, hold here!','Wait for it...'],
@@ -35,7 +35,10 @@ function squadTick(){ const P=PROTO.squad,now=GAME.t; const men=sqMen();
   const seer=men.find(E=>E.canSee); if(seer){ SQ.T=[PL.x,PL.z]; SQ.sawT=now; }
   else if(!SQ.T||now-SQ.sawT>30){ const b=men.find(E=>E.lkp); if(b) SQ.T=b.lkp.slice(); } /* nobody's seen him: where they last heard he was */
   const T=SQ.T; if(!T){ SQ.jobs.clear(); return; }
-  const R=pfRoomAt(T[0],T[1]),ents=R&&!/^H|NE|NX/.test(R.id)?sqEntrances(R):[]; SQ.R=R; SQ.ents=ents;
+  const R=pfRoomAt(T[0],T[1]),all=R&&!/^H|NE|NX/.test(R.id)?sqEntrances(R):[];
+  /* only the doors you can get to without going through his room: the room beyond has another walkable way in (crawl holes don't count, the men can't crawl) */
+  const reach=e=>{ const O=e.o.A===R?e.o.B:e.o.A; return !!O&&PF.openings.filter(o=>(o.A===O||o.B===O)&&o.kind!=='hole'&&o.kind!=='chain').length>=2; };
+  const ents=all.filter(reach); SQ.R=R; SQ.ents=ents;
   const F=fieldTo(T[0],T[1]),dOf=E=>sqPath(F,E.pos[0],E.pos[1])??sqD(E.pos,T);
   const order=men.slice().sort((a,b)=>(b.rage>0)-(a.rage>0)||dOf(a)-dOf(b));
   const prev=SQ.jobs,jobs=new Map(),roomMoved=SQ.lastR!==R; SQ.lastR=R; let press=0; const free=[];
@@ -54,18 +57,21 @@ function squadTick(){ const P=PROTO.squad,now=GAME.t; const men=sqMen();
   if(ents.length===1&&now-SQ.sawT>4){ if(!SQ.siege||SQ.siege.R!==R){ SQ.siege={R,until:now+rnd(P.siege[0],P.siege[1]),said:false,push:false}; } }
   else SQ.siege=null;
   const has=k=>[...jobs.values()].some(j=>j.k===k);
+  const lead=order.find(E=>jobs.get(E)&&jobs.get(E).k==='press'),pe=ents.length?(lead?ents.reduce((a,b)=>sqD(lead.pos,a.out)<=sqD(lead.pos,b.out)?a:b):ents[0]):null; SQ.pe=pe;
+  const avoid=pe?[pe.out,pe.in]:lead?[lead.pos]:[]; /* where the press goes in: the others keep clear of it */
   if(ents.length>=2&&free.length&&!has('flank')){ /* the way the press is coming in, and the one furthest from it */
-    const lead=order.find(E=>jobs.get(E)&&jobs.get(E).k==='press'); const pe=lead?ents.reduce((a,b)=>sqD(lead.pos,a.out)<=sqD(lead.pos,b.out)?a:b):ents[0];
-    const other=e=>{ const O=e.o.A===R?e.o.B:e.o.A; return PF.openings.filter(o=>(o.A===O||o.B===O)&&o.kind!=='hole'&&o.kind!=='chain').length>=2; }; /* round the back only if that side has another way in (not through Ray's own room) */
-    const fcs=ents.filter(e=>e!==pe&&other(e)); const fe=fcs.length?fcs.reduce((a,b)=>sqD(pe.out,a.out)>=sqD(pe.out,b.out)?a:b):null;
+    const fcs=ents.filter(e=>e!==pe); const fe=fcs.length?fcs.reduce((a,b)=>sqD(pe.out,a.out)>=sqD(pe.out,b.out)?a:b):null;
     if(fe){ const fm=free.reduce((a,b)=>sqD(a.pos,fe.out)<=sqD(b.pos,fe.out)?a:b); free.splice(free.indexOf(fm),1);
-    jobs.set(fm,{k:'flank',e:fe,ph:'go',t0:now,wait:rnd(P.flankWait[0],P.flankWait[1])}); } }
+    jobs.set(fm,{k:'flank',e:fe,ph:'go',t0:now,wait:rnd(P.flankWait[0],P.flankWait[1]),av:avoid}); } }
   if(free.length&&PF.exit&&!PF.exit.open&&!has('cut')){ /* the doorway out of his room toward the stairs (or, in the hall, a spot between him and the stairs) */
     const FX=fieldTo(PF.exit.at[0],PF.exit.at[2]); let ce=null;
-    const used=new Set([...jobs.values()].filter(j=>j.e).map(j=>j.e.o)); const cands=ents.filter(e=>!used.has(e.o));
+    const used=new Set([...jobs.values()].filter(j=>j.e).map(j=>j.e.o)); const cands=ents.filter(e=>!used.has(e.o)&&!(pe&&e!==pe&&sqD(e.out,pe.out)<P.apart)&&e!==pe); /* not the press door, nor one right beside it */
     if(cands.length){ ce=cands.reduce((a,b)=>(sqPath(FX,...a.out)??99)<=(sqPath(FX,...b.out)??99)?a:b); }
     else if(!ents.length){ const ex=[PF.exit.at[0],PF.exit.at[2]],v=[ex[0]-T[0],ex[1]-T[1]],L=Math.hypot(...v); if(L>5){ const k=Math.min(6,L*.5)/L,p=navSnap(T[0]+v[0]*k,T[1]+v[1]*k); ce={out:p,beside:p,in:p,o:null}; } }
-    if(ce){ const cm=free.reduce((a,b)=>sqD(a.pos,ce.out)<=sqD(b.pos,ce.out)?a:b); free.splice(free.indexOf(cm),1); jobs.set(cm,{k:'cut',e:ce}); } }
+    else if(pe&&FX){ /* one way in, the press has it: he holds the way to the stairs ~6 m down from that door, not the door itself */
+      let c=navCell(pe.out[0],pe.out[1]); for(let n=0;n<18&&c>=0;n++){ const ci=c%NX,ck=(c-ci)/NX; let best=c; for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const q=(ck+k)*NX+ci+i; if(q>=0&&q<FX.length&&FX[q]<FX[best]) best=q; } if(best===c) break; c=best; }
+      const p=c>=0?[cellX(c%NX),cellZ((c-c%NX)/NX)]:null; if(p&&sqD(p,pe.out)>=P.apart){ ce={out:p,beside:p,in:pe.out,o:null}; } }
+    if(ce){ const cm=free.reduce((a,b)=>sqD(a.pos,ce.out)<=sqD(b.pos,ce.out)?a:b); free.splice(free.indexOf(cm),1); jobs.set(cm,{k:'cut',e:ce,av:avoid}); } }
   for(const E of free) jobs.set(E,{k:'cover'});
   for(const [E,j] of jobs){ if(E.role==='hold') E.role=null; /* the old tower holder (66-tower.js) held his room forever: once the squad's on, he has a job instead */
     const w=prev.get(E); if(!w||w.k!==j.k){ sqSay(E,j.k); protoEmit('squad',j.k,E); } }
@@ -73,18 +79,35 @@ function squadTick(){ const P=PROTO.squad,now=GAME.t; const men=sqMen();
 protoOn('tick',(gdt,dt)=>{ if(!PROTO.on||!GAME.started||PL.dead) return; SQ.t-=dt; if(SQ.t<=0){ SQ.t=PROTO.squad.tick; squadTick(); } });
 protoOn('reset',()=>{ SQ.jobs.clear(); SQ.T=null; SQ.siege=null; SQ.sawT=-99; SQ.lastR=undefined; });
 const sqHold=(E,face)=>{ if(face) E.hWant=Math.atan2(face[0]-E.pos[0],face[1]-E.pos[1]); return {goal:null,chase:false}; };
+/* a path to (tx,tz) that costs four times as much within avoidR of the press door: he goes round by another way if there is one */
+function sqField(tx,tz,av){ const P=PROTO.squad,pen=new Uint8Array(NX*NZ),r=P.avoidR,rc=Math.ceil(r*4);
+  for(const p of av){ const c=navCell(p[0],p[1]); if(c<0) continue; const ci=c%NX,ck=(c-ci)/NX;
+    for(let k=-rc;k<=rc;k++) for(let i=-rc;i<=rc;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; if(Math.hypot(cellX(ni)-p[0],cellZ(nk)-p[1])<r) pen[nk*NX+ni]=1; } }
+  let c=navCell(tx,tz); if(c<0) return null; if(FLOOR.nav[c]){ const q=navSnap(tx,tz); c=navCell(q[0],q[1]); }
+  const F=new Int32Array(NX*NZ); navField(F,c,pen); return F; }
+/* follow such a field (the same stepping as navDir, without its straight-line shortcut, which would cut across the press door) */
+function sqDir(x,z,F){ let c=navCell(x,z); if(c<0||F[c]>=1e9) return null; let cur=c,aim=null;
+  for(let step=0;step<5;step++){ const ci=cur%NX,ck=(cur-ci)/NX; let best=cur,bd=F[cur];
+    for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(i&&k&&(FLOOR.nav[ck*NX+ni]||FLOOR.nav[nk*NX+ci])) continue; if(F[q]<bd){ bd=F[q]; best=q; } }
+    if(best===cur) break; cur=best; const p=[cellX(cur%NX),cellZ((cur-cur%NX)/NX)]; if(lineClearNav(x,z,p[0],p[1])) aim=p; else if(aim) break; else { aim=p; break; } }
+  return aim?norm3([aim[0]-x,0,aim[1]-z]):null; }
 /* the movement for a man with a job; null = his ordinary fighting */
 function squadMove(E,dt,fighting,dist){ const J=SQ.jobs.get(E); if(!J||J.k==='press') return null; const P=PROTO.squad,now=GAME.t;
   if(dist<P.selfDefence||fighting&&dist<5&&J.k!=='cover') return null; /* he's on you: he fights */
   /* walk to p; 'stuck' fires on any 1.5 s without progress, holding still included, so only several strikes in a row give up (one at a corner used to freeze him there for good) */
+  if(J.k==='guard'&&!J.av&&SQ.pe) J.av=[SQ.pe.out,SQ.pe.in]; /* the warden walks to the chain round the press door too */
   const go=(p,sp)=>{ if(Math.hypot(E.pos[0]-p[0],E.pos[1]-p[1])<=.45){ J.stk=0; return null; } if(J.stk>3) return null;
-    if(stuck(E,dt)){ J.stk=(J.stk||0)+1; freshGoal(E); } return {goal:{x:p[0],z:p[1],sp},chase:false}; };
+    if(stuck(E,dt)){ J.stk=(J.stk||0)+1; freshGoal(E); }
+    if(J.av&&J.av.length){ if(!J.F||J.Ft!==p){ J.F=sqField(p[0],p[1],J.av); J.Ft=p; } const d=J.F&&sqDir(E.pos[0],E.pos[1],J.F); /* round the press door, not through it */
+      if(d) return {goal:{x:E.pos[0]+d[0]*.9,z:E.pos[1]+d[2]*.9,sp},chase:false}; }
+    return {goal:{x:p[0],z:p[1],sp},chase:false}; };
   if(J.k==='flank'){ const e=J.e; if(J.ph==='go'){ const m=go(e.beside,2.1); if(m) return m; J.ph='wait'; J.tw=now; }
     if(J.ph==='wait'){ const pressOn=[...SQ.jobs].some(([O,j])=>j.k==='press'&&O.canSee); if(now-J.tw<J.wait&&!pressOn) return sqHold(E,e.in); J.ph='in'; sqSay(E,'push'); }
     return null; }
   if(J.k==='cut'){ const m=go(J.e.beside,1.9); return m||sqHold(E,J.e.in); }
   if(J.k==='guard'){ const X=PF.exit.at,p=navSnap(X[0]-1.6,X[2]); const m=go(p,1.6); return m||sqHold(E,SQ.T); } /* the floor side of the chained door */
-  if(J.k==='cover'){ const T=SQ.T; if(!T) return null; const d=sqD(E.pos,T);
+  if(J.k==='cover'){ const T=SQ.T; if(!T) return null; const d=sqD(E.pos,T),pe=SQ.pe;
+    if(pe&&sqD(E.pos,pe.out)<P.apart){ const v=[E.pos[0]-pe.out[0],E.pos[1]-pe.out[1]],L=Math.hypot(...v)||1,q=navSnap(pe.out[0]+v[0]/L*(P.apart+1),pe.out[1]+v[1]/L*(P.apart+1)); const m=go(q,1.6); if(m) return m; } /* not in the press's doorway */
     if(d<P.coverMin){ const v=[E.pos[0]-T[0],E.pos[1]-T[1]],L=Math.hypot(...v)||1,p=navSnap(T[0]+v[0]/L*P.coverMin,T[1]+v[1]/L*P.coverMin); return go(p,1.5)||sqHold(E,T); }
     if(Math.random()<dt*.05) sqSay(E,'cover'); return sqHold(E,T); }
   return null; }
