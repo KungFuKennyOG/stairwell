@@ -20,6 +20,7 @@ PROTO.hide={
   crouchH:1.42, standH:1.5, crouchK:.8, standK:.86, /* VR: crouched under 80% of your standing head height (cap crouchH), standing again over 86% */
   flatEye:.95,                      /* keyboard: eye height crouched */
   togEye:.95, togMin:.3, togMax:.8, /* VR toggle: a fixed drop, taken at the click, that puts a standing head near togEye (a seated one drops less) */
+  palmR:.11, palmDrag:.05, palmCarry:.8, palmSq:.45, /* VR: an open hand pushes cloth as a ball this big and drags what's within palmDrag of it along with it */
   crawlMin:.24,                     /* crouched, Ray crawls under anything whose underside is at least this far off the floor */
   crawlPre:.15, crawlGap:.08,       /* once his head is within crawlPre of it, the view dips to crawlGap under the underside */
   crawlVR:true,                     /* false: in VR you have to get your real head under it (lie down) */
@@ -271,7 +272,7 @@ function sheetRestore(S){ S.P.set(S.R); S.Q.set(S.R); S.held=null; S.idle=9; S.m
 /* who's pushing on cloth this frame: Ray's body (a column under his head), his hands in VR, and everyone near */
 function hidePushers(B){ const A=HIDE.pool; let n=0; const get=()=>A[n]||(A[n]={cyl:true,x:0,y:0,z:0,r:0,top:0,ray:false});
   let q=get(); q.cyl=true; q.x=B.x; q.z=B.z; q.r=.2; q.top=B.y+.2; q.ray=true; n++; /* to the crown, and a little cloth drapes over it */
-  if(B.vr) for(let k=0;k<2;k++) if(B.hOk[k]){ q=get(); q.cyl=false; q.x=B.h[k][0]; q.y=B.h[k][1]; q.z=B.h[k][2]; q.r=.07; q.ray=true; n++; }
+  if(B.vr) for(let k=0;k<2;k++) if(B.hOk[k]){ q=get(); q.cyl=false; q.x=B.h[k][0]; q.y=B.h[k][1]; q.z=B.h[k][2]; q.r=HIDEP.palmR; q.ray=true; const hv=[HANDS.L,HANDS.R][k].vel; q.v=HIDE.fake?(HIDE.fake.handV&&HIDE.fake.handV[k])||null:hv||null; n++; } /* an open palm, and the cloth it brushes goes along with it */
   for(const E of enemies){ if(E.dead||n>=30) continue; const up=E.sup===undefined||E.sup>.5; q=get(); q.cyl=true; q.x=E.pos[0]; q.z=E.pos[1]; q.r=up?.22:.3; q.top=up?1.85:.45; q.ray=false; n++; }
   HIDE.np=n; }
 function sheetsTick(dt,B){ if(!SHEETS.length) return; hidePushers(B); const A=HIDE.pool,T=HIDE.torch; T.length=0;
@@ -284,7 +285,7 @@ function sheetsTick(dt,B){ if(!SHEETS.length) return; hidePushers(B); const A=HI
       if(S.pushE>.015&&GAME.t-S.rustleT>.45){ S.rustleT=GAME.t; hideSnd(S.kind==='plastic'?'crinkle':'rustle',[S.x,1.2,S.z],clamp(S.pushE*6,.12,.7));
         if(S.rayPush&&!PL.dead) noise([PL.x,0,PL.z],HIDEP.rustleR*(PL.crouch?.6:1)); } }
     sheetGlow(S,dt,T); } }
-function sheetStep(S,dt){ const P=S.P,Q=S.Q,IM=S.IM,n=S.n,dmp=Math.pow(S.K.damp,dt*60),gy=-9.8*dt*dt,H=S.held;
+function sheetStep(S,dt){ S.dt3=dt/3; const P=S.P,Q=S.Q,IM=S.IM,n=S.n,dmp=Math.pow(S.K.damp,dt*60),gy=-9.8*dt*dt,H=S.held;
   let mv=0; for(let i=0;i<n;i++){ if(!IM[i]) continue; const o=i*3; for(let k=0;k<3;k++){ const v=(P[o+k]-Q[o+k])*dmp; Q[o+k]=P[o+k]; P[o+k]+=v; if(v>mv) mv=v; else if(-v>mv) mv=-v; } P[o+1]+=gy; }
   S.mv=mv;
   if(H){ const o=H.i*3; Q[o]=P[o]; Q[o+1]=P[o+1]; Q[o+2]=P[o+2]; P[o]=H.p[0]; P[o+1]=H.p[1]; P[o+2]=H.p[2]; IM[H.i]=0; } /* in his fist */
@@ -302,7 +303,9 @@ function sheetCollide(S){ const P=S.P,IM=S.IM,n=S.n,il=S.il,lo=S.l-S.hw,hi=S.l+S
       if(q.cyl){ if(P[o+1]>q.top) continue; const dx=P[o]-q.x,dz=P[o+2]-q.z,d2=dx*dx+dz*dz; if(d2>=q.r*q.r) continue; const d=Math.sqrt(d2);
         if(d<1e-4){ const s=(P[o+il]>=(il===0?q.x:q.z))?1:-1; P[o+il]+=s*q.r; pe+=q.r; continue; } /* dead centre: aside, toward the nearer jamb */
         const mv=(q.r-d)/d; P[o]+=dx*mv; P[o+2]+=dz*mv; pe+=q.r-d; }
-      else { const dx=P[o]-q.x,dy=P[o+1]-q.y,dz=P[o+2]-q.z,d2=dx*dx+dy*dy+dz*dz; if(d2>=q.r*q.r) continue; const d=Math.sqrt(d2)||1e-4,mv=(q.r-d)/d; P[o]+=dx*mv; P[o+1]+=dy*mv; P[o+2]+=dz*mv; pe+=q.r-d; } }
+      else { const dx=P[o]-q.x,dy=(P[o+1]-q.y)*HIDEP.palmSq,dz=P[o+2]-q.z,d2=dx*dx+dy*dy+dz*dz,rr=q.r+HIDEP.palmDrag; if(d2>=rr*rr) continue; const d=Math.sqrt(d2)||1e-4;
+        if(d<q.r){ const mv=(q.r-d)/d; P[o]+=dx*mv; P[o+2]+=dz*mv; pe+=q.r-d; } /* squashed tall: the cloth's rows are a hand apart, a palm between two still catches them */
+        if(q.v){ const k=HIDEP.palmCarry*S.dt3; P[o]+=q.v[0]*k; P[o+2]+=q.v[2]*k; P[o+1]+=Math.max(0,q.v[1])*k*.5; pe+=Math.hypot(q.v[0],q.v[2])*k; } } } /* sweeping it aside: it moves with the hand (a third per iteration) */
     if(P[o+il]<lo) P[o+il]=lo; else if(P[o+il]>hi) P[o+il]=hi; /* it bunches against the jambs */
     if(P[o+1]<.01) P[o+1]=.01; }
   return pe; }
@@ -440,7 +443,7 @@ function hideHud(){ if(!HIDE.test||!GAME.started) return; const S=PL.hide,e=PL.h
   const key=(S?S.kind+': '+lvl:'not hidden')+(PL.crawl?' · crawling':PL.crouch?' · crouched':'')+(PL.mouthCovered?' · hand over mouth':'');
   if(!HIDE.hud){ HIDE.hud=document.createElement('div'); HIDE.hud.style.cssText='position:fixed;left:8px;top:8px;z-index:60;font:600 13px "IBM Plex Mono",monospace;color:#e2a33d;background:rgba(0,0,0,.62);padding:4px 8px;pointer-events:none;white-space:pre'; document.body.appendChild(HIDE.hud); }
   const txt=key+(S?' ('+Math.round(e*100)+'% showing)':''); if(HIDE.hud._t!==txt){ HIDE.hud._t=txt; HIDE.hud.textContent=txt; }
-  if(key!==HIDE.hudKey){ HIDE.hudKey=key; if(XR.on) vrToast(key,1.6); } }
+  if(key!==HIDE.hudKey){ HIDE.hudKey=key; if(XR.on&&HIDE.test) vrToast(key,1.6); } } /* in the headset only on the test bed: you can feel whether you're hidden */
 
 /* ---------- wiring ---------- */
 function hideFrame(dt){ dt=Math.min(dt,.05); let B=hideBody(); hideCrouchTick(dt,B); hideFlatSpeed(); B=hideBody();

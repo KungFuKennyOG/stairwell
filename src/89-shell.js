@@ -127,16 +127,17 @@ function shellEndShow(R){ const rows=shellEndRows(R);
   drawEndPanel(rows); SHELL.trig=true; }
 function shellAgain(){ if(!SHELL.end) return; restartLevel(); }
 
-/* the VR panel: same look as the core's (50-game.js drawPanel), taller, a row per number */
-const endTex={c:(()=>{ const c=document.createElement('canvas'); c.width=512; c.height=448; return c; })(),glt:null,f:-1};
-const endN=mk(plane(.8,.7),M(endTex,{unlit:true,cut:true,double:true}),world); endN.vis=false;
-function drawEndPanel(rows){ const g=endTex.c.getContext('2d'),W=512,Hh=448;
-  g.clearRect(0,0,W,Hh); g.fillStyle='rgba(8,8,10,.9)'; g.fillRect(0,0,W,Hh); g.fillStyle='#e2a33d'; g.fillRect(0,0,4,Hh);
-  g.textBaseline='middle'; g.fillStyle='#e2a33d'; g.font='600 15px "IBM Plex Mono",monospace'; g.textAlign='left'; g.fillText('FLOOR 01 PROTOTYPE',32,30);
-  g.fillStyle='#f2ede2'; g.font='900 50px "Big Shoulders Display","Arial Narrow",sans-serif'; g.fillText('YOU GOT OUT.',30,72,450);
-  g.font='600 19px "IBM Plex Mono",monospace'; rows.forEach(([k,v],i)=>{ const y=124+i*28; g.textAlign='left'; g.fillStyle='#8b867b'; g.fillText(k,32,y); g.textAlign='right'; g.fillStyle='#f2ede2'; g.fillText(v,480,y,250); });
-  g.textAlign='center'; g.fillStyle='#e2a33d'; g.font='600 18px "IBM Plex Mono",monospace'; g.fillText('Pull a trigger to play again',256,Hh-26);
+/* the VR panel at the end of the run: a case-file card like the rest (90-guide.js), a row per number */
+const endTex={c:(()=>{ const c=document.createElement('canvas'); c.width=220; c.height=205; return c; })(),glt:null,f:-1};
+const endN=mk(plane(.72,.67),M(endTex,{unlit:true,cut:true,double:true,nofog:true}),world); endN.vis=false;
+function drawEndPanel(rows){ const c=endTex.c,g=c.getContext('2d'),W=c.width,Hh=c.height; endTex.rows=rows; g.clearRect(0,0,W,Hh);
+  gPaper(g,5,5,W-5,Hh-5,29,{jag:3,blots:12,ring:[.84,.2]});
+  gInk(g,'#5d564c',x=>{ x.font=`8px ${GFONT.btn}`; x.fillText('P.S.P.D. - EXP. 0417 - FLOOR 01',12,19); });
+  gStamp(g,'YOU GOT OUT.',W/2,48,30,31,{center:true}); gRule(g,18,W-20,53,32,2);
+  rows.slice(0,9).forEach(([k,v],i)=>{ const y=72+i*13; gText(g,k,12,y,GDIM); gText(g,String(v),W-12,y,GINK,{right:true}); });
+  gText(g,'Pull a trigger to play again',W/2,Hh-11,'#c9a26a',{center:true}); gPS1(c);
   if(endTex.glt){ gl.bindTexture(gl.TEXTURE_2D,endTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,endTex.c); } }
+if(document.fonts&&document.fonts.load) document.fonts.load('16px "VT323"').then(()=>{ if(endTex.rows) drawEndPanel(endTex.rows); }).catch(()=>{});
 
 /* ---------- the left wrist: FPS stays as it is; a second line above it only once the run is over, or with ?pdbg=1 ----------
    after the run: time, kills, shots/hits. Debug in play: time, kills, the floor's state (C calm, H hunting + seconds, E on edge), + when hidden */

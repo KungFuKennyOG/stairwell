@@ -639,7 +639,7 @@ function pfReset(){ GAME.fade=0; PF.exited=false; PF.exitT=null; PF.exitShown=fa
   FLOOR.flanked=false; FLOOR.upT=null; FLOOR.braceUpT=null; for(const l of PF.lights) l.w=0;
   pfExitReset(); pfCast(); pfItems();
   if(!GAME.kit&&PF_DEF.kit) equip(HANDS.R,newItem(PF_DEF.kit,undefined,true)); /* Novak's pistol, can on (A sets what's in it) */
-  if(XR.on) vrToast('Floor 01',2.5); }
+  if(XR.on) guideTitle('Floor 01','Get out. The stairwell door is chained.',5); }
 protoOn('tick',(gdt,dt)=>{ if(FLOOR.mode!=='proto'){ if(PF.snd) pfAudioStop(); return; }
   pfRoomTick(); pfLightsTick(dt); pfAudioTick(dt); if(!GAME.started) pfCullPeople(); for(const S of PF.ticks) S.tick(GAME.t); if(PF.spray){ PF.spray.s=[1,1+.04*Math.sin(GAME.t*31),1]; PF.spray.p[0]=.2+.01*Math.sin(GAME.t*47); }
   if(!GAME.started) return;

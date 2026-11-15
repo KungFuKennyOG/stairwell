@@ -1297,7 +1297,7 @@ function renderWith(w,h,noUpd){
 function inWorld(n){ for(let p=n;p;p=p.par){ if(!p.vis) return false; if(p===world) return true; if(p.par&&!p.par.kids.includes(p)) return false; } return false; }
 const POST2=program(PVS,`#version 300 es
 precision highp float;
-uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash; uniform float uSmooth; uniform float uSlow; uniform float uFade;
+uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash; uniform float uSmooth; uniform float uSlow; uniform float uFade; uniform float uHurt;
 in vec2 vUv; out vec4 outColor;
 float bayer2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
 float bayer4(vec2 a){ return bayer2(0.5 * a) * 0.25 + bayer2(a); }
@@ -1311,6 +1311,8 @@ void main(){
   c = mix(c, vec3(lum) * vec3(1.1, 1.0, 0.84), uSlow * 0.55 * (1.0 - red));
   c += uSlow * (vec3(0.055, 0.048, 0.036) + c * 0.24);
   c = mix(c, c * vec3(1.3, 0.82, 0.78), red * uSlow * 0.5);
+  /* hurt: the colour drains out of the world as Ray's health goes (blood keeps its red). Never darker, never at the edges */
+  c = mix(c, vec3(lum) * vec3(1.02, 0.97, 0.93), uHurt * 0.8 * (1.0 - red));
   c = mix(c, vec3(0.5, 0.0, 0.0), uFlash);
   c *= 1.0 - uFade; /* the whole view to black and back: the prologue only. Even, edge to edge, never a vignette */
   float L = 31.0; c += (bayer4(px) - 0.5) / L; c = floor(c * L + 0.5) / L;
@@ -1322,7 +1324,7 @@ function post(targetFB,vx,vy,vw,vh,w,h){
     gl.uniform1f(VP.loc.uDither,1); if(VP.loc.uTime) gl.uniform1f(VP.loc.uTime,GAME.t); if(VP.loc.uGain) gl.uniform1f(VP.loc.uGain,10); if(VP.loc.uFlash) gl.uniform1f(VP.loc.uFlash,XR.on?XR.flash*1.2:0);
     for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,XR.on?gl.LINEAR:gl.NEAREST); gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); return; }
   gl.useProgram(POST2.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
-  gl.uniform1i(POST2.loc.tScene,0); gl.uniform2f(POST2.loc.uRes,w,h); gl.uniform1f(POST2.loc.uFlash,XR.on?XR.flash*1.2:0); gl.uniform1f(POST2.loc.uSmooth,XR.on?1:0); gl.uniform1f(POST2.loc.uSlow,clamp((1-GAME.ts)/.78,0,1)); gl.uniform1f(POST2.loc.uFade,clamp(GAME.fade||0,0,1));
+  gl.uniform1i(POST2.loc.tScene,0); gl.uniform2f(POST2.loc.uRes,w,h); gl.uniform1f(POST2.loc.uFlash,XR.on?XR.flash*1.2:0); gl.uniform1f(POST2.loc.uSmooth,XR.on?1:0); gl.uniform1f(POST2.loc.uSlow,clamp((1-GAME.ts)/.78,0,1)); gl.uniform1f(POST2.loc.uFade,clamp(GAME.fade||0,0,1)); if(POST2.loc.uHurt) gl.uniform1f(POST2.loc.uHurt,PROTO.on&&!PL.dead?clamp((pnum('ray','hurtHp',60)-PL.hp)/(pnum('ray','hurtHp',60)-10),0,1):0);
   for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,XR.on?gl.LINEAR:gl.NEAREST); gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); }
 
 /* ---------- flat screen ---------- */
@@ -1430,14 +1432,8 @@ function xrFrame(t,xf){
   XR.fpsAcc=(XR.fpsAcc||0)+dt; XR.fpsN=(XR.fpsN||0)+1; if(XR.fpsAcc>=.5){ XR.fps=Math.round(XR.fpsN/XR.fpsAcc); XR.fpsAcc=0; XR.fpsN=0; drawFps(XR.fps); }
   /* subtitles float over heads, facing you */
   for(const E of enemies){ const on=E.barkT>0&&!E.dead; E.label.vis=on; if(on){ setLabel(E,E.barkEl.textContent); const hp=X_(E.B,PI_.head),p=v3.add(hp,[0,.36,0]); E.label.p=p; E.label.r=[0,Math.atan2(eye[0]-p[0],eye[2]-p[2]),0]; const k=clamp(Math.hypot(eye[0]-p[0],eye[2]-p[2])/2.4,1,2.2); E.label.s=[k,k,1]; } } /* further off, the words get bigger so you can still read them */
-  /* the panel: follows your gaze lazily, never glued to your face */
-  { let ph='',pp='',bar=-1;
-    if(XR.resetHold>0){ ph='Resetting the floor'; pp='keep holding both grips'; bar=XR.resetHold/1.2; }
-    else if(!$('msg').hidden){ ph=$('msgH').textContent; pp='Hold both grips to reset the floor'; }
-    else if(XR.toastT>0) ph=XR.toast;
-    XR.toastT-=dt; const was=panelN.vis; panelN.vis=!!ph;
-    if(ph){ drawPanel(ph,pp,bar); const fl=norm3([f[0],0,f[2]]),tg=v3.add(eye,v3.add(v3.sc(fl,.85),[0,-.1,0]));
-      XR.panelP=!was||!XR.panelP?tg:v3.add(XR.panelP,v3.sc(v3.sub(tg,XR.panelP),Math.min(1,dt*2.5))); const p=XR.panelP; panelN.p=p.slice(); panelN.r=[0,Math.atan2(eye[0]-p[0],eye[2]-p[2]),0]; } }
+  /* titles, notes and the tutorial: torn case-file cards set down in the world (90-guide.js) */
+  guideXR(dt,eye,f);
   /* render both eyes */
   const layer=session.renderState.baseLayer,hres=XR.res; updateWorld(world,null); /* once for both eyes */
   for(const v of vp.views){ const vpt=layer.getViewport(v);

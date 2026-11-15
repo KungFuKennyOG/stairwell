@@ -16,15 +16,16 @@
    - His state shows on his own hands: blood builds up on them, they shake below 30 hp, his breathing gets heavy below 40.
    Events: rayWound(w), bandaged(w), rayDrop(drop); numbers for telemetry through protoEmit('stat', name, value).
    ===================================================================== */
-PROTO.ray={ hp:75, gun:9, pouch:7, drop:[2,6], flash:0,                      /* start: 75 hp, Novak's pistol with 9, one spare magazine of 7; a dead man's gun 2-6; no red screen wash in VR */
-  dmg:{ pistol:{head:70,torso:30,arm:15,leg:15}, revolver:{head:85,torso:40,arm:20,leg:20}, smg:{head:55,torso:20,arm:10,leg:10},
-        shotgun:{head:30,torso:16,arm:8,leg:8}, /* per pellet, times the falloff: a close load is near-lethal */
-        machete:{head:45,torso:28,arm:20,leg:20}, knife:{head:35,torso:22,arm:14,leg:14}, bottle:{head:18,torso:12,arm:9,leg:9}, fist:{head:9,torso:6,arm:4,leg:4} },
-  open:{ gun:{torso:.65,arm:1,leg:1}, blade:{torso:.7,arm:.9,leg:.9} }, maxWounds:4,  /* chance a hit opens a wound, by what and where */
+PROTO.ray={ hp:100, gun:9, pouch:7, drop:[2,6], flash:0,                      /* start: 75 hp, Novak's pistol with 9, one spare magazine of 7; a dead man's gun 2-6; no red screen wash in VR */
+  /* (2026-11-15) plain HP, 100 full: the old 75-point table times 4/3, so a fight costs what it did */
+  dmg:{ pistol:{head:93,torso:40,arm:20,leg:20}, revolver:{head:100,torso:53,arm:27,leg:27}, smg:{head:73,torso:27,arm:13,leg:13},
+        shotgun:{head:40,torso:21,arm:11,leg:11}, /* per pellet, times the falloff: a close load is near-lethal */
+        machete:{head:60,torso:37,arm:27,leg:27}, knife:{head:47,torso:29,arm:19,leg:19}, bottle:{head:24,torso:16,arm:12,leg:12}, fist:{head:12,torso:8,arm:5,leg:5} },
+  open:{ gun:{torso:0,arm:0,leg:0}, blade:{torso:0,arm:0,leg:0} }, maxWounds:4,  /* chance a hit opens a bleeding wound: off (Kenny: no bleeding out, no limping, just HP) */
   bleed:.25, dropEvery:2, dropStill:10, dropCap:80,                            /* hp per second per open wound; a drop every 2 m, or every 10 s standing */
-  knock:[.15,.25], knockT:.4, knockRot:.13, slowK:.4, slowT:.8,               /* hit reaction */
+  knock:[.15,.25], knockT:.4, knockRot:.13, slowK:1, slowT:0,     /* hands knocked; never slowed (slowK 1) */               /* hit reaction */
   leg:.6, legBand:.85, arm:.6, armBand:.3,                                     /* walking speed with a leg wound; arm weakness (PL.armWeak) */
-  loops:1.5, loopWin:4, flatWrap:4, heal:25, healT:3, chest:.22,
+  loops:1.5, loopWin:4, flatWrap:4, heal:33, healT:3, chest:.22, heartHp:35, hurtHp:60, /* under heartHp you hear your heart; under hurtHp the colour starts going */
   tremorHp:30, breathHp:40, breathNoise:1.2, tearNoise:3, painNoise:4, countHold:.5 };
 
 const RAYDROPS=[];
@@ -310,10 +311,15 @@ protoOn('tick',(gdt,dt)=>{ if(!PROTO.on) return;
   rayBloodTick(dt);
   /* breathing: heavier as he weakens; close enough and they hear it */
   const bh=pnum('ray','breathHp',40); if(PL.hp<bh){ RAY.breathT-=gdt; if(RAY.breathT<=0){ const k=clamp((bh-PL.hp)/bh,0,1),mu=rayVoice(),nr=pnum('ray','breathNoise',1.2);
-    RAY.breathT=lerp(3.2,1.7,k); raySnd('breath',(.35+.65*k)*mu); if(nr>0) noise([PL.x,0,PL.z],nr*mu*(1+k*.6)); } } });
+    RAY.breathT=lerp(3.2,1.7,k); raySnd('breath',(.35+.65*k)*mu); if(nr>0) noise([PL.x,0,PL.z],nr*mu*(1+k*.6)); } }
+  /* the heart: only you hear it, louder and faster the closer to dead; a soft pulse in both hands with it in VR */
+  const hh=pnum('ray','heartHp',35); if(PL.hp<hh&&!PL.dead){ RAY.heartT=(RAY.heartT??0)-gdt; if(RAY.heartT<=0){ const k=clamp((hh-PL.hp)/(hh-5),0,1); RAY.heartT=60/lerp(78,128,k); rayHeart(.35+.65*k); if(XR.on){ buzz('left',.08+.12*k,25); buzz('right',.08+.12*k,25); } } } });
+function rayHeart(v){ const ac=audio(); if(!ac) return; const t=ac.currentTime,out=ac.createGain(); out.gain.value=v*.9; out.connect(ac.destination); /* straight out: it's inside his head, no room */
+  for(const [d0,g] of [[0,1],[.17,.62]]){ const o=ac.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(62,t+d0); o.frequency.exponentialRampToValueAtTime(38,t+d0+.12);
+    const gg=ac.createGain(); gg.gain.setValueAtTime(.0001,t+d0); gg.gain.exponentialRampToValueAtTime(g,t+d0+.012); gg.gain.exponentialRampToValueAtTime(.0001,t+d0+.16); o.connect(gg); gg.connect(out); o.start(t+d0); o.stop(t+d0+.2); } }
 
 /* every start and restart: hurt, one spare magazine, clean hands, no bullet time */
-protoOn('reset',()=>{ if(!PROTO.on) return; PL.hp=pnum('ray','hp',75); PL.wounds.length=0; RAYDROPS.length=0;
+protoOn('reset',()=>{ if(!PROTO.on) return; PL.hp=pnum('ray','hp',100); PL.wounds.length=0; RAYDROPS.length=0;
   PL.pouch.mags=[{gun:'pistol',rounds:pnum('ray','pouch',7),cap:WPN.pistol.mag}]; PL.pouch.loose={'9mm':0,'12g':0,'38':0};
   Object.assign(RAY,{hitT:-9,knock:{t:-9},heal:null,flatT:0,breathT:3,lx:PL.x,lz:PL.z,moved:0,still:0,fresh:true}); RAY.bq.length=0; RAY.blood.L=RAY.blood.R=0;
   for(const h of [HANDS.L,HANDS.R]){ h.wrapSt=null; h.abT=null; } rayBandsClear(); rayLimbs(); rayBloodShow();
