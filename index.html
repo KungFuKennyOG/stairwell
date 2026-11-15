@@ -11230,7 +11230,7 @@ const HL_={
   who:['Who\'s there?','...hello?','Hey—','Somebody there?'],
   start:['Find him!','Spread out. Lights on.','He\'s here somewhere.','Two and two. Go.'],
   gone:['He\'s gone... stay sharp.'],
-  hall:'He\'s in the hall!',room:n=>`He's in the ${n}!`,
+  hall:'He\'s in the hall!',room:n=>`He's in ${/^the /i.test(n)?n:'the '+n}!`,
   blood:'There\'s blood here.',limp:'He\'s limping.',
   spot:{bed:'Check under the bed.',tub:'Check the bathroom.',wardrobe:'Check the wardrobe.',closet:'Check the closet.',sheets:'Behind the sheet—',
     sofa:'Behind the couch.',mattress:'Check the mattresses.',corner:'Check that corner.'},

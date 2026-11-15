@@ -92,7 +92,7 @@ window.FILM = (() => {
   const fresh = () => { GUIDE.done = {}; guideReset(); if (!document.getElementById('noguide')) { const st = document.createElement('style'); st.id = 'noguide'; st.textContent = '#guide{display:none!important}'; document.head.appendChild(st); } };
   const near = (list, x, z) => list.slice().sort((a, b) => Math.hypot(a.at[0] - x, a.at[2] - z) - Math.hypot(b.at[0] - x, b.at[2] - z))[0];
   const key = c => dispatchEvent(new KeyboardEvent('keydown', { code: c })), keyUp = c => dispatchEvent(new KeyboardEvent('keyup', { code: c }));
-  const park = F => { let i = 0; for (const n of ['Dani', 'Kev', 'Mario', 'Rui', 'Tito', 'Jojo']) { const E = F.E(n); if (E) { F.tp(E, -16.5 + (i % 3) * .8, -9.8 + (i / 3 | 0) * .8, 0); E.st = 'idle'; E.patrol = null; } i++; } };
+  const park = F => { let i = 0; for (const n of ['Dani', 'Kev', 'Mario', 'Rui', 'Tito', 'Jojo']) { const E = F.E(n); if (E) { F.tp(E, 10.5 + (i % 3) * .8, 3.0 + (i / 3 | 0) * .8, 0); E.st = 'idle'; E.patrol = null; } i++; } };
   const inward = (p, d) => { const c = [-8.75, 3.75], v = norm3([c[0] - p[0], 0, c[1] - p[2]]); return [p[0] + v[0] * d, p[2] + v[2] * d]; };
   SC.push({ name: 'kitchen', dur: 17, setup(F) { park(F); fresh(); GUIDE.done.start = GUIDE.done.take = GUIDE.done.swing = GUIDE.done.sheet = GUIDE.done.hideSpot = true;
       const D = near(PF.openables.filter(o => (o.room && o.room.id || o.room) === 'N1' && o.kind === 'drawer'), -11, 3.6); F.D = D; F.SW = PF.switches.find(s => (s.room && s.room.id || s.room) === 'N1');
@@ -107,6 +107,19 @@ window.FILM = (() => {
   SC.push({ name: 'exitcut', dur: 12, setup(F) { park(F); fresh(); GUIDE.done.start = GUIDE.done.take = GUIDE.done.sheet = true; PL.hp = 100;
       const X = PF.exit; F.ray(X.at[0] - 1.6, X.at[2] - .9, X.at); },
     acts: [[0, 12, GX], [0, 5, F => F.aim(PF.exit.at, 3)], [5.0, null, F => { const c = PF.cutterAt.p; F.ray(c[0] + 1.6, c[2] + .4, c); F.snap(); }], [5.0, 12, F => F.aim(PF.cutterAt.p, 3)]] });
+  SC.push({ name: 'startlook', dur: 6, setup(F) { fresh(); F.ray(PF_START.x, PF_START.z, [-11, 1.5, -6.4]); },
+    acts: [[0, 6, (F, t) => { const a = -2.57 + (F.dir || -1) * t * .45, e = camBasis().eye; F.cam.yaw = a; F.cam.pitch = 0; F.cam.k = 30; }]] });
+  SC.push({ name: 'eastlook', dur: 4, setup(F) { fresh(); F.ray(PF_START.x, PF_START.z, [-9, 1.5, -8.6]); },
+    acts: [[0, 1, F => { F.aim([-9, 1.5, -8.6], 30); }], [1, 2, F => { F.aim([-9, 1.5, -6.6], 30); }], [2, 3, F => { F.ray(-10.6, -8.0); F.aim([-9, 1.5, -8.0], 30); }], [3, 4, F => { F.ray(-10.6, -7.0); F.aim([-9.9, 1.5, -6.5], 30); }]] });
+  SC.push({ name: 'greenwall', dur: 1, setup(F) { fresh(); F.ray(PF_START.x, PF_START.z, [-11, 1.5, -6.4]); F.snap();
+      const q = mk(plane(3.8, 2.6), M(null, { color: 0x00ff00, unlit: true, double: true }), world, -10.05, 1.3, -8.45, 0, Math.PI / 2, 0); },
+    acts: [[0, 1, F => { F.cam.yaw = FLOOR.start.yaw; F.cam.pitch = 0; F.cam.k = 30; }]] });
+  SC.push({ name: 'startleft', dur: 6, setup(F) { fresh(); F.dir = 1; F.ray(PF_START.x, PF_START.z, [-11, 1.5, -6.4]); },
+    acts: [[0, 6, (F, t) => { F.cam.yaw = -2.57 + t * .5; F.cam.pitch = 0; F.cam.k = 30; }]] });
+  SC.push({ name: 'search', dur: 30, setup(F) { park(F); fresh(); GUIDE.off = true; equip(HANDS.R, null); PL.crouchT = true;
+      const a = F.E('Tito'), b = F.E('Jojo'); F.tp(a, -4.5, 0, Math.PI / 2); F.tp(b, -3.6, .3, Math.PI / 2); a.st = b.st = 'idle';
+      F.ray(-11.4, -5.7, [-6.6, 1.0, -1.4]); F.snap(); },
+    acts: [[.5, null, () => { huntAlert('seen', [-8.5, -3.6], 1); }], [0, 30, F => { F.cam.k = 2; F.aim([-7.4, 1.0, -2.6], 1.2); }]] });
   F.list = () => SC.map(s => s.name);
   F.seed = k => { let s = k >>> 0; Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
   F.begin = name => { S = SC.find(s => s.name === name); let h = 7; for (const ch of name + (S.seed || '')) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); F.seed(h); F.stop(); PL.crouchT = false; for (const h of [HANDS.L, HANDS.R]) equip(h, null);
