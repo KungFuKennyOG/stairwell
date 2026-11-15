@@ -12303,8 +12303,10 @@ function pfBuild(){ setWorld(18,12);
   /* the paint: each room its own side of every wall it has */
   const pot=twPot(),mTrim=M(null,{color:0x2a241e,double:true}),mJamb=M(null,{color:0x5a5248,double:true}),mRough=M(null,{color:0x7a6a58,double:true}),paint={};
   const paintOf=r=>paint[r.id]||(paint[r.id]=pfPaper(r.paper));
-  const skip=(r,R)=>r.noFace||r.shaft&&(R.axis==='x'?Math.max(R.a,R.fa)<r.shaft.x1-.01:R.c<r.shaft.x1-.01);
-  for(const R of PF.runs){ const r=R.room; if(skip(r,R)&&!(r.noFace&&R.nb&&R.nb.id==='NE')) continue;
+  const skip=(r,R)=>r.noFace||r.shaft&&(R.axis==='x'?Math.max(R.b,R.fb)<=r.shaft.x1+.01:R.c<r.shaft.x1-.01); /* skip only walls wholly inside the shaft */
+  for(const R0 of PF.runs){ const r=R0.room; if(skip(r,R0)&&!(r.noFace&&R0.nb&&R0.nb.id==='NE')) continue;
+    /* a landing wall that starts inside the stair shaft: the shaft draws its own part, the landing paints the rest (the collision is clipped the same way below) */
+    const R=r.shaft&&R0.axis==='x'&&R0.fa<r.shaft.x1?{...R0,fa:r.shaft.x1}:R0;
     const m=paintOf(r),gaps=R.gaps.slice().sort((p,q)=>p.s0-q.s0); let s=R.fa;
     for(const g of gaps){ pfFace(pot,m,R.axis,R.c,R.n,s,g.s0,0,RH); pfFace(pot,m,R.axis,R.c,R.n,g.s0,g.s1,g.y1,RH); if(g.y0>0) pfFace(pot,m,R.axis,R.c,R.n,g.s0,g.s1,0,g.y0); s=g.s1; }
     pfFace(pot,m,R.axis,R.c,R.n,s,R.fb,0,RH); }
