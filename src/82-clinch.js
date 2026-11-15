@@ -11,6 +11,8 @@
      with both hands on his chest.
    - Choke from behind: a man who gets behind you unseen puts his forearm across your throat. Your heartbeat, his breathing, the
      world going dull (audio only). About six seconds to grip his arm and pull it down off you, or stab back over your shoulder.
+   Warning beat (tellT): a tackle, a wrist grab, and a cornered gunman's collar grab come with a shout and a light buzz in both hands
+   about .4 s before they land; back off, hit or stagger him in it and it doesn't happen. The choke from behind has none.
    Comfort (Kenny, fixed): during any grab nothing here moves or turns Ray or the camera. No drag, no knock-back, no shake, no
    screen effect. Walking eases to a stop while held and eases back after. Only his body is placed, and only your virtual
    gun hand in a wrist grab is moved, off the tracked hand.
@@ -34,6 +36,7 @@ PROTO.clinch={
   chokeD:1.6, chokeP:.8, chokeNeed:.29, chokeT:6,
   /* grabtest */
   testDelay:4, testEvery:10,
+  tellT:.38, tellSlack:.35,      /* s: the lunge you can see and hear before a tackle or a wrist grab lands; m he can lose before it's off */
 };
 PL.grab=null; PL.moveK=1;
 const CLN={eye:[0,0,0],cdUntil:0,callUntil:0,fireT:-9,mashQ:0,bins:new Float32Array(40),bi:0,nb:20,sum:0,
@@ -45,6 +48,7 @@ const CLN_L={
   wrist:{start:['I got him! I GOT HIM!','Gimme that—','Drop it— DROP IT—'],hold:['Let go of it—','*grunts*','Give it— GIVE IT—','Come here, cop—'],turn:['Look at me— look at me—','That\'s it— that\'s it—','Turn around, cop—','*straining*']},
   collar:{start:['Found you.','He\'s here! HE\'S IN HERE!','Come here— come HERE—','Out. Get out of there.'],hold:['Come out of there—','Quit it— QUIT IT—','*grunts*','I got him! Get over here!']},
   tackle:{start:['I GOT YOU—','Down— get DOWN—','Hold still— HOLD STILL—'],rage:['You killed him— you KILLED him—','Look at me! LOOK AT ME!','He was my brother, cop—'],hold:['Die— just die—','*snarls*','Stop moving—','Hold— still—']},
+  tell:{wrist:['Gimme— gimme that—','Hey— HEY—','*grunts*'],tackle:['C\'mere—','Come HERE—','AAAH—'],collar:['Get OFF me—','Back— BACK—','*grunts*']},
   choke:{start:['Shhh. Shhh.','Go to sleep, cop.','Don\'t fight it.'],hold:['Shhh...','Almost— almost—','Go on. Go on.','*breathing hard*']},
   free:['Fuck—!','Agh— shit—','*grunts*','No— NO—'],
   lost:{wrist:['Should\'ve let go.','Look what you did.'],collar:['Got you.','Stay down.'],tackle:['Stay down.','*spits*'],choke:['']}};
@@ -289,19 +293,28 @@ function clnChoke(G,E,dt,eye,fF){ const dir=G.dir,f=v3.sc(dir,-1),rt=clnRight(f)
 /* ---------- when they decide to grab ---------- */
 /* one roll per man per kind every few seconds, so standing near him isn't a dice roll every frame */
 function clnRoll(E,kind,p){ if(E.clRk!==kind||GAME.t-(E.clRt||-9)>3){ E.clRk=kind; E.clRt=GAME.t; E.clRv=Math.random()<p; } return E.clRv; }
-function clnTriggers(){ if(GAME.t<CLN.cdUntil) return; const cam=camBasis(),fF=clnFlat(cam.f);
-  for(const E of enemies){ if(!E.aware||E.st!=='alert'||E.grabbed||GAME.t<(E.clCd||0)||!clnCan(E)) continue;
+/* the tell: a beat of warning (a shout, a light buzz in both hands) before a tackle or a wrist grab takes.
+   Back off, hit him or stagger him in it and it doesn't happen. A choke from behind stays silent: that one's the horror */
+function clnTell(E,kind,opts){ if(E.clTell) return false; E.clTell={kind,opts,at:GAME.t+pnum('clinch','tellT',.38)};
+  clnSay(E,CLN_L.tell[kind],1.1,true); vox(E,kind==='tackle'?'scream':'shout',.85); clnBuzz([HANDS.L,HANDS.R],.3,45); return true; }
+function clnTells(){ for(const E of enemies){ const T=E.clTell; if(!T) continue; if(GAME.t<T.at) continue; E.clTell=null;
+    const d=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z),lim=(T.kind==='wrist'?pnum('clinch','wristD',.9):pnum('clinch','tackleD',1.5))+pnum('clinch','tellSlack',.35);
+    if(PL.grab||!clnCan(E)||E.stun>.3||E.hitT<.4||d>lim||E.st!=='alert'){ E.clCd=GAME.t+3; protoEmit('stat','grab.'+T.kind+'.dodged',1); continue; }
+    if(T.kind==='wrist'&&!clnGun(T.opts.h)) { E.clCd=GAME.t+3; continue; }
+    if(enemyGrab(E,T.kind,Object.assign({},T.opts,{auto:true}))) return; } }
+function clnTriggers(){ clnTells(); if(PL.grab) return; if(GAME.t<CLN.cdUntil) return; const cam=camBasis(),fF=clnFlat(cam.f);
+  for(const E of enemies){ if(!E.aware||E.st!=='alert'||E.grabbed||E.clTell||GAME.t<(E.clCd||0)||!clnCan(E)) continue;
     const dx=E.pos[0]-PL.x,dz=E.pos[1]-PL.z,d=Math.hypot(dx,dz); if(d>1.6||d<1e-3) continue;
     const to=[dx/d,0,dz/d],view=v3.dot(fF,to),efw=[Math.sin(E.hd),0,Math.cos(E.hd)],faces=-v3.dot(efw,to);
     const gun=armed(E),blade=E.wpnHeld&&!RANGED[E.kind],rage=(E.rage||0)>0,moving=(E.walkAmt||0)>.35||(E.runAmt||0)>.08||E.atkT>=0;
     /* behind you and out of your sight: the forearm */
     if(view<-.25&&d<=pnum('clinch','chokeD',1.3)&&faces>.4&&!gun&&(E.role==='flank'||moving)&&clnRoll(E,'choke',pnum('clinch','chokeP',.8))){ if(enemyGrab(E,'choke',{auto:true})) return; }
     /* coming at you: a blade, or a man out of his mind */
-    if(view>=-.25&&d<=pnum('clinch','tackleD',1.5)&&faces>.5&&(blade||rage||!E.wpnHeld&&!RANGED[E.kind])&&moving&&E.canSee&&clnRoll(E,'tackle',pnum('clinch','tackleP',.55))){ if(enemyGrab(E,'tackle',{auto:true})) return; }
+    if(view>=-.25&&d<=pnum('clinch','tackleD',1.5)&&faces>.5&&(blade||rage||!E.wpnHeld&&!RANGED[E.kind])&&moving&&E.canSee&&clnRoll(E,'tackle',pnum('clinch','tackleP',.55))){ if(clnTell(E,'tackle',{})) return; }
     /* inside your gun: he goes for the wrist */
     if(view>.35&&d<=pnum('clinch','wristD',.9)&&faces>.4&&(gun||E.disarmed)&&E.canSee){ const h=clnGunHand(E); if(!h) continue;
       const sh=X_(E.B,PI_[gun&&E.wpnHand==='R'?'shL':'shR']),fp=mulP(h.M,FIST); if(Math.hypot(sh[0]-fp[0],sh[1]-fp[1],sh[2]-fp[2])>.8) continue; /* the gun has to be in his reach */
-      if(clnRoll(E,'wrist',pnum('clinch','wristP',.75))&&enemyGrab(E,'wrist',{auto:true,h})) return; } } }
+      if(clnRoll(E,'wrist',pnum('clinch','wristP',.75))&&clnTell(E,'wrist',{h})) return; } } }
 
 /* ---------- physics: his hands stay on you (called from applyGrabs in 62-grab.js, twice per physics step) ---------- */
 function clinchPhys(){ const G=PL.grab; if(!G||!CLN.tgN) return; const E=G.E; if(E.dead) return; const x=E.B.x,p=E.B.p;
