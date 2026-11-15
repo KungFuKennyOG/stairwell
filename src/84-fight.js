@@ -145,6 +145,7 @@ function fightMove(E,dt,fighting,dist){ const F=E.fx; if(!F||E.civ||E.ally) retu
     if(!armed(E)) return dist<1.3&&E.canSee?{goal:null,chase:false}:{goal:{x:tgt[0],z:tgt[1],sp:(kst(E)||{}).run||3},chase:E.canSee}; /* blades already come flat out; a rage just never stops coming */
     if(Math.hypot(tgt[0]-E.pos[0],tgt[1]-E.pos[1])<2.2) return {goal:null,chase:false};
     return {goal:{x:tgt[0],z:tgt[1],sp:pnum('fight','rageSp',2.6)},chase:false}; } /* walking straight at you, firing */
+  if(typeof squadMove==='function'){ const Q=squadSiege(E,dt)||squadMove(E,dt,fighting,dist); if(Q) return Q; } /* a job from the squad: flank, cut, guard, cover, siege (84c-squad.js) */
   if(typeof closeMove==='function'){ const Q=closeMove(E,dt,fighting,dist); if(Q) return Q; } /* doorways, spacing, regroup, blades circling (84b-close.js) */
   const S=fightSpace(E,dt,dist); if(S) return S;
   const L=fightLight(E,dt,fighting,dist); if(L) return L;

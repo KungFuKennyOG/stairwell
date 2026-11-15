@@ -120,6 +120,9 @@ window.FILM = (() => {
       const a = F.E('Tito'), b = F.E('Jojo'); F.tp(a, -4.5, 0, Math.PI / 2); F.tp(b, -3.6, .3, Math.PI / 2); a.st = b.st = 'idle';
       F.ray(-11.4, -5.7, [-6.6, 1.0, -1.4]); F.snap(); },
     acts: [[.5, null, () => { huntAlert('seen', [-8.5, -3.6], 1); }], [0, 30, F => { F.cam.k = 2; F.aim([-7.4, 1.0, -2.6], 1.2); }]] });
+  SC.push({ name: 'squad', dur: 24, setup(F) { fresh(); GUIDE.off = true; equip(HANDS.R, null); F.ray(-9.2, -3.8, [-6.6, 1.0, -1.4]); F.snap(); },
+    acts: [[.5, null, () => { for (const E of enemies) if (!E.civ && !E.dead) { setAware(E, 'see'); E.st = 'alert'; E.lkp = [PL.x, PL.z]; } }],
+      [0, 24, F => { PL.hp = 100; F.cam.k = 2; F.aim([-6.6, 1.0, -1.4], 1.2); }]] });
   F.list = () => SC.map(s => s.name);
   F.seed = k => { let s = k >>> 0; Math.random = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; };
   F.begin = name => { S = SC.find(s => s.name === name); let h = 7; for (const ch of name + (S.seed || '')) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); F.seed(h); F.stop(); PL.crouchT = false; for (const h of [HANDS.L, HANDS.R]) equip(h, null);
