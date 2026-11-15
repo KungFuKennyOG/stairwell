@@ -210,7 +210,7 @@ function fightRetreatSpot(E){ const rooms=fxRooms(); if(!rooms.length) return nu
       const sc=-walk+(sightClear(me,[x,1.3,z])?-4:0)+(r===mine?1.5:0)+(r.lit?-2:0)+(fxFree(x,z)?.5:0)+Math.random()*.5; if(sc>bs){ bs=sc; best={x,z,door:[d.x,d.z],room:r}; } break; } }
   return best; }
 function fightRetreat(E,dt,fighting,dist){ const F=E.fx,R=F.ret; R.t+=dt;
-  if(E.surr||E.st!=='alert'){ F.ret=null; E.silent=false; return null; }
+  if(E.surr||E.st!=='alert'||E.rage>0){ F.ret=null; E.silent=false; return null; } /* raging: he comes at you, he doesn't back off */
   if(R.ph==='go'){ if(dist<1.5&&!armed(E)){ F.ret=null; return null; } /* you're on him: no time to back off */
     if(Math.hypot(E.pos[0]-R.x,E.pos[1]-R.z)>.45&&R.t<9&&!(R.t>1.5&&stuck(E,dt))) return {goal:{x:R.x,z:R.z,sp:2.1},chase:false};
     R.ph='wait'; R.t=0; E.silent=true; }

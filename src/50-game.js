@@ -1002,7 +1002,7 @@ function toDown(E,hard){ /* unless knocked flat, they buckle: held up on the way
 function torsoShock(E,key){ if(E.dead||E.st==='down') return; E.torsoN=(E.torsoN||0)+1; const ps=E.civ?'quit':psychOf(E);
   const p=E.torsoN>=2?.95:ps==='quit'?.9:ps==='fake'?.85:.75, now=Math.random()<p;
   if(!now){ /* the one in five who pushes through: you can see it. He roars and comes at you, bleeding */
-    if(PROTO.on&&!E.civ){ E.rage=Math.max(E.rage||0,8); bark(E,pick(['ARGH! You motherfucker!','Is that it?! IS THAT IT?!','You\'re dead! You\'re fucking dead!','Come here!']),2); }
+    if(PROTO.on&&!E.civ){ E.rage=Math.max(E.rage||0,8); if(E.fx) E.fx.ret=null; bark(E,pick(['ARGH! You motherfucker!','Is that it?! IS THAT IT?!','You\'re dead! You\'re fucking dead!','Come here!']),2); }
     if(Math.random()>=.7) return; } /* and some never fold */
   const at=GAME.t+(now?rnd(.35,1.3):rnd(10,30));
   if(!E.incapT||at<E.incapT) E.incapT=at; if(E.incapK!=='chest') E.incapK=key; }
