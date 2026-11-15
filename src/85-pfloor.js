@@ -280,13 +280,13 @@ function mRustM(){ return M(null,{color:0x5a3a26}); }
 /* ---------- building it ---------- */
 const PF_DEF={n:1,name:'Floor 01',proto:true,kit:null, /* empty-handed: a bottle, a knife, a pan, the hammer are lying around; guns come off the men */
   cast:[
-    {kind:'corner',name:'Dani',spots:[[-10.85,3.6,-Math.PI/2]],pose:'lean',extra:'I got a daughter— she\'s six—'},
-    {kind:'vecino1',hidden:true,look:'any',name:'Kev',spots:[[-3.3,11.25,0],[-3.7,11.2,.2]],pose:'phone',extra:'I just held the door— I didn\'t shoot—'},
-    {kind:'corner',name:'Mario',spots:[[.75,7.95,0]],pose:'watch',extra:'Take the vest! Take it!',vest:true,keys:true},
-    {kind:'corner',name:'Rui',spots:[[-1.4,-4.0,-.93],[-4.9,-3.6,1.17]],pose:'watch',extra:'I\'m nineteen, man—'},
-    {kind:'gunman',name:'Tito',spots:[[4.0,9.0,Math.PI]],pose:'idle',extra:'They made me look— they made me—',lead:true,
+    {kind:'corner',name:'Dani',spots:[[-10.85,3.6,-Math.PI/2],[-8.55,3.8,-Math.PI/2],[-7,1.75,-.86],[-8.2,9.6,Math.PI]],pose:'lean',extra:'I got a daughter— she\'s six—'},
+    {kind:'vecino1',hidden:true,look:'any',name:'Kev',spots:[[-3.3,11.25,0],[-3.7,11.2,.2],[-4.5,4.6,Math.PI/2],[-3.2,8.1,0]],pose:'phone',extra:'I just held the door— I didn\'t shoot—'},
+    {kind:'corner',name:'Mario',spots:[[.75,7.95,0],[2,7.4,-2.0],[-.5,9.9,Math.PI/2]],pose:'watch',extra:'Take the vest! Take it!',vest:true,keys:true},
+    {kind:'corner',name:'Rui',spots:[[-1.4,-4.0,-.93],[-4.9,-3.6,1.17],[-1.6,-5.4,-.93],[-8,-3.4,Math.PI/2]],pose:'watch',extra:'I\'m nineteen, man—'},
+    {kind:'gunman',name:'Tito',spots:[[4.0,9.0,Math.PI],[9,3.6,-Math.PI/2]],pose:'idle',extra:'They made me look— they made me—',lead:true,
       hunt:{pts:null,calls:['Cop?','Come out, cop.','Landlord says six.','We only counted five.','I know you\'re hurt.','...cop?','You\'re bleeding, man. I can smell it.']}},
-    {kind:'vecino1',look:'any',name:'Jojo',spots:[[5.6,8.4,Math.PI]],pose:'idle',extra:'My brother\'s on six— please—',follow:'Tito',
+    {kind:'vecino1',look:'any',name:'Jojo',spots:[[5.6,8.4,Math.PI],[10,4.6,-Math.PI/2]],pose:'idle',extra:'My brother\'s on six— please—',follow:'Tito',
       hunt:{pts:null,calls:['Held the light. That\'s all.','...Tito, wait up.','Five helmets.','Where\'s the sixth?']}}],
   civ:[
     {kind:'abuela',civ:true,fem:true,old:true,name:'Doña Chela',spots:[[.95,-2.35,0]],pose:'idle',extra:'I\'m seventy-eight, mijo—'},

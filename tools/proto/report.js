@@ -58,6 +58,10 @@ const where = (bots.find(r => r.where) || (boot || []).find(o => o.boot === 'pro
     S.map(r => r.foundAfter != null ? `found after ${r.foundAfter} s` : `not found in ${r.t} s`).join(', ') + `; died ${S.filter(r => r.died).length}`, 'D'); }
 { const S = ran(sneak); if (S.length) row('Hide and sneak', `sneak bot, ${S.length} runs`, 'careful run 8-15 min', 'INFO',
     S.map(r => `${r.left ? 'out in ' + r.stats.exitT + ' s' : r.died ? 'killed by ' + ((r.stats.deaths[0] || {}).who || '?') + ' at ' + r.t + ' s' : 'still in at ' + r.t + ' s'}, hid ${r.hideN}x, seen ${r.seenN}x, grabbed ${r.grabbed}x`).join('; '), 'D, G'); }
+{ const S = ran(sneak); if (S.length) { const ok = S.filter(r => !r.died).length, mc = Math.max(...S.map(r => r.maxClose || 0));
+  row('Sneak survives', `sneak bot, ${S.length} runs`, 'alive or out in 50-70%', 'INFO', `${ok}/${S.length} (${pct(ok, S.length)}%); most men within 5 m at once: ${mc}`, 'D'); } }
+{ const quiet = read('quiet'), S = quiet ? ran(quiet) : []; if (S.length) { const f = S.filter(r => r.foundAfter != null).map(r => r.foundAfter).sort((a, b) => a - b);
+  row('Quiet, in the dark', `stand bot after one smash, ${S.length} runs`, 'found sometimes, not at once', 'INFO', `found ${f.length}/${S.length}${f.length ? ', median ' + f[f.length >> 1] + ' s' : ''}; died ${S.filter(r => r.died).length}`, 'D'); } }
 { const S = ran(fetch); if (S.length) { const m = S.filter(r => r.toolToExit != null).map(r => r.toolToExit);
     row('Cutter to exit', `fetch bot, ${S.length} runs (plan 6.6)`, 'under 60 s', m.length ? (Math.max(...m) < 60 ? 'PASS' : 'FAIL') : 'N/A',
       S.map(r => r.toolFound ? (r.left ? `tool at ${r.toolT} s, out ${r.toolToExit} s later` : `tool at ${r.toolT} s, not out (at the exit: ${r.atExit != null})`) : (r.left ? `no tool needed: out in ${r.stats.exitT} s` : 'no cutter/keys found on the floor')).join('; '), 'F, H'); } }
