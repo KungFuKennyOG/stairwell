@@ -182,3 +182,18 @@ function guideWrist(dt,eye,f){ const C=GUIDE.wristC,h=HANDS.L; let show=false;
 function guideFlat(){ let el=GUIDE.dom; if(!el){ el=GUIDE.dom=document.createElement('div'); el.id='guide'; document.body.appendChild(el); }
   const H=GUIDE.hint,txt=H?((H.d.key?'['+H.d.key+'] ':'')+(H.d.flat||H.d.text)+(H.d.flat?'':' '+(H.d.flatSub||H.d.sub||''))).trim():'';
   if(el._t!==txt){ el._t=txt; el.textContent=txt; el.classList.toggle('on',!!txt); } }
+
+/* ---------- arrows over what you need to take ----------
+   A spinning, bobbing PS1 marker (a four-sided cone and a stub, flat amber, unlit) over: the bolt cutter, Mario's keys once he's down,
+   and, while your hands are empty, the weapons lying near you. Not through walls: you still have to look. */
+const GARROW={pool:[],max:5};
+function gArrowMesh(){ const n=N(world),m=M(null,{color:0xd9a033,unlit:true,nofog:true});
+  mk(cyl(.055,0,.09,4),m,n,0,0,0); mk(box(.03,.07,.03),m,n,0,.08,0); n.vis=false; return n; }
+function guideArrows(dt){ if(!GARROW.pool.length) for(let i=0;i<GARROW.max;i++) GARROW.pool.push(gArrowMesh());
+  const T=[],e=gEye(),add=(p,r=9)=>{ if(p&&gD(p,e)<r&&T.length<GARROW.max) T.push(p); };
+  if(PF&&PF.exit&&!PF.exit.open&&!gHas(w=>w.tool==='cutter'||w.tool==='keys')){ for(const P of LOOSE) if(WPN[P.item.key]&&WPN[P.item.key].tool==='cutter') add(P.node.p,12);
+    const kp=typeof pfKeysPos==='function'?pfKeysPos():null; if(kp&&typeof pfOut==='function'&&pfOut(PF.keyMan)) add(kp,12); }
+  if(!gHeld().length){ const L=gLying(w=>w.melee&&!w.tool).map(P=>[P.node.p,gD(P.node.p,e)]).sort((a,b)=>a[1]-b[1]); for(const [p] of L.slice(0,2)) add(p,6); }
+  const t=GAME.t; GARROW.pool.forEach((n,i)=>{ const p=T[i]; n.vis=!!p&&!PL.dead&&!GUIDE.off; if(!n.vis) return; n.p=[p[0],p[1]+.32+Math.sin(t*3+i)*.025,p[2]]; n.r=[0,t*2.2+i,0]; }); }
+protoOn('tick',(gdt,dt)=>{ if(!PROTO.on||!GAME.started) return; guideArrows(dt); });
+protoOn('reset',()=>{ for(const n of GARROW.pool) n.vis=false; });
