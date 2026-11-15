@@ -20,6 +20,7 @@ say "shell flow ($Q)"; node tools/proto/flow.js index.html "$Q" > "$OUT/flow.jso
 say "walk-through x$NW"; node tools/proto/bots.js index.html walk "$NW" "$Q" "$WALK" > "$OUT/walk.jsonl"
 say "fetch x1"; node tools/proto/bots.js index.html fetch 1 "$Q" > "$OUT/fetch.jsonl"
 say "stand still x$NS"; node tools/proto/bots.js index.html stand "$NS" "$Q" "$STAND" > "$OUT/stand.jsonl"
+say "quiet stand x$NS"; node tools/proto/bots.js index.html stand "$NS" "$Q" '{"maxT":120,"quiet":true,"at":[-1,0]}' > "$OUT/quiet.jsonl"
 say "hide and sneak x$NS"; node tools/proto/bots.js index.html sneak "$NS" "$Q" "$SNEAK" > "$OUT/sneak.jsonl"
 say "pistol fight x$RUNS"; node tools/proto/bots.js index.html pistol "$RUNS" "$Q" "$PIST" > "$OUT/pistol.jsonl"
 RIG="${MELEE_RIG:-$(ls tools/proto/melee*.js tools/melee/*.js tools/harness/melee*.js 2>/dev/null | head -1)}"

@@ -63,7 +63,7 @@ window.__PB=(function(){
   /* at the chain with the tool: F's bot hook if it has one, else use it like a player on the flat screen would */
   let useT=0; function tryOpen(X){ face(X.x,X.z); if(typeof pfBotOpen==='function'){ pfBotOpen(); return; } useT-=dt; if(useT<=0){ useT=.6; useRight(); } }
   /* crouch through agent G's switch if it has one, else the flag G's code reads */
-  function crouch(on){ if(typeof setCrouch==='function') setCrouch(on); else if('crouch' in PL) PL.crouch=on; }
+  function crouch(on){ if(typeof setCrouch==='function') setCrouch(on); else if('crouchT' in PL) PL.crouchT=on; else if('crouch' in PL) PL.crouch=on; } /* PL.crouch is worked out each frame from the toggle (86-hide.js) */
   function finish(o){ halt(); crouch(false); const R=SHELL.run; if(R&&!R.ended) shellEndRun('bot');
     const rec=R?JSON.parse(JSON.stringify(R)):null;
     return Object.assign({where:SHELL.where,mode:FLOOR.mode,proto:PROTO.on,hunt:typeof HUNT!=='undefined',hides:typeof HIDES!=='undefined'?HIDES.length:null,pf:typeof PF!=='undefined',steps:L.steps,qErr:L.err},o,{stats:rec}); }
@@ -110,9 +110,10 @@ window.__PB=(function(){
     for(let c=0;c<FLOOR.nav.length;c++){ if(FLOOR.nav[c]) continue; const ci=c%NX,x=cellX(ci),z=cellZ((c-ci)/NX),d=Math.hypot(x-PL.x,z-PL.z); if(d<minD||d>maxD||(F&&F[c]>=1e9)) continue;
       if(lit(x,z)) continue; let s=F?F[c]:d; if(awayFrom) s-=Math.hypot(x-awayFrom[0],z-awayFrom[1])*25; if(s<bs){ bs=s; best=[x,z]; } }
     return best; }
-  function stand_(o){ settle(); const maxT=o.maxT||180,t0=GAME.t; if(!HANDS.R.item||!WPN[HANDS.R.item.key].gun) equip(HANDS.R,newItem('pistol'));
+  function stand_(o){ settle(); if(o.at){ PL.x=o.at[0]; PL.z=o.at[1]; settle(); } const maxT=o.maxT||180,t0=GAME.t; if(!HANDS.R.item||!WPN[HANDS.R.item.key].gun) equip(HANDS.R,newItem('pistol')); /* o.quiet: a smash instead of three shots; o.at: start there */
     let fired=0,nextF=0,spot=null,arr=null,seenT=null,hitT=null,firstAware=null,dmg0=null;
     while(GAME.t-t0<maxT){ if(PL.dead) break; halt(); const t=GAME.t-t0;
+      if(o.quiet&&fired<3){ noise([PL.x,0,PL.z],12,{kind:'smash'}); fired=3; } /* quiet: one smashed plate where you stand, no shots */
       if(fired<3){ PL.pitch=-1.2; if(GAME.t>=nextF){ const b=camBasis(); if(fireHand(HANDS.R,{o:b.eye,d:b.f})) fired++; nextF=GAME.t+.6; } }
       else if(!spot){ spot=darkSpot(2.5,10)||[PL.x,PL.z]; }
       else if(arr==null){ if(Math.hypot(spot[0]-PL.x,spot[1]-PL.z)<.45) arr=+t.toFixed(1); else walk(spot[0],spot[1]); }
@@ -128,29 +129,65 @@ window.__PB=(function(){
   function sees(E,x,z){ if(!hostile(E)||out(E)||E.dead) return false; const h=X_(E.B,PI_.head),dx=x-h[0],dz=z-h[2],l=Math.hypot(dx,dz)||1;
     if(l>8) return false; if(l>1.2&&(Math.sin(E.hd)*dx+Math.cos(E.hd)*dz)/l<.35) return false; return sightClear(h,[x,1.2,z]); }
   const isHunter=E=>hostile(E)&&!out(E)&&!E.dead&&(E.hunter||E.torchOn||E.torch||(hunting()&&(E.aware||E.mind==='search'||E.mind==='investigate')));
-  function hideSpot(from){ if(typeof HIDES!=='undefined'&&HIDES&&HIDES.length){ let best=null,bd=1e9;
-      for(const s of HIDES){ const d=Math.hypot(s.x-PL.x,s.z-PL.z); if(d>12) continue; const away=from?Math.hypot(s.x-from[0],s.z-from[1]):9; if(away<2.5) continue; if(d<bd){ bd=d; best=s; } }
+  function hideSpot(from,bad){ if(typeof HIDES!=='undefined'&&HIDES&&HIDES.length){ let best=null,bd=1e9;
+      for(const s of HIDES){ if(bad&&bad.has(s.x.toFixed(1)+','+s.z.toFixed(1))) continue; if(s.kind==='corner'&&!(bad&&bad.size>2)) continue; const d=Math.hypot(s.x-PL.x,s.z-PL.z); if(d>12) continue; if(from&&Math.hypot(s.x-from[0],s.z-from[1])<4&&!(bad&&bad.size>1)) continue; const away=from?Math.hypot(s.x-from[0],s.z-from[1]):9; if(away<2.5) continue; if(d<bd){ bd=d; best=s; } }
       if(best) return {x:best.x,z:best.z,kind:best.kind||'spot',hide:true}; }
     const d=darkSpot(1.5,7,from); return d?{x:d[0],z:d[1],kind:'dark',hide:false}:null; }
+  /* the sneak bot's way: a walking cost over the floor with the crouch holes open, steep within 3 m of a man, dearer under a light;
+     refreshed every second as the men move */
+  let SR=null;
+  function sneakField(tx,tz){ const nav=FLOOR.navHole||FLOOR.nav,N=NX*NZ,cs=Math.abs(cellX(1)-cellX(0))||.2;
+    if(!SR||SR.N!==N){ SR={N,F:new Int32Array(N),pen:new Int32Array(N),hc:new Float64Array(N*8),hv:new Int32Array(N*8),litC:null,t:-9}; }
+    if(!SR.litC){ SR.litC=new Uint8Array(N); for(let c=0;c<N;c++){ if(nav[c]) continue; const i=c%NX; SR.litC[c]=lit(cellX(i),cellZ((c-i)/NX))?1:0; } }
+    const pen=SR.pen,R=Math.ceil(3/cs); pen.fill(0);
+    for(const E of enemies){ if(!hostile(E)||out(E)||E.dead) continue; const c0=navCell(E.pos[0],E.pos[1]); if(c0<0) continue; const i0=c0%NX,k0=(c0-i0)/NX;
+      for(let k=-R;k<=R;k++) for(let i=-R;i<=R;i++){ const d=Math.hypot(i,k)*cs; if(d>3) continue; const ii=i0+i,kk=k0+k; if(ii<0||kk<0||ii>=NX||kk>=NZ) continue; const q=kk*NX+ii; pen[q]=Math.max(pen[q],Math.round((3-d)*70)); } }
+    const F=SR.F,hc=SR.hc,hv=SR.hv; F.fill(1e9); const t=navCell(tx,tz); if(t<0) return; let n=0;
+    const push=(c,v)=>{ let i=n++; hc[i]=c; hv[i]=v; while(i>0){ const p=(i-1)>>1; if(hc[p]<=hc[i]) break; const a=hc[p]; hc[p]=hc[i]; hc[i]=a; const b=hv[p]; hv[p]=hv[i]; hv[i]=b; i=p; } };
+    F[t]=0; push(0,t);
+    while(n>0){ const c0=hc[0],v=hv[0]; n--; if(n>0){ hc[0]=hc[n]; hv[0]=hv[n]; let i=0; for(;;){ const l=2*i+1,r=l+1; let m=i; if(l<n&&hc[l]<hc[m]) m=l; if(r<n&&hc[r]<hc[m]) m=r; if(m===i) break; const a=hc[m]; hc[m]=hc[i]; hc[i]=a; const b=hv[m]; hv[m]=hv[i]; hv[i]=b; i=m; } }
+      if(c0>F[v]) continue; const vi=v%NX,vk=(v-vi)/NX;
+      for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ if(!i&&!k) continue; const ni=vi+i,nk=vk+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(nav[q]) continue;
+        if(i&&k&&(nav[vk*NX+ni]||nav[nk*NX+vi])) continue; const w=(i&&k?14:10)+pen[q]+SR.litC[q]*20,nc=c0+w; if(nc<F[q]&&n<hc.length){ F[q]=nc; push(nc,q); } } } }
+  function sneakAim(tx,tz){ if(!SR||GAME.t-SR.t>1||SR.tx!==tx||SR.tz!==tz){ sneakField(tx,tz); SR.t=GAME.t; SR.tx=tx; SR.tz=tz; }
+    const F=SR.F; let cur=navCell(PL.x,PL.z),aim=null,hole=false; if(cur<0) return null;
+    for(let st=0;st<5;st++){ const ci=cur%NX,ck=(cur-ci)/NX; let best=cur,bd=F[cur]; for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(F[q]<bd){ bd=F[q]; best=q; } }
+      if(best===cur) break; cur=best; if(FLOOR.nav[cur]) hole=true; aim=[cellX(cur%NX),cellZ((cur-cur%NX)/NX)]; }
+    return aim?{aim,hole}:null; }
+  function sneakWalk(tx,tz,slow){ const A=sneakAim(tx,tz); if(!A){ walk(tx,tz,slow); return; } const aim=A.aim,hole=A.hole; crouch(true);
+    let yaw=Math.atan2(-(aim[0]-PL.x),-(aim[1]-PL.z)); if(S.jit>0) yaw+=1.3; PL.yaw=yaw; PL.pitch=0; KEYS.KeyW=false; stick.dy=-(hole?1:slow||1); }
+  function sneakWalkOld(tx,tz,slow){ if(!SR||GAME.t-SR.t>1||SR.tx!==tx||SR.tz!==tz){ sneakField(tx,tz); SR.t=GAME.t; SR.tx=tx; SR.tz=tz; }
+    const F=SR.F; let cur=navCell(PL.x,PL.z),aim=null,hole=false; if(cur<0){ walk(tx,tz,slow); return; }
+    for(let st=0;st<5;st++){ const ci=cur%NX,ck=(cur-ci)/NX; let best=cur,bd=F[cur]; for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(F[q]<bd){ bd=F[q]; best=q; } }
+      if(best===cur) break; cur=best; if(FLOOR.nav[cur]) hole=true; aim=[cellX(cur%NX),cellZ((cur-cur%NX)/NX)]; }
+    if(!aim){ walk(tx,tz,slow); return; } crouch(true); /* sneaking: low and quiet, and low enough for the holes */
+    let yaw=Math.atan2(-(aim[0]-PL.x),-(aim[1]-PL.z)); if(S.jit>0) yaw+=1.3; PL.yaw=yaw; PL.pitch=0; KEYS.KeyW=false; stick.dy=-(hole?1:slow||1); }
   function sneak_(o){ settle(); const maxT=o.maxT||600,X=exitInfo(),t0=GAME.t; if(!X) return finish({bot:'sneak',err:'no exit found'});
-    let st='go',spot=null,calmT=0,waitT=0,moveT=0,hideN=0,hiddenBotT=0,seenN=0,wasSeen=false,toolT=null,atExit=null,grabbed=0,wasGrab=false; const prevD=new Map();
+    let st='go',spot=null,calmT=0,waitT=0,moveT=0,hideN=0,hiddenBotT=0,seenN=0,wasSeen=false,toolT=null,atExit=null,grabbed=0,wasGrab=false,hideT=0,lastFrom=null,maxClose=0; const prevD=new Map(),bad=new Set();
     while(GAME.t-t0<maxT){ if(PL.dead||left()) break; halt(); const t=GAME.t-t0;
       const near=enemies.filter(E=>isHunter(E)).map(E=>{ const d=dist(E,PL.x,PL.z),p=prevD.get(E); return {E,d,closing:p!=null&&p.d-d>.25&&t-p.t<1.5}; });
       if(Math.floor(t*2)!==Math.floor((t-dt)*2)) for(const q of near) prevD.set(q.E,{d:q.d,t});
       const seenNow=enemies.some(E=>hostile(E)&&!out(E)&&E.aware&&E.canSee); if(seenNow&&!wasSeen) seenN++; wasSeen=seenNow;
       if(PL.grab&&!wasGrab) grabbed++; wasGrab=!!PL.grab;
-      const spotter=seenNow?enemies.find(E=>hostile(E)&&!out(E)&&E.aware&&E.canSee):null,threat=near.find(q=>q.d<5||(q.d<9&&q.closing))||(spotter?{E:spotter,d:dist(spotter,PL.x,PL.z)}:null);
+      const watcher=enemies.find(E=>hostile(E)&&!out(E)&&!E.dead&&E.pmUp&&E.pm>.12),spotter=seenNow?enemies.find(E=>hostile(E)&&!out(E)&&E.aware&&E.canSee):null,
+        torch=st!=='hidden'?enemies.find(E=>E.torchOn&&hostile(E)&&!out(E)&&!E.dead&&dist(E,PL.x,PL.z)<10&&sightClear(X_(E.B,PI_.head),[PL.x,1,PL.z])):null, /* a flashlight coming with a line to him: get into something before it reaches him */
+        threat=near.find(q=>q.d<5||(q.d<9&&q.closing))||(spotter?{E:spotter,d:dist(spotter,PL.x,PL.z)}:null)||(watcher&&st!=='hidden'?{E:watcher,d:dist(watcher,PL.x,PL.z)}:null)||(torch?{E:torch,d:dist(torch,PL.x,PL.z)}:null);
       if(st==='hidden'){ hiddenBotT+=dt; if(spot&&spot.hide) crouch(true); calmT=near.some(q=>q.d<9)||seenNow?0:calmT+dt; if(calmT>4){ st='go'; crouch(false); } }
-      else if(threat&&st!=='hide'){ spot=hideSpot([threat.E.pos[0],threat.E.pos[1]]); if(spot){ st='hide'; hideN++; } }
-      if(st==='hide'){ if(Math.hypot(spot.x-PL.x,spot.z-PL.z)<.35){ st='hidden'; calmT=0; } else walk(spot.x,spot.z); } /* no time to be careful */
+      else if(threat&&st!=='hide'){ lastFrom=[threat.E.pos[0],threat.E.pos[1]]; spot=hideSpot(lastFrom,bad); if(spot){ st='hide'; hideN++; hideT=0; } }
+      { const c=enemies.filter(E=>hostile(E)&&!out(E)&&!E.dead&&dist(E,PL.x,PL.z)<5&&(E.aware||E.hj||hunting())).length; if(c>maxClose) maxClose=c; }
+      if(st==='hide'){ hideT+=dt; const dd=Math.hypot(spot.x-PL.x,spot.z-PL.z); if(spot.hide&&dd<1.2) crouch(true); /* get down and into it */
+        if(dd<.35||PL.hide||dd<.75&&hideT>2.5){ st='hidden'; calmT=0; }
+        else if(hideT>7){ bad.add(spot.x.toFixed(1)+','+spot.z.toFixed(1)); spot=hideSpot(lastFrom,bad); hideT=0; if(!spot){ st='go'; crouch(false); } } /* can't get in there: another one */
+        else walk(spot.x,spot.z); } /* no time to be careful */
       else if(st==='go'){ const P=holding()?null:tool(),tg=P?[P.node.p[0],P.node.p[2]]:[X.x,X.z];
         if(P&&Math.hypot(tg[0]-PL.x,tg[1]-PL.z)<.8){ takeTool(P); toolT=+t.toFixed(1); }
         else if(!P&&X.kind!=='old'&&Math.hypot(X.x-PL.x,X.z-PL.z)<1.2){ if(atExit==null) atExit=+t.toFixed(1); if(holding()) tryOpen(X); goExit(X); }
-        else { const landing=!P&&X.kind==='old'&&PL.x>TL-.2&&Math.abs(PL.z)<1.2,d=landing?[1,0,0]:navTo(PL.x,PL.z,tg[0],tg[1]),nx=PL.x+d[0],nz=PL.z+d[2];
-          if(enemies.some(E=>sees(E,nx,nz))){ waitT+=dt; face(nx,nz); } /* someone would see the next step: wait */
-          else { moveT+=dt; if(landing) goExit(X); else walk(tg[0],tg[1],.55); } } }
+        else { const landing=!P&&X.kind==='old'&&PL.x>TL-.2&&Math.abs(PL.z)<1.2,A=landing?null:sneakAim(tg[0],tg[1]),d=landing?[1,0,0]:A?norm3([A.aim[0]-PL.x,0,A.aim[1]-PL.z]):navTo(PL.x,PL.z,tg[0],tg[1]),nx=PL.x+d[0],nz=PL.z+d[2];
+          if(enemies.some(E=>sees(E,nx,nz))){ waitT+=dt; face(nx,nz); } /* someone would see the next step: wait (the route itself keeps off the men) */
+          else { moveT+=dt; if(landing) goExit(X); else sneakWalk(tg[0],tg[1],.8); } } }
       unstick(); step(); }
-    return finish({bot:'sneak',exitKind:X.kind,t:+(GAME.t-t0).toFixed(1),left:left(),died:PL.dead,hideN,hiddenBotT:+hiddenBotT.toFixed(1),waitT:+waitT.toFixed(1),moveT:+moveT.toFixed(1),seenN,grabbed,toolT,atExit}); }
+    const hl=typeof HUNT!=='undefined'?HUNT.log.filter(l=>/spotted|probe|seenIn|director|backOff|roles|huntStart|door|ambush|drift/.test(l.ev)).slice(0,30):[];
+    return finish({bot:'sneak',hl,exitKind:X.kind,t:+(GAME.t-t0).toFixed(1),left:left(),died:PL.dead,maxClose,huntN:typeof HUNT!=='undefined'?HUNT.n:null,dir:typeof DIRECTOR!=='undefined'?DIRECTOR.n:null,hideN,hiddenBotT:+hiddenBotT.toFixed(1),waitT:+waitT.toFixed(1),moveT:+moveT.toFixed(1),seenN,grabbed,toolT,atExit}); }
 
   const BOTS={walk:walk_,fetch:fetch_,pistol:pistol_,stand:stand_,sneak:sneak_};
   return {run:(name,o)=>BOTS[name](o||{}),step,lit,exitInfo,L};
