@@ -887,7 +887,7 @@ function think(E,dt,t){
   E.hsStand=Math.max(0,(E.hsStand||0)-dt);
   if(E.st==='alert'&&(E.surr||E.civFreeze||E.hsStand>0)){ /* hsStand: you've got a gun to his friend's head (63-grapple.js) */ /* hands up, or frozen: no walking, no fighting, turned toward you (69-standoff.js) */
     E.moveDir=null; E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6)); E.atkCd=Math.max(E.atkCd,.5); E.atkT=-1; E.burstN=0;
-    let dh=Math.atan2(toP[0],toP[1])-E.hd; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); E.hd+=clamp(dh,-1.2*dt,1.2*dt); pushOutXZ(E.pos,.28,'walker'); }
+    let dh=Math.atan2(toP[0],toP[1])-E.hd; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); E.hd+=clamp(dh,-1.2*dt,1.2*dt); pushOutXZ(E.pos,PROTO.on?PF_WALK_R:.28,'walker'); }
   else if(E.st==='alert'){
     if(!(E.aware&&E.canSee)||E.C.support&&!E.oneHand){ E.aimYaw=lerp(E.aimYaw||0,0,Math.min(1,dt*2)); E.aimPit=lerp(E.aimPit||0,0,Math.min(1,dt*2)); } /* a two-handed pistol is lined up by the arms (pistolStance) */
     else if(armed(E)&&!E.oneHand&&E.M&&!E.C.support){ /* line the gun up on you: blade the body and lean until the barrel, not the chest, points at you */
@@ -912,7 +912,7 @@ function think(E,dt,t){
       E.pos[0]+=dir[0]*sp*dt; E.pos[1]+=dir[2]*sp*dt; E.walkAmt=lerp(E.walkAmt,1,Math.min(1,dt*8)); E.walkPh+=dt*(sp<1.3?sp*6.2:7.2+sp*.9); }
     else { E.moveDir=null;
       E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6)); }
-    pushOutXZ(E.pos,.28,'walker');
+    pushOutXZ(E.pos,PROTO.on?PF_WALK_R:.28,'walker');
     for(const O of enemies) if(O!==E){ const op=O.st==='alert'||O.st==='idle'?O.pos:[O.B.x[0],O.B.x[2]],R=O.st==='alert'||O.st==='idle'?.7:.95,dx=E.pos[0]-op[0],dz=E.pos[1]-op[1],d=Math.hypot(dx,dz); if(d<R&&d>1e-3){ E.pos[0]+=dx/d*(R-d)*.5; E.pos[1]+=dz/d*(R-d)*.5; } }
     /* attacks */
     E.atkCd-=dt;

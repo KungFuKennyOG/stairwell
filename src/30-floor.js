@@ -254,15 +254,22 @@ function navTo(x,z,tx,tz){ return navDir(x,z,tx,tz,fieldTo(tx,tz)||NAVD); }
 /* a reachable open spot within r metres (by walking) of (cx,cz) */
 function navSpotNear(cx,cz,r){ const F=fieldTo(cx,cz); for(let n=0;n<40;n++){ const a=Math.random()*6.283,d=rnd(1.2,r),c=navCell(cx+Math.cos(a)*d,cz+Math.sin(a)*d);
     if(c<0||FLOOR.nav[c]||(F&&F[c]>r*20*1.6)) continue; return [cellX(c%NX),cellZ((c-c%NX)/NX)]; } return null; }
-function lineClearNav(x0,z0,x1,z1){ const L=Math.hypot(x1-x0,z1-z0),n=Math.ceil(L/.2); for(let s=1;s<n;s++){ const c=navCell(x0+(x1-x0)*s/n,z0+(z1-z0)*s/n); if(c<0||FLOOR.nav[c]) return false; } return true; }
+/* does a thin line from (x0,z0) to (x1,z1) pass through anything solid for walkers */
+function segHitsBox(x0,z0,x1,z1){ const L=Math.hypot(x1-x0,z1-z0),n=Math.max(1,Math.ceil(L/.06)); for(let s=1;s<=n;s++){ const x=x0+(x1-x0)*s/n,z=z0+(z1-z0)*s/n; for(const b of boxesAt(x,z)) if(solidFor(b,'walker')&&x>b.x0&&x<b.x1&&z>b.z0&&z<b.z1) return true; } return false; }
+function lineClearNav(x0,z0,x1,z1){ const L=Math.hypot(x1-x0,z1-z0),n=Math.ceil(L/.08); /* finer than a cell (.25): a coarser step could hop the one blocked cell at a wall's end and walk him into it */ for(let s=1;s<n;s++){ const x=x0+(x1-x0)*s/n,z=z0+(z1-z0)*s/n,c=navCell(x,z); if(c<0||FLOOR.nav[c]) return false;
+    if(PROTO.on){ const r=PF_WALK_R-.03; for(const b of boxesAt(x,z)) if(solidFor(b,'walker')&&x>b.x0-r&&x<b.x1+r&&z>b.z0-r&&z<b.z1+r) return false; } } /* floor 01: the body itself must fit along the line (a cell can read free with most of it inside a box's clearance) */
+  return true; }
 /* which way to walk from (x,z) to reach the player: straight if nothing is in the way, otherwise down the distance field */
 function navDir(x,z,tx,tz,F=NAVD){
   if(lineClearNav(x,z,tx,tz)) return norm3([tx-x,0,tz-z]);
   let c=navCell(x,z); if(c<0) return norm3([tx-x,0,tz-z]);
-  if(F[c]>=1e9){ let bd=1e9; for(let k=-2;k<=2;k++) for(let i=-2;i<=2;i++){ /* shoved off the walkable cells: find the way back within a metre */ const q=c+k*NX+i; if(q>=0&&q<F.length&&F[q]<bd){ bd=F[q]; c=q; } } if(bd>=1e9) return norm3([tx-x,0,tz-z]); }
+  if(F[c]>=1e9){ let bd=1e9,bq=-1; for(let k=-2;k<=2;k++) for(let i=-2;i<=2;i++){ /* shoved off the walkable cells: back onto the NEAREST walkable cell (the cheapest one could be across the very thing he's pressed against) */ const q=c+k*NX+i; if(q<0||q>=F.length||F[q]>=1e9) continue; const s=(i*i+k*k)*1e4+F[q]; if(s<bd&&!segHitsBox(x,z,cellX(q%NX),cellZ((q-q%NX)/NX))){ bd=s; bq=q; } } /* not through the wall he's against */
+    if(bq<0) return norm3([tx-x,0,tz-z]); return norm3([cellX(bq%NX)-x,0,cellZ((bq-bq%NX)/NX)-z]); }
   /* follow the field a few cells ahead and aim at the furthest one we can walk to in a straight line */
   let cur=c,aim=null; for(let step=0;step<6;step++){ const ci=cur%NX,ck=(cur-ci)/NX; let best=cur,bd=F[cur];
-    for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(F[q]<bd){ bd=F[q]; best=q; } }
+    for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni;
+      if(i&&k&&(FLOOR.nav[ck*NX+ni]||FLOOR.nav[nk*NX+ci])) continue; /* no diagonal past a blocked corner: the body can't cut it and he'd grind there (2026-11-15) */
+      if(F[q]<bd){ bd=F[q]; best=q; } }
     if(best===cur) break; cur=best; const bxp=cellX(cur%NX),bzp=cellZ((cur-cur%NX)/NX); if(lineClearNav(x,z,bxp,bzp)) aim=[bxp,bzp]; else if(aim) break; else { aim=[bxp,bzp]; break; } }
   if(!aim) return norm3([tx-x,0,tz-z]); const d=norm3([aim[0]-x,0,aim[1]-z]); return Math.hypot(d[0],d[2])>1e-4?d:norm3([tx-x,0,tz-z]); }
 /* a free spot in a unit (or the corridor), away from the player */

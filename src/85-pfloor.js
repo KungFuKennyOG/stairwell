@@ -56,6 +56,7 @@ const PF_START={x:-12.4,z:-8.6,to:[-11,-6.4]};
 const PF_EXIT={x:13,z:9.9,w:1.1};
 
 /* ---------- lookups ---------- */
+const PF_WALK_R=.22; /* (2026-11-15) a walker's body on floor 01; it was .28 against a .22 path grid and men stalled at every tight corner */
 function pfIn(r,x,z){ for(const q of r.rects) if(x>q[0]&&x<q[2]&&z>q[1]&&z<q[3]) return true; return false; }
 function pfRoomRaw(x,z){ for(const r of PF.rooms) if(pfIn(r,x,z)) return r; return null; }
 /* which room (x,z) is in, or null: a 0.25 m grid built with the floor */
@@ -193,11 +194,11 @@ function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.p
   /* the hall: one tube left that works, flickering; the barricade in the middle, piled so you weave through it */
   { for(const x of [-6,-2,2,6]){ const live=x===-6,m=live?M(tFluo,{unlit:true}):M(tFluoDead),t=mk(box(1.2,.05,.2),m,floorN,x,2.75,0); if(live){ t.live=true; PF.tube=m; } }
     L_([-6,2.5,0],[1.05,1.15,1.28],6,'flick','H');
-    const b1=N(floorN,-1.1,0,-.45); mk(box(.8,1.75,1.25,{at:[0,.875,0]}),F(mWood,M(tDoorWood,{repeat:[2,1]})),b1,0,0,0,0,.06,0); mk(box(.2,1.0,1.2),M(tMattress),b1,.45,.62,0,0,0,-.2); mk(box(.5,.45,.5,{at:[0,.225,0]}),M(tCrate),b1,0,1.75,.2,0,.4,0);
-    addBox(-1.5,-.7,-1.1,.2,0,1.85,'barricade');
-    const b2=N(floorN,1.1,0,.45); mk(box(.7,1.7,1.2,{at:[0,.85,0]}),F(M(tFridge),M(tFridge)),b2,0,0,0,0,-.08,0); mk(box(.9,.05,.7),M(tWoodLight),b2,-.1,1.72,0,.4,.3,.1); for(const z of [-.5,.4]) mk(box(.5,.45,.5,{at:[0,.225,0]}),M(tCrate),b2,.55,0,z,0,.5+z,0);
-    addBox(.7,1.5,-.2,1.1,0,1.8,'barricade');
-    H({kind:'corner',x:2.1,z:.75,yaw:Math.PI/2,w:.7,d:.6,h:1.5,open:'-z',note:'behind the barricade'});
+    const b1=N(floorN,-1.5,0,-.45); /* (2026-11-15) the two piles 2.2 m apart, was 1.4: men couldn't make the S-bend and stalled at its corner */ mk(box(.8,1.75,1.25,{at:[0,.875,0]}),F(mWood,M(tDoorWood,{repeat:[2,1]})),b1,0,0,0,0,.06,0); mk(box(.2,1.0,1.2),M(tMattress),b1,.45,.62,0,0,0,-.2); mk(box(.5,.45,.5,{at:[0,.225,0]}),M(tCrate),b1,0,1.75,.2,0,.4,0);
+    addBox(-1.9,-1.1,-1.1,.2,0,1.85,'barricade');
+    const b2=N(floorN,1.5,0,.45); mk(box(.7,1.7,1.2,{at:[0,.85,0]}),F(M(tFridge),M(tFridge)),b2,0,0,0,0,-.08,0); mk(box(.9,.05,.7),M(tWoodLight),b2,-.1,1.72,0,.4,.3,.1); for(const z of [-.5,.4]) mk(box(.5,.45,.5,{at:[0,.225,0]}),M(tCrate),b2,.55,0,z,0,.5+z,0);
+    addBox(1.1,1.9,-.2,1.1,0,1.8,'barricade');
+    H({kind:'corner',x:2.5,z:.75,yaw:Math.PI/2,w:.7,d:.6,h:1.5,open:'-z',note:'behind the barricade'});
     /* the tenants' things put out in the hall: a fridge, a wardrobe. They also cut the long looks across it from door to door */
     P('fridge',-6.15,1.03-.35,Math.PI,{opts:{dead:true}}); P('wardrobe',4.05,1.03-.36,Math.PI); P('trash',-7.5,-.6,0);
     /* the dead lift at the west end, the hose cabinet at the east */
@@ -389,10 +390,11 @@ function pfBuild(){ setWorld(18,12);
   /* where people walk: inside a room, clear of anything below 1.5 m (crouch holes and the shafts blocked); a second grid with the holes
      open for whoever can crouch through them (FLOOR.navHole) */
   const nav=new Uint8Array(NX*NZ),navH=new Uint8Array(NX*NZ),space=new Int16Array(NX*NZ).fill(-9);
+  const PF_NAV_CLR=PF_WALK_R; /* clearance from boxes = a walker's body (50-game.js uses PF_WALK_R on this floor): paths and bodies agree, so nobody grinds to a stop at a corner */
   for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i,r=pfRoomRaw(x,z)||pfRoomRaw(x+.01,z+.01);
     let sp=-9; if(r) sp=r.id==='H'?-1:r.env==='stair'?-2:r.i; space[id]=sp;
     let bl=!r||r.id==='NX'&&x>13.6, blH=bl; if(!bl&&blocked.some(q=>x>q[0]&&x<q[2]&&z>q[1]&&z<q[3])) bl=blH=true;
-    if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.25) continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; if(!b.hole) blH=true; if(blH) break; } }
+    if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.25) continue; if(x>b.x0-PF_NAV_CLR&&x<b.x1+PF_NAV_CLR&&z>b.z0-PF_NAV_CLR&&z<b.z1+PF_NAV_CLR){ bl=true; if(!b.hole) blH=true; if(blH) break; } }
     nav[id]=bl?1:0; navH[id]=blH?1:0; }
   /* a doorway cell sits on the wall line: the opening's own cells are open in both */
   /* (the cell column nearest the opening's middle, in the rows that sit in the wall: the jambs' padding would close a 1 m doorway on a .5 m grid) */

@@ -2634,15 +2634,22 @@ function navTo(x,z,tx,tz){ return navDir(x,z,tx,tz,fieldTo(tx,tz)||NAVD); }
 /* a reachable open spot within r metres (by walking) of (cx,cz) */
 function navSpotNear(cx,cz,r){ const F=fieldTo(cx,cz); for(let n=0;n<40;n++){ const a=Math.random()*6.283,d=rnd(1.2,r),c=navCell(cx+Math.cos(a)*d,cz+Math.sin(a)*d);
     if(c<0||FLOOR.nav[c]||(F&&F[c]>r*20*1.6)) continue; return [cellX(c%NX),cellZ((c-c%NX)/NX)]; } return null; }
-function lineClearNav(x0,z0,x1,z1){ const L=Math.hypot(x1-x0,z1-z0),n=Math.ceil(L/.2); for(let s=1;s<n;s++){ const c=navCell(x0+(x1-x0)*s/n,z0+(z1-z0)*s/n); if(c<0||FLOOR.nav[c]) return false; } return true; }
+/* does a thin line from (x0,z0) to (x1,z1) pass through anything solid for walkers */
+function segHitsBox(x0,z0,x1,z1){ const L=Math.hypot(x1-x0,z1-z0),n=Math.max(1,Math.ceil(L/.06)); for(let s=1;s<=n;s++){ const x=x0+(x1-x0)*s/n,z=z0+(z1-z0)*s/n; for(const b of boxesAt(x,z)) if(solidFor(b,'walker')&&x>b.x0&&x<b.x1&&z>b.z0&&z<b.z1) return true; } return false; }
+function lineClearNav(x0,z0,x1,z1){ const L=Math.hypot(x1-x0,z1-z0),n=Math.ceil(L/.08); /* finer than a cell (.25): a coarser step could hop the one blocked cell at a wall's end and walk him into it */ for(let s=1;s<n;s++){ const x=x0+(x1-x0)*s/n,z=z0+(z1-z0)*s/n,c=navCell(x,z); if(c<0||FLOOR.nav[c]) return false;
+    if(PROTO.on){ const r=PF_WALK_R-.03; for(const b of boxesAt(x,z)) if(solidFor(b,'walker')&&x>b.x0-r&&x<b.x1+r&&z>b.z0-r&&z<b.z1+r) return false; } } /* floor 01: the body itself must fit along the line (a cell can read free with most of it inside a box's clearance) */
+  return true; }
 /* which way to walk from (x,z) to reach the player: straight if nothing is in the way, otherwise down the distance field */
 function navDir(x,z,tx,tz,F=NAVD){
   if(lineClearNav(x,z,tx,tz)) return norm3([tx-x,0,tz-z]);
   let c=navCell(x,z); if(c<0) return norm3([tx-x,0,tz-z]);
-  if(F[c]>=1e9){ let bd=1e9; for(let k=-2;k<=2;k++) for(let i=-2;i<=2;i++){ /* shoved off the walkable cells: find the way back within a metre */ const q=c+k*NX+i; if(q>=0&&q<F.length&&F[q]<bd){ bd=F[q]; c=q; } } if(bd>=1e9) return norm3([tx-x,0,tz-z]); }
+  if(F[c]>=1e9){ let bd=1e9,bq=-1; for(let k=-2;k<=2;k++) for(let i=-2;i<=2;i++){ /* shoved off the walkable cells: back onto the NEAREST walkable cell (the cheapest one could be across the very thing he's pressed against) */ const q=c+k*NX+i; if(q<0||q>=F.length||F[q]>=1e9) continue; const s=(i*i+k*k)*1e4+F[q]; if(s<bd&&!segHitsBox(x,z,cellX(q%NX),cellZ((q-q%NX)/NX))){ bd=s; bq=q; } } /* not through the wall he's against */
+    if(bq<0) return norm3([tx-x,0,tz-z]); return norm3([cellX(bq%NX)-x,0,cellZ((bq-bq%NX)/NX)-z]); }
   /* follow the field a few cells ahead and aim at the furthest one we can walk to in a straight line */
   let cur=c,aim=null; for(let step=0;step<6;step++){ const ci=cur%NX,ck=(cur-ci)/NX; let best=cur,bd=F[cur];
-    for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni; if(F[q]<bd){ bd=F[q]; best=q; } }
+    for(let k=-1;k<=1;k++) for(let i=-1;i<=1;i++){ const ni=ci+i,nk=ck+k; if(ni<0||nk<0||ni>=NX||nk>=NZ) continue; const q=nk*NX+ni;
+      if(i&&k&&(FLOOR.nav[ck*NX+ni]||FLOOR.nav[nk*NX+ci])) continue; /* no diagonal past a blocked corner: the body can't cut it and he'd grind there (2026-11-15) */
+      if(F[q]<bd){ bd=F[q]; best=q; } }
     if(best===cur) break; cur=best; const bxp=cellX(cur%NX),bzp=cellZ((cur-cur%NX)/NX); if(lineClearNav(x,z,bxp,bzp)) aim=[bxp,bzp]; else if(aim) break; else { aim=[bxp,bzp]; break; } }
   if(!aim) return norm3([tx-x,0,tz-z]); const d=norm3([aim[0]-x,0,aim[1]-z]); return Math.hypot(d[0],d[2])>1e-4?d:norm3([tx-x,0,tz-z]); }
 /* a free spot in a unit (or the corridor), away from the player */
@@ -6064,7 +6071,7 @@ function think(E,dt,t){
   E.hsStand=Math.max(0,(E.hsStand||0)-dt);
   if(E.st==='alert'&&(E.surr||E.civFreeze||E.hsStand>0)){ /* hsStand: you've got a gun to his friend's head (63-grapple.js) */ /* hands up, or frozen: no walking, no fighting, turned toward you (69-standoff.js) */
     E.moveDir=null; E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6)); E.atkCd=Math.max(E.atkCd,.5); E.atkT=-1; E.burstN=0;
-    let dh=Math.atan2(toP[0],toP[1])-E.hd; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); E.hd+=clamp(dh,-1.2*dt,1.2*dt); pushOutXZ(E.pos,.28,'walker'); }
+    let dh=Math.atan2(toP[0],toP[1])-E.hd; dh=Math.atan2(Math.sin(dh),Math.cos(dh)); E.hd+=clamp(dh,-1.2*dt,1.2*dt); pushOutXZ(E.pos,PROTO.on?PF_WALK_R:.28,'walker'); }
   else if(E.st==='alert'){
     if(!(E.aware&&E.canSee)||E.C.support&&!E.oneHand){ E.aimYaw=lerp(E.aimYaw||0,0,Math.min(1,dt*2)); E.aimPit=lerp(E.aimPit||0,0,Math.min(1,dt*2)); } /* a two-handed pistol is lined up by the arms (pistolStance) */
     else if(armed(E)&&!E.oneHand&&E.M&&!E.C.support){ /* line the gun up on you: blade the body and lean until the barrel, not the chest, points at you */
@@ -6089,7 +6096,7 @@ function think(E,dt,t){
       E.pos[0]+=dir[0]*sp*dt; E.pos[1]+=dir[2]*sp*dt; E.walkAmt=lerp(E.walkAmt,1,Math.min(1,dt*8)); E.walkPh+=dt*(sp<1.3?sp*6.2:7.2+sp*.9); }
     else { E.moveDir=null;
       E.runAmt=lerp(E.runAmt||0,0,Math.min(1,dt*6)); }
-    pushOutXZ(E.pos,.28,'walker');
+    pushOutXZ(E.pos,PROTO.on?PF_WALK_R:.28,'walker');
     for(const O of enemies) if(O!==E){ const op=O.st==='alert'||O.st==='idle'?O.pos:[O.B.x[0],O.B.x[2]],R=O.st==='alert'||O.st==='idle'?.7:.95,dx=E.pos[0]-op[0],dz=E.pos[1]-op[1],d=Math.hypot(dx,dz); if(d<R&&d>1e-3){ E.pos[0]+=dx/d*(R-d)*.5; E.pos[1]+=dz/d*(R-d)*.5; } }
     /* attacks */
     E.atkCd-=dt;
@@ -12503,9 +12510,10 @@ function squadTick(){ const P=PROTO.squad,now=GAME.t; const men=sqMen();
   const has=k=>[...jobs.values()].some(j=>j.k===k);
   if(ents.length>=2&&free.length&&!has('flank')){ /* the way the press is coming in, and the one furthest from it */
     const lead=order.find(E=>jobs.get(E)&&jobs.get(E).k==='press'); const pe=lead?ents.reduce((a,b)=>sqD(lead.pos,a.out)<=sqD(lead.pos,b.out)?a:b):ents[0];
-    const fe=ents.filter(e=>e!==pe).reduce((a,b)=>sqD(pe.out,a.out)>=sqD(pe.out,b.out)?a:b);
-    const fm=free.reduce((a,b)=>sqD(a.pos,fe.out)<=sqD(b.pos,fe.out)?a:b); free.splice(free.indexOf(fm),1);
-    jobs.set(fm,{k:'flank',e:fe,ph:'go',t0:now,wait:rnd(P.flankWait[0],P.flankWait[1])}); }
+    const other=e=>{ const O=e.o.A===R?e.o.B:e.o.A; return PF.openings.filter(o=>(o.A===O||o.B===O)&&o.kind!=='hole'&&o.kind!=='chain').length>=2; }; /* round the back only if that side has another way in (not through Ray's own room) */
+    const fcs=ents.filter(e=>e!==pe&&other(e)); const fe=fcs.length?fcs.reduce((a,b)=>sqD(pe.out,a.out)>=sqD(pe.out,b.out)?a:b):null;
+    if(fe){ const fm=free.reduce((a,b)=>sqD(a.pos,fe.out)<=sqD(b.pos,fe.out)?a:b); free.splice(free.indexOf(fm),1);
+    jobs.set(fm,{k:'flank',e:fe,ph:'go',t0:now,wait:rnd(P.flankWait[0],P.flankWait[1])}); } }
   if(free.length&&PF.exit&&!PF.exit.open&&!has('cut')){ /* the doorway out of his room toward the stairs (or, in the hall, a spot between him and the stairs) */
     const FX=fieldTo(PF.exit.at[0],PF.exit.at[2]); let ce=null;
     const used=new Set([...jobs.values()].filter(j=>j.e).map(j=>j.e.o)); const cands=ents.filter(e=>!used.has(e.o));
@@ -12522,7 +12530,9 @@ const sqHold=(E,face)=>{ if(face) E.hWant=Math.atan2(face[0]-E.pos[0],face[1]-E.
 /* the movement for a man with a job; null = his ordinary fighting */
 function squadMove(E,dt,fighting,dist){ const J=SQ.jobs.get(E); if(!J||J.k==='press') return null; const P=PROTO.squad,now=GAME.t;
   if(dist<P.selfDefence||fighting&&dist<5&&J.k!=='cover') return null; /* he's on you: he fights */
-  const go=(p,sp)=>Math.hypot(E.pos[0]-p[0],E.pos[1]-p[1])>.45&&!stuck(E,dt)?{goal:{x:p[0],z:p[1],sp},chase:false}:null;
+  /* walk to p; 'stuck' fires on any 1.5 s without progress, holding still included, so only several strikes in a row give up (one at a corner used to freeze him there for good) */
+  const go=(p,sp)=>{ if(Math.hypot(E.pos[0]-p[0],E.pos[1]-p[1])<=.45){ J.stk=0; return null; } if(J.stk>3) return null;
+    if(stuck(E,dt)){ J.stk=(J.stk||0)+1; freshGoal(E); } return {goal:{x:p[0],z:p[1],sp},chase:false}; };
   if(J.k==='flank'){ const e=J.e; if(J.ph==='go'){ const m=go(e.beside,2.1); if(m) return m; J.ph='wait'; J.tw=now; }
     if(J.ph==='wait'){ const pressOn=[...SQ.jobs].some(([O,j])=>j.k==='press'&&O.canSee); if(now-J.tw<J.wait&&!pressOn) return sqHold(E,e.in); J.ph='in'; sqSay(E,'push'); }
     return null; }
@@ -12537,7 +12547,7 @@ function squadSiege(E,dt){ const S=SQ.siege,J=SQ.jobs.get(E); if(!S||!J||J.k!=='
   if(now>S.until){ if(!S.push){ S.push=true; sqSay(E,'push'); } return null; }
   const e=SQ.ents[0]; if(!e) return null; const i=[...SQ.jobs].filter(([O,j])=>j.k==='press').findIndex(([O])=>O===E),p=i?[e.out[0]-e.side[0]*.7,e.out[1]-e.side[1]*.7]:e.beside;
   if(!S.said&&Math.hypot(E.pos[0]-p[0],E.pos[1]-p[1])<1.2){ S.said=true; sqSay(E,'siege'); } else if(Math.random()<dt*.08) sqSay(E,'siege');
-  return Math.hypot(E.pos[0]-p[0],E.pos[1]-p[1])>.45&&!stuck(E,dt)?{goal:{x:p[0],z:p[1],sp:1.8},chase:false}:sqHold(E,e.in); }
+  if(Math.hypot(E.pos[0]-p[0],E.pos[1]-p[1])<=.45||J.stk>3) return sqHold(E,e.in); if(stuck(E,dt)){ J.stk=(J.stk||0)+1; freshGoal(E); } return {goal:{x:p[0],z:p[1],sp:1.8},chase:false}; }
 
 /* =====================================================================
    FLOOR 01, RE-LAID-OUT (the prototype floor, agent F). ?proto=1 (J's start card calls pfLoad), or ?pfdev=1 to boot straight in.
@@ -12597,6 +12607,7 @@ const PF_START={x:-12.4,z:-8.6,to:[-11,-6.4]};
 const PF_EXIT={x:13,z:9.9,w:1.1};
 
 /* ---------- lookups ---------- */
+const PF_WALK_R=.22; /* (2026-11-15) a walker's body on floor 01; it was .28 against a .22 path grid and men stalled at every tight corner */
 function pfIn(r,x,z){ for(const q of r.rects) if(x>q[0]&&x<q[2]&&z>q[1]&&z<q[3]) return true; return false; }
 function pfRoomRaw(x,z){ for(const r of PF.rooms) if(pfIn(r,x,z)) return r; return null; }
 /* which room (x,z) is in, or null: a 0.25 m grid built with the floor */
@@ -12734,11 +12745,11 @@ function pfDress(A){ const P=pfProp,H=pfHide,L_=(p,c,d,kind,room)=>{ PF.lights.p
   /* the hall: one tube left that works, flickering; the barricade in the middle, piled so you weave through it */
   { for(const x of [-6,-2,2,6]){ const live=x===-6,m=live?M(tFluo,{unlit:true}):M(tFluoDead),t=mk(box(1.2,.05,.2),m,floorN,x,2.75,0); if(live){ t.live=true; PF.tube=m; } }
     L_([-6,2.5,0],[1.05,1.15,1.28],6,'flick','H');
-    const b1=N(floorN,-1.1,0,-.45); mk(box(.8,1.75,1.25,{at:[0,.875,0]}),F(mWood,M(tDoorWood,{repeat:[2,1]})),b1,0,0,0,0,.06,0); mk(box(.2,1.0,1.2),M(tMattress),b1,.45,.62,0,0,0,-.2); mk(box(.5,.45,.5,{at:[0,.225,0]}),M(tCrate),b1,0,1.75,.2,0,.4,0);
-    addBox(-1.5,-.7,-1.1,.2,0,1.85,'barricade');
-    const b2=N(floorN,1.1,0,.45); mk(box(.7,1.7,1.2,{at:[0,.85,0]}),F(M(tFridge),M(tFridge)),b2,0,0,0,0,-.08,0); mk(box(.9,.05,.7),M(tWoodLight),b2,-.1,1.72,0,.4,.3,.1); for(const z of [-.5,.4]) mk(box(.5,.45,.5,{at:[0,.225,0]}),M(tCrate),b2,.55,0,z,0,.5+z,0);
-    addBox(.7,1.5,-.2,1.1,0,1.8,'barricade');
-    H({kind:'corner',x:2.1,z:.75,yaw:Math.PI/2,w:.7,d:.6,h:1.5,open:'-z',note:'behind the barricade'});
+    const b1=N(floorN,-1.5,0,-.45); /* (2026-11-15) the two piles 2.2 m apart, was 1.4: men couldn't make the S-bend and stalled at its corner */ mk(box(.8,1.75,1.25,{at:[0,.875,0]}),F(mWood,M(tDoorWood,{repeat:[2,1]})),b1,0,0,0,0,.06,0); mk(box(.2,1.0,1.2),M(tMattress),b1,.45,.62,0,0,0,-.2); mk(box(.5,.45,.5,{at:[0,.225,0]}),M(tCrate),b1,0,1.75,.2,0,.4,0);
+    addBox(-1.9,-1.1,-1.1,.2,0,1.85,'barricade');
+    const b2=N(floorN,1.5,0,.45); mk(box(.7,1.7,1.2,{at:[0,.85,0]}),F(M(tFridge),M(tFridge)),b2,0,0,0,0,-.08,0); mk(box(.9,.05,.7),M(tWoodLight),b2,-.1,1.72,0,.4,.3,.1); for(const z of [-.5,.4]) mk(box(.5,.45,.5,{at:[0,.225,0]}),M(tCrate),b2,.55,0,z,0,.5+z,0);
+    addBox(1.1,1.9,-.2,1.1,0,1.8,'barricade');
+    H({kind:'corner',x:2.5,z:.75,yaw:Math.PI/2,w:.7,d:.6,h:1.5,open:'-z',note:'behind the barricade'});
     /* the tenants' things put out in the hall: a fridge, a wardrobe. They also cut the long looks across it from door to door */
     P('fridge',-6.15,1.03-.35,Math.PI,{opts:{dead:true}}); P('wardrobe',4.05,1.03-.36,Math.PI); P('trash',-7.5,-.6,0);
     /* the dead lift at the west end, the hose cabinet at the east */
@@ -12930,10 +12941,11 @@ function pfBuild(){ setWorld(18,12);
   /* where people walk: inside a room, clear of anything below 1.5 m (crouch holes and the shafts blocked); a second grid with the holes
      open for whoever can crouch through them (FLOOR.navHole) */
   const nav=new Uint8Array(NX*NZ),navH=new Uint8Array(NX*NZ),space=new Int16Array(NX*NZ).fill(-9);
+  const PF_NAV_CLR=PF_WALK_R; /* clearance from boxes = a walker's body (50-game.js uses PF_WALK_R on this floor): paths and bodies agree, so nobody grinds to a stop at a corner */
   for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i,r=pfRoomRaw(x,z)||pfRoomRaw(x+.01,z+.01);
     let sp=-9; if(r) sp=r.id==='H'?-1:r.env==='stair'?-2:r.i; space[id]=sp;
     let bl=!r||r.id==='NX'&&x>13.6, blH=bl; if(!bl&&blocked.some(q=>x>q[0]&&x<q[2]&&z>q[1]&&z<q[3])) bl=blH=true;
-    if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.25) continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; if(!b.hole) blH=true; if(blH) break; } }
+    if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.25) continue; if(x>b.x0-PF_NAV_CLR&&x<b.x1+PF_NAV_CLR&&z>b.z0-PF_NAV_CLR&&z<b.z1+PF_NAV_CLR){ bl=true; if(!b.hole) blH=true; if(blH) break; } }
     nav[id]=bl?1:0; navH[id]=blH?1:0; }
   /* a doorway cell sits on the wall line: the opening's own cells are open in both */
   /* (the cell column nearest the opening's middle, in the rows that sit in the wall: the jambs' padding would close a 1 m doorway on a .5 m grid) */
