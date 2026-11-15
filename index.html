@@ -6525,11 +6525,12 @@ function frame(now){
   resize(); const {f,r,u,eye}=camBasis();
   const bob=GAME.started?Math.sin(now*.008)*.004*Math.min(1,Math.hypot(stick.dx,stick.dy)+(KEYS.KeyW||KEYS.KeyS||KEYS.KeyA||KEYS.KeyD?1:0)):0;
   for(const h of [HANDS.R,HANDS.L]){ const sR=h.side==='R'?1:-1,sw=h.swingT>=0?Math.sin(Math.PI*clamp(h.swingT,0,1)):0,it=h.item,w=it&&WPN[it.key],gun=w&&w.gun,rl=it&&it.reload>0?-.12:0,hv=w&&w.heavy;
-    const side=sR*(gun?.19:.2)-sR*sw*(hv?.2:.08),up=(gun?-.2:-.22)+bob+rl+sw*(hv?.16:.07),fw=(gun?.42:.36)-h.rec*.06+sw*(hv?.25:.34),pitch=h.rec*.3+(rl?-.6:0)+(gun?0:-.1+sw*(hv?-.9:.1));
+    const side=sR*(gun?.19:.2)-sR*sw*(hv?.2:.08),up=(gun?-.2:-.22)+bob+rl+sw*(hv?.16:.07),fw=(gun?.42:.36)-h.rec*.06+sw*(hv?.25:.34),pitch=h.rec*.3+(rl?-.6:0)+(gun?0:-.1+sw*(hv?-.9:.1))+(w&&w.melee&&!w.fwd&&!h.supportOf?.8:0); /* a blade or club is carried point-up, the way a hand holds one (59-hands.js) */
     const ov=window.__hand&&window.__hand[h.side]; if(ov) placeVM(h.node,ov.p,ov.f||f,ov.u||u,ov.r||r,ov.pitch||0); /* test hook: put a hand somewhere */
     else if(h.grab) placeVM(h.node,v3.add(eye,v3.add(v3.sc(r,-.12),v3.add(v3.sc(u,-.18),v3.sc(f,.5)))),f,u,r,0); else if(window.__ads&&h.side==='R') { const S=SIGHTS[it&&it.key]||{y:.06,h:0},gy=FIST[1]-(w&&w.grip?w.grip[1]:0); placeVM(h.node,v3.add(eye,v3.add(v3.sc(u,-(gy+S.y+S.h-.003)),v3.sc(f,.24))),f,u,r,0); } else /* debug: look down the sights */
     placeVM(h.node,v3.add(eye,v3.add(v3.sc(r,side),v3.add(v3.sc(u,up),v3.sc(f,fw)))),f,u,r,pitch); m4.compose(h.M,h.node.p,h.node.r,[1,1,1]); protoEmit('handPose',h); h.node.vis=!PL.dead; updateAmmoLabel(h); }
-  updateArms(f,u,eye);
+  if(window.__hand){ applySupport(HANDS.R); applySupport(HANDS.L); } /* test hook: two hands on a gun on the flat screen (the hand bench) */
+  handsTick(dt); updateArms(f,u,eye);
   for(const E of enemies) E.label.vis=false; panelN.vis=false;
   m4.persp(proj,50*Math.PI/180,cv.width/cv.height,0.05,120); m4.lookAt(view,eye,v3.add(eye,f),[0,1,0]);
   const h=state.res,w=Math.max(1,Math.round(h*cv.width/cv.height)); ensureFB(w,h); gl.bindFramebuffer(gl.FRAMEBUFFER,fb); renderWith(w,h); post(null,0,0,cv.width,cv.height,w,h);
@@ -6591,13 +6592,15 @@ function xrFrame(t,xf){
   for(const src of session.inputSources){ const hand=src.handedness; if(hand!=='left'&&hand!=='right') continue;
     const h=hand==='right'?HANDS.R:HANDS.L; h.src=src; XR.hands[hand]=h; const rp=src.targetRaySpace&&xf.getPose(src.targetRaySpace,XR.space); if(!rp) continue;
     const gpo=src.gripSpace&&xf.getPose(src.gripSpace,XR.space),gunIn=h.item&&WPN[h.item.key].gun,ray=poseMat(rp),base=m4.make(); /* guns aim down the controller ray; empty hands and blades sit in the grip pose like a real fist */
-    m4.mul(base,gpo&&!gunIn?gripHand(poseMat(gpo)):handModel(ray),handTweak(h)); const k=h.rec,rec=m4.make(); rec.set([1,0,0,0, 0,Math.cos(k*.4),Math.sin(k*.4),0, 0,-Math.sin(k*.4),Math.cos(k*.4),0, 0,k*.01,-k*.04,1]); m4.mul(h.M,base,rec);
+    const gh=gpo?gripHand(poseMat(gpo)):null; if(gh) handMeasure(h,gh,ray); if(h.hm) h.hm.grip=!!gh&&!gunIn; /* how far the ray sits above square-to-the-handle (59-hands.js) */
+    m4.mul(base,gh&&!gunIn?gh:handModel(ray),handTweak(h)); const k=h.rec,rec=m4.make(); rec.set([1,0,0,0, 0,Math.cos(k*.4),Math.sin(k*.4),0, 0,-Math.sin(k*.4),Math.cos(k*.4),0, 0,k*.01,-k*.04,1]); m4.mul(h.M,base,rec);
     if(PROTO.on) rayHandFx(h,dt); /* knocked by a hit, an arm wound's sway, the shakes (80-ray.js); never the head */
     protoEmit('handPose',h); /* 82-clinch.js: a man holding your wrist moves the hand you see, never the tracked one */
     setLocal(h.node,m4.make(),h.M); h.node.vis=!PL.dead;
     const fp=mulP(h.M,FIST); if(h.prevPos) h.vel=v3.add(v3.sc(h.vel,.5),v3.sc(v3.sub(fp,h.prevPos),.5/Math.max(dt,1e-3))); h.prevPos=fp;
     const gp=src.gamepad; if(!gp) continue; const ax=gp.axes,b=gp.buttons,pressed=i=>!!(b[i]&&b[i].pressed),edge=i=>{ const kk=hand+i,p=pressed(i),was=XR.btn[kk]; XR.btn[kk]=p; return p&&!was; };
     const trig=edge(0),grip=edge(1),stickC=edge(3),ab=edge(4),by=edge(5); h.trigHeld=pressed(0);
+    h.trigV=b[0]?b[0].value:0; h.gripV=b[1]?b[1].value:0; h.thumbT=[3,4,5,6].some(i=>b[i]&&(b[i].touched||b[i].pressed)); /* the fingers follow the controller (59-hands.js) */
     if(PL.dead){ if(trig) restartLevel(); continue; }
     if(grip){ if(!h.item&&!h.grab&&nearGoggles(fp,eye,f,u)) cycleVision(); else grabOrDrop(h); }
     if(h.item&&WPN[h.item.key].gun){ if(trig||(WPN[h.item.key].auto&&pressed(0))) fireHand(h); }
@@ -6612,7 +6615,7 @@ function xrFrame(t,xf){
         XR.origin[0]=eye[0]+dx*c+dz*s; XR.origin[2]=eye[2]-dx*s+dz*c; XR.yaw+=a; } else if(Math.abs(sx)<.3) XR.snapHeld=false;
       if(stickC){ const L=[720,1080,1440],i=(L.indexOf(XR.res)+1)%L.length; XR.res=L[i]; vrToast(['Sharpness: low (more PS1)','Sharpness: medium','Sharpness: high'][i],1.6); } }
     meleeTick(h,dt); if(!h.supportOf) vrMelee(h,dt); else h.prevPts=null; pokeBoard(fp,h,dt); stashPoke(fp,h); warePoke(fp,h); motelPoke(fp,h); updateAmmoLabel(h); }
-  applySupport(HANDS.R); applySupport(HANDS.L); updateArms(f,u,eye); updateSights(eye);
+  applySupport(HANDS.R); applySupport(HANDS.L); handsTick(dt); updateArms(f,u,eye); updateSights(eye);
   /* keep the head out of walls and furniture by sliding the play space */
   { const bx=PL.x,bz=PL.z; collidePlayer(); XR.origin[0]+=PL.x-bx; XR.origin[2]+=PL.z-bz; }
   /* climbing out: walk onto the flight up */
@@ -7246,7 +7249,7 @@ function obeyTick(E,dt){ if(!E.obey) return; if(E.dead||E.st==='down'){ E.obey=n
 
 /* the bar on your left wrist, under the FPS: your level, the talk and shout marks; it flashes when a talk or a shout counts */
 let micTex=null,micN=null; /* built on first use: the hands (60-weapons.js) come after this file */
-function drawMicBar(){ if(!micN){ micTex=tex(32,4,'#0a0b0d'); micN=mk(plane(.045,.0056),M(micTex,{unlit:true}),HANDS.L.armN,.046,-.0118,-.05,0,Math.PI/2,0); }
+function drawMicBar(){ if(!micN){ micTex=tex(32,4,'#0a0b0d'); micN=mk(plane(.045,.0056),M(micTex,{unlit:true}),HANDS.L.armN,ARM_LBL_X,-.0118,-.07,0,Math.PI/2,0); }
   micN.vis=XR.on; const g=micTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,32,4);
   if(MIC.state!=='on'){ g.fillStyle=MIC.state==='denied'?'#5a1f1c':'#2d2b27'; g.fillRect(1,1,30,2); }
   else { const x=db=>Math.round(clamp((db+70)/62,0,1)*31); /* -70 to -8 dBFS across the bar */
@@ -7256,6 +7259,121 @@ function drawMicBar(){ if(!micN){ micTex=tex(32,4,'#0a0b0d'); micN=mk(plane(.045
 
 /* flat screen: H shouts (no mic needed) */
 addEventListener('keydown',e=>{ if(e.code==='KeyH'&&GAME.started&&!PL.dead&&!e.repeat) playerShout(); });
+
+/* =====================================================================
+   RAY'S HANDS. Real hands instead of the fist block: a palm, four fingers of three bones, a thumb, a wrist.
+   - The model frame (MF): +z from the wrist to the knuckles, +y toward the thumb side, the palm faces +x on the right hand
+     (-x on the left; everything in x is mirrored by ps).
+   - Empty hand (VR): the fingers follow the controller. Index = trigger, the other three = grip, the thumb comes down when it
+     rests on a button or the stick. So you can point, make a fist, give a thumbs up.
+   - The empty hand lies along the controller's pointing ray, not square to its handle. The handle of a Touch controller is raked
+     well forward of square, so a fist drawn square to it pointed at the floor while your forearm pointed ahead: the "broken wrist".
+     The angle is measured live from the two poses the headset gives (grip and ray), so it's right on any controller.
+   - Holding something: the hand is posed on the ITEM (its grip point and axes), so it stays on the grip when a second hand turns
+     a long gun, and the same hold works in VR and on the flat screen. A handle crosses the palm at the natural 20 degrees.
+   - The support hand takes the fore-end from underneath, or wraps the shooting hand on a pistol.
+   - The wrist bends only as far as a wrist does (updateArms, 60-weapons.js): past that the forearm comes round with the hand.
+   ===================================================================== */
+/* things built lying on their side: stood up in the fist, so the fingers go round them (a can, a mug), [rx,ry,rz] */
+const HAND_TURN={mug:[0,0,Math.PI/2],mugTin:[0,0,Math.PI/2],tumbler:[0,0,Math.PI/2],beercan:[0,0,Math.PI/2],beercanC:[0,0,Math.PI/2]};
+const HANDP={ vr:false, noArm:false, pitch:.6,           /* empty hand: how far the pointing ray sits above square-to-the-handle, when it can't be measured (flat screen never needs it) */
+  pitchMin:0, pitchMax:1.0, cross:.35,   /* a handle crosses the palm 20 degrees off square (the hammer grip) */
+  flex:1.0, ext:.95, radial:.38, ulnar:.62,   /* the wrist's range, radians: palm-ward, back-ward, toward the thumb, toward the little finger */
+  k:16, swap:.14 };                /* fingers ease at this rate; a change of hold blends over this long */
+const tRayHandSkin=flat(16,16,321,HEADS.ray.skin,'skin',{decor:I=>{ for(const y of [5,10]) softLine(I,0,y,16,y,HEADS.ray.skinD,.35,1); blob(I,11,3,3,2,.5,'#5c0a0a'); }});
+const tRayHandTape=flat(16,16,322,'#aaa392','twill',{decor:I=>{ for(const y of [3,7,11]) softLine(I,0,y,16,y+1,'#7d776a',.5,1); blob(I,5,5,3,3,.75,'#5c0a0a'); blob(I,11,10,3,2,.6,'#3e0606'); }});
+const tRayGloveKn=flat(16,16,323,'#101114','leather',{decor:I=>{ for(const x of [2,6,10,14]) softEll(I,x,8,1.6,3,'#2a2c31',.7,.6); }});
+const HAND_FY=[.0335,.0112,-.0112,-.0335],HAND_FZ=[.03,.032,.03,.025],HAND_FL=[[.04,.025,.022],[.044,.028,.023],[.041,.026,.022],[.033,.02,.019]],HAND_SP=[-.13,-.03,.07,.17];
+const HAND_TL=[.042,.031,.027],HAND_WRIST=[-.031,0,-.084];
+function rayHandBuild(side,par){ const ps=side==='R'?1:-1,R=side==='R',mF=M(R?tRayHandSkin:tRayGlove),mP=M(R?tRayHandTape:tRayGloveKn),root=N(par,FIST[0],FIST[1],FIST[2]);
+  mk(box(.028,.098,.088,{tw:.88,td:.72}),mP,root,-ps*.032,0,-.019,-Math.PI/2,0,0);                 /* the palm, narrower at the wrist */
+  mk(box(.03,.056,.034),mP,root,-ps*.031,0,-.078);                                                  /* the wrist */
+  const f=[]; for(let i=0;i<4;i++){ const L=HAND_FL[i],j1=N(root,-ps*.033,HAND_FY[i],HAND_FZ[i]),j2=N(j1,0,0,L[0]),j3=N(j2,0,0,L[1]);
+    mk(box(.021,.0208,L[0]+.006,{at:[ps*.003,0,L[0]/2-.003]}),R&&i<4?mF:mP,j1); mk(box(.019,.0196,L[1]+.004,{at:[ps*.003,0,L[1]/2-.002]}),mF,j2); mk(box(.017,.0184,L[2],{at:[ps*.003,0,L[2]/2]}),mF,j3); f.push([j1,j2,j3]); }
+  const t1=N(root,-ps*.024,.036,-.05),t2=N(t1,0,0,HAND_TL[0]),t3=N(t2,0,0,HAND_TL[1]);
+  mk(box(.026,.026,HAND_TL[0]+.008,{at:[0,0,HAND_TL[0]/2-.004]}),mP,t1); mk(box(.021,.021,HAND_TL[1]+.004,{at:[0,0,HAND_TL[1]/2-.002]}),mF,t2); mk(box(.019,.019,HAND_TL[2],{at:[0,0,HAND_TL[2]/2]}),mF,t3);
+  return {ps,root,f,t:[t1,t2,t3],mats:[mF,mP],cur:null,hold:null,swapT:1,from:null,pitch:HANDP.pitch}; }
+
+/* ---------- poses: 12 finger angles (index..little, knuckle to tip), spread, thumb bone dir, thumb curl dir, two thumb curls ---------- */
+const handVR=()=>XR.on||HANDP.vr;
+const handGripFrame=h=>XR.on?!!h.hm.grip:HANDP.vr; /* is this hand's frame square to the controller handle (empty hands, blades) or along the ray (guns, no grip pose) */ /* HANDP.vr: the bench poses hands the VR way on a flat screen */
+const hCurl=(c,k=[1.4,1.66,1.05])=>[c*k[0],c*k[1],c*k[2]];
+const hPose=(a,sp,td,tf,tb)=>[...a[0],...a[1],...a[2],...a[3],sp,...td,...tf,...tb];
+const HT={ out:[[.3,.62,.72],[.6,-.55,.3],[.15,.2]], wrap:[[.8,.22,.56],[0,-1,.22],[.9,.7]], up:[[.12,.9,.42],[.6,-.3,.6],[.05,.1]], along:[[.62,.42,.66],[.25,-.5,.83],[.5,.25]] };
+const HPOSE={
+  open: hPose([hCurl(.18),hCurl(.22),hCurl(.27),hCurl(.32)],1,...HT.out),
+  fist: hPose([hCurl(1),hCurl(1),hCurl(1),hCurl(1)],0,...HT.wrap),
+  flat: hPose([hCurl(.12),hCurl(.14),hCurl(.16),hCurl(.2)],.2,[.7,.3,.65],[.3,-.9,.3],[.35,.3]) };
+const hWrap=(c,th)=>hPose([hCurl(c),hCurl(c),hCurl(c),hCurl(c)],0,...(th||HT.wrap));
+function hMix(a,b,k){ const o=new Array(a.length); for(let i=0;i<a.length;i++) o[i]=a[i]+(b[i]-a[i])*k; return o; }
+function hRot(th,psi,rho){ const cz=Math.cos(rho),sz=Math.sin(rho),cy=Math.cos(psi),sy=Math.sin(psi),cx=Math.cos(-th),sx=Math.sin(-th);
+  return hMul([[1,0,0],[0,cx,sx],[0,-sx,cx]],hMul([[cy,0,-sy],[0,1,0],[sy,0,cy]],[[cz,sz,0],[-sz,cz,0],[0,0,1]])); }   /* columns of Rx(-th) Ry(psi) Rz(rho) */
+function hMul(A,B){ return B.map(b=>[0,1,2].map(i=>A[0][i]*b[0]+A[1][i]*b[1]+A[2][i]*b[2])); }
+
+/* ---------- holds: where the hand sits on an item, in the item's own coordinates (right hand; x mirrors for the left) ----------
+   at: the point in the grip (default the item's grip point); y: toward the thumb side; pn: where the palm faces;
+   th/yaw/roll: the hand turned from square, o: the point of the hand model that sits on `at`, c: how far the fingers close */
+const HOLD_O=[-.006,0,.014];
+const HOLDS={
+  handle:{y:[0,0,1],pn:[1,0,0],th:HANDP.cross,c:1},
+  palm:{y:[0,1,0],pn:[1,0,0],live:true,c:.62,o:[.004,0,.012],thumb:'along'},
+  flatHold:{y:[0,1,0],pn:[1,0,0],live:true,pose:'flat',o:[-.004,0,.02]},
+  pistol:{y:[0,1,0],pn:[1,0,0],th:.05,c:.96,o:[-.004,-.012,.012],thumb:'along',trigger:true},
+  long:{y:[0,1,0],pn:[1,0,0],th:.12,c:.96,o:[-.004,-.012,.012],thumb:'wrap',trigger:true},
+  cup:{y:[0,1,0],pn:[1,0,0],th:.1,c:.82,o:[-.012,0,.02],thumb:'along',support:true},
+  fore:{y:[0,0,1],pn:[0,1,0],th:.25,c:.78,o:[-.004,0,.012],thumb:'along',support:true} };
+const HOLD_ITEM={ bottle:{c:.95}, knife:{c:1}, machete:{c:1}, pan:{c:1}, hammer:{c:1}, pipe:{c:.9}, cutter:{c:.95},
+  plate:{cls:'flatHold'}, ashtray:{cls:'flatHold'}, medkit:{cls:'flatHold'}, keys:{c:.9}, strip:{c:.95}, shoe:{c:.5}, mug:{c:.6}, mugTin:{c:.6}, tumbler:{c:.62}, beercan:{c:.64}, beercanC:{c:.68}, can:{c:.85}, bigcan:{c:.66} };
+function handHold(h){ const o=h.supportOf;
+  if(o&&o.item&&o.itemNode){ const w=WPN[o.item.key]; return {key:'s:'+o.item.key+(h.cupSide||''),own:o,w,H:HOLDS[w.cup?'cup':'fore'],cup:!!w.cup}; }
+  if(h.item&&h.itemNode){ const w=WPN[h.item.key],I=HOLD_ITEM[h.item.key]||{},cls=I.cls||(w.gun?(w.fore?'long':'pistol'):w.melee&&!w.fwd?'handle':'palm');
+    return {key:h.item.key+(h.item.rev?'r':''),own:h,w,H:Object.assign({},HOLDS[cls],I),rev:!!h.item.rev}; }
+  return null; }
+
+/* the root's matrix in the hand node's frame, and the finger pose, for what this hand is doing now */
+function handTarget(h,Tn){ const H=h.hm,ps=H.ps,hd=handHold(h); let F,at,S,pose;
+  if(hd&&hd.H.live){ S=hd.H; const th=handGripFrame(h)?H.pitch:0,R=hRot(th,0,0),o=[(S.o||HOLD_O)[0]*ps,(S.o||HOLD_O)[1],(S.o||HOLD_O)[2]];   /* something small in the palm: the hand stays where your hand is, the thing sits in it */
+    F=fromCols(R[0],R[1],R[2],v3.sub(FIST,v3.add(v3.sc(R[0],o[0]),v3.add(v3.sc(R[1],o[1]),v3.sc(R[2],o[2]))))); pose=S.pose?HPOSE[S.pose]:hWrap(S.c??1,HT[S.thumb||'wrap']); }
+  else if(hd){ S=hd.H; const w=hd.w,Mi=itemM(hd.own),mir=v=>[v[0]*ps,v[1],v[2]];
+    let Y=S.y.slice(),Pn=mir(S.pn); if(hd.rev) Y=v3.sc(Y,-1);
+    if(hd.cup){ const sg=h.cupSide||1; at=v3.add(w.grip,[sg*.03,-.012,.012]); Pn=[-sg,0,0]; }   /* beside the gun hand, palm toward it */
+    else if(S.support) at=[w.fore[0],w.fore[1],(h.supZ??w.fore[2])-(hd.own.pumpSlide||0)];
+    else at=S.at||w.grip;
+    const X0=v3.sc(norm3(Pn),ps),Y0=norm3(v3.sub(Y,v3.sc(X0,v3.dot(Y,X0)))),Z0=v3.cross(X0,Y0);
+    const th=S.live?(handGripFrame(h)?H.pitch:0):S.th||0,Rl=hRot(th,(S.yaw||0)*ps,(S.roll||0)*ps),R=hMul([X0,Y0,Z0],Rl),o=mir(S.o||HOLD_O);
+    const P=v3.sub(at,v3.add(v3.sc(R[0],o[0]),v3.add(v3.sc(R[1],o[1]),v3.sc(R[2],o[2]))));
+    const W=m4.make(); m4.mul(W,Mi,fromCols(R[0],R[1],R[2],P)); F=m4.make(); m4.mul(F,rigidInv(Tn),W);
+    pose=S.pose?HPOSE[S.pose]:hWrap(S.c??1,HT[S.thumb||'wrap']);
+    if(S.trigger){ const t=h.trigV??(h.item&&h.item.cd>0?1:0); pose=pose.slice(); const a=hMix([.25,.75,.35],[.38,1.25,.5],t); pose[0]=a[0]; pose[1]=a[1]; pose[2]=a[2]; } }   /* the index lies on the trigger and pulls it */
+  else { const th=handGripFrame(h)?H.pitch:0,R=hRot(th,0,0),o=[HOLD_O[0]*ps,HOLD_O[1],HOLD_O[2]];
+    F=fromCols(R[0],R[1],R[2],v3.sub(FIST,v3.add(v3.sc(R[0],o[0]),v3.add(v3.sc(R[1],o[1]),v3.sc(R[2],o[2])))));
+    const busy=h.grab||h.stuck||h.swingT>=0,g=busy?1:handVR()?clamp(h.gripV??0,0,1):.45,t=busy?1:handVR()?clamp(h.trigV??0,0,1):.45;
+    pose=hMix(HPOSE.open,HPOSE.fist,g); const idx=hMix(HPOSE.open,HPOSE.fist,t); for(let i=0;i<3;i++) pose[i]=idx[i];
+    if(handVR()&&!busy){ const up=!h.thumbT,T_=up?(g>.5?HT.up:HT.out):HT.wrap; for(let i=0;i<3;i++){ pose[13+i]=T_[0][i]; pose[16+i]=T_[1][i]; } pose[19]=T_[2][0]; pose[20]=T_[2][1]; } }
+  return {F,pose,key:hd?hd.key:'-'}; }
+
+function handApply(H,pose,F){ const ps=H.ps,r=H.root; r.p=[F[12],F[13],F[14]]; r.r=eul([colOf(F,0),colOf(F,1),colOf(F,2)]);
+  for(let i=0;i<4;i++){ const j=H.f[i]; j[0].r=[HAND_SP[i]*pose[12],ps*pose[i*3],0]; j[1].r=[0,ps*pose[i*3+1],0]; j[2].r=[0,ps*pose[i*3+2],0]; }
+  const Z=norm3([pose[13]*ps,pose[14],pose[15]]); let Fd=[pose[16]*ps,pose[17],pose[18]]; Fd=v3.sub(Fd,v3.sc(Z,v3.dot(Fd,Z))); const fl=Math.hypot(...Fd); Fd=fl>1e-4?v3.sc(Fd,1/fl):[0,-1,0];
+  const Y=v3.sc(Fd,-1),X=v3.cross(Y,Z); H.t[0].r=eul([X,Y,Z]); H.t[1].r=[pose[19],0,0]; H.t[2].r=[pose[20],0,0]; }
+
+/* every frame, after the hands and any support hand are placed, before the forearms */
+function handsTick(dt){ for(const h of [HANDS.L,HANDS.R]){ const H=h.hm; if(!H||h.node.vis===false) continue;
+    const Tn=m4.make(); m4.compose(Tn,h.node.p,h.node.r,[1,1,1]); const T=handTarget(h,Tn),k=1-Math.exp(-dt*HANDP.k);
+    if(!H.cur){ H.cur=T.pose.slice(); H.hold=T.key; H.F=T.F; }
+    if(T.key!==H.hold){ H.hold=T.key; H.from=H.F; H.swapT=0; }
+    H.cur=hMix(H.cur,T.pose,k); let F=T.F;
+    if(H.swapT<1&&H.from){ H.swapT=Math.min(1,H.swapT+dt/HANDP.swap); const s=H.swapT*H.swapT*(3-2*H.swapT),A=H.from,B=T.F,mix=c=>norm3([0,1,2].map(i=>A[c*4+i]+(B[c*4+i]-A[c*4+i])*s));
+      const Z=mix(2); let Y=mix(1); Y=norm3(v3.sub(Y,v3.sc(Z,v3.dot(Y,Z)))); F=fromCols(v3.cross(Y,Z),Y,Z,[0,1,2].map(i=>A[12+i]+(B[12+i]-A[12+i])*s)); }
+    H.F=F; handApply(H,H.cur,F); H.Tn=Tn; } }
+/* the wrist and the hand's axes in the world (for the forearm) */
+function handWrist(h){ const H=h.hm; if(!H||!H.F||!H.Tn) return null; const W=m4.make(); m4.mul(W,H.Tn,H.F);
+  return {W:mulP(W,[HAND_WRIST[0]*H.ps,HAND_WRIST[1],HAND_WRIST[2]]),Pn:v3.sc(colOf(W,0),H.ps),Y:colOf(W,1),L:colOf(W,2)}; }
+/* where a poke lands: the tip of the index finger when it's out, else the fist */
+function handTip(h){ const H=h.hm; if(!H||!H.cur||h.item||h.supportOf||H.cur[0]+H.cur[1]>1.4) return mulP(h.M,FIST); return mulP(H.f[0][2].world,[0,0,HAND_FL[0][2]]); }
+/* VR: how far the pointing ray sits above square-to-the-handle, from the two poses (the hand frame comes from the grip pose) */
+function handMeasure(h,gripHandM,rayM){ const H=h.hm; if(!H) return; const d=[-rayM[8],-rayM[9],-rayM[10]],Y=colOf(gripHandM,1),Z=colOf(gripHandM,2),a=Math.atan2(v3.dot(d,Y),v3.dot(d,Z));
+  if(isFinite(a)) H.pitch=clamp(H.pitch+(clamp(a,HANDP.pitchMin,HANDP.pitchMax)-H.pitch)*.1,HANDP.pitchMin,HANDP.pitchMax); }
 
 /* =====================================================================
    WEAPONS: what Ray holds.
@@ -7336,15 +7454,15 @@ function flatToggleCan(){ const h=HANDS.R,it=h.item; if(!it||!CAN_SPEC[it.key]) 
 
 /* ---------- hands ---------- */
 function ammoTexNew(){ return tex(16,8,'#0a0b0d'); }
-const UPPER_ARM=.3,FOREARM=.27,WRIST=[0,-.04,-.05]; /* metres; the wrist sits just inside the back of the fist */
+const UPPER_ARM=.3,FOREARM=.27,WRIST=[0,-.04,-.05],ARM_LBL_X=.039; /* metres; the wrist sits just inside the back of the fist */
 function makeHand(side){ const n=N(world);
-  mk(box(.072,.084,.094),M(side==='R'?tTape:tRayGlove),n,FIST[0],FIST[1],FIST[2]);
+  const hm=rayHandBuild(side,n); /* a real hand (59-hands.js) */
   /* the forearm is its own piece (updateArms): it runs from the wrist back to where your elbow is, so turning your wrist only turns the fist */
-  const arm=N(world); mk(lathe([[-FOREARM,.05,.05],[0,.044,.044]],6),M(side==='R'?tRayArmR:tRayArmL),arm,0,0,0,Math.PI/2,0,0);
-  return {side,armN:arm,hand:side==='R'?'right':'left',node:n,item:null,itemNode:null,M:m4.make(),prevPts:null,cd:0,rec:0,ammoTex:ammoTexNew(),ammoShown:-9,ammoN:null,swingT:-1,swingDone:false,vel:[0,0,0],prevPos:null}; }
+  const arm=N(world); mk(lathe([[-FOREARM,.05,.05],[-.14,.045,.047],[-.05,.033,.039],[.004,.024,.032]],6),M(side==='R'?tRayArmR:tRayArmL),arm,0,0,0,Math.PI/2,0,0); /* tapers to the wrist: wide across the hand, thinner through it */
+  return {side,hm,armN:arm,hand:side==='R'?'right':'left',node:n,item:null,itemNode:null,M:m4.make(),prevPts:null,cd:0,rec:0,ammoTex:ammoTexNew(),ammoShown:-9,ammoN:null,swingT:-1,swingDone:false,vel:[0,0,0],prevPos:null}; }
 const HANDS={L:makeHand('L'),R:makeHand('R')};
 /* frame rate on the inside of the left wrist (VR) */
-const fpsTex=tex(24,8,'#0a0b0d'); const fpsN=mk(plane(.045,.015),M(fpsTex,{unlit:true}),HANDS.L.armN,.046,0,-.05,0,Math.PI/2,0); fpsN.vis=false;
+const fpsTex=tex(24,8,'#0a0b0d'); const fpsN=mk(plane(.045,.015),M(fpsTex,{unlit:true}),HANDS.L.armN,ARM_LBL_X,0,-.07,0,Math.PI/2,0); fpsN.vis=false;
 function drawFps(v){ fpsN.vis=XR.on; const g=fpsTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,24,8); const s=String(v); text(g,s,(24-textW(s))>>1,1,v>=68?'#7ec27a':v>=55?'#e2a33d':'#ff3b30');
   if(fpsTex.glt){ gl.bindTexture(gl.TEXTURE_2D,fpsTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,fpsTex.c); } }
 function equip(h,item){
@@ -7355,6 +7473,7 @@ function equip(h,item){
   /* VR melee: turned so the handle runs through the fist and the blade comes out over the thumb (61-melee.js) */
   const a=XR.on&&w.melee&&!w.fwd?meleeAngle(item):0,c=Math.cos(a),sn=Math.sin(a),gr=w.grip,rg=[gr[0],gr[1]*c-gr[2]*sn,gr[1]*sn+gr[2]*c];
   const g=N(h.node,FIST[0]-rg[0],FIST[1]-rg[1],FIST[2]-rg[2],a,0,0); GEO_TEMP=true; w.build(g); GEO_TEMP=false; h.itemNode=g;
+  const tr=HAND_TURN[item.key]; if(tr){ g.r=tr.slice(); const Rm=m4.make(); m4.compose(Rm,[0,0,0],g.r,[1,1,1]); const q=mulP(Rm,gr); g.p=[FIST[0]-q[0],FIST[1]-q[1],FIST[2]-q[2]]; } /* stood up in the hand (59-hands.js) */
   h.itemPR={p:g.p.slice(),r:g.r.slice()}; h.itemL=m4.make(); m4.compose(h.itemL,g.p,g.r,[1,1,1]);
   if(w.gun){ h.ammoN=mk(plane(.032,.016),M(h.ammoTex,{unlit:true}),g,-.03,w.axisY+.012,.0,0,-Math.PI/2,0); addSights(g,item.key); if(item.sup) addCan(g,item.key); } }
 /* iron sights: a rear notch and a front post on the same line as the bore, with glowing dots you can find in a dark corridor */
@@ -7415,15 +7534,18 @@ function applySupport(h){ const s=h.support; if(!s||!h.item||!h.itemNode){ h.ite
    takes the hand's twist, so a bent wrist shows as a bend at the wrist instead of swinging the whole arm. */
 function updateArms(f,u,eye){
   let fx=f[0]-u[0]*f[1],fz=f[2]-u[2]*f[1]; const k=Math.hypot(fx,fz)||1; fx/=k; fz/=k; const fl=[fx,0,fz],rl=[-fz,0,fx],T=m4.make(),L=UPPER_ARM+FOREARM;
-  for(const h of [HANDS.L,HANDS.R]){ const a=h.armN; a.vis=h.node.vis!==false; if(!a.vis) continue;
-    m4.compose(T,h.node.p,h.node.r,[1,1,1]); const W=mulP(T,WRIST),sd=h.side==='R'?1:-1;
+  for(const h of [HANDS.L,HANDS.R]){ const a=h.armN; a.vis=h.node.vis!==false&&!HANDP.noArm; if(!a.vis) continue;
+    m4.compose(T,h.node.p,h.node.r,[1,1,1]); const HW=handWrist(h),W=HW?HW.W:mulP(T,WRIST),sd=h.side==='R'?1:-1;
     const S=v3.add(eye,v3.add([0,-.24,0],v3.add(v3.sc(rl,sd*.18),v3.sc(fl,-.05))));
     const v=v3.sub(W,S),dl=Math.hypot(...v)||1,dir=v3.sc(v,1/dl),d=clamp(dl,.12,L-.005);
     const al=(UPPER_ARM*UPPER_ARM-FOREARM*FOREARM+d*d)/(2*d),ht=Math.sqrt(Math.max(0,UPPER_ARM*UPPER_ARM-al*al));
     let P=v3.add([0,-1,0],v3.add(v3.sc(rl,sd*.55),v3.sc(fl,-.2))); P=v3.sub(P,v3.sc(dir,v3.dot(P,dir))); const pl=Math.hypot(...P); P=pl>1e-4?v3.sc(P,1/pl):[0,-1,0];
     const E=v3.add(S,v3.add(v3.sc(dir,al),v3.sc(P,ht)));
     let Z=v3.sub(W,E); const zl=Math.hypot(...Z); Z=zl>1e-4?v3.sc(Z,1/zl):norm3(colOf(T,2));
-    const hy=colOf(T,1); let Y=v3.sub(hy,v3.sc(Z,v3.dot(hy,Z))); const yl=Math.hypot(...Y); Y=yl>.05?v3.sc(Y,1/yl):norm3(v3.sub([0,1,0],v3.sc(Z,Z[1])));
+    if(HW){ /* a wrist only bends so far: past its range the forearm comes round with the hand (no broken wrists) */
+      const b=v3.sc(Z,-1),bz=-v3.dot(b,HW.L),fl=clamp(Math.atan2(v3.dot(b,HW.Pn),bz),-HANDP.flex,HANDP.ext),dv=clamp(Math.atan2(v3.dot(b,HW.Y),bz),-HANDP.radial,HANDP.ulnar);
+      Z=v3.sc(norm3(v3.add(v3.sc(HW.L,-1),v3.add(v3.sc(HW.Pn,Math.tan(fl)),v3.sc(HW.Y,Math.tan(dv))))),-1); }
+    const hy=HW?HW.Y:colOf(T,1); let Y=v3.sub(hy,v3.sc(Z,v3.dot(hy,Z))); const yl=Math.hypot(...Y); Y=yl>.05?v3.sc(Y,1/yl):norm3(v3.sub([0,1,0],v3.sc(Z,Z[1])));
     a.p=W; a.r=eul([v3.cross(Y,Z),Y,Z]); } }
 
 /* ---------- sights: a dot where the barrel points, and an optional laser ---------- */
@@ -10420,7 +10542,7 @@ function rayFlatUse(){ if(rayTool(HANDS.L)==='medkit'||rayTool(HANDS.R)==='medki
 function rayBloodTex(t,lv,s){ const c=t.c,w=c.width,hh=c.height; return tex(w,hh,null,g=>{ g.drawImage(c,0,0); const r=rng(900+lv*7+(s==='L'?3:0)+w),k=w/16,n=[0,3,7,14][lv];
   for(let i=0;i<n;i++){ const x=r()*w,y=r()*hh,rx=(1+r()*2.2)*k,ry=(1+r()*1.6)*k; g.fillStyle=`rgba(${70+r()*40|0},${4+r()*8|0},${4+r()*6|0},${.45+.35*r()})`; g.beginPath(); g.ellipse(x,y,rx,ry,r()*3,0,6.283); g.fill();
     if(r()<.5){ g.fillStyle='rgba(40,2,2,.6)'; g.beginPath(); g.ellipse(x,y,rx*.5,ry*.5,0,0,6.283); g.fill(); } } }); }
-function rayMatsInit(){ RAY.mats={}; for(const s of ['L','R']){ const h=HANDS[s],L=[]; for(const n of [h.node.kids[0],h.armN.kids[0]]){ const mat=n&&n.mesh&&n.mesh.mats[0]; if(!mat||!mat.tex||!mat.tex.c) continue;
+function rayMatsInit(){ RAY.mats={}; for(const s of ['L','R']){ const h=HANDS[s],L=[]; for(const mat of [...(h.hm?h.hm.mats:[]),h.armN.kids[0]&&h.armN.kids[0].mesh&&h.armN.kids[0].mesh.mats[0]]){ if(!mat||!mat.tex||!mat.tex.c) continue;
     L.push({mat,col:mat.color.slice(),lv:[mat.tex,null,null,null]}); } RAY.mats[s]=L; } }
 function rayBloodShow(){ if(!RAY.mats) rayMatsInit(); for(const s of ['L','R']){ const b=RAY.blood[s],lv=b<.12?0:b<.4?1:b<.7?2:3; if(lv===RAY.bloodLv[s]) continue; RAY.bloodLv[s]=lv;
   for(const m of RAY.mats[s]){ if(!m.lv[lv]) m.lv[lv]=rayBloodTex(m.lv[0],lv,s); m.mat.tex=m.lv[lv]; m.mat.color=lv?[m.col[0]*(1-.05*lv),m.col[1]*(1-.1*lv),m.col[2]*(1-.1*lv)]:m.col; } } }
@@ -13370,7 +13492,7 @@ addEventListener('keydown',e=>{ if(e.code!=='KeyU'||!GAME.started||FLOOR.mode!==
 protoOn('load',()=>{ if(FLOOR.mode==='proto') pfSwPlace(); });
 protoOn('reset',()=>{ if(FLOOR.mode!=='proto') return; for(const sw of PF.switches){ sw.on=sw.on0; sw.byRay=false; sw.held={}; pfSwApply(sw,true); } });
 protoOn('tick',()=>{ if(FLOOR.mode!=='proto'||!PF.switches.length||!GAME.started||PL.dead) return;
-  if(XR.on) for(const h of [HANDS.L,HANDS.R]){ if(h.src&&h.M) pfSwPoke(mulP(h.M,FIST),h===HANDS.L?'L':'R'); }
+  if(XR.on) for(const h of [HANDS.L,HANDS.R]){ if(h.src&&h.M) pfSwPoke(handTip(h),h===HANDS.L?'L':'R'); } /* the fingertip when you point (59-hands.js) */
   else if(typeof HIDE!=='undefined'&&HIDE.fake&&HIDE.fake.hands) HIDE.fake.hands.forEach((p,k)=>{ if(p) pfSwPoke(p,'F'+k); });
   /* searching, a man passing a switch Ray turned off puts the light back on */
   if(typeof HUNT!=='undefined'&&HUNT.state==='hunting') for(const sw of PF.switches){ if(sw.on||!sw.byRay||GAME.t-sw.t<4) continue;
@@ -15245,7 +15367,7 @@ if(document.fonts&&document.fonts.load) document.fonts.load('16px "VT323"').then
    after the run: time, kills, shots/hits. Debug in play: time, kills, the floor's state (C calm, H hunting + seconds, E on edge), + when hidden */
 let wristTex=null,wristN=null;
 function wtext(g,s,x,y,col){ for(const ch of s){ if(ch===':'){ g.fillStyle=col; g.fillRect(x+1,y+1,1,1); g.fillRect(x+1,y+3,1,1); } else text(g,ch,x,y,col); x+=4; } }
-function drawWrist2(){ if(!wristN){ wristTex=tex(64,7,'#0a0b0d'); wristN=mk(plane(.06,.0066),M(wristTex,{unlit:true}),HANDS.L.armN,.046,.0122,-.05,0,Math.PI/2,0); }
+function drawWrist2(){ if(!wristN){ wristTex=tex(64,7,'#0a0b0d'); wristN=mk(plane(.06,.0066),M(wristTex,{unlit:true}),HANDS.L.armN,ARM_LBL_X,.0122,-.07,0,Math.PI/2,0); }
   const R=SHELL.end?SHELL.end.R:SHELL.run; wristN.vis=XR.on&&!!R; if(!R) return;
   let s=fmtT(R.t)+' K'+R.kills.length;
   if(SHELL.end) s+=' '+R.shots+'/'+R.hits;

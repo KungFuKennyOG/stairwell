@@ -143,7 +143,7 @@ if(document.fonts&&document.fonts.load) document.fonts.load('16px "VT323"').then
    after the run: time, kills, shots/hits. Debug in play: time, kills, the floor's state (C calm, H hunting + seconds, E on edge), + when hidden */
 let wristTex=null,wristN=null;
 function wtext(g,s,x,y,col){ for(const ch of s){ if(ch===':'){ g.fillStyle=col; g.fillRect(x+1,y+1,1,1); g.fillRect(x+1,y+3,1,1); } else text(g,ch,x,y,col); x+=4; } }
-function drawWrist2(){ if(!wristN){ wristTex=tex(64,7,'#0a0b0d'); wristN=mk(plane(.06,.0066),M(wristTex,{unlit:true}),HANDS.L.armN,.046,.0122,-.05,0,Math.PI/2,0); }
+function drawWrist2(){ if(!wristN){ wristTex=tex(64,7,'#0a0b0d'); wristN=mk(plane(.06,.0066),M(wristTex,{unlit:true}),HANDS.L.armN,ARM_LBL_X,.0122,-.07,0,Math.PI/2,0); }
   const R=SHELL.end?SHELL.end.R:SHELL.run; wristN.vis=XR.on&&!!R; if(!R) return;
   let s=fmtT(R.t)+' K'+R.kills.length;
   if(SHELL.end) s+=' '+R.shots+'/'+R.hits;

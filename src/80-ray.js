@@ -240,7 +240,7 @@ function rayFlatUse(){ if(rayTool(HANDS.L)==='medkit'||rayTool(HANDS.R)==='medki
 function rayBloodTex(t,lv,s){ const c=t.c,w=c.width,hh=c.height; return tex(w,hh,null,g=>{ g.drawImage(c,0,0); const r=rng(900+lv*7+(s==='L'?3:0)+w),k=w/16,n=[0,3,7,14][lv];
   for(let i=0;i<n;i++){ const x=r()*w,y=r()*hh,rx=(1+r()*2.2)*k,ry=(1+r()*1.6)*k; g.fillStyle=`rgba(${70+r()*40|0},${4+r()*8|0},${4+r()*6|0},${.45+.35*r()})`; g.beginPath(); g.ellipse(x,y,rx,ry,r()*3,0,6.283); g.fill();
     if(r()<.5){ g.fillStyle='rgba(40,2,2,.6)'; g.beginPath(); g.ellipse(x,y,rx*.5,ry*.5,0,0,6.283); g.fill(); } } }); }
-function rayMatsInit(){ RAY.mats={}; for(const s of ['L','R']){ const h=HANDS[s],L=[]; for(const n of [h.node.kids[0],h.armN.kids[0]]){ const mat=n&&n.mesh&&n.mesh.mats[0]; if(!mat||!mat.tex||!mat.tex.c) continue;
+function rayMatsInit(){ RAY.mats={}; for(const s of ['L','R']){ const h=HANDS[s],L=[]; for(const mat of [...(h.hm?h.hm.mats:[]),h.armN.kids[0]&&h.armN.kids[0].mesh&&h.armN.kids[0].mesh.mats[0]]){ if(!mat||!mat.tex||!mat.tex.c) continue;
     L.push({mat,col:mat.color.slice(),lv:[mat.tex,null,null,null]}); } RAY.mats[s]=L; } }
 function rayBloodShow(){ if(!RAY.mats) rayMatsInit(); for(const s of ['L','R']){ const b=RAY.blood[s],lv=b<.12?0:b<.4?1:b<.7?2:3; if(lv===RAY.bloodLv[s]) continue; RAY.bloodLv[s]=lv;
   for(const m of RAY.mats[s]){ if(!m.lv[lv]) m.lv[lv]=rayBloodTex(m.lv[0],lv,s); m.mat.tex=m.lv[lv]; m.mat.color=lv?[m.col[0]*(1-.05*lv),m.col[1]*(1-.1*lv),m.col[2]*(1-.1*lv)]:m.col; } } }

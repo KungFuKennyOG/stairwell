@@ -93,7 +93,7 @@ function obeyTick(E,dt){ if(!E.obey) return; if(E.dead||E.st==='down'){ E.obey=n
 
 /* the bar on your left wrist, under the FPS: your level, the talk and shout marks; it flashes when a talk or a shout counts */
 let micTex=null,micN=null; /* built on first use: the hands (60-weapons.js) come after this file */
-function drawMicBar(){ if(!micN){ micTex=tex(32,4,'#0a0b0d'); micN=mk(plane(.045,.0056),M(micTex,{unlit:true}),HANDS.L.armN,.046,-.0118,-.05,0,Math.PI/2,0); }
+function drawMicBar(){ if(!micN){ micTex=tex(32,4,'#0a0b0d'); micN=mk(plane(.045,.0056),M(micTex,{unlit:true}),HANDS.L.armN,ARM_LBL_X,-.0118,-.07,0,Math.PI/2,0); }
   micN.vis=XR.on; const g=micTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,32,4);
   if(MIC.state!=='on'){ g.fillStyle=MIC.state==='denied'?'#5a1f1c':'#2d2b27'; g.fillRect(1,1,30,2); }
   else { const x=db=>Math.round(clamp((db+70)/62,0,1)*31); /* -70 to -8 dBFS across the bar */

@@ -77,15 +77,15 @@ function flatToggleCan(){ const h=HANDS.R,it=h.item; if(!it||!CAN_SPEC[it.key]) 
 
 /* ---------- hands ---------- */
 function ammoTexNew(){ return tex(16,8,'#0a0b0d'); }
-const UPPER_ARM=.3,FOREARM=.27,WRIST=[0,-.04,-.05]; /* metres; the wrist sits just inside the back of the fist */
+const UPPER_ARM=.3,FOREARM=.27,WRIST=[0,-.04,-.05],ARM_LBL_X=.039; /* metres; the wrist sits just inside the back of the fist */
 function makeHand(side){ const n=N(world);
-  mk(box(.072,.084,.094),M(side==='R'?tTape:tRayGlove),n,FIST[0],FIST[1],FIST[2]);
+  const hm=rayHandBuild(side,n); /* a real hand (59-hands.js) */
   /* the forearm is its own piece (updateArms): it runs from the wrist back to where your elbow is, so turning your wrist only turns the fist */
-  const arm=N(world); mk(lathe([[-FOREARM,.05,.05],[0,.044,.044]],6),M(side==='R'?tRayArmR:tRayArmL),arm,0,0,0,Math.PI/2,0,0);
-  return {side,armN:arm,hand:side==='R'?'right':'left',node:n,item:null,itemNode:null,M:m4.make(),prevPts:null,cd:0,rec:0,ammoTex:ammoTexNew(),ammoShown:-9,ammoN:null,swingT:-1,swingDone:false,vel:[0,0,0],prevPos:null}; }
+  const arm=N(world); mk(lathe([[-FOREARM,.05,.05],[-.14,.045,.047],[-.05,.033,.039],[.004,.024,.032]],6),M(side==='R'?tRayArmR:tRayArmL),arm,0,0,0,Math.PI/2,0,0); /* tapers to the wrist: wide across the hand, thinner through it */
+  return {side,hm,armN:arm,hand:side==='R'?'right':'left',node:n,item:null,itemNode:null,M:m4.make(),prevPts:null,cd:0,rec:0,ammoTex:ammoTexNew(),ammoShown:-9,ammoN:null,swingT:-1,swingDone:false,vel:[0,0,0],prevPos:null}; }
 const HANDS={L:makeHand('L'),R:makeHand('R')};
 /* frame rate on the inside of the left wrist (VR) */
-const fpsTex=tex(24,8,'#0a0b0d'); const fpsN=mk(plane(.045,.015),M(fpsTex,{unlit:true}),HANDS.L.armN,.046,0,-.05,0,Math.PI/2,0); fpsN.vis=false;
+const fpsTex=tex(24,8,'#0a0b0d'); const fpsN=mk(plane(.045,.015),M(fpsTex,{unlit:true}),HANDS.L.armN,ARM_LBL_X,0,-.07,0,Math.PI/2,0); fpsN.vis=false;
 function drawFps(v){ fpsN.vis=XR.on; const g=fpsTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,24,8); const s=String(v); text(g,s,(24-textW(s))>>1,1,v>=68?'#7ec27a':v>=55?'#e2a33d':'#ff3b30');
   if(fpsTex.glt){ gl.bindTexture(gl.TEXTURE_2D,fpsTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,fpsTex.c); } }
 function equip(h,item){
@@ -96,6 +96,7 @@ function equip(h,item){
   /* VR melee: turned so the handle runs through the fist and the blade comes out over the thumb (61-melee.js) */
   const a=XR.on&&w.melee&&!w.fwd?meleeAngle(item):0,c=Math.cos(a),sn=Math.sin(a),gr=w.grip,rg=[gr[0],gr[1]*c-gr[2]*sn,gr[1]*sn+gr[2]*c];
   const g=N(h.node,FIST[0]-rg[0],FIST[1]-rg[1],FIST[2]-rg[2],a,0,0); GEO_TEMP=true; w.build(g); GEO_TEMP=false; h.itemNode=g;
+  const tr=HAND_TURN[item.key]; if(tr){ g.r=tr.slice(); const Rm=m4.make(); m4.compose(Rm,[0,0,0],g.r,[1,1,1]); const q=mulP(Rm,gr); g.p=[FIST[0]-q[0],FIST[1]-q[1],FIST[2]-q[2]]; } /* stood up in the hand (59-hands.js) */
   h.itemPR={p:g.p.slice(),r:g.r.slice()}; h.itemL=m4.make(); m4.compose(h.itemL,g.p,g.r,[1,1,1]);
   if(w.gun){ h.ammoN=mk(plane(.032,.016),M(h.ammoTex,{unlit:true}),g,-.03,w.axisY+.012,.0,0,-Math.PI/2,0); addSights(g,item.key); if(item.sup) addCan(g,item.key); } }
 /* iron sights: a rear notch and a front post on the same line as the bore, with glowing dots you can find in a dark corridor */
@@ -156,15 +157,18 @@ function applySupport(h){ const s=h.support; if(!s||!h.item||!h.itemNode){ h.ite
    takes the hand's twist, so a bent wrist shows as a bend at the wrist instead of swinging the whole arm. */
 function updateArms(f,u,eye){
   let fx=f[0]-u[0]*f[1],fz=f[2]-u[2]*f[1]; const k=Math.hypot(fx,fz)||1; fx/=k; fz/=k; const fl=[fx,0,fz],rl=[-fz,0,fx],T=m4.make(),L=UPPER_ARM+FOREARM;
-  for(const h of [HANDS.L,HANDS.R]){ const a=h.armN; a.vis=h.node.vis!==false; if(!a.vis) continue;
-    m4.compose(T,h.node.p,h.node.r,[1,1,1]); const W=mulP(T,WRIST),sd=h.side==='R'?1:-1;
+  for(const h of [HANDS.L,HANDS.R]){ const a=h.armN; a.vis=h.node.vis!==false&&!HANDP.noArm; if(!a.vis) continue;
+    m4.compose(T,h.node.p,h.node.r,[1,1,1]); const HW=handWrist(h),W=HW?HW.W:mulP(T,WRIST),sd=h.side==='R'?1:-1;
     const S=v3.add(eye,v3.add([0,-.24,0],v3.add(v3.sc(rl,sd*.18),v3.sc(fl,-.05))));
     const v=v3.sub(W,S),dl=Math.hypot(...v)||1,dir=v3.sc(v,1/dl),d=clamp(dl,.12,L-.005);
     const al=(UPPER_ARM*UPPER_ARM-FOREARM*FOREARM+d*d)/(2*d),ht=Math.sqrt(Math.max(0,UPPER_ARM*UPPER_ARM-al*al));
     let P=v3.add([0,-1,0],v3.add(v3.sc(rl,sd*.55),v3.sc(fl,-.2))); P=v3.sub(P,v3.sc(dir,v3.dot(P,dir))); const pl=Math.hypot(...P); P=pl>1e-4?v3.sc(P,1/pl):[0,-1,0];
     const E=v3.add(S,v3.add(v3.sc(dir,al),v3.sc(P,ht)));
     let Z=v3.sub(W,E); const zl=Math.hypot(...Z); Z=zl>1e-4?v3.sc(Z,1/zl):norm3(colOf(T,2));
-    const hy=colOf(T,1); let Y=v3.sub(hy,v3.sc(Z,v3.dot(hy,Z))); const yl=Math.hypot(...Y); Y=yl>.05?v3.sc(Y,1/yl):norm3(v3.sub([0,1,0],v3.sc(Z,Z[1])));
+    if(HW){ /* a wrist only bends so far: past its range the forearm comes round with the hand (no broken wrists) */
+      const b=v3.sc(Z,-1),bz=-v3.dot(b,HW.L),fl=clamp(Math.atan2(v3.dot(b,HW.Pn),bz),-HANDP.flex,HANDP.ext),dv=clamp(Math.atan2(v3.dot(b,HW.Y),bz),-HANDP.radial,HANDP.ulnar);
+      Z=v3.sc(norm3(v3.add(v3.sc(HW.L,-1),v3.add(v3.sc(HW.Pn,Math.tan(fl)),v3.sc(HW.Y,Math.tan(dv))))),-1); }
+    const hy=HW?HW.Y:colOf(T,1); let Y=v3.sub(hy,v3.sc(Z,v3.dot(hy,Z))); const yl=Math.hypot(...Y); Y=yl>.05?v3.sc(Y,1/yl):norm3(v3.sub([0,1,0],v3.sc(Z,Z[1])));
     a.p=W; a.r=eul([v3.cross(Y,Z),Y,Z]); } }
 
 /* ---------- sights: a dot where the barrel points, and an optional laser ---------- */

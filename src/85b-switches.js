@@ -81,7 +81,7 @@ addEventListener('keydown',e=>{ if(e.code!=='KeyU'||!GAME.started||FLOOR.mode!==
 protoOn('load',()=>{ if(FLOOR.mode==='proto') pfSwPlace(); });
 protoOn('reset',()=>{ if(FLOOR.mode!=='proto') return; for(const sw of PF.switches){ sw.on=sw.on0; sw.byRay=false; sw.held={}; pfSwApply(sw,true); } });
 protoOn('tick',()=>{ if(FLOOR.mode!=='proto'||!PF.switches.length||!GAME.started||PL.dead) return;
-  if(XR.on) for(const h of [HANDS.L,HANDS.R]){ if(h.src&&h.M) pfSwPoke(mulP(h.M,FIST),h===HANDS.L?'L':'R'); }
+  if(XR.on) for(const h of [HANDS.L,HANDS.R]){ if(h.src&&h.M) pfSwPoke(handTip(h),h===HANDS.L?'L':'R'); } /* the fingertip when you point (59-hands.js) */
   else if(typeof HIDE!=='undefined'&&HIDE.fake&&HIDE.fake.hands) HIDE.fake.hands.forEach((p,k)=>{ if(p) pfSwPoke(p,'F'+k); });
   /* searching, a man passing a switch Ray turned off puts the light back on */
   if(typeof HUNT!=='undefined'&&HUNT.state==='hunting') for(const sw of PF.switches){ if(sw.on||!sw.byRay||GAME.t-sw.t<4) continue;
