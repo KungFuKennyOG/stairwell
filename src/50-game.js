@@ -188,6 +188,10 @@ function setPose(E,name,t){
     case 'guard': { rel=true; const tr=.04*s(ph*8); /* on his back with your gun on him: head and shoulders up, both forearms up in front of his face, palms out */
       j={spine:[.42,0,0],neck:[.3,0,0],head:[.12,0,0],thighL:[-.8,0,.15],kneeL:[1.64,0,0],thighR:[-.65,0,-.15],kneeR:[1.34,0,0],
       armL:[-1.3+tr,0,.28],elbowL:[-1.15,0,0],armR:[-1.3-tr,0,-.28],elbowR:[-1.15,0,0]}; break; } /* arms out toward you, not back over his head */
+    case 'catch': { rel=true; /* shot down and falling: folding at the hips and knees, both hands thrown out in front to break the fall. Relative to the pelvis, so it
+         holds nothing up: gravity takes him, the pose only decides how he lands */
+      j={spine:[.65,0,0],neck:[.15,0,0],head:[.2,0,0],thighL:[-1.0,0,.12],kneeL:[1.5,0,0],thighR:[-1.0,0,-.12],kneeR:[1.5,0,0],
+      armL:[-1.25,0,.3],elbowL:[-.3,0,0],armR:[-1.25,0,-.3],elbowR:[-.3,0,0]}; break; }
     case 'still': { rel=true; const br=.015*s(ph*1.3); /* playing dead, or too far gone to move: flat, slack, just breathing */
       j={spine:[.05+br,0,0],neck:[.05,0,0],head:[0,0,0],thighL:[-.08,0,.08],kneeL:[.15,0,0],thighR:[-.05,0,-.08],kneeR:[.1,0,0],
       armL:[-.25,0,.5],elbowL:[-.35,0,0],armR:[-.2,0,-.45],elbowR:[-.25,0,0]}; break; }
@@ -216,7 +220,7 @@ function targetsFor(E,t,dt=1){
   const throat=!E.dead&&E.wounds.some(w=>w.part==='neck'&&!w.piece); /* a man holding his throat shut doesn't beg */
   if(st==='idle') pose='idle'; else if(st==='alert') pose=E.surr?(E.surr.ph==='reach'?'reach':'hands'):E.civFreeze?'freeze':'fight';
   else if(st==='kneel') pose=E.civMode==='shield'&&E.shielder?'shield':E.surr&&!throat?'kneelup':E.near&&!throat?'beg':'kneel';
-  else if(st==='down'){ pose=E.fallT>0?'kneel':E.downMode||'writhe'; }
+  else if(st==='down'){ pose=E.fallT>0?'catch':E.downMode||'writhe'; } /* going down: falling, hands out (buckle), then whatever he does on the floor */
   else pose='writhe';
   if(E.drop){ E.drop.t+=dt; if(E.drop.t>=E.drop.T){ E.drop=null; E.settle=Math.max(E.settle||0,.9); } }
   const rel=setPose(E,pose,t);
@@ -250,7 +254,7 @@ function targetsFor(E,t,dt=1){
     for(let c=0;c<3;c++){ E.Lc[o+c]=lerp(E.Lc[o+c],l[c],kb); E.Wt[o+c]=lerp(E.Wt[o+c],w[c],kw); } }
   /* muscles */
   const c=E.cons,legs=Math.min(E.hp.legL,E.hp.legR);
-  let sup=0; if(!E.dead&&(st==='idle'||st==='alert')) sup=1; else if(!E.dead&&st==='kneel') sup=.95; else if(!E.dead&&st==='down'&&E.fallT>0) sup=.85*E.fallT/.8;
+  let sup=0; if(!E.dead&&(st==='idle'||st==='alert')) sup=1; else if(!E.dead&&st==='kneel') sup=.95; else if(!E.dead&&st==='down'&&E.fallT>0) sup=0;
   if(rel) sup=0;
   sup*=clamp(c*1.7,0,1)*(1-(st==='down'?Math.min(E.stun,.5):E.stun))*E.rise*(E.grabbed?.35:1); E.sup=sup; /* held: off balance */
   const twitch=E.dead?.008*Math.max(0,1-E.deadT/1.2):0,cold=!E.dead&&E.knocked&&E.koT>0&&st==='down'&&E.downT<E.koT; /* out cold: a sack, no pose held */
@@ -980,7 +984,13 @@ function toDown(E,hard){ /* unless knocked flat, they buckle: held up on the way
   E.st='down'; E.downT=0; E.settle=Math.max(E.settle||0,1.4); E.surr=null; E.civFreeze=false; if(faker) fakeDeadStart(E); else dropWeapon(E);
   const B=E.B,Rh=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),X_(B,PI_.pelvis),X_(B,PI_.chest)),fw=Rh[2];
   E.pos=[B.x[0],B.x[2]]; if(Math.hypot(fw[0],fw[2])>.3){ /* keep the heading he had unless his hips really turned: snapping to a noisy hip frame yanks the whole body round */
-    const h2=Math.atan2(fw[0],fw[2]),d=Math.atan2(Math.sin(h2-E.hd),Math.cos(h2-E.hd)); if(Math.abs(d)>.7) E.hd+=d*.5; } E.fallT=hard?0:.8; }
+    const h2=Math.atan2(fw[0],fw[2]),d=Math.atan2(Math.sin(h2-E.hd),Math.cos(h2-E.hd)); if(Math.abs(d)>.7) E.hd+=d*.5; } E.fallT=hard?0:.55; if(!hard&&!E.dead) buckle(E); }
+/* shot down: the bad leg goes at once (the knee pitched forward, the hips dropping) and the trunk carries on the way it was going or was hit, so there's no
+   frozen beat held upright. Then he falls under his own weight (pose 'catch'), not lowered onto a knee by a puppet */
+function buckle(E){ const B=E.B,fw=[Math.sin(E.hd),0,Math.cos(E.hd)],d=E.hitDir||[0,0,0],dh=norm3([d[0],0,d[2]]),bad=E.hp.legL<E.hp.legR?'L':'R',good=bad==='L'?'R':'L';
+  kickV(B,PI_.pelvis,[0,-.9,0],H); for(const s of ['L','R']) kickV(B,PI_['hip'+s],[0,-.75,0],H);
+  kickV(B,PI_['kn'+bad],v3.add(v3.sc(fw,1.1),[0,-.35,0]),H); kickV(B,PI_['kn'+good],v3.sc(fw,.45),H);
+  const top=v3.add(v3.sc(fw,.3),v3.sc(dh,.35)); for(const i of [PI_.chest,PI_.neck,PI_.shL,PI_.shR,PI_.head]) kickV(B,i,top,H); }
 /* the weapon's world matrix: pistols ride in the hand, long guns are braced on the chest (two-handed hold) */
 function wpnMat(E){ const w=E.C.wpn,loc=m4.make(),Wm=m4.make(); m4.compose(loc,w.p,w.r,w.s); const pb=BONES.find(b=>E.J[b]===w.par)||('hand'+E.wpnHand); m4.mul(Wm,E.M[pb],loc); return Wm; }
 function gunRay(E){ const Wm=wpnMat(E),W=WPN[KIND_WPN[E.kind]]; const mz=mulP(Wm,W.muzzle); return {mz,d:norm3(v3.sub(mz,mulP(Wm,[0,W.axisY,0])))}; }

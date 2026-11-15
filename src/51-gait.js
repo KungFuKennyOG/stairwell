@@ -53,7 +53,7 @@ function gait(E,t,dt){
     for(const s of ['L','R']) G.f[s]={w:toW(rest[s][0],rest[s][2]),yaw:E.hd+restYaw[s],sw:null,pitch:0}; }
   if(dt>0&&dt<.5){ const k=Math.min(1,dt*10); G.v[0]=lerp(G.v[0],(E.pos[0]-G.last[0])/dt,k); G.v[1]=lerp(G.v[1],(E.pos[1]-G.last[1])/dt,k); }
   G.last=E.pos.slice();
-  const sp=Math.hypot(G.v[0],G.v[1]),moving=sp>.2&&E.walkAmt>.25,rn=E.runAmt||0;
+  const sp=Math.hypot(G.v[0],G.v[1]),moving=sp>.32||sp>.2&&E.walkAmt>.25,rn=E.runAmt||0; /* the body is going somewhere: the feet step, whatever moved him (walking, shoved apart in a doorway, sliding along a wall, driven back by a blow). Feet left planted while the hips travel stretched a leg out flat */
   G.amt=lerp(G.amt,moving?1:0,Math.min(1,dt*(moving?5:3.5)));
   const a=G.amt,D=lerp(GAIT.walkD,GAIT.runD,rn),f=.7+.23*Math.max(sp,.55); /* cycles a second: ~0.9 strolling, ~1.4 running */
   const liftU={L:D,R:fract(.5+D)},contactU={L:0,R:.5};
@@ -64,10 +64,16 @@ function gait(E,t,dt){
     if(!G.was){ /* setting off: the foot further behind goes first */
       const dx=G.v[0]/sp,dz=G.v[1]/sp,back=s=>(G.f[s].w[0]-E.pos[0])*dx+(G.f[s].w[1]-E.pos[1])*dz;
       G.u=back('L')<=back('R')?liftU.L-.001:liftU.R-.001; }
-    const u0=G.u,u1=u0+f*dt; G.u=fract(u1);
-    for(const s of ['L','R']){ const L=liftU[s]; const crossed=L>u0?u1>=L:u1>=L+1;
-      if(crossed&&!G.f[s].sw) lift(s,(1-D)/f,false); } }
+    G.u=fract(G.u+f*dt);
+    /* a foot lifts once the stance part of its cycle is over. (Waiting for the phase to cross a lift point missed it whenever he sped up:
+       running shortens the stance, the lift point slid back past the phase, and the foot stayed planted a whole cycle while he travelled on,
+       the leg dragged out flat behind him.) Walking, one foot is always down; only running lets both leave the floor */
+    for(const s of ['L','R']){ const q=fract(G.u-contactU[s]),o=G.f[s==='L'?'R':'L'];
+      if(!G.f[s].sw&&q>=D&&q<.96&&(!o.sw||o.sw.settle||rn>.5)) lift(s,Math.max(.14,(1-q)/f),false); } }
   G.was=moving;
+  /* a catch step: a planted foot left too far from under him (shoved, turned hard, the cycle out of step) is picked up now, as a stumbling man does */
+  for(const s of ['L','R']){ const F=G.f[s]; if(F.sw) continue; const r=toW(rest[s][0],rest[s][2]);
+    if(Math.hypot(F.w[0]-r[0],F.w[1]-r[1])>.6+.25*rn&&!(G.f[s==='L'?'R':'L'].sw&&!G.f[s==='L'?'R':'L'].sw.settle&&rn<.5)){ lift(s,.2,!moving); break; } }
   /* standing: step a foot back under him if it has ended up out of place */
   if(!moving&&!G.f.L.sw&&!G.f.R.sw){ let worst=null,we=GAIT.settleErr;
     for(const s of ['L','R']){ const F=G.f[s],r=toW(rest[s][0],rest[s][2]),e=Math.hypot(F.w[0]-r[0],F.w[1]-r[1])+.22*Math.abs(wrapA(F.yaw-stepYaw(s))); if(e>we){ we=e; worst=s; } }
