@@ -16,9 +16,7 @@ const WK_PLACE=[ /* id, x, z, facing (0 = +z, north), pose */
   ['wk_floor2',-4.1,3.55,-.5,'lean'],['wk_floor3',2.2,3.5,2.6,'watch'],['wk_door2',5.6,1.0,-1.9,'watch'],
   ['wk_floor4',11.7,.9,-.7,'watch'],['wk_cook',-9.3,-2.2,-2.55,'watch'] ];
 function wkCastPlace(){ if(WKART.root){ disposeTree(WKART.root); const i=world.kids.indexOf(WKART.root); if(i>=0) world.kids.splice(i,1); } WKART.root=N(world); WKART.cast.length=0;
-  GEO_TEMP=true; /* the build comparison at the bar: the tower's man, then imported bodies if their data is here */
-  { const slot=N(WKART.root,-1.7,0,2.5,0,Math.PI,0),C=wkMakeChar('wk_floor1',slot,'wick',false); applyPose(C,'idle'); WKART.cast.push(C); }
-  { const D=wkDuskCast(); for(const [name,x,pose] of [['suit',-.6,'idle'],['heavy',.5,'fight'],['boss',1.6,'idle'],['door',2.7,'fight'],['floor',3.8,'fight']]){ const slot=N(WKART.root,x,0,2.5,0,Math.PI,0),C=wkDuskMan(D[name],slot); applyPose(C,C.poses[pose]?pose:'idle'); WKART.cast.push(C); } } /* the Dusk-built test cast */
+  GEO_TEMP=true;
   for(const [id,x,z,ry,pose] of WK_PLACE){ const slot=N(WKART.root,x,0,z,0,ry,0),C=wkMakeChar(id,slot); applyPose(C,C.poses[pose]?pose:'fight'); WKART.cast.push(C); } GEO_TEMP=false; }
 protoOn('tick',()=>{ if(FLOOR.mode!=='wick') return; for(const C of WKART.cast) skinUpdate(C); });
 
