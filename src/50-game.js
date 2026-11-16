@@ -88,7 +88,8 @@ function setX(B,i,v){ B.x[i*3]=v[0]; B.x[i*3+1]=v[1]; B.x[i*3+2]=v[2]; }
 function kickV(B,i,v,h){ for(let c=0;c<3;c++) B.p[i*3+c]-=v[c]*h; B.wake=1; }
 const H=1/240;
 /* tuning for bodies on the floor (see the stepBody/targetsFor comments) */
-const PHYS={k:.016,cr:.0011,kd:.02,kdDown:.1,fric:.82,wr:1,grip:.95}; /* on the floor: softer muscles, a lower force cap and much more damping, so a hurt man moves like a heavy body instead of buzzing */
+const PHYS={k:.016,cr:.0011,kd:.02,kdDown:.1,fric:.82,wr:1,grip:.95,
+  capLive:[1.5,.9], capDead:[.5,.04]}; /* m/s [along the floor, upward] for any part of a man lying on the floor, once he's landed (2026-11-16, Kenny: "too ragdolly, sometimes even jumps up when they're down"): hands were whipping at 5 to 40 m/s and bodies hopping 12 cm. Falling is never capped */ /* on the floor: softer muscles, a lower force cap and much more damping, so a hurt man moves like a heavy body instead of buzzing */
 
 /* ---------- enemies ---------- */
 const RANGED={gunman:1,doorman:1,enforcer:1,landlord:1};
@@ -232,8 +233,9 @@ function targetsFor(E,t,dt=1){
   const throat=!E.dead&&E.wounds.some(w=>w.part==='neck'&&!w.piece); /* a man holding his throat shut doesn't beg */
   if(st==='idle') pose='idle'; else if(st==='alert') pose=E.surr?(E.surr.ph==='reach'?'reach':'hands'):E.civFreeze?'freeze':'fight';
   else if(st==='kneel') pose=E.civMode==='shield'&&E.shielder?'shield':E.surr&&!throat?'kneelup':E.near&&!throat?'beg':'kneel';
-  else if(st==='down'){ pose=E.fallT>0?(E.fallKneel?'slump':'catch'):E.downMode||'writhe'; if((E.downUp??0)<-.3&&(pose==='curl'||pose==='cower')) pose='p'+pose; } /* face down, knees-to-chest is a man kneeling with his face on the floor: the face-down way instead */ /* going down: falling, hands out (buckle), then whatever he does on the floor */
+  else if(st==='down'){ pose=E.fallT>0?(E.fallKneel?'slump':'catch'):E.downMode||'writhe'; const up=E.downUp??0; if(up<-.35) E.proneP=true; else if(up>.1) E.proneP=false; /* which way up he is, with a dead band: at the edge he used to flip between the two poses and flop about */ if(E.proneP&&(pose==='curl'||pose==='cower')) pose='p'+pose; } /* face down, knees-to-chest is a man kneeling with his face on the floor: the face-down way instead */ /* going down: falling, hands out (buckle), then whatever he does on the floor */
   else pose='writhe';
+  E.poseN=pose;
   if(E.drop){ E.drop.t+=dt; if(E.drop.t>=E.drop.T){ E.drop=null; E.settle=Math.max(E.settle||0,.9); } }
   const rel=setPose(E,pose,t);
   /* walking (51-gait.js): planted feet, IK legs, pelvis and arms. Then attack swings, layered over the pose */
@@ -281,6 +283,9 @@ function targetsFor(E,t,dt=1){
 /* ---------- physics ---------- */
 function stepBody(E,h){
   const B=E.B,x=B.x,p=B.p,g=9.8*h*h;
+  /* lying on the floor and landed: nothing on him moves faster than a hurt man (or a dead weight) can. Not while he's being hit, kicked, dragged or still dropping */
+  if((E.dead?E.deadT>1.2:E.st==='down'&&E.downT>1.5&&!(E.fallT>0)&&!E.gShoot)&&!E.drop&&!E.grabbed&&!(E.settle>0)&&E.hitT>.5){ const C=E.dead?PHYS.capDead:PHYS.capLive,mh=C[0]*h,mu=C[1]*h; E.capNow=C; (E.cx0||(E.cx0=new Float32Array(NP*3))).set(x);
+    for(let o=0;o<NP*3;o+=3){ const vx=x[o]-p[o],vz=x[o+2]-p[o+2],vh=Math.hypot(vx,vz); if(vh>mh){ const k=mh/vh; p[o]=x[o]-vx*k; p[o+2]=x[o+2]-vz*k; } if(x[o+1]-p[o+1]>mu) p[o+1]=x[o+1]-mu; } } else E.capNow=null;
   for(let i=0;i<NP*3;i+=3){ for(let c=0;c<3;c++){ const v=(x[i+c]-p[i+c])*.9985; p[i+c]=x[i+c]; x[i+c]+=v; } x[i+1]-=g; }
   /* dropping: for the first instant the knees keep travelling forward and the trunk keeps going the way it was pushed. Horizontal only, and
      fading fast: it decides how he folds, gravity does the rest */
@@ -485,6 +490,11 @@ function physics(h){
     E.calm=mv<.0004&&mx<.01?(E.calm||0)+h:0; if(E.calm>.35||E.deadT>6.5&&(E.hitT||0)>3&&mv<.0025) E.asleep=true; } /* and nothing dead keeps fidgeting past a few seconds of being left alone */
   for(const E of live) if(E.pins) for(const q of E.pins){ const a=q.a*3,i=q.i*3; for(let c=0;c<3;c++){ E.B.x[i+c]=E.B.x[a+c]+q.off[c]; E.B.p[i+c]=E.B.x[i+c]; } } /* a limb that no longer exists */
   for(let i=0;i<live.length;i++) for(let j=i+1;j<live.length;j++) collidePair(live[i],live[j]);
+  /* the same limit on where every part ended up this step, whatever moved it (joint stops, contact, the solver): those corrections shift a body
+     without giving it speed, so a speed limit alone left knees and hands twitching at 4 to 7 m/s. Down is never limited, nor a part below the floor coming back up */
+  for(const E of live){ const C=E.capNow; if(!C||E.grabbed) continue; const x=E.B.x,p=E.B.p,x0=E.cx0,r=E.B.r,mh=C[0]*h,mu=C[1]*h;
+    for(let i=0;i<NP;i++){ const o=i*3,dx=x[o]-x0[o],dz=x[o+2]-x0[o+2],dh=Math.hypot(dx,dz); if(dh>mh){ const k=mh/dh,nx=x0[o]+dx*k,nz=x0[o+2]+dz*k; p[o]+=nx-x[o]; p[o+2]+=nz-x[o+2]; x[o]=nx; x[o+2]=nz; }
+      const dy=x[o+1]-x0[o+1]; if(dy>mu&&x0[o+1]>r[i]+.002){ const ny=x0[o+1]+mu; p[o+1]+=ny-x[o+1]; x[o+1]=ny; } } }
 }
 /* skeleton from particles */
 /* a limb's upper bone (thigh, upper arm) frame for the mesh. The particles say where the bone points but not how it's twisted, and the
