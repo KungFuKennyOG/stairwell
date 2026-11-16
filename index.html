@@ -16150,7 +16150,7 @@ protoOn('tick',()=>{ if(WICK.on) wkLightsTick(); });
    WICK stage 1: the art view. ?wick=1&art=1 loads the club (91c) with the cast standing in it, so the screenshots for the art gate
    (plan 3.5) show exactly what the game draws. ?wick=1 without art=1 still loads floor 01 (the stress test).
    ===================================================================== */
-const WKART={on:WICK.on&&new URLSearchParams(location.search).get('art')==='1',old:new URLSearchParams(location.search).get('oldcast')==='1',cast:[]};
+const WKART={on:WICK.on&&new URLSearchParams(location.search).get('art')==='1',old:new URLSearchParams(location.search).get('oldcast')==='1',block:new URLSearchParams(location.search).get('cast')==='block',cast:[]};
 function wkBoot(){ if(!WKART.on) return false; wkLoad(); return true; }
 function wkLoad(){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); wkBuild(); resetGame(); protoEmit('load'); if(XR.on) vrRecenter(); }
 function wkReset(){ if(typeof wkCastPlace==='function') wkCastPlace(); if(typeof wkKit==='function') wkKit(); }
@@ -16164,7 +16164,7 @@ const WK_PLACE=[ /* id, x, z, facing (0 = +z, north), pose */
   ['wk_floor2',-4.1,3.55,-.5,'lean'],['wk_floor3',2.2,3.5,2.6,'watch'],['wk_door2',5.6,1.0,-1.9,'watch'],
   ['wk_floor4',11.7,.9,-.7,'watch'],['wk_cook',-9.3,-2.2,-2.55,'watch'] ];
 function wkCastPlace(){ if(WKART.root){ disposeTree(WKART.root); const i=world.kids.indexOf(WKART.root); if(i>=0) world.kids.splice(i,1); } WKART.root=N(world); WKART.cast.length=0;
-  GEO_TEMP=true; for(const [id,x,z,ry,pose] of WK_PLACE){ const slot=N(WKART.root,x,0,z,0,ry,0),C=WKART.old?wkMakeChar(id,slot):wkFig(WKF[id],slot); /* &oldcast=1: the first pass, on the tower's body, to compare */ applyPose(C,C.poses[pose]?pose:'fight'); WKART.cast.push(C); } GEO_TEMP=false; }
+  GEO_TEMP=true; for(const [id,x,z,ry,pose] of WK_PLACE){ const slot=N(WKART.root,x,0,z,0,ry,0),C=WKART.old?wkMakeChar(id,slot):WKART.block?wkFig(WKF[id],slot):wkFigSoft(WKF[id],slot); /* &oldcast=1: the first pass, on the tower's body, to compare */ applyPose(C,C.poses[pose]?pose:'fight'); WKART.cast.push(C); } GEO_TEMP=false; }
 protoOn('tick',()=>{ if(FLOOR.mode!=='wick') return; for(const C of WKART.cast) skinUpdate(C); });
 
 /* ---------- your hands, sleeves, watch and gun ---------- */
@@ -16272,6 +16272,46 @@ const WKF=(()=>{ const B='#0d0e12',G='#c89a3c',Wh='#ecebe4';
     wk_door2:door({skin:'#e8c8b0',hair:'#6a2a14',do:'slick',shades:true,hf:1.08,w:1.04,gear:PISTOL}),
     wk_boss:{j:'#5c0f20',sh:G,lap:'#101014',sq:G,btn:'#d8b060',p:B,cuff:Wh,skin:'#d6ae94',hair:'#c8c8cc',do:'sweep',glasses:'#d8b060',beard:1,v:18,hw:7,hf:1.03,w:1.0,kind:'landlord',gear:REVOLVER},
     wk_cook:{j:'#e2e0d8',sh:'#e2e0d8',lap:'#b8b6ae',db:'#b8b6ae',p:'#1a1c22',cuff:'#c49a78',skin:'#c49a78',hair:'#1a1410',do:'band',beard:1,v:5,hw:3,hf:1.05,w:1.04,kind:'cutter',gear:{prop:pKnife,gripHand:true,wFight:{p:[0,-.075,0],r:[1.57,0,0]},fight:ONE_HAND}} }; })();
+
+/* ---------- the same idea, less blocky: rounded low-poly parts (8 to 10 sides, smooth shaded) instead of slabs ----------
+   Still separate hard-edged pieces on the joints, still pixel faces and flat cloth; the silhouette is turned, not boxed. */
+/* a front texture wrapped round a lathe: the picture sits in the middle (the front), the base colour goes round the back */
+function wkWrapTex(src,w,base,back){ return tex(w,src.c.height,base,g=>{ if(back){ g.fillStyle=back; g.fillRect(0,0,w,src.c.height); } g.drawImage(src.c,(w-src.c.width)>>1,0); }); }
+function wkFigSoft(S,parent,grp='wick'){ const o=Object.assign(baseMats('gunman'),{hf:S.hf||1.06,w:S.w||1,depth:1,lg:1,ag:1,headS:1,torsoM:M(null),armM:M(null),legM:M(null),footM:M(null)});
+  const J=rig(o,parent),H=o.hf,W=o.w,isJ=new Set(BONES.map(b=>J[b])); J.body.vis=false;
+  for(const b of BONES) for(const k of J[b].kids) if(!isJ.has(k)) k.vis=false;
+  const C_=c=>M(null,{color:hexInt(c)}),mj=C_(S.j),mp=C_(S.p||S.j),msk=C_(S.skin),mgl=C_(S.glove||S.skin),mhair=C_(S.hair||'#111'),msh=C_(S.sh),mcuff=C_(S.cuff||S.sh),mshoe=C_('#08080a');
+  const L=(rings,seg,mat,j,x=0,y=0,z=0,rx=0)=>mk(smoothNormals(lathe(rings,seg)),mat,J[j],x,y,z,rx);
+  /* torso: a turned shape, waisted, with real shoulders; the jacket front wraps round it */
+  const front=M(wkWrapTex(wkFrontTex(S),64,S.j));
+  L([[-.01,.128*W,.092],[.1*H,.138*W,.096],[.22*H,.176*W,.108,.006],[.33*H,.214*W,.116,.004],[.385*H,.2*W,.104],[.42*H,.09*W,.07]],10,front,'spine');
+  L([[-.12*H,.15*W,.098],[-.03*H,.158*W,.104],[.05*H,.135*W,.094]],10,mj,'hips');
+  L([[-.01,.05,.05],[.02,.06,.056],[.045,.058,.054]],8,msh,'neck'); L([[.0,.036,.038],[.1,.034,.036]],8,msk,'neck');
+  for(const s of ['L','R']){ const sg=s==='L'?1:-1;
+    L([[-.31*H,.036,.038],[-.16*H,.045,.047],[-.03,.052,.056],[.025,.05,.054],[.05,.02,.024]],8,mj,'arm'+s,sg*.004);       /* upper arm with a rounded shoulder cap */
+    L([[-.265*H,.03,.032],[-.12*H,.038,.04],[0,.037,.039]],8,mj,'elbow'+s);
+    L([[-.275*H,.034,.036],[-.25*H,.034,.036]],8,mcuff,'elbow'+s);
+    L([[-.105,.018,.03],[-.06,.022,.04],[-.01,.02,.034],[.005,.016,.028]],8,mgl,'hand'+s,0,0,.008); mk(box(.022,.045,.022),mgl,J['hand'+s],sg*-.018,-.035,.03);
+    L([[-.44*H,.045,.048],[-.2*H,.058,.062],[-.02,.066,.07],[.02,.05,.056]],8,mp,'thigh'+s);
+    L([[-.43*H,.032,.036],[-.3*H,.046,.05],[-.05,.045,.048],[0,.042,.045]],8,mp,'knee'+s);
+    L([[-.085,.044,.125,.06],[-.05,.046,.128,.06],[-.012,.036,.07,.03],[.0,.03,.04,.01]],8,mshoe,'ankle'+s); }
+  /* the head: turned too, with a jaw, and the pixel face wrapped round the front; brow and nose stay geometry */
+  const hd=N(J.head,0,0,0),face=M(wkWrapTex(wkFaceTex(S),40,S.skin,null)),sideHair=S.hair&&(S.hairRows??3)>0;
+  mk(smoothNormals(lathe([[.0,.026,.032,.022],[.028,.05,.062,.014],[.07,.064,.08,.006],[.125,.07,.09,0],[.18,.07,.09,-.004],[.225,.056,.074,-.008],[.248,.02,.03,-.008]],10)),face,hd);
+  mk(box(.11,.014,.02,{tw:.9}),C_(mix(S.skin,'#000000',.22)),hd,0,.146,.082,.15);
+  mk(box(.02,.05,.028,{tw:.5}),C_(mix(S.skin,'#ffffff',.08)),hd,0,.11,.09,-.12);
+  for(const s of [-1,1]) mk(box(.01,.036,.022),C_(mix(S.skin,'#000000',.18)),hd,s*.071,.12,-.006);
+  const cap=(rings,m=mhair)=>mk(smoothNormals(lathe(rings,10)),m,hd),D=S.do;
+  if(sideHair&&D!=='band') cap([[.15,.073,.094,-.012],[.19,.075,.096,-.01],[.235,.06,.08,-.01],[.256,.02,.03,-.01]]);   /* the hair's base: a cap sitting back from the forehead */
+  if(D==='flat'){ cap([[.225,.066,.084,-.006],[.262,.07,.088,-.006],[.27,.066,.084,-.006]]); }
+  else if(D==='pomp'){ cap([[.215,.05,.05,.04],[.25,.062,.07,.03],[.285,.05,.062,.012],[.296,.02,.03,0]]); }
+  else if(D==='slick'){ cap([[.1,.066,.03,-.07],[.17,.074,.05,-.056],[.23,.06,.07,-.03]]); }
+  else if(D==='sweep'){ cap([[.08,.068,.034,-.07],[.17,.076,.054,-.054],[.24,.064,.08,-.02],[.268,.03,.05,.0]]); }
+  else if(D==='band'){ cap([[.19,.074,.095,-.004],[.225,.072,.092,-.004],[.25,.05,.07,-.006],[.26,.01,.02,-.006]],C_('#16161a')); mk(box(.026,.06,.016),C_('#16161a'),hd,.03,.2,-.1,.3); }
+  if(S.shades){ const gm=M(null,{color:0x050506,emissive:0x0a0e16}); mk(smoothNormals(lathe([[.116,.0725,.093,.001],[.146,.0725,.093,.001]],10,{capB:false,capT:false})),gm,hd); }
+  if(S.glasses){ const gm=M(null,{color:hexInt(S.glasses),emissive:0x2a1c08}); for(const s of [-1,1]) mk(box(.05,.03,.008),gm,hd,s*.034,.128,.088); mk(box(.02,.006,.006),gm,hd,0,.134,.09); }
+  const s=Object.assign({kind:S.kind||'gunman',faces:FACE.gunman,grp,fight:{},showDrop:false},S.gear||{}); if(s.two) s.fightHipsY=J.hips.p[1]-.055;
+  const C=finish(parent,J,o,s); C.fig=true; civPoses(C); wkRim(parent,1); return C; }
 
 /* =====================================================================
    WICK stage 0: the stress spawn. Needs the game's functions, so it lives inside the engine's scope (06-wick.js can't see them).

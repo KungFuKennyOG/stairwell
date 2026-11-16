@@ -2,7 +2,7 @@
    WICK stage 1: the art view. ?wick=1&art=1 loads the club (91c) with the cast standing in it, so the screenshots for the art gate
    (plan 3.5) show exactly what the game draws. ?wick=1 without art=1 still loads floor 01 (the stress test).
    ===================================================================== */
-const WKART={on:WICK.on&&new URLSearchParams(location.search).get('art')==='1',old:new URLSearchParams(location.search).get('oldcast')==='1',cast:[]};
+const WKART={on:WICK.on&&new URLSearchParams(location.search).get('art')==='1',old:new URLSearchParams(location.search).get('oldcast')==='1',block:new URLSearchParams(location.search).get('cast')==='block',cast:[]};
 function wkBoot(){ if(!WKART.on) return false; wkLoad(); return true; }
 function wkLoad(){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); wkBuild(); resetGame(); protoEmit('load'); if(XR.on) vrRecenter(); }
 function wkReset(){ if(typeof wkCastPlace==='function') wkCastPlace(); if(typeof wkKit==='function') wkKit(); }
@@ -16,7 +16,7 @@ const WK_PLACE=[ /* id, x, z, facing (0 = +z, north), pose */
   ['wk_floor2',-4.1,3.55,-.5,'lean'],['wk_floor3',2.2,3.5,2.6,'watch'],['wk_door2',5.6,1.0,-1.9,'watch'],
   ['wk_floor4',11.7,.9,-.7,'watch'],['wk_cook',-9.3,-2.2,-2.55,'watch'] ];
 function wkCastPlace(){ if(WKART.root){ disposeTree(WKART.root); const i=world.kids.indexOf(WKART.root); if(i>=0) world.kids.splice(i,1); } WKART.root=N(world); WKART.cast.length=0;
-  GEO_TEMP=true; for(const [id,x,z,ry,pose] of WK_PLACE){ const slot=N(WKART.root,x,0,z,0,ry,0),C=WKART.old?wkMakeChar(id,slot):wkFig(WKF[id],slot); /* &oldcast=1: the first pass, on the tower's body, to compare */ applyPose(C,C.poses[pose]?pose:'fight'); WKART.cast.push(C); } GEO_TEMP=false; }
+  GEO_TEMP=true; for(const [id,x,z,ry,pose] of WK_PLACE){ const slot=N(WKART.root,x,0,z,0,ry,0),C=WKART.old?wkMakeChar(id,slot):WKART.block?wkFig(WKF[id],slot):wkFigSoft(WKF[id],slot); /* &oldcast=1: the first pass, on the tower's body, to compare */ applyPose(C,C.poses[pose]?pose:'fight'); WKART.cast.push(C); } GEO_TEMP=false; }
 protoOn('tick',()=>{ if(FLOOR.mode!=='wick') return; for(const C of WKART.cast) skinUpdate(C); });
 
 /* ---------- your hands, sleeves, watch and gun ---------- */
