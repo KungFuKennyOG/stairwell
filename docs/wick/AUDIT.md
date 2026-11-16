@@ -7,7 +7,9 @@
 - **Change:** different behaviour under `WICK.on`. The check becomes `PROTO.on&&!WICK.on` or similar.
 - **Off:** the system stays in the code but is not used on the Wick floor.
 
-The stage is the one in the plan (project doc `claude/prototype-plan.md`, section 10) that does the work.
+The stage is the one in the plan (`docs/wick/PLAN.md`, a copy of the project doc `claude/prototype-plan.md`, section 10) that does the work.
+
+**Since stage 1 (2026-11-16):** the level is a linear route in beats run by a director (Bayhem's pattern), not an open floor; the club is drawn in Stairwell's own style; FLOOR.mode is `'wick'` on the club, so every check on `FLOOR.mode==='proto'` (notice meter, fight rooms) needs a `'wick'` branch where Wick wants it.
 
 ## Violence is fun, not horror (Kenny, 2026-11-16)
 
@@ -81,8 +83,8 @@ Bullet time is a plain toggle for now. The meter is stage 2. In VR it is on the 
 | `52-senses.js` `huntSight`, `huntPerceive`, `83b-notice.js` | Notice meter, sight in the dark | Keep: this is the stealth half | — |
 | `83b-notice.js` `ntcTick` | Runs only when `FLOOR.mode==='proto'` | The club floor must keep that mode or this check changes | 5 |
 | `52-senses.js` body found → `huntAlert('body')` | Calls the name, starts a hunt | Change: goes loud | 4 |
-| `52-senses.js` `huntHeard`, `huntLookJob`, `huntTakeOver`, `giveUp`, `huntGoal` | Calm → hunting → on edge; searches | Change: two states, unaware and loud; loud never ends; no searching | 4 |
-| `83-hunt.js` `huntTick`, `huntAlert`, flashlights | Hunt controller, search grid, flashlight pair | Change: replaced by the loud push and reinforcements | 4 |
+| `52-senses.js` `huntHeard`, `huntLookJob`, `huntTakeOver`, `giveUp`, `huntGoal` | Calm → hunting → on edge; searches | Change: per beat, quiet or loud (the director, plan 6.1); loud never ends; no searching | 4 |
+| `83-hunt.js` `huntTick`, `huntAlert`, flashlights | Hunt controller, search grid, flashlight pair | Change: replaced by the director's beats, the loud push and per-beat waves | 4 |
 | `83a-director.js` | Hunt pacing and breathers | Off | 4 |
 | `66-tower.js` hunter caps, `twHoldSpot`, `twBrace`, push-now | Two hunters at most, holders come out together | Retune for pushing | 4 |
 | `58-mic.js` | Headset mic: a shout brings them | Off by default on the start card | 6 |
@@ -108,7 +110,7 @@ Bullet time is a plain toggle for now. The meter is stage 2. In VR it is on the 
 |---|---|---|---|
 | `30-floor.js` walker radius `PF_WALK_R` | | Keep | — |
 | `66-tower.js` `towerBoot` | Starts on floor 01 | Keep until the club floor exists, then load it | 5 |
-| `85-pfloor.js` | Floor 01 tables hard-coded (`PF_ROOMS`, `PF_OPEN`, `PF_DEF`) | Change: take a floor definition so it can build the club | 5 |
+| `85-pfloor.js` | Floor 01's builder | Not used: the club has its own builder (`91c-wick-club.js`), and the level is a route (plan section 7) | — |
 | `87-props.js`, `87c-clutter.js` | Kitchen knife model, throwables | Keep | — |
 | `89-shell.js` | Start card, death card, end card, telemetry | Retune: new title, new stats, rank | 6 |
 | `90-guide.js` | Horror tutorial hints ("hide", "listen") | Off | 6 |
