@@ -308,6 +308,12 @@ View at `?wick=1&art=1` on branch `wick`. Shots in `docs/wick/shots/`.
 
 **Not done:** no independent review; the hands shot is weak; the city window texture is coarse; the other six spaces and anything alive are later stages. The rejected character tests have been deleted.
 
+## 10d. After stages 2-4 (2026-11-16)
+
+- Stages 2 (rules), 3 (hands) and 4 (director and enemies) are merged into `wick`. Playable: `?wick=1&play=1` (kitchen, main room, office).
+- **Look: final.** Stairwell's own style for the cast and the grounded club from gate A. Kenny ended the style debate after trying an early-2000s grade, a richer body build, imported models and a Dusk-style build. Do not reopen it.
+- **Gameplay reference added: Max Payne 3.** Proposed and not yet decided: Last Stand (a fatal hit gives a few slow seconds to kill your shooter and survive), a VR-safe kill cam (the last bullet slowed in the air, no camera move), and painkillers instead of block regen.
+
 ## 11. What Kenny checks on the Quest
 
 Bots and screenshots cannot judge these.
