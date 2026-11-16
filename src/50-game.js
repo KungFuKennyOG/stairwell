@@ -1209,7 +1209,7 @@ function resetGame(){
   for(const D of FLOOR.doors) if(D.state==='open'&&D.u.doorState==='closed') setDoor(D,'closed',true);
   /* desk testing starts armed; in VR you start with your fists and walk to the rack */
   equip(HANDS.R,XR.on||FLOOR.camp?null:newItem('pistol')); equip(HANDS.L,XR.on||FLOOR.camp?null:newItem('knife')); /* the campaign starts with fists everywhere */
-  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='motel') motelReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); else if(FLOOR.mode==='proto') pfReset(); protoEmit('reset'); } /* the first room always starts with its three tenants */
+  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='motel') motelReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); else if(FLOOR.mode==='proto') pfReset(); else if(FLOOR.mode==='wick') wkReset(); protoEmit('reset'); } /* the first room always starts with its three tenants */
 /* dying restarts the level you're on, with whatever you carried into it (GAME.kit, set when a level is entered by its shaft or ladder) */
 function restartLevel(){ resetGame(); const k=GAME.kit; if(k&&k.mode===FLOOR.mode){ equip(HANDS.R,k.R?newItem(k.R):null); equip(HANDS.L,k.L?newItem(k.L):null); } if(XR.on) vrRecenter(); }
 /* into the next level with what's in your hands */
@@ -1297,7 +1297,7 @@ function renderWith(w,h,noUpd){
   /* the far field: real tiles near the head, stand-ins past swapD (both eyes decide from the head, so they swap together) */
   { const he=far?camBasis().eye:[0,0,0]; setSwap(he,far?far.swapD:1e9); gl.uniform3fv(u.uFarEye,he); gl.uniform1f(u.uFarSwap,far?far.swapD:1e9); }
   gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
-  const wob=XR.on?0:2; gl.uniform1f(u.uSnap,wob===2?1:wob===1?2.5:0); gl.uniform1f(u.uAffine,wob===2?1:wob===1?.15:0); gl.uniform2f(u.uRes,w,h); /* in a headset there is no vertex wobble and no texture warp, ever: both swim between the eyes. The PS1 look in VR is the low-res textures, the dither and the palette */
+  const wob=XR.on||WICK.on?0:2; gl.uniform3fv(u.uRim,L.rim); gl.uniform1f(u.uSnap,wob===2?1:wob===1?2.5:0); gl.uniform1f(u.uAffine,wob===2?1:wob===1?.15:0); gl.uniform2f(u.uRes,w,h); /* in a headset there is no vertex wobble and no texture warp, ever: both swim between the eyes. The PS1 look in VR is the low-res textures, the dither and the palette */
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
   gl.uniform1i(u.uSpN,SPOT.n); if(SPOT.n){ gl.uniform3fv(u.uSpPos,SPOT.pos); gl.uniform3fv(u.uSpDir,SPOT.dir); gl.uniform3fv(u.uSpCol,SPOT.col); gl.uniform1fv(u.uSpRng,SPOT.rng); } /* flashlight cones (85-pfloor.js) */

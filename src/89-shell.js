@@ -168,6 +168,7 @@ function micStop(){ if(MIC.state!=='on') return; try{ if(MIC.stream) for(const t
 
 /* ---------- boot ---------- */
 function shellBoot(){ if(!PROTO.on) return;
+  if(WICK.on&&typeof wkBoot==='function'&&wkBoot()){ SHELL.where='wick'; return; } /* the hitman prototype's own floor (91d-wick-art.js) */
   if(PROTO.floor&&typeof pfLoad==='function'){ SHELL.where='proto';
     if(FLOOR.mode!=='proto'){ let saw=false; const L=()=>{ saw=true; }; protoOn('load',L); pfLoad(); PROTO_EV.load.splice(PROTO_EV.load.indexOf(L),1); if(!saw) protoEmit('load'); } }
   else { SHELL.where='old'; protoEmit('load'); } /* towerBoot already built floor 01 (66-tower.js) */

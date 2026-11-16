@@ -577,10 +577,12 @@ uniform vec2 uRes;
 uniform vec3 uAmb, uDirDir, uDirCol;
 uniform vec3 uPLPos[8]; uniform vec3 uPLCol[8]; uniform float uPLDist[8];
 uniform float uFogNear, uFogFar;
+uniform vec3 uRim; uniform float uRimK; /* an edge light in the room's colour, on materials that ask for it (m.rim): the hitman prototype's cast and guns (06-wick.js) */
 in vec4 aRect; /* an atlas rectangle for a tiled texture (z>0), or, on the far field, the centre and radius of the tile it stands in for */
 uniform float uFar, uFarSwap; uniform vec3 uFarEye;
-out vec3 vAff; out vec3 vLight; out vec3 vView; out vec4 vRect; out vec3 vW; out vec3 vN;
+out vec3 vAff; out vec3 vLight; out vec3 vView; out vec4 vRect; out vec3 vW; out vec3 vN; out vec3 vRim;
 void main(){
+  vRim = vec3(0.0);
   vec4 wp = modelMatrix * vec4(position,1.0);
   vec3 n = normalize(mat3(modelMatrix) * normal);
   vW = wp.xyz; vN = n; /* per pixel: the flashlight cones (FS) */
@@ -592,6 +594,7 @@ void main(){
   }
   vLight = mix(L, vec3(1.0), uUnlit);
   vec4 vp = viewMatrix * wp;
+  if(uRimK > 0.0){ vec3 nv = normalize(mat3(viewMatrix) * n); float rm = 1.0 - max(dot(nv, normalize(-vp.xyz)), 0.0); vRim = uRim * (rm * rm * rm) * uRimK * (1.0 - uUnlit); }
   vec4 cp = projectionMatrix * vp;
   if(uSnap > 0.01){ vec2 g = uRes * 0.5 * uSnap; cp.xy = floor(cp.xy / cp.w * g + 0.5) / g * cp.w; } /* uSnap scales the grid: 1 = PS1, higher = finer, lighter */
   vView = vp.xyz; /* fog goes by true distance (per pixel), the same distance the culling uses, so nothing pops at the edges of a wide headset view */
@@ -606,7 +609,7 @@ precision highp float;
 uniform sampler2D map; uniform float uHasMap, uCut;
 uniform vec3 uColor, uEmissive, uFogCol; uniform vec2 uRepeat; uniform float uNoFog, uFogNear, uFogFar, uSkyFade;
 uniform vec3 uSpPos[2]; uniform vec3 uSpDir[2]; uniform vec3 uSpCol[2]; uniform float uSpRng[2]; uniform int uSpN; uniform float uUnlit;
-in vec3 vAff; in vec3 vLight; in vec3 vView; in vec4 vRect; in vec3 vW; in vec3 vN;
+in vec3 vAff; in vec3 vLight; in vec3 vView; in vec4 vRect; in vec3 vW; in vec3 vN; in vec3 vRim;
 out vec4 outColor;
 void main(){
   vec2 uv = vAff.xy / vAff.z * uRepeat;
@@ -614,6 +617,7 @@ void main(){
   vec4 t = uHasMap > 0.5 ? texture(map, uv) : vec4(1.0);
   if(uCut > 0.5 && t.a < 0.5) discard;
   vec3 c = t.rgb * uColor * vLight + t.rgb * uEmissive;
+  c += vRim * (0.22 + t.rgb * uColor); /* the edge light shows on black cloth too */
   /* flashlights: up to two cones lit per pixel, a soft spill round a hot core, cut off where the beam meets a wall (uSpRng, from the CPU) */
   if(uUnlit < 0.5) for(int i=0;i<2;i++){ if(i>=uSpN) break;
     vec3 d = vW - uSpPos[i]; float dist = max(length(d), 1e-3); vec3 l = d / dist; float ca = dot(l, uSpDir[i]);
@@ -658,7 +662,7 @@ function upload(g){ g.vao=gl.createVertexArray(); gl.bindVertexArray(g.vao); g.b
   [[g.P,3],[g.Nm,3],[g.T,2],...(g.R?[[g.R,4]]:[])].forEach(([arr,size],i)=>{ const b=gl.createBuffer(); g.bufs.push(b); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(arr),gl.STATIC_DRAW); gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i,size,gl.FLOAT,false,0,0); });
   const ib=gl.createBuffer(); g.bufs.push(ib); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(g.I),gl.STATIC_DRAW); gl.bindVertexArray(null); }
 function disposeTree(n){ if(n.mesh){ const g=n.mesh.geo; if(g.temp&&g.vao){ gl.deleteVertexArray(g.vao); for(const b of g.bufs) gl.deleteBuffer(b); g.vao=null; } } for(const k of n.kids) disposeTree(k); }
-const L={amb:[.1,.1,.1],dirDir:[0,1,0],dirCol:[0,0,0],plPos:new Float32Array(24),plCol:new Float32Array(24),plDist:new Float32Array([1,1,1,1,1,1,1,1]),fog:[0,0,0],fogNear:8,fogFar:30};
+const L={rim:[0,0,0],amb:[.1,.1,.1],dirDir:[0,1,0],dirCol:[0,0,0],plPos:new Float32Array(24),plCol:new Float32Array(24),plDist:new Float32Array([1,1,1,1,1,1,1,1]),fog:[0,0,0],fogNear:8,fogFar:30};
 const SPOT={n:0,pos:new Float32Array(6),dir:new Float32Array(6),col:new Float32Array(6),rng:new Float32Array([1,1])}; /* flashlight cones, per pixel (85-pfloor.js fills them) */
 function setLights(o){ SPOT.n=0; L.amb=o.amb; L.dirDir=o.dir; L.dirCol=o.dirCol; L.fog=o.fog; L.fogNear=o.fogNear; L.fogFar=o.fogFar; L.plPos.fill(0); L.plCol.fill(0); L.plDist.fill(1);
   o.pl.forEach((pl,i)=>{ L.plPos.set(pl[0],i*3); L.plCol.set(pl[1],i*3); L.plDist[i]=pl[2]; }); }
@@ -697,7 +701,7 @@ function drawTree(n){ if(!n.vis) return;
     for(const run of runsOf(n.mesh)){ const m=run.m; const cull=!m.dbl; if(cull!==curCull){ cull?gl.enable(gl.CULL_FACE):gl.disable(gl.CULL_FACE); curCull=cull; }
       if(m!==curMat){ curMat=m; if(m.tex){ const t=glTex(m.tex); if(t!==curTex){ gl.bindTexture(gl.TEXTURE_2D,t); curTex=t; } }
         gl.uniform1f(MAIN.loc.uHasMap,m.tex?1:0); gl.uniform3fv(MAIN.loc.uColor,m.color); gl.uniform3fv(MAIN.loc.uEmissive,m.emis);
-        gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut); gl.uniform1f(MAIN.loc.uNoFog,m.nofog||0); gl.uniform1f(MAIN.loc.uFar,m.far?1:0); }
+        gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut); gl.uniform1f(MAIN.loc.uNoFog,m.nofog||0); gl.uniform1f(MAIN.loc.uRimK,m.rim||0); gl.uniform1f(MAIN.loc.uFar,m.far?1:0); }
       gl.drawElements(gl.TRIANGLES,run.count,gl.UNSIGNED_SHORT,run.start*2); } } }
   for(const k of n.kids) drawTree(k); }
 function renderScene(root,eye,target,w,h,snapRes){
@@ -708,6 +712,7 @@ function renderScene(root,eye,target,w,h,snapRes){
   gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
   gl.uniform1f(u.uSnap,state.ps1&&state.snap?1:0); gl.uniform1f(u.uAffine,state.ps1&&state.affine?1:0); gl.uniform2f(u.uRes,snapRes[0],snapRes[1]);
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
+  gl.uniform3fv(u.uRim,L.rim);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
   gl.uniform1i(u.uSpN,SPOT.n); if(SPOT.n){ gl.uniform3fv(u.uSpPos,SPOT.pos); gl.uniform3fv(u.uSpDir,SPOT.dir); gl.uniform3fv(u.uSpCol,SPOT.col); gl.uniform1fv(u.uSpRng,SPOT.rng); }
   gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0); if(u.uSkyFade) gl.uniform1f(u.uSkyFade,0);

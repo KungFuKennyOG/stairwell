@@ -650,10 +650,12 @@ uniform vec2 uRes;
 uniform vec3 uAmb, uDirDir, uDirCol;
 uniform vec3 uPLPos[8]; uniform vec3 uPLCol[8]; uniform float uPLDist[8];
 uniform float uFogNear, uFogFar;
+uniform vec3 uRim; uniform float uRimK; /* an edge light in the room's colour, on materials that ask for it (m.rim): the hitman prototype's cast and guns (06-wick.js) */
 in vec4 aRect; /* an atlas rectangle for a tiled texture (z>0), or, on the far field, the centre and radius of the tile it stands in for */
 uniform float uFar, uFarSwap; uniform vec3 uFarEye;
-out vec3 vAff; out vec3 vLight; out vec3 vView; out vec4 vRect; out vec3 vW; out vec3 vN;
+out vec3 vAff; out vec3 vLight; out vec3 vView; out vec4 vRect; out vec3 vW; out vec3 vN; out vec3 vRim;
 void main(){
+  vRim = vec3(0.0);
   vec4 wp = modelMatrix * vec4(position,1.0);
   vec3 n = normalize(mat3(modelMatrix) * normal);
   vW = wp.xyz; vN = n; /* per pixel: the flashlight cones (FS) */
@@ -665,6 +667,7 @@ void main(){
   }
   vLight = mix(L, vec3(1.0), uUnlit);
   vec4 vp = viewMatrix * wp;
+  if(uRimK > 0.0){ vec3 nv = normalize(mat3(viewMatrix) * n); float rm = 1.0 - max(dot(nv, normalize(-vp.xyz)), 0.0); vRim = uRim * (rm * rm * rm) * uRimK * (1.0 - uUnlit); }
   vec4 cp = projectionMatrix * vp;
   if(uSnap > 0.01){ vec2 g = uRes * 0.5 * uSnap; cp.xy = floor(cp.xy / cp.w * g + 0.5) / g * cp.w; } /* uSnap scales the grid: 1 = PS1, higher = finer, lighter */
   vView = vp.xyz; /* fog goes by true distance (per pixel), the same distance the culling uses, so nothing pops at the edges of a wide headset view */
@@ -679,7 +682,7 @@ precision highp float;
 uniform sampler2D map; uniform float uHasMap, uCut;
 uniform vec3 uColor, uEmissive, uFogCol; uniform vec2 uRepeat; uniform float uNoFog, uFogNear, uFogFar, uSkyFade;
 uniform vec3 uSpPos[2]; uniform vec3 uSpDir[2]; uniform vec3 uSpCol[2]; uniform float uSpRng[2]; uniform int uSpN; uniform float uUnlit;
-in vec3 vAff; in vec3 vLight; in vec3 vView; in vec4 vRect; in vec3 vW; in vec3 vN;
+in vec3 vAff; in vec3 vLight; in vec3 vView; in vec4 vRect; in vec3 vW; in vec3 vN; in vec3 vRim;
 out vec4 outColor;
 void main(){
   vec2 uv = vAff.xy / vAff.z * uRepeat;
@@ -687,6 +690,7 @@ void main(){
   vec4 t = uHasMap > 0.5 ? texture(map, uv) : vec4(1.0);
   if(uCut > 0.5 && t.a < 0.5) discard;
   vec3 c = t.rgb * uColor * vLight + t.rgb * uEmissive;
+  c += vRim * (0.22 + t.rgb * uColor); /* the edge light shows on black cloth too */
   /* flashlights: up to two cones lit per pixel, a soft spill round a hot core, cut off where the beam meets a wall (uSpRng, from the CPU) */
   if(uUnlit < 0.5) for(int i=0;i<2;i++){ if(i>=uSpN) break;
     vec3 d = vW - uSpPos[i]; float dist = max(length(d), 1e-3); vec3 l = d / dist; float ca = dot(l, uSpDir[i]);
@@ -731,7 +735,7 @@ function upload(g){ g.vao=gl.createVertexArray(); gl.bindVertexArray(g.vao); g.b
   [[g.P,3],[g.Nm,3],[g.T,2],...(g.R?[[g.R,4]]:[])].forEach(([arr,size],i)=>{ const b=gl.createBuffer(); g.bufs.push(b); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(arr),gl.STATIC_DRAW); gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i,size,gl.FLOAT,false,0,0); });
   const ib=gl.createBuffer(); g.bufs.push(ib); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(g.I),gl.STATIC_DRAW); gl.bindVertexArray(null); }
 function disposeTree(n){ if(n.mesh){ const g=n.mesh.geo; if(g.temp&&g.vao){ gl.deleteVertexArray(g.vao); for(const b of g.bufs) gl.deleteBuffer(b); g.vao=null; } } for(const k of n.kids) disposeTree(k); }
-const L={amb:[.1,.1,.1],dirDir:[0,1,0],dirCol:[0,0,0],plPos:new Float32Array(24),plCol:new Float32Array(24),plDist:new Float32Array([1,1,1,1,1,1,1,1]),fog:[0,0,0],fogNear:8,fogFar:30};
+const L={rim:[0,0,0],amb:[.1,.1,.1],dirDir:[0,1,0],dirCol:[0,0,0],plPos:new Float32Array(24),plCol:new Float32Array(24),plDist:new Float32Array([1,1,1,1,1,1,1,1]),fog:[0,0,0],fogNear:8,fogFar:30};
 const SPOT={n:0,pos:new Float32Array(6),dir:new Float32Array(6),col:new Float32Array(6),rng:new Float32Array([1,1])}; /* flashlight cones, per pixel (85-pfloor.js fills them) */
 function setLights(o){ SPOT.n=0; L.amb=o.amb; L.dirDir=o.dir; L.dirCol=o.dirCol; L.fog=o.fog; L.fogNear=o.fogNear; L.fogFar=o.fogFar; L.plPos.fill(0); L.plCol.fill(0); L.plDist.fill(1);
   o.pl.forEach((pl,i)=>{ L.plPos.set(pl[0],i*3); L.plCol.set(pl[1],i*3); L.plDist[i]=pl[2]; }); }
@@ -770,7 +774,7 @@ function drawTree(n){ if(!n.vis) return;
     for(const run of runsOf(n.mesh)){ const m=run.m; const cull=!m.dbl; if(cull!==curCull){ cull?gl.enable(gl.CULL_FACE):gl.disable(gl.CULL_FACE); curCull=cull; }
       if(m!==curMat){ curMat=m; if(m.tex){ const t=glTex(m.tex); if(t!==curTex){ gl.bindTexture(gl.TEXTURE_2D,t); curTex=t; } }
         gl.uniform1f(MAIN.loc.uHasMap,m.tex?1:0); gl.uniform3fv(MAIN.loc.uColor,m.color); gl.uniform3fv(MAIN.loc.uEmissive,m.emis);
-        gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut); gl.uniform1f(MAIN.loc.uNoFog,m.nofog||0); gl.uniform1f(MAIN.loc.uFar,m.far?1:0); }
+        gl.uniform1f(MAIN.loc.uUnlit,m.unlit); gl.uniform2fv(MAIN.loc.uRepeat,m.rep); gl.uniform1f(MAIN.loc.uCut,m.cut); gl.uniform1f(MAIN.loc.uNoFog,m.nofog||0); gl.uniform1f(MAIN.loc.uRimK,m.rim||0); gl.uniform1f(MAIN.loc.uFar,m.far?1:0); }
       gl.drawElements(gl.TRIANGLES,run.count,gl.UNSIGNED_SHORT,run.start*2); } } }
   for(const k of n.kids) drawTree(k); }
 function renderScene(root,eye,target,w,h,snapRes){
@@ -781,6 +785,7 @@ function renderScene(root,eye,target,w,h,snapRes){
   gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
   gl.uniform1f(u.uSnap,state.ps1&&state.snap?1:0); gl.uniform1f(u.uAffine,state.ps1&&state.affine?1:0); gl.uniform2f(u.uRes,snapRes[0],snapRes[1]);
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
+  gl.uniform3fv(u.uRim,L.rim);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
   gl.uniform1i(u.uSpN,SPOT.n); if(SPOT.n){ gl.uniform3fv(u.uSpPos,SPOT.pos); gl.uniform3fv(u.uSpDir,SPOT.dir); gl.uniform3fv(u.uSpCol,SPOT.col); gl.uniform1fv(u.uSpRng,SPOT.rng); }
   gl.uniform3fv(u.uFogCol,L.fog); gl.uniform1f(u.uFogNear,L.fogNear); gl.uniform1f(u.uFogFar,L.fogFar); gl.uniform1i(u.map,0); if(u.uSkyFade) gl.uniform1f(u.uSkyFade,0);
@@ -6424,7 +6429,7 @@ function resetGame(){
   for(const D of FLOOR.doors) if(D.state==='open'&&D.u.doorState==='closed') setDoor(D,'closed',true);
   /* desk testing starts armed; in VR you start with your fists and walk to the rack */
   equip(HANDS.R,XR.on||FLOOR.camp?null:newItem('pistol')); equip(HANDS.L,XR.on||FLOOR.camp?null:newItem('knife')); /* the campaign starts with fists everywhere */
-  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='motel') motelReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); else if(FLOOR.mode==='proto') pfReset(); protoEmit('reset'); } /* the first room always starts with its three tenants */
+  GAME.clear=false; $('msg').hidden=true; $('sblood').innerHTML=''; if(FLOOR.mode==='room') roomCast(); else if(FLOOR.mode==='tunnel'){ if(FLOOR.power===false){ FLOOR.power=null; tunnelPower(true); } tunnelCast(); visionApply(); } else if(FLOOR.mode==='stash') stashReset(); else if(FLOOR.mode==='motel') motelReset(); else if(FLOOR.mode==='ware') wareReset(); else if(FLOOR.mode==='camp') towerReset(); else if(FLOOR.mode==='proto') pfReset(); else if(FLOOR.mode==='wick') wkReset(); protoEmit('reset'); } /* the first room always starts with its three tenants */
 /* dying restarts the level you're on, with whatever you carried into it (GAME.kit, set when a level is entered by its shaft or ladder) */
 function restartLevel(){ resetGame(); const k=GAME.kit; if(k&&k.mode===FLOOR.mode){ equip(HANDS.R,k.R?newItem(k.R):null); equip(HANDS.L,k.L?newItem(k.L):null); } if(XR.on) vrRecenter(); }
 /* into the next level with what's in your hands */
@@ -6512,7 +6517,7 @@ function renderWith(w,h,noUpd){
   /* the far field: real tiles near the head, stand-ins past swapD (both eyes decide from the head, so they swap together) */
   { const he=far?camBasis().eye:[0,0,0]; setSwap(he,far?far.swapD:1e9); gl.uniform3fv(u.uFarEye,he); gl.uniform1f(u.uFarSwap,far?far.swapD:1e9); }
   gl.uniformMatrix4fv(u.viewMatrix,false,view); gl.uniformMatrix4fv(u.projectionMatrix,false,proj);
-  const wob=XR.on?0:2; gl.uniform1f(u.uSnap,wob===2?1:wob===1?2.5:0); gl.uniform1f(u.uAffine,wob===2?1:wob===1?.15:0); gl.uniform2f(u.uRes,w,h); /* in a headset there is no vertex wobble and no texture warp, ever: both swim between the eyes. The PS1 look in VR is the low-res textures, the dither and the palette */
+  const wob=XR.on||WICK.on?0:2; gl.uniform3fv(u.uRim,L.rim); gl.uniform1f(u.uSnap,wob===2?1:wob===1?2.5:0); gl.uniform1f(u.uAffine,wob===2?1:wob===1?.15:0); gl.uniform2f(u.uRes,w,h); /* in a headset there is no vertex wobble and no texture warp, ever: both swim between the eyes. The PS1 look in VR is the low-res textures, the dither and the palette */
   gl.uniform3fv(u.uAmb,L.amb); gl.uniform3fv(u.uDirDir,L.dirDir); gl.uniform3fv(u.uDirCol,L.dirCol);
   gl.uniform3fv(u.uPLPos,L.plPos); gl.uniform3fv(u.uPLCol,L.plCol); gl.uniform1fv(u.uPLDist,L.plDist);
   gl.uniform1i(u.uSpN,SPOT.n); if(SPOT.n){ gl.uniform3fv(u.uSpPos,SPOT.pos); gl.uniform3fv(u.uSpDir,SPOT.dir); gl.uniform3fv(u.uSpCol,SPOT.col); gl.uniform1fv(u.uSpRng,SPOT.rng); } /* flashlight cones (85-pfloor.js) */
@@ -15483,6 +15488,7 @@ function micStop(){ if(MIC.state!=='on') return; try{ if(MIC.stream) for(const t
 
 /* ---------- boot ---------- */
 function shellBoot(){ if(!PROTO.on) return;
+  if(WICK.on&&typeof wkBoot==='function'&&wkBoot()){ SHELL.where='wick'; return; } /* the hitman prototype's own floor (91d-wick-art.js) */
   if(PROTO.floor&&typeof pfLoad==='function'){ SHELL.where='proto';
     if(FLOOR.mode!=='proto'){ let saw=false; const L=()=>{ saw=true; }; protoOn('load',L); pfLoad(); PROTO_EV.load.splice(PROTO_EV.load.indexOf(L),1); if(!saw) protoEmit('load'); } }
   else { SHELL.where='old'; protoEmit('load'); } /* towerBoot already built floor 01 (66-tower.js) */
@@ -15689,6 +15695,502 @@ function guideArrows(dt){ if(!GARROW.pool.length) for(let i=0;i<GARROW.max;i++) 
   const t=GAME.t; GARROW.pool.forEach((n,i)=>{ const p=T[i]; n.vis=!!p&&!PL.dead&&!GUIDE.off; if(!n.vis) return; n.p=[p[0],p[1]+.32+Math.sin(t*3+i)*.025,p[2]]; n.r=[0,t*2.2+i,0]; }); }
 protoOn('tick',(gdt,dt)=>{ if(!PROTO.on||!GAME.started) return; guideArrows(dt); });
 protoOn('reset',()=>{ for(const n of GARROW.pool) n.vis=false; });
+
+/* =====================================================================
+   WICK stage 1: the look. Textures and materials for the club ("cold, clean, expensive, dark"; neon on Bond luxury).
+   Plan: project doc claude/prototype-plan.md, section 3. Everything is painted lazily on first use (wkT()), so the 15-floor
+   game and the horror prototype never pay for it.
+   Conventions:
+   - Canvas row 0 is the TOP of the texture (glTex flips Y), so paint things the way they're seen.
+   - Neon, backlit glass and the fish tank are unlit: their colour is their brightness.
+   - Glows, floor reflections and anything soft-edged are cut-out textures with a 4x4 Bayer dither instead of alpha blending
+     (the renderer has none), which suits the PS1 pass anyway.
+   ===================================================================== */
+const WK_BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+const wkDith=(x,y,a)=>a>(WK_BAYER[(y&3)*4+(x&3)]+.5)/16;
+function wkImg(w,h,fn){ const I=Img(w,h); fn(I,w,h); return toTex(I); }
+/* fn(x,y) -> [r,g,b,a] in 0..1; a is dithered to on/off */
+function wkCut(w,h,fn){ return tex(w,h,null,g=>{ const id=g.createImageData(w,h);
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const c=fn(x,y),j=(y*w+x)*4; id.data[j]=c[0]*255; id.data[j+1]=c[1]*255; id.data[j+2]=c[2]*255; id.data[j+3]=wkDith(x,y,c[3])?255:0; }
+  g.putImageData(id,0,0); }); }
+const wkFill=(I,col)=>{ const c=F3(col); for(let i=0;i<I.d.length;i+=3){ I.d[i]=c[0]; I.d[i+1]=c[1]; I.d[i+2]=c[2]; } };
+const wkNoise=(I,amt,seed,sc=.25)=>{ for(let y=0;y<I.h;y++) for(let x=0;x<I.w;x++) mul(I,x,y,1+amt*fbm(x*sc,y*sc,seed,3)); };
+const wkGrain=(I,amt,seed)=>{ const r=rng(seed); for(let i=0;i<I.d.length;i+=3){ const n=(r()-.5)*amt; I.d[i]+=n; I.d[i+1]+=n; I.d[i+2]+=n; } };
+
+/* the palette: one hot accent per room on a blue-black base (plan 3.3) */
+const WKC={ magenta:[1,.18,.62], cyan:[.15,.85,1], red:[1,.1,.12], gold:[1,.72,.36], white:[.82,.9,1], amber:[1,.62,.22], blue:[.25,.45,1], green:[.3,1,.45],
+  base:'#0c0e14', ink:'#07080c', walnut:'#6e4628', brass:0xc8a050 };
+
+let WKT=null;
+function wkT(){ if(WKT) return WKT; const T={};
+
+  /* black marble: one 1.2 m slab per tile, cloudy, with pale veins and a hair of gold, a thin dark joint on two edges */
+  T.marble=wkImg(64,64,(I,w,h)=>{ wkFill(I,'#222632');
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ mul(I,x,y,1+.18*fbm(x*.04,y*.04,71,3));
+      const v=1-Math.abs(fbm(x*.03+fbm(x*.015,y*.015,73)*1.2,y*.022,72,3)*2.6); const vv=Math.pow(Math.max(0,v),22);
+      if(vv>.05) put(I,x,y,[.42,.45,.52],Math.min(.3,vv*.4)); }
+    softLine(I,0,0,64,0,'#05060a',.9,1); softLine(I,0,0,0,64,'#05060a',.9,1); softLine(I,1,1.5,64,1.5,'#3a4050',.3,1); softLine(I,1.5,1,1.5,64,'#3a4050',.2,1); wkGrain(I,.02,75); });
+
+  /* walnut wainscot panel, 0.9 m wide x 1.05 m tall: a raised field in a frame, the grain running up */
+  T.walnut=wkImg(48,56,(I,w,h)=>{ wkFill(I,WKC.walnut);
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const g=Math.sin(x*.9+fbm(x*.08,y*.04,81,3)*5)*.5+.5; mul(I,x,y,.78+.32*g+.08*fbm(x*.3,y*.3,82,2)); }
+    const fr=(x0,y0,ww,hh,lit,dark)=>{ softLine(I,x0,y0,x0+ww,y0,lit,.5,1); softLine(I,x0,y0,x0,y0+hh,lit,.4,1); softLine(I,x0,y0+hh,x0+ww,y0+hh,dark,.6,1); softLine(I,x0+ww,y0,x0+ww,y0+hh,dark,.55,1); };
+    fr(1,1,w-2,h-2,'#7a5638','#120a05'); fr(6,7,w-12,h-14,'#120a05','#8a6444'); fr(8,9,w-16,h-18,'#6a4a30','#160c06');
+    wkGrain(I,.03,83); });
+  /* the wall above: deep navy silk with a faint gold damask, so the dark walls still read as expensive in the light */
+  T.silk=wkImg(32,64,(I,w,h)=>{ wkFill(I,'#343e5e');
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ mul(I,x,y,.92+.1*Math.sin(x*1.9)); const u=(x/w)*2*Math.PI,v=(y/h)*2*Math.PI;
+      const d=Math.sin(u)*Math.sin(v*2)+.6*Math.cos(u*2+v)*Math.sin(v); if(Math.abs(d-.55)<.09) put(I,x,y,[.5,.4,.22],.16); }
+    wkGrain(I,.02,91); });
+  T.ceil=wkImg(32,32,(I)=>{ wkFill(I,'#14161e'); wkNoise(I,.15,95,.15); wkGrain(I,.02,96); });
+
+  /* back of house */
+  T.tileW=wkImg(32,32,(I)=>{ wkFill(I,'#aeb4b6'); const r=rng(101);
+    for(let ty=0;ty<4;ty++) for(let tx=0;tx<4;tx++){ const v=.94+r()*.08; softRect(I,tx*8+.6,ty*8+.6,6.8,6.8,v>1?'#dfe4e4':'#d6dcdc',1,.5); softLine(I,tx*8+1.5,ty*8+1.2,tx*8+6.5,ty*8+1.2,'#f4f8f8',.3,.8); }
+    wkGrain(I,.02,102); });
+  /* the kitchen's walls: dark glazed tile, a hard highlight along each top edge (cold tubes overhead) */
+  T.tileD=wkImg(32,32,(I)=>{ wkFill(I,'#56605e'); const r=rng(105);
+    for(let ty=0;ty<4;ty++) for(let tx=0;tx<4;tx++){ softRect(I,tx*8+.6,ty*8+.6,6.8,6.8,r()>.5?'#1c2c2a':'#182624',1,.5); softLine(I,tx*8+1.4,ty*8+1.3,tx*8+6.6,ty*8+1.3,'#9ab8b4',.55,.7); }
+    wkGrain(I,.02,106); });
+  T.tileK=wkImg(32,32,(I)=>{ wkFill(I,'#0a0a0c'); const r=rng(111);
+    for(let ty=0;ty<2;ty++) for(let tx=0;tx<2;tx++){ softRect(I,tx*16+1,ty*16+1,14,14,r()>.5?'#1d1f24':'#191b20',1,.5); softLine(I,tx*16+2,ty*16+2,tx*16+14,ty*16+2,'#30333a',.4,.8); }
+    for(let i=0;i<4;i++) blob(I,r()*32,r()*32,3,2,-.12); wkGrain(I,.03,112); });
+  T.steel=wkImg(32,16,(I,w,h)=>{ wkFill(I,'#9aa1a6'); const r=rng(121); for(let y=0;y<h;y++){ const v=.92+r()*.14; for(let x=0;x<w;x++) mul(I,x,y,v); } wkGrain(I,.04,122); });
+  T.paintBlock=wkImg(32,32,(I)=>{ wkFill(I,'#2a2f38'); for(let y=0;y<32;y+=8) softLine(I,0,y,32,y,'#14171c',.6,1); for(let y=0;y<32;y+=8) for(let x=(y/8)%2?0:8;x<32;x+=16) softLine(I,x,y,x,y+8,'#14171c',.5,1); wkNoise(I,.1,131,.2); wkGrain(I,.03,132); });
+
+  /* upholstery */
+  const tuft=(base,hi,seed)=>wkImg(32,32,(I)=>{ wkFill(I,base);
+    for(let y=0;y<32;y++) for(let x=0;x<32;x++){ const a=(x+y)%16,b=(x-y+32)%16; const d=Math.min(Math.abs(a-8),Math.abs(b-8)); mul(I,x,y,.7+.045*d); }
+    for(const [x,y] of [[0,0],[16,0],[8,8],[24,8],[0,16],[16,16],[8,24],[24,24],[32,0],[32,16],[0,32],[16,32],[32,32]]){ softEll(I,x,y,1.4,1.4,'#000000',.8,.5); softEll(I,x-.6,y-.6,.6,.6,hi,.5,.5); }
+    wkGrain(I,.03,seed); });
+  T.leatherBk=tuft('#1a1719','#6a6266',141); T.leatherRd=tuft('#4a0d14','#c0606a',142);
+  T.velvet=wkImg(32,64,(I,w,h)=>{ wkFill(I,'#5e0a18'); for(let y=0;y<h;y++) for(let x=0;x<w;x++){ const s=Math.sin(x/w*Math.PI*6+fbm(x*.05,y*.03,151)*1.5); mul(I,x,y,.55+.45*(s*.5+.5)); } wkGrain(I,.02,152); });
+  T.felt=wkImg(16,16,(I)=>{ wkFill(I,'#164a2c'); wkNoise(I,.12,161,.4); wkGrain(I,.04,162); });
+  T.smoked=wkImg(16,16,(I)=>{ wkFill(I,'#151820'); for(let i=0;i<16;i++) softLine(I,i-4,0,i+4,16,'#3a4458',.08,1); });
+
+  /* backlit bottle wall, one 2 m bay, three shelves: unlit, so this IS its brightness */
+  T.bottles=wkImg(128,96,(I,w,h)=>{ for(let y=0;y<h;y++){ const t=y/h; const c=lerp3([.32,.12,.06],[.42,.05,.26],t); for(let x=0;x<w;x++){ const e=1-Math.abs(x/w-.5)*.6; put(I,x,y,[c[0]*e,c[1]*e,c[2]*e],1); } }
+    const r=rng(171),GL=[['#c8761c','#ffd28a'],['#2a8a3c','#9af0a0'],['#d8eef4','#ffffff'],['#2850c0','#9ab8ff'],['#8a1c2c','#ff8a9a'],['#c8a050','#fff0b0']];
+    for(const sy of [30,62,94]){ /* shelf top edge y; bottles stand on it */
+      let x=2; while(x<w-4){ const bw=4+(r()*4|0),bh=14+(r()*12|0),gl=GL[r()*GL.length|0],nx=x+bw/2;
+        softRect(I,x,sy-bh,bw,bh-5,gl[0],.92,.4); softRect(I,nx-1,sy-bh-6,2,7,gl[0],.9,.3); softRect(I,nx-1,sy-bh-8,2,2,'#1a1a1a',.9,.3);
+        softLine(I,x+1,sy-bh+1,x+1,sy-6,gl[1],.6,.8); if(r()<.6) softRect(I,x+.5,sy-bh*.62,bw-1,bh*.25,r()<.5?'#f2ead6':'#1a1410',.75,.3);
+        x+=bw+1+(r()*2|0); }
+      softRect(I,0,sy-1,w,3,'#c8a050',1,.4); softLine(I,0,sy-1,w,sy-1,'#fff2c0',.7,.8); }
+    wkGrain(I,.02,172); });
+  /* the fish tank: deep water lit from above, caustics, a few slow fish, weed and sand */
+  T.fish=wkImg(128,64,(I,w,h)=>{ for(let y=0;y<h;y++){ const t=y/h,c=lerp3([.2,.75,.86],[.02,.14,.26],Math.pow(t,.8)); for(let x=0;x<w;x++) put(I,x,y,c,1); }
+    for(let y=0;y<20;y++) for(let x=0;x<w;x++){ const k=Math.abs(Math.sin(x*.21+Math.sin(y*.4+x*.05)*2)*Math.sin(y*.33+x*.07)); if(k>.9) put(I,x,y,[.7,.95,1],(k-.9)*4*(1-y/20)); }
+    const r=rng(181); for(let x=0;x<w;x+=1){ const sh=4+fbm(x*.1,0,182,2)*2; softRect(I,x,h-sh,1,sh,'#b89a6a',.85,.3); }
+    for(let i=0;i<9;i++){ const x=r()*w,hh=12+r()*22; for(let k=0;k<hh;k++) put(I,x+Math.sin(k*.35+i)*2,h-5-k,[.05,.32+r()*.1,.16],.85); }
+    const FC=[['#ff7a1c','#ffd08a'],['#ffd21c','#fff4a0'],['#2a6aff','#9ac0ff'],['#e8e8e8','#ffffff'],['#ff3a5a','#ffb0c0']];
+    for(let i=0;i<11;i++){ const x=4+r()*(w-12),y=12+r()*(h-28),c=FC[r()*FC.length|0],s=r()<.5?1:-1,L=3+r()*3;
+      softEll(I,x,y,L,L*.42,c[0],1,.4); softEll(I,x-s*.6,y-.4,L*.4,L*.18,c[1],.6,.4); softLine(I,x-s*L,y,x-s*(L+2.2),y-1.4,c[0],.9,.8); softLine(I,x-s*L,y,x-s*(L+2.2),y+1.4,c[0],.9,.8); put(I,x+s*(L-1),y-.5,[0,0,0],1); }
+    for(let i=0;i<14;i++){ const x=r()*w,y=r()*h*.8; softEll(I,x,y,.8,.8,'#d8f8ff',.6,.4); }
+    wkGrain(I,.015,183); });
+
+  /* the tank's reflection on the marble: the same picture, stippled, fading away from the wall (its bottom edge) */
+  T.fishR=tex(128,64,null,g=>{ g.drawImage(T.fish.c,0,0); const d=g.getImageData(0,0,128,64); for(let y=0;y<64;y++) for(let x=0;x<128;x++){ const j=(y*128+x)*4,a=Math.pow((y+.5)/64,1.4)*.62; d.data[j]*=.8; d.data[j+1]*=.8; d.data[j+2]*=.8; d.data[j+3]=wkDith(x,y,a)?255:0; } g.putImageData(d,0,0); });
+  T.bottlesR=tex(128,96,null,g=>{ g.drawImage(T.bottles.c,0,0); const d=g.getImageData(0,0,128,96); for(let y=0;y<96;y++) for(let x=0;x<128;x++){ const j=(y*128+x)*4,a=Math.pow((y+.5)/96,1.6)*.5; d.data[j+3]=wkDith(x,y,a)?255:0; } g.putImageData(d,0,0); });
+  /* cut-outs */
+  T.glow=wkCut(128,128,(x,y)=>{ const d=Math.hypot(x+.5-64,y+.5-64)/64; const a=Math.max(0,1-d); return [1,1,1,Math.pow(a,1.7)*.8]; });
+  /* a halo along a tube: falls off across (v), tiles along (u) */
+  T.glowLine=wkCut(16,32,(x,y)=>{ const d=Math.abs(y+.5-16)/16; return [1,1,1,Math.pow(Math.max(0,1-d),1.6)*.85]; });
+  /* a light's reflection running across a glossy floor: bright at the near end (the bottom of the texture), fading away; tiles along u */
+  T.streak=wkCut(16,64,(x,y)=>{ const v=1-(y+.5)/64; return [1,1,1,Math.pow(1-v,1.6)*.7]; });
+  T.blood=wkCut(32,32,(x,y)=>{ const r=fbm(x*.25,y*.25,191,3); const d=Math.hypot((x-16)/13,(y-15)/11)+r*.45; const drip=Math.abs(x-11-(fbm(0,x,192)*3))<1.2&&y>20&&y<31?1:0;
+    const a=d<1?1:drip; const c=d<.55?[.55,.02,.04]:[.4,.01,.03]; return [c[0],c[1],c[2],a]; });
+  T.glass=wkCut(16,16,(x,y)=>{ const r=fbm(x*.6,y*.6,193,2); return [.85,.92,.95,r>.15?1:0]; });
+
+  /* the club's sign over the bar: a neon script, its own dithered halo */
+  T.sign=tex(256,64,null,g=>{ g.textAlign='center'; g.textBaseline='middle';
+    g.font='italic 700 46px Georgia,"Times New Roman",serif'; g.shadowColor='#ff2a9a'; g.shadowBlur=14; g.fillStyle='#ff4fb0'; g.fillText('Velour',128,30); g.shadowBlur=0; g.fillStyle='#ffd8ec'; g.fillText('Velour',128,30);
+    g.font='600 11px Georgia,serif'; g.fillStyle='#f0c070'; g.fillText('PRIVATE   MEMBERS   ONLY',128,56);
+    const d=g.getImageData(0,0,256,64); for(let y=0;y<64;y++) for(let x=0;x<256;x++){ const j=(y*256+x)*4,a=d.data[j+3]/255; d.data[j+3]=wkDith(x,y,a*1.25)?255:0; if(a>.01){ d.data[j]=Math.min(255,d.data[j]/a); d.data[j+1]=Math.min(255,d.data[j+1]/a); d.data[j+2]=Math.min(255,d.data[j+2]/a); } }
+    g.putImageData(d,0,0); });
+  return WKT=T; }
+
+/* materials: one table, made once (shared materials merge into fewer draws) */
+let WKM=null;
+function wkM(){ if(WKM) return WKM; const T=wkT(),U=(c)=>M(null,{color:c,unlit:true});
+  const rgb=a=>((Math.round(a[0]*255)<<16)|(Math.round(a[1]*255)<<8)|Math.round(a[2]*255));
+  WKM={ marble:M(T.marble), walnut:M(T.walnut), silk:M(T.silk), ceil:M(T.ceil),
+    tileW:M(T.tileW), tileD:M(T.tileD), tileK:M(T.tileK), steel:M(T.steel,{color:0xd8dee2}), block:M(T.paintBlock),
+    leatherBk:M(T.leatherBk), leatherRd:M(T.leatherRd), velvet:M(T.velvet,{double:true}), felt:M(T.felt), smoked:M(T.smoked,{color:0x9aa4b8}),
+    brass:M(null,{color:WKC.brass,emissive:0x2a1c08}), brassDk:M(null,{color:0x7a5a2a}), chrome:M(null,{color:0xd0d8e0,emissive:0x101418}),
+    black:M(null,{color:0x0c0d10}), lacquer:M(null,{color:0x111216}), wood:M(T.walnut,{color:0xd8c8b8}), white:M(null,{color:0xe8eaec}),
+    bottles:M(T.bottles,{unlit:true}), fish:M(T.fish,{unlit:true}), fishR:M(T.fishR,{unlit:true,cut:true}), bottlesR:M(T.bottlesR,{unlit:true,cut:true}), sign:M(T.sign,{unlit:true,cut:true,double:true}),
+    neonM:U(rgb(WKC.magenta)), neonC:U(rgb(WKC.cyan)), neonR:U(rgb(WKC.red)), neonG:U(rgb(WKC.gold)), tube:U(0xe8f2ff), bulb:U(0xfff0d0), crystal:M(null,{color:0xf4f8ff,emissive:0x8a9098}),
+    glow:c=>M(T.glow,{unlit:true,cut:true,double:true,color:rgb(c)}), glowBar:c=>M(T.glowLine,{unlit:true,cut:true,double:true,color:rgb(c)}),
+    streak:c=>M(T.streak,{unlit:true,cut:true,color:rgb(c)}), blood:M(T.blood,{cut:true}), glass:M(T.glass,{cut:true,double:true,color:0xb8c8d0}), rgb };
+  return WKM; }
+
+/* =====================================================================
+   WICK stage 1: the cast. Velour's staff and the man you came for. Their own look, not the tower's:
+   - a tailored build: taller, wide in the shoulder, narrow in the waist, a slightly smaller head (the 'tailor' shape)
+   - an ink pass on every painted texture: tone cut into a few hard bands, so cloth and faces read as graphic shapes
+   - sculpted hair and eyewear on top of the painted head, so no two silhouettes match
+   - an edge light in the room's colour (m.rim, the renderer's uRim), which is what draws a black suit against a dark room
+   - house colours: black suits, black shirts, gold ties, white gloves. The bodyguards wear white dinner jackets.
+   Painted on first use (wkCastInit), so nothing here costs the other games anything.
+   ===================================================================== */
+/* cut a painted texture's tone into bands (hue kept), with a little more contrast */
+function wkInk(t,levels=6,gain=1.1){ const w=t.c.width,h=t.c.height,c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.drawImage(t.c,0,0);
+  /* bands are even in sqrt(tone), so the darks keep their steps (a black suit stays black, with a fold or two) */
+  const d=g.getImageData(0,0,w,h),p=d.data; for(let i=0;i<p.length;i+=4){ const v=Math.max(p[i],p[i+1],p[i+2])/255; if(v<.004) continue; const r=Math.round(Math.sqrt(Math.min(1,v*gain))*levels)/levels,q=Math.max(.012,r*r),k=q/v; p[i]=Math.min(255,p[i]*k); p[i+1]=Math.min(255,p[i+1]*k); p[i+2]=Math.min(255,p[i+2]*k); }
+  g.putImageData(d,0,0); return {c,glt:null,f:-1}; }
+function wkRim(n,k=1){ if(n.mesh) for(const m of n.mesh.mats) if(m&&!m.unlit) m.rim=k; for(const q of n.kids) wkRim(q,k); }
+
+const WKH={ /* heads: painted base (10-engine.js paintHead) + a 3D hairstyle and eyewear (wkHead) */
+  wk_a:{seed:9101,skin:'#c9a184',skinD:'#96705a',hair:'slick',hairC:'#0c0a0a',hairFront:13,sideburn:40,brow:'#0c0a0a',browT:2,iris:'#2a1a12',lip:'#94564a',do:'pomp',eyes:'shades'},
+  wk_b:{seed:9102,skin:'#6a4430',skinD:'#44291c',hair:'shaved',hairFront:14,shadow:true,brow:'#120c08',browT:2,iris:'#1a0e08',lip:'#52301f',beard:'goatee',beardC:'#120c08',do:'bald',eyes:'none',ring:true},
+  wk_c:{seed:9103,skin:'#e4c2a6',skinD:'#b6927a',hair:'bleach',hairC:'#d8c48a',hairFront:15,brow:'#a08456',iris:'#5a7a8a',lip:'#a8685a',scar:true,do:'flat',eyes:'none'},
+  wk_d:{seed:9104,skin:'#b88662',skinD:'#885c42',hair:'slick',hairC:'#1a120e',hairFront:12,sideburn:44,shadow:true,brow:'#1a120e',browT:2,iris:'#2a1a10',lip:'#864838',beard:'mustache',beardC:'#1a120e',do:'part',eyes:'none'},
+  wk_e:{seed:9105,skin:'#d8b494',skinD:'#a8846a',hair:'buzz',hairC:'#141010',hairFront:15,brow:'#141010',browT:2,iris:'#2a1a12',lip:'#94564a',beard:'stubble',beardC:'#1c1410',do:'flat',eyes:'shades'},
+  wk_f:{seed:9106,skin:'#8a5c40',skinD:'#5c3826',hair:'buzz',hairC:'#0e0a08',hairFront:15,shadow:true,brow:'#0e0a08',browT:2,iris:'#1a0e08',lip:'#643826',beard:'full',beardC:'#0e0a08',do:'pomp',eyes:'none'},
+  wk_g:{seed:9107,skin:'#e8c8b0',skinD:'#ba9a84',hair:'slick',hairC:'#6a2a14',hairFront:13,sideburn:38,brow:'#5a2410',iris:'#4a6a4a',lip:'#a86a5a',do:'part',eyes:'shades',ring:true},
+  wk_h:{seed:9108,skin:'#caa080',skinD:'#987258',hair:'shaved',hairFront:14,shadow:true,brow:'#2a1e16',browT:2,iris:'#3a2a1a',lip:'#8a4c3c',scar:true,do:'bald',eyes:'shades'},
+  wk_boss:{seed:9120,skin:'#d6ae94',skinD:'#a67e68',hair:'slick',hairC:'#c8c8cc',hairFront:12,sideburn:42,brow:'#b8b8bc',browT:2,iris:'#5a6a7a',lip:'#94605a',age:true,beard:'goatee',beardC:'#c8c8cc',do:'sweep',eyes:'gold'},
+  wk_cook:{seed:9130,skin:'#c49a78',skinD:'#946c50',hair:'buzz',hairC:'#1a1410',hairFront:15,brow:'#1a1410',iris:'#3a2a1a',lip:'#8a4c3c',beard:'stubble',beardC:'#241a14',tattoo:true,do:'band',eyes:'none'} };
+
+/* hair and eyewear on the head joint. hs: the head's scale */
+function wkHead(J,o,H){ const hs=o.headS||1,col=H.hairC?hexInt(H.hairC):0x0c0a0a,m=M(null,{color:col}),hi=M(null,{color:hexInt(mix(H.hairC||'#0c0a0a','#ffffff',.22))});
+  const cr=(rings,mm=m,cz=-.01)=>crown(J,rings.map(([y,a,b])=>[y*hs,a*hs,b*hs]),mm,cz*hs);
+  if(H.do==='pomp'){ cr([[.168,.083,.103],[.205,.09,.11],[.245,.086,.108],[.278,.062,.086],[.292,0,0]]); mk(box(.11*hs,.05*hs,.07*hs,{tw:.8}),m,J.head,0,.262*hs,.07*hs,-.35); mk(box(.06*hs,.012*hs,.1*hs),hi,J.head,.02*hs,.288*hs,.03*hs,-.2); }
+  else if(H.do==='flat'){ cr([[.175,.08,.1],[.215,.084,.104],[.25,.08,.1],[.258,0,0]]); mk(box(.15*hs,.035*hs,.17*hs),m,J.head,0,.262*hs,-.004*hs); }
+  else if(H.do==='part'){ cr([[.17,.082,.102],[.21,.088,.108],[.248,.076,.098],[.268,0,0]]); mk(box(.1*hs,.04*hs,.15*hs,{tw:.9}),m,J.head,-.03*hs,.262*hs,.0,0,0,.25); mk(box(.004*hs,.03*hs,.12*hs),hi,J.head,.022*hs,.27*hs,.01*hs); }
+  else if(H.do==='sweep'){ cr([[.168,.083,.103],[.21,.09,.11],[.25,.082,.106],[.275,.05,.08],[.284,0,0]]); mk(box(.13*hs,.04*hs,.12*hs,{td:.7}),m,J.head,0,.262*hs,-.03*hs,.3); for(const s of [-1,1]) mk(box(.012*hs,.06*hs,.09*hs),hi,J.head,s*.082*hs,.17*hs,-.02*hs); }
+  else if(H.do==='band'){ cr([[.178,.083,.103],[.22,.087,.107],[.246,.07,.09],[.254,0,0]],M(null,{color:0x16161a})); mk(box(.02*hs,.05*hs,.05*hs),M(null,{color:0x16161a}),J.head,.03*hs,.19*hs,-.11*hs,.4); }
+  const y=.124*hs,z=.098*hs;
+  if(H.eyes==='shades'){ const g=M(null,{color:0x050506,emissive:0x0a0c12}); mk(box(.136*hs,.03*hs,.012*hs),g,J.head,0,y,z); for(const s of [-1,1]) mk(box(.008*hs,.012*hs,.09*hs),g,J.head,s*.07*hs,y+.004*hs,z-.045*hs); }
+  else if(H.eyes==='gold'){ const g=M(null,{color:0xd8b060,emissive:0x2a1c08}),l=M(null,{color:0x2a1e12,emissive:0x1a1006}); for(const s of [-1,1]){ mk(box(.052*hs,.034*hs,.008*hs),g,J.head,s*.034*hs,y,z); mk(box(.044*hs,.026*hs,.01*hs),l,J.head,s*.034*hs,y,z+.001); mk(box(.006*hs,.008*hs,.09*hs),g,J.head,s*.064*hs,y+.006*hs,z-.045*hs); } }
+  if(H.ring) mk(box(.012*hs,.018*hs,.012*hs),M(null,{color:0xd8b060,emissive:0x2a1c08}),J.head,.082*hs,.085*hs,.0); /* an earring */ }
+
+/* ---------- the tailoring ---------- */
+const WKS={black:'#0e0f13',black2:'#15171d',gold:'#c89a3c',white:'#e9e6de',cream:'#efeadc',wine:'#5a0f1e',satin:'#101014',navy:'#141a2e'};
+/* a jacket: o.j jacket, o.sh shirt, o.tie (null: open collar), o.bow, o.lap lapel edge, o.sq pocket square, o.db double-breasted, o.p trousers, o.drop how deep the V is */
+function wkTorso(k,seed,o){ const dr=o.drop||58,w0=o.w0||15;
+  return wkInk(torsoP(k,seed,(x,y)=>{ const dx=Math.abs(x-64); if(y>T3.belt+2) return [o.p||o.j,'wool',.6];
+      if(y<T3.neck+dr&&dx<w0*(1-(y-T3.neck)/dr)){ if(o.tie&&dx<2.6&&y>T3.neck+4) return [o.tie,'poly',.3]; return [o.sh,'cotton',.4]; }
+      return [o.j,o.fab||'wool']; },
+    {decor:I=>{ neckShadow(I); sideSeams(I,T3.neck,T3.belt);
+      for(const s of [-1,1]){ softLine(I,64+s*w0,T3.neck,64+s*1.5,T3.neck+dr,o.lap||'#2a2c34',.95,2.2); softLine(I,64+s*(w0+5),T3.neck+2,64+s*7,T3.neck+dr-6,o.lap||'#2a2c34',.5,1.2); }
+      if(o.tie){ softEll(I,64,T3.neck+5,3.4,2.6,o.tie,1,.4); softLine(I,64,T3.neck+9,64,T3.neck+dr-2,mix(o.tie,'#ffffff',.3),.5,.8); softRect(I,60.5,T3.neck+24,7,1.6,'#f4e2a8',.95,.4); }
+      if(o.bow){ for(const s of [-1,1]){ softEll(I,64+s*4.2,T3.neck+4.5,3.6,2.6,o.bow,1,.35); } softEll(I,64,T3.neck+4.5,1.5,1.9,mix(o.bow,'#ffffff',.2),1,.4); for(let y=T3.neck+12;y<T3.neck+dr-4;y+=9) softEll(I,64,y,1,1,'#101014',.9,.4); }
+      if(o.sq) softRect(I,80,T3.chest-34,9,4,o.sq,1,.5);
+      if(o.pin) softEll(I,49,T3.chest-40,1.6,1.6,o.pin,1,.4);
+      const by=T3.neck+dr+4; if(o.db){ for(const bx of [56,72]) for(const yy of [by,by+18,by+36]) softEll(I,bx,yy,2,2,o.db,1,.4); } else softEll(I,64,by,1.8,1.8,o.btn||'#2a2c34',1,.4);
+      softLine(I,64,T3.neck+dr,64,T3.belt,'#000000',.5,1); }}),o.ink||7); }
+const wkArm=(seed,j,cuff,fab)=>wkInk(armP(seed,(x,y)=>y>121?[cuff,'cotton',.2]:[j,fab||'wool'],{decor:I=>{ softLine(I,0,120.5,64,120.5,'#000000',.5,1); for(const x of [50,53,56]) softEll(I,x,114,1,1,'#2a2c34',.9,.4); }}),5);
+const wkLeg=(seed,p)=>wkInk(legP(seed,()=>[p,'wool'],{decor:I=>{ softLine(I,32,0,32,128,mix(p,'#ffffff',.16),.7,1); softLine(I,0,0,0,128,'#000000',.3,1); }}),5);
+
+let WKCAST=null;
+function wkCastInit(){ if(WKCAST) return WKCAST;
+  SHAPES.tailor={rx:{0.86:.94,0.93:.93,1:.9,1.08:.9,1.18:.97,1.28:1.04,1.38:1.09,1.45:1.07},rz:{0.93:.95,1:.92,1.08:.92,1.18:.96,1.38:1.02},cz:{1.38:.004}};
+  Object.assign(HEADS,WKH); for(const k in WKH) FACE[k]={fight:wkInk(paintHead(WKH[k],'fight'),9,1.0)};
+  const shoe=wkInk(tShoeBlack,4),glove=flat(16,16,9201,WKS.white,'cotton',{grime:0}),gloveBk=flat(16,16,9202,'#0c0c0e','leather',{grime:0});
+  const body=(hf,w,x={})=>Object.assign({hf,w,depth:.98,lg:.9*w,ag:.86*w,headS:.93,jacket:.012,pants:.006,shoeW:.092,shape:'tailor'},x);
+  const head=k=>(J,o)=>wkHead(J,o,WKH[k]);
+  /* floor men: black on black, a gold tie and bar, white gloves */
+  const fT=(k,s,sq)=>wkTorso(k,s,{j:WKS.black,sh:WKS.black2,tie:WKS.gold,lap:'#30323c',p:WKS.black,sq,pin:'#e8c878'}),fA=wkArm(9211,WKS.black,WKS.white),fL=wkLeg(9212,WKS.black);
+  /* bodyguards: white dinner jacket, black satin lapels, black bow tie, black trousers */
+  const gT=(k,sd)=>wkTorso(k,sd,{j:WKS.cream,sh:WKS.white,bow:WKS.satin,lap:WKS.satin,p:WKS.black,sq:WKS.wine,btn:'#101014',drop:64,w0:17}),gA=wkArm(9221,WKS.cream,WKS.white),gL=wkLeg(9222,WKS.black);
+  /* door men: a long double-breasted black overcoat with gold buttons over a roll neck */
+  const dT=(k,sd)=>wkTorso(k,sd,{j:'#12131a',sh:'#08080a',lap:'#343642',p:'#12131a',db:'#d8b060',drop:26,w0:10}),dA=wkArm(9231,'#12131a','#08080a'),dL=wkLeg(9232,'#12131a');
+  /* the man you came for: wine velvet smoking jacket, black satin shawl lapels, a gold cravat */
+  const bT=wkTorso('wk_boss',9240,{j:WKS.wine,fab:'knit',sh:WKS.gold,lap:WKS.satin,p:WKS.black,sq:WKS.gold,btn:'#d8b060',drop:60,w0:18}),bA=wkArm(9241,WKS.wine,WKS.white,'knit'),bL=wkLeg(9242,WKS.black);
+  /* the kitchen hand: whites, a black apron, sleeves rolled over tattoos */
+  const cT=wkInk(torsoP('wk_cook',9250,(x,y)=>{ const dx=Math.abs(x-64); if(y>T3.chest-8&&dx<30) return ['#111216','twill',.5]; if(y>T3.belt+2) return ['#1a1c22','twill',.6]; return ['#e2e0d8','cotton']; },{decor:I=>{ neckShadow(I); for(const s of [-1,1]) softLine(I,64+s*14,T3.neck+2,64+s*26,T3.chest-8,'#111216',1,2); for(const bx of [56,72]) for(let y=T3.neck+14;y<T3.chest-12;y+=14) softEll(I,bx,y,1.6,1.6,'#b8b6ae',1,.4); blob(I,70,T3.chest+30,6,9,.5,'#5a0a0a'); }}),5);
+  const cA=wkInk(armP(9251,(x,y)=>y<52?['#e2e0d8','cotton']:[WKH.wk_cook.skin,'skin',0],{decor:I=>{ softRect(I,0,48,64,5,'#c8c6be',.95,1); const r=rng(9252); for(let i=0;i<26;i++){ const x=6+r()*52,y=60+r()*56; softLine(I,x,y,x+(r()-.5)*12,y+(r()-.5)*12,'#1c2a3a',.7,1.3); } }}),5),cL=wkLeg(9253,'#1a1c22');
+  const KNIFE={prop:pKnife,gripHand:true,wFight:{p:[0,-.075,0],r:[1.57,0,0]},fight:ONE_HAND};
+  const R=(as,name,role,k,o,tx,x={})=>Object.assign({as,side:'crew',name,role,color:'#c89a3c',o,torso:tx[0],arm:tx[1],leg:tx[2],foot:shoe,hand:tx[3]||glove,extra:head(k),wkHead:k},x);
+  Object.assign(ROSTER,{
+    wk_floor1:R('gunman','Anton','Floor · Velour','wk_a',body(1.05,1.0),[fT('wk_a',9261,WKS.gold),fA,fL],PISTOL),
+    wk_floor2:R('gunman','Marcus','Floor · Velour','wk_b',body(1.08,1.06),[fT('wk_b',9262,WKS.gold),fA,fL],PISTOL),
+    wk_floor3:R('gunman','Lev','Floor · Velour','wk_c',body(1.03,.97),[fT('wk_c',9263,WKS.gold),fA,fL],PISTOL),
+    wk_floor4:R('gunman','Rafael','Floor · Velour','wk_d',body(1.04,1.0),[fT('wk_d',9264,WKS.gold),fA,fL],PISTOL),
+    wk_guard1:R('enforcer','Oskar','Bodyguard','wk_e',body(1.1,1.1),[gT('wk_e',9223),gA,gL],TWO(pSMG,'smg')),
+    wk_guard2:R('enforcer','Dmitri','Bodyguard','wk_h',body(1.09,1.08),[gT('wk_h',9224),gA,gL],TWO(pSMG,'smg')),
+    wk_door1:R('doorman','Bishop','Door · Velour','wk_f',body(1.12,1.2,{jacket:.03,belly:1.04,headS:.97,shoeW:.105}),[dT('wk_f',9233),dA,dL,gloveBk],TWO(pShotgun,'shotgun')),
+    wk_door2:R('gunman','Cole','Door · Velour','wk_g',body(1.07,1.04,{jacket:.024}),[dT('wk_g',9234),dA,dL,gloveBk],PISTOL),
+    wk_boss:R('landlord','Valentin Sorel','The contract','wk_boss',body(1.02,1.0,{belly:1.06,jacket:.016}),[bT,bA,bL,null],REVOLVER),
+    wk_cook:R('cutter','Tomas','Kitchen','wk_cook',body(1.04,1.04,{jacket:.006,shape:null}),[cT,cA,cL,null],KNIFE) });
+  for(const id of ['wk_boss','wk_cook']) delete ROSTER[id].hand; /* bare hands */
+  return WKCAST=Object.keys(ROSTER).filter(k=>k.startsWith('wk_')); }
+
+/* one of them, standing in the world: returns the character (C) */
+function wkMakeChar(id,parent,grp='wick'){ wkCastInit(); const R_=ROSTER[id]; FACE[R_.wkHead]=FACE[R_.wkHead]||{fight:wkInk(paintHead(WKH[R_.wkHead],'fight'),9,1.0)};
+  HEADS[id]=WKH[R_.wkHead]; FACE[id]=FACE[R_.wkHead]; /* the kit looks heads up by roster id */
+  const C=makeChar(id,parent,grp); wkRim(parent,1); return C; }
+
+/* =====================================================================
+   WICK stage 1: the club, Velour. Stage 1 builds three of its nine spaces for the art gate (plan 3.5): the kitchen, the main room
+   and the VIP lounge. Stage 5 adds the rest round them and the gameplay (nav, cast, items).
+   Layout, x east, z north, metres:
+     kitchen  x -13..-7, z -6..0   (2.9 m)   opens into the main room's west wall
+     main     x  -7..7,  z -6..6   (4.2 m)   bar on the north wall, fish tank on the west, booths on the south, chandelier over the floor
+     VIP      x   7..13, z -1..6   (3.1 m)   through a curtained arch in the main room's east wall
+   Lighting is per vertex, so every big surface is cut into ~0.5 m cells (round pools of light). Eight point lights at a time: the
+   nearest to you are picked every frame (wkLightsTick).
+   ===================================================================== */
+const WK_T=.2; /* wall thickness */
+const WK_ROOMS=[
+  {id:'K',name:'the kitchen',x0:-13,z0:-6,x1:-7,z1:0,h:2.9,kind:'kitchen'},
+  {id:'M',name:'the main room',x0:-7,z0:-6,x1:7,z1:6,h:4.2,kind:'main'},
+  {id:'V',name:'the VIP lounge',x0:7,z0:-1,x1:13,z1:6,h:3.1,kind:'vip'}];
+/* openings: the two rooms, the wall line, where along it, width, height */
+const WK_OPEN=[ {a:'K',b:'M',axis:'z',c:-7,at:-3.6,w:1.3,h:2.3,kind:'pass'}, {a:'M',b:'V',axis:'z',c:7,at:2.3,w:1.9,h:2.6,kind:'arch'} ];
+const WK={lk:2.1,rooms:[],byId:{},lights:[],built:false,matC:new Map(),ticks:[]};
+
+function wkRoomAt(x,z){ for(const r of WK.rooms) if(x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1) return r; return null; }
+/* a material per colour for glows and streaks, made once */
+function wkMC(kind,c){ const k=kind+c.join(); let m=WK.matC.get(k); if(!m){ m=wkM()[kind](c); WK.matC.set(k,m); } return m; }
+
+/* a flat face cut into cells: c centre, n normal, v the face's up, su/sv half sizes, tile = metres per texture repeat [u,v] */
+function wkGrid(pot,m,c,n,v,su,sv,tile=[1,1],cell=.55){ const u=v3.cross(v,n),nu=Math.max(1,Math.ceil(su*2/cell)),nv=Math.max(1,Math.ceil(sv*2/cell));
+  for(let j=0;j<nv;j++) for(let i=0;i<nu;i++){ const a0=-su+su*2*i/nu,a1=-su+su*2*(i+1)/nu,b0=-sv+sv*2*j/nv,b1=-sv+sv*2*(j+1)/nv,ac=(a0+a1)/2,bc=(b0+b1)/2;
+    const p=[c[0]+u[0]*ac+v[0]*bc,c[1]+u[1]*ac+v[1]*bc,c[2]+u[2]*ac+v[2]*bc];
+    pot.quad(m,p,n,u,v,(a1-a0)/2,(b1-b0)/2,[(a0+su)/tile[0],(b0+sv)/tile[1],(a1+su)/tile[0],(b1+sv)/tile[1]]); } }
+const wkQuad=(pot,m,c,n,v,su,sv,uv)=>pot.quad(m,c,n,v3.cross(v,n),v,su,sv,uv);
+
+/* ---------- the shell: floor, ceiling, walls in bands, openings ---------- */
+function wkShell(pot,r){ const W=wkM(),T=WK_T/2,h=r.h,cx=(r.x0+r.x1)/2,cz=(r.z0+r.z1)/2,w=r.x1-r.x0-WK_T,d=r.z1-r.z0-WK_T;
+  const kit=r.kind==='kitchen',fl=kit?W.tileK:W.marble,flT=kit?[.6,.6]:[1.2,1.2];
+  wkGrid(pot,fl,[cx,0,cz],[0,1,0],[0,0,-1],w/2,d/2,flT,.5);
+  wkGrid(pot,W.ceil,[cx,h,cz],[0,-1,0],[0,0,1],w/2,d/2,[2,2],.7);
+  /* each side: inward normal, the line, the span */
+  const sides=[{axis:'x',c:r.z0+T,n:[0,0,1],a:r.x0+T,b:r.x1-T},{axis:'x',c:r.z1-T,n:[0,0,-1],a:r.x0+T,b:r.x1-T},{axis:'z',c:r.x0+T,n:[1,0,0],a:r.z0+T,b:r.z1-T},{axis:'z',c:r.x1-T,n:[-1,0,0],a:r.z0+T,b:r.z1-T}];
+  for(const S of sides){ const line=S.axis==='x'?(S.n[2]>0?r.z0:r.z1):(S.n[0]>0?r.x0:r.x1);
+    const gaps=WK_OPEN.filter(o=>o.axis===S.axis&&Math.abs(o.c-line)<.01&&(o.a===r.id||o.b===r.id)).map(o=>({s0:o.at-o.w/2,s1:o.at+o.w/2,h:o.h,o})).sort((p,q)=>p.s0-q.s0);
+    let s=S.a; const spans=[]; for(const g of gaps){ spans.push([s,g.s0,0,h]); spans.push([g.s0,g.s1,g.h,h]); s=g.s1; } spans.push([s,S.b,0,h]);
+    for(const [s0,s1,y0,y1] of spans){ if(s1-s0<.01) continue; wkBands(pot,r,S,s0,s1,y0,y1); }
+    /* collision: the solid spans, and over the openings */
+    for(const [s0,s1,y0,y1] of spans){ if(s1-s0<.01) continue; const lo=line-T,hi=line+T; if(S.axis==='x') addBox(s0,s1,lo,hi,y0,y1-y0,'wall'); else addBox(lo,hi,s0,s1,y0,y1-y0,'wall'); }
+    for(const g of gaps) wkOpening(pot,r,S,g); } }
+/* one wall span in bands: skirting, wainscot, a brass rail, silk above (the kitchen: white tile, then painted block) */
+function wkBands(pot,r,S,s0,s1,y0,y1){ const W=wkM(),n=S.n,len=s1-s0,mid=(s0+s1)/2,P=(s,y,off=0)=>S.axis==='x'?[s,y,S.c+n[2]*off]:[S.c+n[0]*off,y,s];
+  const band=(m,ya,yb,tile)=>{ const a=Math.max(ya,y0),b=Math.min(yb,y1); if(b-a<.005) return; wkGrid(pot,m,P(mid,(a+b)/2),n,[0,1,0],len/2,(b-a)/2,tile,.5); };
+  if(r.kind==='kitchen'){ band(W.tileD,0,2.0,[.6,.6]); band(W.block,2.0,r.h,[1.2,1.2]); if(y0<2.0&&y1>2.0) pot.box(W.steel,...(S.axis==='x'?[len,.04,.03]:[.03,.04,len]),...P(mid,2.0,.015)); return; }
+  band(W.walnut,0,1.05,[.9,1.05]); band(W.silk,1.11,r.h,[.6,1.2]);
+  const bx=(h,d,y,m)=>{ if(y<y0||y>y1) return; S.axis==='x'?pot.box(m,len,h,d,...P(mid,y,d/2)):pot.box(m,d,h,len,...P(mid,y,d/2)); };
+  bx(.06,.04,1.08,W.brass); bx(.12,.025,.06,W.lacquer);
+  if(r.kind!=='kitchen') bx(.05,.05,r.h-.12,W.brassDk); /* a cornice line where the cove light sits */ }
+/* an opening: jambs and lintel in black lacquer with a brass edge; the arch into VIP gets velvet curtains tied back */
+function wkOpening(pot,r,S,g){ const W=wkM(),o=g.o,n=S.n,T=WK_T,line=o.c,P=(s,y,off=0)=>S.axis==='x'?[s,y,line+n[2]*off]:[line+n[0]*off,y,s];
+  if(r.id!==o.a) return; /* the first room draws it, both sides */
+  const ax=S.axis==='x';
+  for(const s of [g.s0,g.s1]){ const p=P(s,g.h/2); ax?pot.box(W.lacquer,.06,g.h,T+.04,p[0],p[1],p[2]):pot.box(W.lacquer,T+.04,g.h,.06,p[0],p[1],p[2]);
+    for(const sd of [-1,1]){ const q=P(s,g.h/2,sd*(T/2+.02)); ax?pot.box(W.brass,.08,g.h+.04,.02,q[0],q[1],q[2]):pot.box(W.brass,.02,g.h+.04,.08,q[0],q[1],q[2]); } }
+  const p=P((g.s0+g.s1)/2,g.h); ax?pot.box(W.lacquer,g.s1-g.s0+.06,.06,T+.04,p[0],p[1],p[2]):pot.box(W.lacquer,T+.04,.06,g.s1-g.s0+.06,p[0],p[1],p[2]);
+  for(const sd of [-1,1]){ const q=P((g.s0+g.s1)/2,g.h+.02,sd*(T/2+.02)); ax?pot.box(W.brass,g.s1-g.s0+.16,.08,.02,q[0],q[1],q[2]):pot.box(W.brass,.02,.08,g.s1-g.s0+.16,q[0],q[1],q[2]); }
+  if(o.kind==='arch'){ /* velvet drapes on the main-room side, gathered to each jamb with a gold tie */
+    for(const sd of [-1,1]){ const s=sd<0?g.s0+.18:g.s1-.18,q=P(s,g.h/2-.05,-(T/2+.12)); ax?pot.box(W.velvet,.36,g.h-.1,.08,q[0],q[1],q[2]):pot.box(W.velvet,.08,g.h-.1,.36,q[0],q[1],q[2]);
+      const t=P(s,1.1,-(T/2+.17)); ax?pot.box(W.brass,.4,.05,.03,t[0],t[1],t[2]):pot.box(W.brass,.03,.05,.4,t[0],t[1],t[2]); }
+    const v=P((g.s0+g.s1)/2,g.h+.25,-(T/2+.12)); ax?pot.box(W.velvet,g.s1-g.s0+.4,.5,.1,v[0],v[1],v[2]):pot.box(W.velvet,.1,.5,g.s1-g.s0+.4,v[0],v[1],v[2]); } }
+
+/* ---------- light ---------- */
+function wkLight(p,c,k,d,room){ k*=WK.lk; d*=1.3; const l={p,c:[c[0]*k,c[1]*k,c[2]*k],d,room:room&&WK.byId[room],w:1}; WK.lights.push(l); return l; }
+/* a neon tube: the tube itself (unlit), a dithered halo on the wall behind, a reflection on the floor below */
+function wkNeon(pot,G,a,b,c,o={}){ const W=wkM(),m=c===WKC.magenta?W.neonM:c===WKC.cyan?W.neonC:c===WKC.red?W.neonR:W.neonG,d=v3.sub(b,a),L=Math.hypot(...d),mid=v3.sc(v3.add(a,b),.5);
+  const along=Math.abs(d[1])>Math.max(Math.abs(d[0]),Math.abs(d[2]))?'y':Math.abs(d[0])>Math.abs(d[2])?'x':'z',r=o.r||.018;
+  if(along==='x') pot.box(m,L,r*2,r*2,mid[0],mid[1],mid[2]); else if(along==='z') pot.box(m,r*2,r*2,L,mid[0],mid[1],mid[2]); else pot.box(m,r*2,L,r*2,mid[0],mid[1],mid[2]);
+  const n=o.wall; if(n){ const hw=o.halo||.22,c0=v3.add(mid,v3.sc(n,-.012)); /* the halo: a dithered bar, its long side along the tube */
+    if(along==='y') wkQuad(pot,wkMC('glowBar',c),c0,n,v3.cross([0,1,0],n),L/2,hw,[0,0,L/hw,1]); else wkQuad(pot,wkMC('glowBar',c),c0,n,[0,1,0],L/2,hw,[0,0,L/hw,1]); }
+  if(o.floor!=null&&n){ const out=[n[0],0,n[2]],len=o.floor,c0=[mid[0]+out[0]*len/2,.004,mid[2]+out[2]*len/2]; /* its reflection, from the foot of the wall out across the floor */
+    { const hw=along==='y'?.14:L/2; wkQuad(pot,wkMC('streak',c),c0,[0,1,0],out,hw,len/2,[0,0,hw*2/(len/4),1]); } } }
+/* a soft pool of colour on the floor under a light (a dithered disc) */
+function wkPool(){ /* the real lights do this now */ }
+
+/* ---------- the rooms ---------- */
+function wkMain(pot,G,r){ const W=wkM(),h=r.h,N_=r.z1-WK_T/2,S_=r.z0+WK_T/2,W_=r.x0+WK_T/2,E_=r.x1-WK_T/2;
+  /* the bar: back wall of lit bottles, the sign, a marble-topped counter with a fluted walnut front and a brass foot rail */
+  const bx0=-5,bx1=3,bmid=(bx0+bx1)/2,bz=4.55;
+  for(let x=bx0;x<bx1-.01;x+=2){ mk(plane(2,1.5),W.bottles,G,x+1,1.75,N_-.06,0,Math.PI,0); }
+  pot.box(W.lacquer,bx1-bx0+.3,.08,.35,bmid,.97,N_-.18); pot.box(W.lacquer,bx1-bx0+.3,.08,.3,bmid,2.53,N_-.16); /* the back bar's shelf and cap */
+  for(let x=bx0;x<=bx1+.01;x+=2) pot.box(W.brass,.05,1.6,.06,x,1.75,N_-.08);
+  wkNeon(pot,G,[bx0,2.62,N_-.1],[bx1,2.62,N_-.1],WKC.magenta,{wall:[0,0,-1],halo:.3});
+  mk(plane(3.2,.8),W.sign,G,bmid,3.35,N_-.03,0,Math.PI,0);
+  wkLight([bmid,2.2,N_-1.0],WKC.magenta,1.2,8,'M');
+  /* counter */
+  const cl=bx1-bx0+.4; pot.box(W.wood,cl,1.0,.55,bmid,.5,bz); pot.box(W.marble,cl+.12,.06,.75,bmid,1.03,bz+.04);
+  for(let x=bx0-.15;x<=bx1+.15;x+=.12) pot.box(W.lacquer,.03,.88,.02,x,.5,bz-.285); /* the flutes */
+  pot.box(W.brass,cl,.035,.035,bmid,.18,bz-.42); for(let x=bx0;x<=bx1+.01;x+=1.6) pot.box(W.brass,.03,.16,.12,x,.12,bz-.36);
+  wkNeon(pot,G,[bx0-.2,.06,bz-.3],[bx1+.2,.06,bz-.3],WKC.cyan,{r:.012}); wkQuad(pot,wkMC('streak',WKC.cyan),[bmid,.004,bz-.62],[0,1,0],[0,0,-1],cl/2,.32,[0,0,cl/.16,1]);
+  for(let x=bx0;x<bx1-.01;x+=2) wkQuad(pot,W.bottlesR,[x+1,1.062,bz+.06],[0,1,0],[0,0,-1],1,.34,[1,0,0,1]); /* the bottle wall in the polished bar top */
+  /* glasses and a few bottles on the bar, an ice bucket */
+  const r2=rng(4411); for(let i=0;i<9;i++){ const x=bx0+.3+r2()*(cl-.8),z=bz+(r2()-.5)*.3; if(r2()<.5){ pot.cyl(W.glass,.035,.03,.1,8,x,1.11,z); pot.cyl(W.glass,.004,.004,.08,4,x,1.2,z); pot.cyl(W.glass,.04,.004,.05,8,x,1.27,z); } else pot.cyl(W.glass,.035,.03,.09,8,x,1.105,z); }
+  pot.cyl(W.chrome,.11,.09,.22,10,bx1-.6,1.17,bz+.05);
+  /* stools: chrome stem, black leather seat */
+  for(let x=bx0+.4;x<bx1;x+=1.0){ pot.cyl(W.chrome,.025,.025,.72,6,x,.38,bz-.75); pot.cyl(W.chrome,.2,.2,.02,10,x,.01,bz-.75); pot.cyl(W.leatherBk,.2,.18,.09,10,x,.78,bz-.75); pot.cyl(W.brass,.16,.16,.02,10,x,.32,bz-.75); }
+  /* the fish tank: the west wall, wall to wall in brass, its light falling into the room */
+  const tz0=-1.6,tz1=4.4,tm=(tz0+tz1)/2,tl=tz1-tz0;
+  mk(plane(tl,1.9),W.fish,G,W_+.08,1.45,tm,0,Math.PI/2,0);
+  for(const y of [.47,2.43]) pot.box(W.brass,.12,.06,tl+.12,W_+.1,y,tm); for(const z of [tz0,tz1]) pot.box(W.brass,.12,2.02,.06,W_+.1,1.45,z);
+  pot.box(W.lacquer,.4,.45,tl+.2,W_+.2,.225,tm);
+  wkQuad(pot,wkMC('streak',WKC.cyan),[W_+.75,.004,tm],[0,1,0],[1,0,0],tl/2,.6,[0,0,tl/.3,1]);
+  wkLight([W_+1.2,1.5,tm],[.2,.7,1],1.0,6.5,'M');
+  wkQuad(pot,W.fishR,[W_+.4+1.0,.006,tm],[0,1,0],[1,0,0],tl/2,1.0,[1,0,0,1]);
+  /* the chandelier: three rings of crystal under a brass crown, over the dance floor; a warm pool on the marble below */
+  const chx=-.5,chz=-.4,ch=wkChandelier(pot,G,chx,h,chz); wkLight([chx,ch-.4,chz],WKC.gold,.62,8.5,'M'); wkPool(pot,chx,chz,2.6,[.5,.36,.18]);
+  /* the dance floor: inset cyan lines on the marble */
+  const fx0=-3,fx1=2,fz0=-2.6,fz1=1.4; for(let x=fx0;x<=fx1+.01;x+=1.25) pot.box(W.neonC,.025,.006,fz1-fz0,x,.003,(fz0+fz1)/2); for(let z=fz0;z<=fz1+.01;z+=1.0) pot.box(W.neonC,fx1-fx0,.006,.025,(fx0+fx1)/2,.003,z);
+  /* two black lacquer columns, each corner a cyan tube */
+  for(const px of [-4.2,3.4]){ const pz=-2.4; pot.box(W.lacquer,.5,h,.5,px,h/2,pz); for(const sx of [-1,1]) for(const sz of [-1,1]) pot.box(W.neonC,.02,h-.4,.02,px+sx*.26,h/2,pz+sz*.26); addBox(px-.25,px+.25,pz-.25,pz+.25,0,h,'wall');
+    pot.box(W.brass,.56,.06,.56,px,.1,pz); pot.box(W.brass,.56,.06,.56,px,h-.3,pz); wkPool(pot,px,pz,.9,[.05,.35,.45]); }
+  wkLight([1.5,3.7,-1],WKC.cyan,.4,9,'M');
+  /* booths along the south wall: three U-shaped black tufted banquettes, a round table, a little gold lamp each */
+  for(const bxc of [-4.2,-.6,3.0]) wkBooth(pot,G,bxc,S_,W.leatherBk);
+  wkLight([-.6,1.0,S_+1.0],WKC.amber,.6,3.6,'M');
+  /* the cove: a cyan tube round the top of the walls, behind the cornice */
+  const cy=h-.2; wkNeon(pot,G,[W_+.06,cy,S_+.06],[E_-.06,cy,S_+.06],WKC.cyan,{r:.012,wall:[0,0,1],halo:.14}); wkNeon(pot,G,[W_+.06,cy,N_-.06],[E_-.06,cy,N_-.06],WKC.cyan,{r:.012,wall:[0,0,-1],halo:.14});
+  wkNeon(pot,G,[E_-.06,cy,S_+.06],[E_-.06,cy,N_-.06],WKC.cyan,{r:.012,wall:[-1,0,0],halo:.14}); wkNeon(pot,G,[W_+.06,cy,S_+.06],[W_+.06,cy,N_-.06],WKC.cyan,{r:.012,wall:[1,0,0],halo:.14});
+  /* a magenta tube up each side of the VIP arch, so you see where the money is from across the room */
+  for(const z of [2.3-1.05,2.3+1.05]) wkNeon(pot,G,[E_-.04,.3,z],[E_-.04,2.4,z],WKC.magenta,{wall:[-1,0,0],halo:.18,floor:1.2});
+  /* a high table and a lounge chair or two near the tank */
+  wkCocktail(pot,-4.6,2.4); wkCocktail(pot,-3.4,3.1); }
+
+function wkChandelier(pot,G,x,h,z){ const W=wkM(),r=rng(5101),top=h-.05,bot=h-1.25;
+  pot.cyl(W.brass,.01,.01,top-bot-.75,6,x,(top+bot+.75)/2,z); pot.cyl(W.brass,.1,.05,.06,10,x,bot+.75,z); pot.cyl(W.brass,.09,.09,.02,10,x,top-.01,z);
+  for(const [rad,y,n,L0] of [[.7,bot+.62,26,.16],[.52,bot+.42,20,.2],[.34,bot+.22,14,.24],[.16,bot+.05,8,.28]]){
+    for(let i=0;i<n;i++){ const a=i/n*Math.PI*2,px=x+Math.cos(a)*rad,pz=z+Math.sin(a)*rad,L=L0*(.75+r()*.5); pot.box(W.crystal,.011,L,.011,px,y-L/2-.008,pz,a); pot.box(W.bulb,.014,.02,.014,px,y+.012,pz); } }
+  for(let i=0;i<4;i++){ const a=i/4*Math.PI*2+.4; pot.box(W.brass,.006,.62,.006,x+Math.cos(a)*.35,bot+.68,z+Math.sin(a)*.35,0,Math.sin(a)*.9,-Math.cos(a)*.9); }
+  return bot+.3; }
+function wkBooth(pot,G,x,wallZ,mat){ const W=wkM(),d=1.6,w=2.0,z=wallZ+d/2+.05;
+  pot.box(mat,w,.42,.55,x,.21,wallZ+.33); pot.box(mat,w,.7,.18,x,.78,wallZ+.12); /* seat and back against the wall */
+  for(const s of [-1,1]){ pot.box(mat,.55,.42,d-.6,x+s*(w/2-.27),.21,z+.25); pot.box(mat,.16,.7,d-.6,x+s*(w/2-.08),.78,z+.25); }
+  pot.box(W.brass,w+.04,.03,.04,x,1.14,wallZ+.2);
+  pot.cyl(W.marble,.42,.42,.04,14,x,.74,z+.15); pot.cyl(W.chrome,.035,.035,.7,6,x,.37,z+.15); pot.cyl(W.chrome,.24,.24,.02,10,x,.01,z+.15);
+  pot.cyl(W.brass,.05,.07,.03,8,x+.2,.775,z+.05); pot.cyl(W.brass,.008,.008,.2,4,x+.2,.88,z+.05); pot.cyl(W.bulb,.06,.09,.1,8,x+.2,1.0,z+.05);
+  addBox(x-w/2,x+w/2,wallZ,wallZ+.62,0,.9,'furn'); for(const s of [-1,1]) addBox(x+s*(w/2-.55)-.0,x+s*w/2,z-.5,z+.9,0,.9,'furn'); addBox(x-.42,x+.42,z-.27,z+.57,0,.76,'furn'); }
+function wkCocktail(pot,x,z){ const W=wkM(); pot.cyl(W.marble,.3,.3,.04,12,x,1.08,z); pot.cyl(W.chrome,.03,.03,1.06,6,x,.53,z); pot.cyl(W.chrome,.22,.22,.02,10,x,.01,z); pot.cyl(W.glass,.035,.03,.1,8,x+.08,1.15,z); addBox(x-.3,x+.3,z-.3,z+.3,0,1.1,'furn'); }
+
+function wkKitchen(pot,G,r){ const W=wkM(),h=r.h,N_=r.z1-WK_T/2,S_=r.z0+WK_T/2,W_=r.x0+WK_T/2,E_=r.x1-WK_T/2;
+  /* steel run along the north wall, a range and hood on the west, an island, shelves of pans and plates */
+  pot.box(W.steel,5.0,.9,.7,(W_+E_)/2-.3,.45,N_-.35); pot.box(W.steel,5.04,.04,.74,(W_+E_)/2-.3,.92,N_-.35); pot.box(W.black,5.0,.1,.66,(W_+E_)/2-.3,.05,N_-.33);
+  addBox(W_,E_-.6,N_-.7,N_,0,.94,'furn');
+  for(let x=W_+.6;x<E_-1;x+=.9){ pot.box(W.black,.02,.6,.66,x,.45,N_-.33); }
+  /* the range */
+  const rz=-3.2; pot.box(W.black,.9,.9,1.6,W_+.45,.45,rz); pot.box(W.steel,.94,.04,1.64,W_+.45,.92,rz); for(const dz of [-.4,.4]) for(const dx of [-.2,.2]) pot.cyl(W.black,.12,.12,.03,10,W_+.45+dx,.96,rz+dz);
+  pot.box(W.steel,1.0,.5,1.8,W_+.5,2.25,rz); pot.box(W.steel,.6,.6,.6,W_+.35,2.7,rz); addBox(W_,W_+.9,rz-.8,rz+.8,0,.94,'furn');
+  /* two stock pots and a pan on the range */
+  pot.cyl(W.steel,.16,.16,.3,10,W_+.35,1.11,rz-.4); pot.cyl(W.steel,.13,.13,.22,10,W_+.55,1.07,rz+.4); pot.cyl(W.black,.14,.14,.04,10,W_+.25,.98,rz+.4); pot.box(W.black,.03,.02,.25,W_+.25,.99,rz+.6);
+  /* the island */
+  const ix=-10.1,iz=-3.4; pot.box(W.steel,2.4,.9,1.0,ix,.45,iz); pot.box(W.steel,2.44,.04,1.04,ix,.92,iz); pot.box(W.black,2.3,.06,.9,ix,.3,iz); addBox(ix-1.2,ix+1.2,iz-.5,iz+.5,0,.94,'furn');
+  const r2=rng(6201); for(let i=0;i<6;i++){ const x=ix-1+r2()*2,z=iz+(r2()-.5)*.6; if(r2()<.5) pot.cyl(W.white,.12,.1,.025,10,x,.95,z); else pot.box(W.wood,.4,.03,.25,x,.95,z,r2()*3); }
+  pot.box(W.steel,.03,.02,.28,ix+.4,.95,iz-.1,.5); /* a knife on the board */
+  /* shelves over the counter */
+  for(const y of [1.55,2.0]){ pot.box(W.steel,4.6,.03,.32,(W_+E_)/2-.4,y,N_-.17); for(let x=W_+.3;x<E_-1;x+=.32){ if(r2()<.35) continue; if(y<1.9) pot.cyl(W.white,.12,.12,.02,10,x,y+.12,N_-.17,0,Math.PI/2,0); else pot.cyl(W.steel,.1,.1,.16,8,x,y+.1,N_-.17); } }
+  /* pans hanging on a rail by the pass */
+  pot.box(W.steel,.03,.03,1.6,E_-.25,2.1,-1.4); for(let i=0;i<4;i++){ const z=-2.0+i*.4; pot.cyl(W.steel,.11-i*.01,.11-i*.01,.04,10,E_-.25,1.85,z,0,0,Math.PI/2); pot.box(W.steel,.02,.25,.02,E_-.25,1.98,z); }
+  /* cold white tubes on the ceiling */
+  for(const x of [-11.6,-8.6]){ pot.box(W.steel,.16,.05,1.4,x,h-.03,-3); pot.box(W.tube,.08,.03,1.3,x,h-.065,-3); wkLight([x,h-.4,-3],WKC.white,.9,5.6,'K'); }
+  /* heat lamps over the pass to the main room: the kitchen's one warm thing */
+  for(const z of [-3.95,-3.25]){ pot.cyl(W.steel,.012,.012,.5,4,E_-.35,h-.25,z); pot.cyl(W.brass,.11,.04,.12,10,E_-.35,h-.56,z); pot.cyl(M(null,{color:0xffa040,unlit:true}),.07,.07,.01,10,E_-.35,h-.625,z); }
+  wkLight([E_-.5,1.9,-3.6],WKC.amber,.7,3.2,'K'); pot.box(W.steel,.5,.04,1.5,E_-.35,.96,-3.6); pot.box(W.steel,.46,.9,1.46,E_-.35,.46,-3.6); addBox(E_-.6,E_-.1,-4.35,-2.85,0,.98,'furn');
+  for(const z of [-3.95,-3.25]) pot.cyl(W.white,.13,.11,.025,10,E_-.35,.995,z);
+  /* a green exit sign over the alley door (stage 5's door), its glow on the tile */
+  pot.box(W.black,.06,.18,.4,W_+.04,2.35,-1.2); mk(plane(.34,.12),M(tex(16,6,'#1a8a3a',g=>{ R(g,'#c8ffd8',2,1,12,4); }),{unlit:true}),G,W_+.075,2.35,-1.2,0,Math.PI/2,0);
+  wkQuad(pot,wkMC('glow',WKC.green),[W_+.02,2.35,-1.2],[1,0,0],[0,1,0],.5,.4,[0,0,1,1]); }
+
+function wkVip(pot,G,r){ const W=wkM(),h=r.h,N_=r.z1-WK_T/2,S_=r.z0+WK_T/2,W_=r.x0+WK_T/2,E_=r.x1-WK_T/2,cx=(W_+E_)/2,cz=(S_+N_)/2;
+  /* red cove all round, a deep red leather banquette along the north and east walls, the card table under a gold pendant */
+  const cy=h-.18; wkNeon(pot,G,[W_+.05,cy,S_+.05],[E_-.05,cy,S_+.05],WKC.red,{r:.014,wall:[0,0,1],halo:.18}); wkNeon(pot,G,[W_+.05,cy,N_-.05],[E_-.05,cy,N_-.05],WKC.red,{r:.014,wall:[0,0,-1],halo:.18});
+  wkNeon(pot,G,[E_-.05,cy,S_+.05],[E_-.05,cy,N_-.05],WKC.red,{r:.014,wall:[-1,0,0],halo:.18});
+  wkLight([cx,h-.5,cz+1.5],WKC.red,.95,6,'V'); wkLight([cx+1.5,h-.5,cz-1.8],WKC.red,.7,5,'V');
+  const L=N_-S_-.4; pot.box(W.leatherRd,.6,.45,L,E_-.3,.225,cz); pot.box(W.leatherRd,.18,.75,L,E_-.09,.8,cz); addBox(E_-.6,E_,S_,N_,0,.9,'furn');
+  pot.box(W.leatherRd,E_-W_-1.2,.45,.6,cx+.3,.225,N_-.3); pot.box(W.leatherRd,E_-W_-1.2,.75,.18,cx+.3,.8,N_-.09); addBox(W_+.9,E_,N_-.6,N_,0,.9,'furn');
+  pot.box(W.brass,.03,.03,L,E_-.03,1.2,cz); pot.box(W.brass,E_-W_-1.2,.03,.03,cx+.3,1.2,N_-.03);
+  /* the card table: green felt, a walnut rail, chips in stacks, cards, a whisky glass; four chairs */
+  const tx=cx-.3,tz=cz+.2; pot.cyl(W.wood,.75,.75,.08,18,tx,.76,tz); pot.cyl(W.felt,.66,.66,.09,18,tx,.765,tz); pot.cyl(W.lacquer,.12,.2,.72,8,tx,.36,tz); addBox(tx-.75,tx+.75,tz-.75,tz+.75,0,.8,'furn');
+  const CH=[0xb8202a,0xe8e2d6,0x1a1a1e,0xc8a050,0x2850c0],r2=rng(7301);
+  for(let i=0;i<9;i++){ const a=r2()*6.28,rd=.15+r2()*.35,x=tx+Math.cos(a)*rd,z=tz+Math.sin(a)*rd,n=2+(r2()*6|0),m=M(null,{color:CH[r2()*CH.length|0]}); for(let k=0;k<n;k++) pot.cyl(m,.022,.022,.008,8,x,.815+k*.009,z); }
+  for(let i=0;i<5;i++) pot.box(W.white,.06,.003,.09,tx+(r2()-.5)*.6,.812,tz+(r2()-.5)*.6,r2()*3);
+  pot.cyl(W.glass,.04,.035,.08,8,tx+.45,.85,tz-.2);
+  for(let i=0;i<4;i++){ const a=i/4*Math.PI*2+.4,x=tx+Math.cos(a)*1.05,z=tz+Math.sin(a)*1.05; pot.box(W.leatherBk,.5,.08,.5,x,.46,z,-a); pot.box(W.leatherBk,.5,.5,.08,x+Math.cos(a)*.24,.75,z+Math.sin(a)*.24,-a+Math.PI/2); for(const s of [-1,1]) pot.box(W.brass,.03,.42,.03,x+Math.cos(a+s)*.22,.21,z+Math.sin(a+s)*.22); }
+  /* the pendant */
+  pot.cyl(W.brass,.008,.008,h-1.85,4,tx,(h+1.85)/2,tz); pot.cyl(W.brass,.32,.06,.2,14,tx,1.75,tz); pot.cyl(W.bulb,.25,.25,.01,14,tx,1.65,tz);
+  wkLight([tx,1.5,tz],WKC.gold,.9,3.4,'V'); wkPool(pot,tx,tz,1.3,[.35,.24,.1]);
+  /* champagne on ice, a smoked-glass screen at the arch */
+  pot.cyl(W.chrome,.12,.1,.26,10,E_-.75,.89,cz+1.6); pot.cyl(W.chrome,.015,.015,.6,4,E_-.75,.45,cz+1.6); pot.cyl(M(null,{color:0x0e2a14}),.045,.045,.3,8,E_-.72,1.05,cz+1.62,0,.25,0); pot.box(W.brass,.03,.06,.03,E_-.69,1.22,cz+1.64);
+  pot.box(W.smoked,.04,2.2,1.6,W_+1.2,1.1,S_+1.1); pot.box(W.brass,.06,.04,1.64,W_+1.2,2.22,S_+1.1); pot.box(W.brass,.06,.04,1.64,W_+1.2,.02,S_+1.1); addBox(W_+1.17,W_+1.23,S_+.3,S_+1.9,0,2.2,'wall'); }
+
+/* ---------- the build ---------- */
+function wkBuild(){ setWorld(14,9,4.2);
+  disposeTree(floorN); floorN.kids.length=0; FLOOR.sky=null; FLOOR.far=null; BOXES.length=0; boxGridDirty=true; if(typeof FIRES!=='undefined') FIRES.length=0;
+  Object.assign(FLOOR,{n:1,seed:0,test:false,camp:false,idx:1,def:{n:1,name:'Velour',clear:[0,0],cast:[],civ:[]},mode:'wick',doors:[],windows:[],power:true,flick:null,dormD:8,down:false,goals:{},hot:[],noClear:true,
+    stairUp:null,clearH:0,clearP:0,units:[],party:[],bx:99});
+  FLOOR.start={x:-10.6,z:-1.2,yaw:Math.atan2(-(-8-(-10.6)),-(-4-(-1.2)))};
+  if(GAME.vision&&GAME.vision!=='off'&&typeof visionApply==='function'){ GAME.vision='off'; visionApply(); }
+  WK.rooms=WK_ROOMS.map((r,i)=>Object.assign({},r,{i})); WK.byId={}; for(const r of WK.rooms) WK.byId[r.id]=r; WK.lights.length=0; WK.ticks.length=0;
+  const G=floorN; GEO_TEMP=true; const pot=twPot();
+  for(const r of WK.rooms) wkShell(pot,r);
+  wkKitchen(pot,G,WK.byId.K); wkMain(pot,G,WK.byId.M); wkVip(pot,G,WK.byId.V);
+  pot.flush(G); GEO_TEMP=false;
+  meshMerge(floorN,{tile:7});
+  /* walking: every cell inside a room and clear of furniture */
+  const nav=new Uint8Array(NX*NZ),space=new Int16Array(NX*NZ).fill(-9);
+  for(let k=0;k<NZ;k++) for(let i=0;i<NX;i++){ const x=cellX(i),z=cellZ(k),id=k*NX+i,r=wkRoomAt(x,z); let bl=!r; if(r) space[id]=r.i;
+    if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.25) continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; break; } } nav[id]=bl?1:0; }
+  for(const o of WK_OPEN){ for(let s=o.at-o.w/2+.25;s<=o.at+o.w/2-.25;s+=.25) for(const dc of [-.25,0,.25]){ const c=o.axis==='z'?navCell(o.c+dc,s):navCell(s,o.c+dc); if(c>=0) nav[c]=0; } }
+  Object.assign(FLOOR,{nav,navHole:nav,space,seats:[],beds:[],furn:[],lights:WK.lights.map(l=>[l.p,l.c,l.d]),anim:[]});
+  setLights({amb:[.14,.15,.22],dir:[.3,1,.4],dirCol:[.02,.02,.03],fog:[.012,.014,.024],fogNear:9,fogFar:28,pl:[[[0,-50,0],[0,0,0],1]]});
+  boxGridDirty=true; navDirty=true; NAVF.clear(); navGen++;
+  const tag=$('floorTag'); if(tag) tag.textContent='Velour · prototype';
+  WK.built=true; }
+
+/* the eight lights nearest you (your room's first), every frame */
+function wkLightsTick(){ if(FLOOR.mode!=='wick') return; const e=camBasis().eye,pr=wkRoomAt(e[0],e[2]);
+  const C=WK.lights.map(l=>({l,s:Math.hypot(l.p[0]-e[0],l.p[2]-e[2])-l.d*.6-(pr&&l.room===pr?6:0)})).sort((a,b)=>a.s-b.s).slice(0,8);
+  L.plPos.fill(0); L.plCol.fill(0); L.plDist.fill(1); C.forEach(({l},i)=>{ L.plPos.set(l.p,i*3); L.plCol.set(l.c,i*3); L.plDist[i]=l.d; });
+  L.rim=pr&&pr.kind==='kitchen'?[.5,.62,.8]:pr&&pr.kind==='vip'?[1.2,.12,.16]:[1.0,.22,.8]; /* the edge light on people and guns: the room's colour */
+  for(const t of WK.ticks) t(GAME.t); }
+protoOn('tick',()=>{ if(WICK.on) wkLightsTick(); });
+
+/* =====================================================================
+   WICK stage 1: the art view. ?wick=1&art=1 loads the club (91c) with the cast standing in it, so the screenshots for the art gate
+   (plan 3.5) show exactly what the game draws. ?wick=1 without art=1 still loads floor 01 (the stress test).
+   ===================================================================== */
+const WKART={on:WICK.on&&new URLSearchParams(location.search).get('art')==='1',cast:[]};
+function wkBoot(){ if(!WKART.on) return false; wkLoad(); return true; }
+function wkLoad(){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); wkBuild(); resetGame(); protoEmit('load'); if(XR.on) vrRecenter(); }
+function wkReset(){ if(typeof wkCastPlace==='function') wkCastPlace(); if(typeof wkKit==='function') wkKit(); }
+/* the shot tool: {hands:false} takes your hands out of the picture */
+function wkShotSet(o){ o=o||{}; const {f,r,u,eye}=camBasis(),at=(a,b,c)=>v3.add(eye,v3.add(v3.sc(r,a),v3.add(v3.sc(u,b),v3.sc(f,c))));
+  window.__hand=!o.hands?{R:{p:[0,-60,0]},L:{p:[0,-60,0]}}:o.hands==='gun'?{R:{p:at(.05,-.085,.3),pitch:.04},L:{p:[0,-60,0]}}:{R:{p:at(.13,-.12,.4),pitch:.05},L:{p:at(-.12,-.1,.3),pitch:.85}}; }
+
+/* ---------- who stands where (stage 1: posed, not alive; stage 4 makes them enemies) ---------- */
+const WK_PLACE=[ /* id, x, z, facing (0 = +z, north), pose */
+  ['wk_floor1',-2.9,-.9,Math.PI,'fight'],['wk_guard1',-1.75,-.7,Math.PI,'fight'],['wk_boss',-.6,-1.1,Math.PI,'fight'],['wk_guard2',.55,-.7,Math.PI,'fight'],['wk_door1',1.75,-.9,Math.PI,'fight'],
+  ['wk_floor2',-4.1,3.55,-.5,'lean'],['wk_floor3',2.2,3.5,2.6,'watch'],['wk_door2',5.6,1.0,-1.9,'watch'],
+  ['wk_floor4',11.7,.9,-.7,'watch'],['wk_cook',-9.3,-2.2,-2.55,'watch'] ];
+function wkCastPlace(){ if(WKART.root){ disposeTree(WKART.root); const i=world.kids.indexOf(WKART.root); if(i>=0) world.kids.splice(i,1); } WKART.root=N(world); WKART.cast.length=0;
+  GEO_TEMP=true; for(const [id,x,z,ry,pose] of WK_PLACE){ const slot=N(WKART.root,x,0,z,0,ry,0),C=wkMakeChar(id,slot); applyPose(C,C.poses[pose]?pose:'fight'); WKART.cast.push(C); } GEO_TEMP=false; }
+protoOn('tick',()=>{ if(FLOOR.mode!=='wick') return; for(const C of WKART.cast) skinUpdate(C); });
+
+/* ---------- your hands, sleeves, watch and gun ---------- */
+/* the hitman's pistol: the 9 mm's shape (so sights, suppressor and holds line up), dressed in black with brass and a walnut grip */
+function pWkPistol(g){ pPistol(g); const br=M(null,{color:0xd0a850,emissive:0x2c1e08}),wal=M(wkT().walnut,{color:0xb89878});
+  mk(box(.0045,.0015,.15),br,g,0,.0632,.06);                                   /* a brass rib down the slide */
+  mk(box(.004,.011,.034),br,g,.0138,.057,.06);                                  /* the barrel hood in the ejection port */
+  mk(box(.0062,.021,.007),br,g,0,.004,.044,-.2);                                /* trigger */
+  mk(box(.0305,.004,.012),br,g,0,.0635,-.034);                                  /* rear sight base */
+  const gp=N(g,0,-.032,-.006,.28,0,0); mk(box(.0335,.072,.038),wal,gp,0,.004,0); mk(box(.0345,.011,.011),br,gp,0,.012,0); mk(box(.034,.006,.056),br,gp,0,-.057,0); /* grip panels, a medallion, the magazine's floor plate */
+  return g; }
+let WKKIT=false;
+function wkKitOnce(){ if(WKKIT) return; WKKIT=true; const T=wkT();
+  WPN.pistol.build=pWkPistol;
+  const gF=wkInk(flat(16,16,9301,'#1b1b20','leather',{grime:0,decor:I=>{ for(const x of [3,7,11]) softLine(I,x,3,x,13,'#2c2e36',.7,1); }}),4),gK=wkInk(flat(16,16,9302,'#17171b','leather',{grime:0,decor:I=>{ for(const x of [2,6,10,14]) softEll(I,x,8,1.5,2.6,'#30323a',.8,.5); }}),4);
+  /* the sleeve: black wool, a white cuff and a gold link at the wrist end */
+  const sl=wkInk(wkImg(32,64,(I)=>{ wkFill(I,'#0f1014'); for(let y=0;y<64;y++) for(let x=0;x<32;x++) mul(I,x,y,.9+.2*fbm(x*.3,y*.08,9311,2)); softRect(I,0,0,32,7,'#ecebe6',1,.5); softLine(I,0,7.5,32,7.5,'#000000',.6,1); softRect(I,0,57,32,7,'#ecebe6',1,.5); softLine(I,0,56.5,32,56.5,'#000000',.6,1); for(const y of [3.5,60.5]) softEll(I,8,y,1.6,1.6,'#d8b060',1,.4); }),5);
+  for(const h of [HANDS.R,HANDS.L]){ h.hm.mats[0].tex=gF; h.hm.mats[1].tex=gK; (function w(n){ if(n.mesh) for(const m of n.mesh.mats){ m.tex=sl; m.rim=1; } n.kids.forEach(w); })(h.armN); wkRim(h.node,1); }
+  /* a white shirt cuff and a gold link at each wrist, so your hands read against a dark room */
+  { const wh=M(null,{color:0xf0eee8,emissive:0x202020}),gd=M(null,{color:0xd8b060,emissive:0x2c1e08}); for(const h of [HANDS.R,HANDS.L]){ const ps=h.hm.ps,rt=h.hm.root; mk(box(.041,.067,.024),wh,rt,-ps*.031,0,-.099); mk(box(.006,.013,.013),gd,rt,-ps*.031-ps*.0215,-.012,-.099); mk(box(.047,.073,.03),M(null,{color:0x0d0e12}),rt,-ps*.031,0,-.127); wkRim(rt,1); } }
+  /* a steel dress watch on the left wrist; the frame rate (and the bullet time meter, stage 2) sits on its face */
+  const a=HANDS.L.armN,st=M(T.steel,{color:0xe0e6ea,emissive:0x14181c}),bk=M(null,{color:0x08080a});
+  mk(box(.086,.078,.02),bk,a,0,0,-.07); mk(box(.012,.05,.05),st,a,.034,0,-.07); mk(box(.006,.012,.012),st,a,.036,.03,-.07); for(const k of a.kids) wkRim(k,1); }
+function wkKit(){ wkKitOnce(); equip(HANDS.R,newItem('pistol',undefined,true)); equip(HANDS.L,null);
+  const n=HANDS.R.itemNode; if(n){ if(n.can){ const S=CAN_SPEC.pistol,br=M(null,{color:0xd0a850,emissive:0x2c1e08}); for(const e of [-1,1]) mk(cyl(S.R+.0012,S.R+.0012,.005,10),br,n.can,0,0,e*(S.L/2-.022),Math.PI/2); } wkRim(n,1); } }
+if(WICK.on) protoOn('reset',()=>{ if(FLOOR.mode!=='wick') wkKitOnce(); });
 
 /* =====================================================================
    WICK stage 0: the stress spawn. Needs the game's functions, so it lives inside the engine's scope (06-wick.js can't see them).
