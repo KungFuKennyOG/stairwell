@@ -52,13 +52,14 @@ function hear(E,src,k,o){ if(!upright(E)) return; const at=navSnap(src[0],src[2]
   else investigate(E,at); }
 
 function investigate(E,at){ if(E.dead||E.aware||E.ally) return; if(E.civ) return; /* tenants don't go and look */
+  if(WICK.on&&typeof huntTurn==='function'){ huntTurn(E,at); return; } /* the hitman: he turns to it, he doesn't go looking */
   if(PROTO.on&&typeof huntLookJob==='function'){ huntLookJob(E,at); return; } /* a look: there, a check, 8-12 s, back (83-hunt.js) */
   if(typeof twBrace==='function'&&twBrace(E,at)) return; /* the tower: two go to look, the rest stay put (66-tower.js) */
   if(E.mind==='search'){ E.srcC=at; E.wp=at; E.pauseT=0; E.searchT=Math.max(E.searchT,6); return; }
   if(E.mind!=='investigate') say(E,LINES.huh,2);
   E.mind='investigate'; E.lkp=at; E.goalT=0; freshGoal(E); if(E.st==='idle') E.st='alert'; }
 
-function startSearch(E,c,why){ if(PROTO.on&&typeof huntTakeOver==='function'&&huntTakeOver(E,c,why)) return; /* a hunt is on: he joins it (83-hunt.js) */
+function startSearch(E,c,why){ if(WICK.on&&typeof wickNoSearch==='function'&&wickNoSearch(E,c,why)) return; /* the hitman: nobody searches, they come (94b-wick-ai.js) */ if(PROTO.on&&typeof huntTakeOver==='function'&&huntTakeOver(E,c,why)) return; /* a hunt is on: he joins it (83-hunt.js) */
   E.aware=false; E.mind='search'; E.srcC=navSnap(c[0],c[1]); E.wp=null; E.pauseT=0; E.goalT=0; freshGoal(E);
   E.searchT=why==='body'?rnd(14,18):why==='inv'?rnd(6,9):rnd(10,14); E.sayT=rnd(3,6);
   if(why==='lost') say(E,LINES.lost,2.2); }

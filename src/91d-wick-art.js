@@ -2,10 +2,10 @@
    WICK stage 1: the art view. ?wick=1&art=1 loads the club (91c) with the cast standing in it, so the screenshots for the art gate
    (plan 3.5) show exactly what the game draws. ?wick=1 without art=1 still loads floor 01 (the stress test).
    ===================================================================== */
-const WKART={on:WICK.on&&new URLSearchParams(location.search).get('art')==='1',cast:[]};
-function wkBoot(){ if(!WKART.on) return false; wkLoad(); return true; }
+const WKART={on:WICK.on&&new URLSearchParams(location.search).get('art')==='1',play:WICK.on&&new URLSearchParams(location.search).get('play')==='1',cast:[]}; /* play=1: the club with live men and the director (94-wick-director.js) */
+function wkBoot(){ if(!WKART.on&&!WKART.play) return false; if(WKART.play&&!WKART.on&&typeof wickPlayPrep==='function') wickPlayPrep(); wkLoad(); return true; }
 function wkLoad(){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); wkBuild(); resetGame(); protoEmit('load'); if(XR.on) vrRecenter(); }
-function wkReset(){ if(typeof wkCastPlace==='function') wkCastPlace(); if(typeof wkKit==='function') wkKit(); }
+function wkReset(){ if(WKART.play&&!WKART.on&&typeof wickPlayReset==='function'){ if(typeof wkKit==='function') wkKit(); wickPlayReset(); return; } if(typeof wkCastPlace==='function') wkCastPlace(); if(typeof wkKit==='function') wkKit(); }
 /* the shot tool: {hands:false} takes your hands out of the picture */
 function wkShotSet(o){ o=o||{}; const {f,r,u,eye}=camBasis(),at=(a,b,c)=>v3.add(eye,v3.add(v3.sc(r,a),v3.add(v3.sc(u,b),v3.sc(f,c))));
   window.__hand=!o.hands?{R:{p:[0,-60,0]},L:{p:[0,-60,0]}}:o.hands==='gun'?{R:{p:at(.05,-.085,.3),pitch:.04},L:{p:[0,-60,0]}}:{R:{p:at(.13,-.12,.4),pitch:.05},L:{p:at(-.12,-.1,.3),pitch:.85}}; }

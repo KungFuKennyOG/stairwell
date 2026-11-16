@@ -5925,7 +5925,7 @@ function rayEnemies(o,d,maxT,pad=0){ let best=null;
   return best; }
 
 /* damage */
-function bark(E,text,dur=2.6){ if(!text) return; E.barkEl.textContent=text; E.barkT=dur; E.barkCd=dur+rnd(.6,1.6); }
+function bark(E,text,dur=2.6){ if(WICK.on&&typeof wickBark==='function') text=wickBark(E,text); /* the hitman: no begging (94b-wick-ai.js) */ if(!text) return; E.barkEl.textContent=text; E.barkT=dur; E.barkCd=dur+rnd(.6,1.6); }
 /* he knows you're here. at: [x,z] where he thinks you are (a noise, a friend's scream); direct contact (seen, hit, kicked, grabbed) means where you actually are */
 function setAware(E,why,at){ if(E.dead||E.ally) return; /* your own team never turns on you */
   if(E.civ){ if(typeof twCivPanic==='function') twCivPanic(E,why); return; } /* tenants panic, they don't fight (66-tower.js) */ const p=at||[PL.x,PL.z];
@@ -6231,7 +6231,7 @@ function crawlGoal(E,pel){ if(PROTO.on&&typeof wdCrawlGoal==='function'){ const 
     const sc=dp-walk*.35+(sightClear([PL.x,1.5,PL.z],[x,.4,z])?0:2.5); if(sc>bs){ bs=sc; best=[cellX(c%NX),cellZ((c-c%NX)/NX)]; } }
   return E.cg=best; }
 function toDown(E,hard){ /* unless knocked flat, they buckle: held up on the way down to a knee, then let go */
-  const wasKneel=E.st==='kneel',faker=!E.dead&&!E.ally&&!E.civ&&armed(E)&&psychOf(E)==='fake'&&Math.random()<.7; /* some go down and play dead with the gun under them (69-standoff.js) */
+  const wasKneel=E.st==='kneel',faker=!E.dead&&!E.ally&&!E.civ&&armed(E)&&(WICK.on&&typeof wickDownKeep==='function'?wickDownKeep(E):psychOf(E)==='fake'&&Math.random()<.7); /* the hitman: a man down brings his gun up (94b-wick-ai.js) */ /* some go down and play dead with the gun under them (69-standoff.js) */
   E.st='down'; E.downT=0; E.settle=Math.max(E.settle||0,1.4); E.surr=null; E.civFreeze=false; if(faker) fakeDeadStart(E); else dropWeapon(E);
   const B=E.B,Rh=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),X_(B,PI_.pelvis),X_(B,PI_.chest)),fw=Rh[2];
   E.pos=[B.x[0],B.x[2]]; if(Math.hypot(fw[0],fw[2])>.3){ /* keep the heading he had unless his hips really turned: snapping to a noisy hip frame yanks the whole body round */
@@ -6488,7 +6488,7 @@ function update(dt,now){
   for(const h of [HANDS.L,HANDS.R]){ tickItem(h,dt); if(XR.on) tickCan(h); if(h.swingT>=0){ const hv=h.item&&WPN[h.item.key].heavy; h.swingT+=dt/(hv?.55:.34); if(!h.swingDone&&h.swingT>.42){ h.swingDone=true; flatSwingHit(h); } if(h.swingT>=1) h.swingT=-1; } }
   if(!XR.on&&KEYS.Mouse0&&document.pointerLockElement&&HANDS.R.item&&WPN[HANDS.R.item.key].auto) useRight();
   updateGrabs(gdt); footsteps(dt);
-  for(const E of enemies) think(E,gdt,GAME.t);
+  for(const E of enemies) if(!E.wkSleep) think(E,gdt,GAME.t); /* wkSleep: a later beat's man, posted and asleep (94-wick-director.js) */
   protoEmit('tick',gdt,dt); /* prototype systems (src/05-proto.js) */
   /* a body that falls asleep inside this frame's physics already had its rig set to the pose (pose space, at the origin) by targetsFor,
      so it still has to be driven back onto its particles this frame, or its head, hands and shoes stay floating at the origin while it sleeps */
@@ -6496,7 +6496,7 @@ function update(dt,now){
      come within 14 m or anything happens to him. A long level can hold a dozen people and still only pay for the few near you. */
   for(const E of enemies){ E.liveT=(E.liveT||0)+gdt;
     const far=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)>(E.dormant?(FLOOR.dormD||14):(FLOOR.dormD||14)+2),calm=!E.dead&&!E.aware&&(!E.mind||E.mind==='calm'||E.mind==='nervous'&&!E.goHome)&&E.st==='idle'&&!E.wounds.length&&!E.grabbed&&E.stun<.01&&!E.B.wake;
-    E.dormant=calm&&far&&E.liveT>1.5; }
+    E.dormant=calm&&far&&E.liveT>1.5||!!E.wkSleep&&E.liveT>.3; }
   for(const E of enemies){ E.posed=!E.asleep&&!E.dormant; if(E.posed) targetsFor(E,GAME.t,gdt); }
   GAME.acc+=gdt; let n=0; while(GAME.acc>=H&&n<14){ physics(H); GAME.acc-=H; n++; } if(n>=14) GAME.acc=0;
   for(const E of enemies){ if(!E.dormant&&(!E.asleep||E.posed)){ driveRig(E); skinUpdate(E.C); } bleedFx(E,gdt); poolFx(E,gdt); }
@@ -6867,13 +6867,14 @@ function hear(E,src,k,o){ if(!upright(E)) return; const at=navSnap(src[0],src[2]
   else investigate(E,at); }
 
 function investigate(E,at){ if(E.dead||E.aware||E.ally) return; if(E.civ) return; /* tenants don't go and look */
+  if(WICK.on&&typeof huntTurn==='function'){ huntTurn(E,at); return; } /* the hitman: he turns to it, he doesn't go looking */
   if(PROTO.on&&typeof huntLookJob==='function'){ huntLookJob(E,at); return; } /* a look: there, a check, 8-12 s, back (83-hunt.js) */
   if(typeof twBrace==='function'&&twBrace(E,at)) return; /* the tower: two go to look, the rest stay put (66-tower.js) */
   if(E.mind==='search'){ E.srcC=at; E.wp=at; E.pauseT=0; E.searchT=Math.max(E.searchT,6); return; }
   if(E.mind!=='investigate') say(E,LINES.huh,2);
   E.mind='investigate'; E.lkp=at; E.goalT=0; freshGoal(E); if(E.st==='idle') E.st='alert'; }
 
-function startSearch(E,c,why){ if(PROTO.on&&typeof huntTakeOver==='function'&&huntTakeOver(E,c,why)) return; /* a hunt is on: he joins it (83-hunt.js) */
+function startSearch(E,c,why){ if(WICK.on&&typeof wickNoSearch==='function'&&wickNoSearch(E,c,why)) return; /* the hitman: nobody searches, they come (94b-wick-ai.js) */ if(PROTO.on&&typeof huntTakeOver==='function'&&huntTakeOver(E,c,why)) return; /* a hunt is on: he joins it (83-hunt.js) */
   E.aware=false; E.mind='search'; E.srcC=navSnap(c[0],c[1]); E.wp=null; E.pauseT=0; E.goalT=0; freshGoal(E);
   E.searchT=why==='body'?rnd(14,18):why==='inv'?rnd(6,9):rnd(10,14); E.sayT=rnd(3,6);
   if(why==='lost') say(E,LINES.lost,2.2); }
@@ -6989,7 +6990,7 @@ const SHAPE={}; function shaper(ac,k){ const key=Math.round(k*10); if(SHAPE[key]
 function voiceListener(){ if(!AC) return; const L=AC.listener,{f,u,eye}=camBasis(); if(!eye) return;
   try{ if(L.positionX){ L.positionX.value=eye[0]; L.positionY.value=eye[1]; L.positionZ.value=eye[2]; L.forwardX.value=f[0]; L.forwardY.value=f[1]; L.forwardZ.value=f[2]; L.upX.value=u[0]; L.upY.value=u[1]; L.upZ.value=u[2]; }
     else { L.setPosition(eye[0],eye[1],eye[2]); L.setOrientation(f[0],f[1],f[2],u[0],u[1],u[2]); } }catch(_){} }
-function vox(E,type,vol=1){ const ac=AC; if(!ac||!E||!E.B) return; const D=VOX[type]; if(!D) return;
+function vox(E,type,vol=1){ if(WICK.on&&typeof wickVox==='function'){ type=wickVox(type); if(!type) return; } /* the hitman: no sobbing or pleading (94b-wick-ai.js) */ const ac=AC; if(!ac||!E||!E.B) return; const D=VOX[type]; if(!D) return;
   const now=ac.currentTime; if(E.voxEnd>now&&D.pri<=(E.voxPri||0)) return; /* busy with something that matters as much */
   const hp=X_(E.B,PI_.head),dist=Math.hypot(hp[0]-PL.x,hp[2]-PL.z); if(dist>15) return;
   if(VOXN>=VOX_MAX&&D.pri<3) return;
@@ -9481,7 +9482,7 @@ function coveredBy(E,aims){ const B=E.B;
   return false; }
 const lookingAt=(p,deg)=>{ const c=camBasis(),v=norm3(v3.sub(p,c.eye)); return v3.dot(v,c.f)>Math.cos(deg*Math.PI/180); };
 
-function surrender(E,why){ if(E.dead||E.surr||E.ally) return;
+function surrender(E,why){ if(E.dead||E.surr||E.ally) return; if(WICK.on&&typeof wickSurrOk==='function'&&!wickSurrOk(E,why)) return; /* the hitman: rare and short (94b-wick-ai.js) */
   E.surr={ph:'reach',t:0,why,hold:rnd(.9,1.6)}; E.role=null; E.atkCd=1e9; E.burstN=0; E.atkT=-1; E.fakeWait=rnd(1.2,2.6);
   E.backup=!E.civ&&psychOf(E)==='fake'&&!!E.C.wpn&&!!RANGED[E.kind];
   if(E.barkCd<=0||why!=='civ'){ bark(E,pick(E.civ?FREEZE_LINES:E.concealed?SURR_PLAIN:SURR_LINES),2.2); GAME.barkGlobal=.8; } /* plain clothes: only what a tenant would say too */
@@ -11505,7 +11506,8 @@ function huntPerceive(E,dt,dist,toP){ const P=PROTO.hunt,mood=huntMood(E),Tb=moo
   return E.pm>=1; }
 
 /* he's seen you: he says where, and the floor knows */
-function huntWhere(){ if(typeof pfRoomAt==='function'){ const r=pfRoomAt(PL.x,PL.z); if(r&&r.name) return /hall|corridor|landing|stair/i.test(r.name)?HL_.hall:HL_.room(String(r.name).toLowerCase()); }
+function huntWhere(){ if(FLOOR.mode==='wick'&&typeof wkRoomAt==='function'){ const r=wkRoomAt(PL.x,PL.z); return r?HL_.room(String(r.name).replace(/^the /,'')):null; } /* the club's rooms */
+  if(typeof pfRoomAt==='function'){ const r=pfRoomAt(PL.x,PL.z); if(r&&r.name) return /hall|corridor|landing|stair/i.test(r.name)?HL_.hall:HL_.room(String(r.name).toLowerCase()); }
   if(FLOOR.mode==='camp'&&FLOOR.space){ const c=navCell(PL.x,PL.z); if(c>=0&&(FLOOR.space[c]===-1||FLOOR.space[c]===-2)) return HL_.hall; } return null; }
 function huntSpotted(E){ const w=huntWhere(); if(w&&!(E.concealed&&!E.wpnHeld)){ bark(E,w,1.8); GAME.barkGlobal=Math.max(GAME.barkGlobal,1); }
   huntLog('spotted',{by:E.name,d:+Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z).toFixed(1),lit:!!E.hLit,peek:E.hLos===1}); huntAlert('seen',[PL.x,PL.z],1,E); }
@@ -11552,7 +11554,7 @@ function huntLen(){ const P=PROTO.hunt; return Math.min(P.lenMax,P.len0+P.lenAdd
 function huntSetLkp(pos,t){ const H=HUNT; H.lkp=navSnap(pos[0],pos[1]); H.lkpT=t??GAME.t; H.rayAt=[PL.x,PL.z]; /* where he really was then: the steer measures how far he's gone since (a thrown bottle doesn't count) */
   if(H.state==='hunting'&&(!H.planAt||Math.hypot(H.planAt[0]-H.lkp[0],H.planAt[1]-H.lkp[1])>5)) huntPlanSpots(); }
 /* reason: 'seen'|'body'|'shot'|'scream'|'noise'|'radio'|'glimpse'. E: the man who saw or heard it (optional). ev: the noise it came from */
-function huntAlert(reason,pos,strength=1,E=null,ev=null,walls=0){ if(!PROTO.on||!GAME.started) return; const H=HUNT,P=PROTO.hunt;
+function huntAlert(reason,pos,strength=1,E=null,ev=null,walls=0){ if(!PROTO.on||!GAME.started) return; if(WICK.on&&typeof wickHuntAlert==='function'){ wickHuntAlert(reason,pos,strength,E); return; } /* the hitman: beats go quiet to loud, no hunts (94b-wick-ai.js) */ const H=HUNT,P=PROTO.hunt;
   pos=pos?[pos[0],pos[1]]:[PL.x,PL.z];
   if(ev){ if(ev.done){ if(walls<ev.w&&H.state==='hunting'&&GAME.t-ev.t<6){ ev.w=walls; huntSetLkp(pos,ev.t); } if(E&&!E.hj&&huntFree(E)) huntTurn(E,pos); return; } ev.done=true; ev.w=walls; }
   huntLog('alert',{reason,s:+strength.toFixed(2),by:E&&E.name,at:pos.map(v=>+v.toFixed(1))});
@@ -11874,7 +11876,7 @@ function huntTorchFx(){ if(FLOOR.mode==='proto'){ for(const E of enemies) if(E.t
 
 /* ---------- every frame: heads and bodies turning, the meter's reaction, the floor's clock ---------- */
 
-function huntTick(gdt){ if(!PROTO.on||!GAME.started||!FLOOR.nav) return; const H=HUNT,t=GAME.t; if(!H.rolesDone&&enemies.length) huntRoles();
+function huntTick(gdt){ if(!PROTO.on||!GAME.started||!FLOOR.nav) return; const H=HUNT,t=GAME.t; if(!H.rolesDone&&enemies.length&&!WICK.on) huntRoles();
   for(const E of enemies){ if(E.dead){ if(E.hUp){ E.hUp=false; huntFall(E); } continue; }
     const up=upright(E); if(E.hUp&&!up&&E.st==='down') huntFall(E); E.hUp=up; if(!up||E.aware||E.civ||E.ally) continue;
     let look=null;
@@ -11895,7 +11897,7 @@ function huntTick(gdt){ if(!PROTO.on||!GAME.started||!FLOOR.nav) return; const H
     if(w){ H.seenIn={spot:PL.hide,t}; huntLog('seenIn',{kind:PL.hide.kind,by:w.name}); } H.hideWas=PL.hide; }
   for(const E of enemies) if(E.torchOn) huntTorchAim(E);
   huntTorchFx();
-  H.acc+=gdt; if(H.acc>=.25){ const dt=H.acc; H.acc=0; huntThink(dt); }
+  H.acc+=gdt; if(H.acc>=.25){ const dt=H.acc; H.acc=0; if(!WICK.on) huntThink(dt); } /* the hitman: no hunt clock, pairs or search grid; the director runs the floor (94-wick-director.js) */
   if(H.dbg) huntDbg(); }
 function huntFall(E){ if(!E.civ&&!E.ally) huntWitness(E); const p=X_(E.B,PI_.pelvis); setTimeout(()=>noise([p[0],0,p[2]],PROTO.hunt.hear.fall,{kind:'fall',from:E}),350); } /* a body hitting the floor */
 
@@ -12033,7 +12035,7 @@ function dirEdgeDrift(){ const F=fieldTo(PL.x,PL.z); let best=null,bd=1e9;
 
 /* close calls: a spot that held while a man was at it, a man passing right by him hidden */
 protoOn('hideSave',()=>{ DIRECTOR.close=GAME.t; });
-protoOn('tick',gdt=>{ if(!PROTO.on||!GAME.started||!FLOOR.nav||PL.dead) return; const D=DIRECTOR; D.acc+=gdt; if(D.acc>=PROTO.director.every){ const dt=D.acc; D.acc=0; dirTick(dt); } });
+protoOn('tick',gdt=>{ if(!PROTO.on||WICK.on||!GAME.started||!FLOOR.nav||PL.dead) return; const D=DIRECTOR; D.acc+=gdt; if(D.acc>=PROTO.director.every){ const dt=D.acc; D.acc=0; dirTick(dt); } });
 protoOn('reset',()=>dirReset()); protoOn('load',()=>dirReset());
 
 /* =====================================================================
@@ -12230,7 +12232,7 @@ function fxLitAt(x,z){ if(typeof huntLitAt==='function') return huntLitAt(x,z);
 function fxFree(x,z){ const c=navCell(x,z); if(c<0||FLOOR.nav[c]) return false; const ci=c%NX;
   for(const q of [c-1,c+1,c-NX,c+NX]){ if(q<0||q>=FLOOR.nav.length||Math.abs((q%NX)-ci)>1||FLOOR.nav[q]) return false; } return true; }
 const fxIn=(r,x,z)=>!!r&&(r.src&&typeof pfIn==='function'?pfIn(r.src,x,z):x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1); /* the prototype's rooms can be L-shaped (85-pfloor.js) */
-function fxRooms(){ if(FGT.rooms) return FGT.rooms; const out=[];
+function fxRooms(){ if(FGT.rooms) return FGT.rooms; const out=[]; if(FLOOR.mode==='wick'&&typeof wickFightRooms==='function') return FGT.rooms=wickFightRooms(); /* the club (94b-wick-ai.js) */
   if(FLOOR.mode==='proto'&&typeof PF!=='undefined'&&PF&&PF.rooms){ for(const r of PF.rooms){ const R={x0:Math.min(r.x0,r.x1),x1:Math.max(r.x0,r.x1),z0:Math.min(r.z0,r.z1),z1:Math.max(r.z0,r.z1),lit:!!r.lit,doors:[],id:r.id,src:r.rects?r:null};
       for(const o of PF.openings||[]){ if(o.a!==r.id&&o.b!==r.id||o.kind==='chain'||o.kind==='hole') continue; for(const n of [[1,0],[-1,0],[0,1],[0,-1]]) if(fxIn(R,o.x+n[0]*.7,o.z+n[1]*.7)){ R.doors.push({x:o.x,z:o.z,n}); break; } }
       out.push(R); } }
@@ -12283,7 +12285,7 @@ function fightMayFire(E,dist){ if(dist>pnum('fight','range',25)) return false; c
   if(F.ret&&F.ret.ph==='wait'&&dist>3) return false; /* lying in wait: not till you're through the door */
   if(typeof closeHolding==='function'&&closeHolding(E)&&dist>3) return false; /* behind the doorframe: he fires when he leans out (84b-close.js) */
   if(E.rage>0||E.sprung>0||GAME.t-(F.sprangT??-99)<2||dist<(fxGunfight()?pnum('fight','gunFree',8):pnum('fight','closeFree',3.5))) return true; /* a man in a rage, a faker coming up and a man you're on top of don't wait their turn */
-  return FGT.token===E; }
+  return FGT.token===E||WICK.on&&FGT.token2===E; } /* the hitman: a second shooter (94b-wick-ai.js) */
 /* the token: one man shoots, whoever has the best line. It moves when he loses you, goes down or runs dry of reasons */
 const fxTokOk=E=>E&&!E.dead&&!E.civ&&!E.ally&&E.st==='alert'&&!E.surr&&armed(E)&&E.aware&&!E.grabbed&&!(E.fx&&(E.fx.run||E.fx.ret&&E.fx.ret.ph==='wait'));
 function fightToken(){ let T=FGT.token;
@@ -14049,7 +14051,7 @@ function hideHud(){ if(!HIDE.test||!GAME.started) return; const S=PL.hide,e=PL.h
 
 /* ---------- wiring ---------- */
 function hideFrame(dt){ dt=Math.min(dt,.05); let B=hideBody(); hideCrouchTick(dt,B); hideFlatSpeed(); B=hideBody();
-  hideSpotTick(dt,B); hideMouthTick(B); hideSaveTick(B); sheetsTick(dt,B); sheetHandsTick(B); hideHud(); }
+  if(!WICK.on){ hideSpotTick(dt,B); hideMouthTick(B); hideSaveTick(B); } /* the hitman doesn't hide */ sheetsTick(dt,B); sheetHandsTick(B); hideHud(); }
 function hideReset(){ if(!PROTO.on) return; const fresh=hideFresh(); if(fresh){ HIDES.length=0; SHEETS.length=0; }
   PL.hide=null; PL.hideExp=1; PL.crawl=false; HIDE.crawlD=0; HIDE.low=0; HIDE.passers.clear(); HIDE.soundT=-99; HIDE.sp=null; HIDE.lx=null;
   PL.dropY=PL.crouchT?(hideIsVR()?HIDE.togOff:1.62-HIDEP.flatEye):0; for(const k in HIDE_KIND_SAVES) delete HIDE_KIND_SAVES[k];
@@ -15968,7 +15970,7 @@ function wkShell(pot,r){ const W=wkM(),T=WK_T/2,h=r.h,cx=(r.x0+r.x1)/2,cz=(r.z0+
     let s=S.a; const spans=[]; for(const g of gaps){ spans.push([s,g.s0,0,h]); spans.push([g.s0,g.s1,g.h,h]); s=g.s1; } spans.push([s,S.b,0,h]);
     for(const [s0,s1,y0,y1] of spans){ if(s1-s0<.01) continue; wkBands(pot,r,S,s0,s1,y0,y1); }
     /* collision: the solid spans, and over the openings */
-    for(const [s0,s1,y0,y1] of spans){ if(s1-s0<.01) continue; const lo=line-T,hi=line+T; if(S.axis==='x') addBox(s0,s1,lo,hi,y0,y1-y0,'wall'); else addBox(lo,hi,s0,s1,y0,y1-y0,'wall'); }
+    for(const [s0,s1,y0,y1] of spans){ if(s1-s0<.01) continue; const lo=line-T,hi=line+T; if(S.axis==='x') addBox(s0,s1,lo,hi,y0,y1,'wall'); else addBox(lo,hi,s0,s1,y0,y1,'wall'); /* addBox takes the top, not the height: the wall over an opening was blocking sight and bullets at head height */ }
     for(const g of gaps) wkOpening(pot,r,S,g); } }
 /* one wall span in bands: skirting, wainscot, a brass rail, silk above (the kitchen: white tile, then painted block) */
 function wkBands(pot,r,S,s0,s1,y0,y1){ const W=wkM(),n=S.n,len=s1-s0,mid=(s0+s1)/2,P=(s,y,off=0)=>S.axis==='x'?[s,y,S.c+n[2]*off]:[S.c+n[0]*off,y,s];
@@ -16132,10 +16134,10 @@ protoOn('tick',()=>{ if(WICK.on) wkLightsTick(); });
    WICK stage 1: the art view. ?wick=1&art=1 loads the club (91c) with the cast standing in it, so the screenshots for the art gate
    (plan 3.5) show exactly what the game draws. ?wick=1 without art=1 still loads floor 01 (the stress test).
    ===================================================================== */
-const WKART={on:WICK.on&&new URLSearchParams(location.search).get('art')==='1',cast:[]};
-function wkBoot(){ if(!WKART.on) return false; wkLoad(); return true; }
+const WKART={on:WICK.on&&new URLSearchParams(location.search).get('art')==='1',play:WICK.on&&new URLSearchParams(location.search).get('play')==='1',cast:[]}; /* play=1: the club with live men and the director (94-wick-director.js) */
+function wkBoot(){ if(!WKART.on&&!WKART.play) return false; if(WKART.play&&!WKART.on&&typeof wickPlayPrep==='function') wickPlayPrep(); wkLoad(); return true; }
 function wkLoad(){ PL.y=0; clearEnemies(); for(const P of LOOSE.slice()) removePickup(P); wkBuild(); resetGame(); protoEmit('load'); if(XR.on) vrRecenter(); }
-function wkReset(){ if(typeof wkCastPlace==='function') wkCastPlace(); if(typeof wkKit==='function') wkKit(); }
+function wkReset(){ if(WKART.play&&!WKART.on&&typeof wickPlayReset==='function'){ if(typeof wkKit==='function') wkKit(); wickPlayReset(); return; } if(typeof wkCastPlace==='function') wkCastPlace(); if(typeof wkKit==='function') wkKit(); }
 /* the shot tool: {hands:false} takes your hands out of the picture */
 function wkShotSet(o){ o=o||{}; const {f,r,u,eye}=camBasis(),at=(a,b,c)=>v3.add(eye,v3.add(v3.sc(r,a),v3.add(v3.sc(u,b),v3.sc(f,c))));
   window.__hand=!o.hands?{R:{p:[0,-60,0]},L:{p:[0,-60,0]}}:o.hands==='gun'?{R:{p:at(.05,-.085,.3),pitch:.04},L:{p:[0,-60,0]}}:{R:{p:at(.13,-.12,.4),pitch:.05},L:{p:at(-.12,-.1,.3),pitch:.85}}; }
@@ -16486,6 +16488,320 @@ protoOn('tick',(gdt,dt)=>{ if(!WICK.on) return; wkBodyTick(dt);
   for(const E of enemies){ wkStunTick(E); wkSlideTick(E,gdt); if(E.wkKillAt&&GAME.t>=E.wkKillAt){ E.wkKillAt=0; if(!E.dead) die(E); } }
   for(const h of [HANDS.L,HANDS.R]){ wkKnifeTick(h); if(h.item&&WPN[h.item.key].gun) wickReloadBlocked(h); }
   wkThrownTick(gdt); wkStripTick(gdt); wkShieldTick(gdt); wkKnockTick(); });
+
+/* =====================================================================
+   WICK stage 4: the director. Bayhem's beats (bayhem-vr src/beats.js and its levels' director.js), rewritten for this engine.
+   The level is a list of beats run in order. Each beat has:
+   - enter(): who is posted where, a line, the music level, anything it sets off. Its men are spawned (asleep) when the beat
+     before it starts, so walking in never hitches; they wake when it starts.
+   - a marker [x,z]: where you are heading. Reaching it moves the beat on (Bayhem: "every time the player gets to the objective,
+     it gets to the objective"). Never gated on enemies being dead.
+   - cleared: every man of the beat dead (its waves too), or for the last beat the target dead (Gunman Contracts' rule). The
+     last man of a beat dies in a second of slow motion (wickSlowBurst, agent R's), which is the "space clear" signal.
+   - quiet: true if stealth is possible. Quiet goes loud on a body found, an unsuppressed shot, or a man who saw you and lived
+     (94b-wick-ai.js decides which); loud carries into the next beat. A beat that isn't quiet goes loud when you step into its
+     space (or sooner, by the same rules), so its men don't come for you while you're still finishing the last one.
+   - waves: men who come in through a doorway on a timer or when the beat's numbers drop.
+   Only the current beat is awake. The next beat's men stand posted but asleep (no thinking, no physics). Men from an earlier
+   beat who are close and fighting keep fighting; the rest drop out (asleep where they stand).
+   Dying restarts the beat: its men are posted again, you are back at its start with the kit you walked in with.
+   ?wick=1&play=1 runs the test beat list on the three spaces stage 1 built (kitchen quiet, main room loud with waves, the office
+   with the target). Stage 5 replaces WK_TEST_BEATS with the whole route.
+   Contracts (docs/wick/BRIEF.md section 4): WICK_DIR, wickBeatRestart(), wickLoud(reason); events wickBeat(beat), wickLoud(reason),
+   wickClear(beat), and wickRestart(beat), wickDone() (new). ?w.dir.<key>=n sets any number below.
+   ===================================================================== */
+WICK.dir={ arriveR:1.4, minT:1.5, farR:9, deadT:2.6, slowSec:1.2, slowFall:.22, sayT:3.2, waveCap:8 };
+const WICK_DIR={beat:null,i:-1,loud:false,t:0,total:0,done:false,on:false,why:'',loudT:null,marker:null,music:0,beats:[],log:[],kit:null,loose0:null,slowT:0};
+function wickUrlSet(sys){ if(!WICK.on) return; const q=new URLSearchParams(location.search);
+  for(const [k,v] of q){ if(!k.startsWith('w.'+sys+'.')) continue; const key=k.slice(3+sys.length),n=Number(v); if(WICK[sys]&&isFinite(n)) WICK[sys][key]=n; } }
+wickUrlSet('dir');
+const wkDirLog=(ev,o)=>{ const r=Object.assign({t:+GAME.t.toFixed(2),ev,beat:WICK_DIR.beat&&WICK_DIR.beat.name},o||{}); WICK_DIR.log.push(r); if(WICK_DIR.log.length>200) WICK_DIR.log.shift(); };
+
+/* ---------- the test beats: the three spaces from stage 1 (91c-wick-club.js). x east, z north ---------- */
+const WK_TEST_BEATS=[
+  { name:'kitchen', quiet:true, start:[-10.6,-1.2,null], marker:[-7.35,-5.2], music:.3, line:'The kitchen. Two of them. Nobody hears a thing.',
+    men:[ {id:'wk_cook',x:-9.8,z:-4.45,hd:Math.PI},                                      /* past the island, his back to you */
+          {id:'wk_floor4',x:-8.3,z:-4.9,hd:Math.PI,patrol:[[-8.3,-4.9],[-8.4,-1.9]]} ] },  /* walks the pass and back */
+  { name:'floor', quiet:false, space:'M', start:[-6.3,-5.2,-2.0], marker:[6.4,2.3], music:.75, line:'The floor. They know you\'re here.',
+    men:[ {id:'wk_floor1',x:-1.8,z:-.6,hd:-Math.PI/2}, {id:'wk_floor2',x:-4.0,z:3.75,hd:-2.4}, {id:'wk_floor3',x:2.4,z:3.4,hd:-2.2} ],
+    waves:[ {t:6,from:[8.4,2.3],men:[{id:'wk_door2',name:'Cole'},{id:'wk_floor1',name:'Yuri'}]},              /* out of the office, through the arch */
+            {alive:1,from:[-8.0,-5.2],men:[{id:'wk_door1',name:'Bishop'},{id:'wk_floor3',name:'Pavel'}]} ] }, /* round through the kitchen behind you */
+  { name:'office', quiet:false, space:'V', start:[5.9,2.3,-Math.PI/2], marker:null, music:.9, line:'Sorel.', target:'wk_boss',
+    men:[ {id:'wk_boss',name:'Valentin Sorel',x:11.9,z:2.3,hd:-Math.PI/2,target:true}, {id:'wk_guard1',x:8.3,z:.6,hd:-1.3}, {id:'wk_guard2',x:8.3,z:4.2,hd:-1.85} ] } ];
+
+/* the test list runs on the three stage 1 rooms, which stage 1 left without a way from the kitchen into the main room (the pass is
+   a serving hatch; stage 5's service corridor is the real way). For play=1 only: an open doorway in the same wall, south of the
+   hatch, drawn by the club's own opening code (lacquer jambs, brass edge) */
+function wickPlayPrep(){ if(!WK_OPEN.some(o=>o.play)) WK_OPEN.push({a:'K',b:'M',axis:'z',c:-7,at:-5.2,w:1.05,h:2.3,kind:'door',play:true}); }
+
+/* ---------- men ---------- */
+const wkAlive=E=>!!E&&!E.dead;
+const wkMenOf=i=>enemies.filter(E=>E.wkBeat===i);
+function wkSpawn(s,bi,o={}){ wkCastInit(); const R_=ROSTER[s.id]; if(!R_) return null; const x=o.x??s.x,z=o.z??s.z;
+  const E=spawnEnemy({maker:(h,g)=>wkMakeChar(s.id,h,g),name:s.name||R_.name,x,z,hd:o.hd??s.hd??0,extra:''});
+  enemies.push(E); E.wkBeat=bi; E.wkId=s.id; E.psych='fight'; E.liveT=0; E.wkTarget=!!s.target; if(typeof attachLabels==='function') attachLabels();
+  if(s.patrol){ E.patrol={pts:s.patrol.map(p=>p.slice()),i:1,wait:rnd(1,3)}; E.st='alert'; }
+  if(typeof huntTorchMesh==='function') huntTorchMesh(E);
+  protoEmit('wickSpawn',E); return E; }
+/* asleep: no thinking, no physics, frozen in his pose (50-game.js update() skips him). A man hurt or grabbed wakes */
+function wkSleep(E,on){ E.wkSleep=!!on; if(!on){ E.liveT=0; E.dormant=false; } }
+function wkRemove(E){ for(const G of (typeof GRABS!=='undefined'?GRABS.slice():[])) if(G.E===E) endGrab(G);
+  disposeTree(E.holder); let i=world.kids.indexOf(E.holder); if(i>=0) world.kids.splice(i,1); if(E.barkEl) E.barkEl.remove();
+  if(E.label){ const k=world.kids.indexOf(E.label); if(k>=0) world.kids.splice(k,1); }
+  i=enemies.indexOf(E); if(i>=0) enemies.splice(i,1); i=chars.indexOf(E.C); if(i>=0) chars.splice(i,1);
+  if(typeof FGT!=='undefined'){ if(FGT.token===E) FGT.token=null; if(FGT.token2===E) FGT.token2=null; } }
+
+/* ---------- the run ---------- */
+function wickDirStart(list){ const D=WICK_DIR; Object.assign(D,{beats:list.map((b,i)=>Object.assign({},b,{i,loudIn:false,waveDone:[],spawned:false,surrDone:false})),i:-1,beat:null,loud:false,
+    t:0,total:0,done:false,on:true,why:'',loudT:null,marker:null,firstPushT:null,slowT:0,held:0}); D.log.length=0;
+  wkPost(0,true); wkNext(); }
+/* the beat's posted men, spawned asleep */
+function wkPost(i,awake){ const b=WICK_DIR.beats[i]; if(!b||b.spawned) return; b.spawned=true; b.n0=0;
+  for(const s of b.men||[]){ const E=wkSpawn(s,i); if(!E) continue; b.n0++; wkSleep(E,!awake); }
+  /* its waves too, asleep out of the way at their doorway: building a man mid-fight is a hitch on the Quest */
+  (b.waves||[]).forEach((w,k)=>{ for(const s of w.men){ const n=WICK_DIR.held++,E=wkSpawn(s,i,{x:WK_HOLD[0]+(n%12)*.8,z:WK_HOLD[1]+((n%24)/12|0)*.8,hd:0}); if(!E) continue;
+    E.wkWave=k; E.wkHeld=true; wkSleep(E,true); } }); }
+/* where a wave waits: outside the rooms (north of the main room's wall), out of sight, till it's sent to its doorway */
+const WK_HOLD=[-4.4,7.4];
+function wkTeleport(E,x,z){ const B=E.B,dx=x-E.pos[0],dz=z-E.pos[1]; for(let i=0;i<NP;i++){ B.x[i*3]+=dx; B.p[i*3]+=dx; B.x[i*3+2]+=dz; B.p[i*3+2]+=dz; } E.pos=[x,z]; E.home=[x,z]; }
+function wkNext(){ const D=WICK_DIR,prev=D.beat;
+  /* men left behind: close and fighting keep at it, the rest drop out where they stand */
+  if(prev) for(const E of enemies){ if(E.dead||E.wkBeat==null||E.wkBeat>D.i||E.wkSleep) continue;
+    const far=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)>wnum('dir','farR',9); if(far||!E.aware) wkSleep(E,true); }
+  D.i++; D.t=0; const b=D.beats[D.i]; D.beat=b||null;
+  if(!b){ D.done=true; D.marker=null; wkDirLog('done'); protoEmit('wickDone'); return; }
+  wkPost(D.i,true); for(const E of wkMenOf(D.i)) if(!E.dead&&!E.wkHeld) wkSleep(E,false);
+  wkPost(D.i+1,false); /* the next one's men: posted, asleep */
+  D.marker=b.marker?b.marker.slice():null; D.music=b.music??D.music; D.loud=false; D.why=''; D.loudT=null; D.firstPushT=null; D.surr=null;
+  b.loudIn0=b.loudIn; b.t0=GAME.t; b.waveDone=[]; b.moved=null;
+  /* what you carry into it, for a restart */
+  D.kitDirty=true; /* taken on the next tick, after every 'reset' handler has handed out the start kit */
+  if(b.start&&b.start[2]==null) b.start[2]=PL.yaw;
+  wkDirLog('enter',{quiet:!!b.quiet,loudIn:!!b.loudIn,men:wkMenOf(D.i).length});
+  if(b.line){ if(XR.on&&typeof vrToast==='function') vrToast(b.line,wnum('dir','sayT',3.2)); const tag=$('floorTag'); if(tag) tag.textContent='Velour · '+b.name; }
+  if(b.enter) b.enter(b);
+  protoEmit('wickBeat',b);
+  if(b.loudIn) wickLoud('carried'); else if(!b.quiet&&!b.space) wickLoud('beat'); } /* a loud beat with a space goes loud when you step into it (wickDirTick) */
+
+/* the current beat goes loud (94b-wick-ai.js calls it with 'body', 'shot', 'seen'; 'beat' for a beat that starts loud) */
+function wickLoud(reason){ const D=WICK_DIR,b=D.beat; if(!b||D.loud) return; D.loud=true; D.why=reason||'?'; D.loudT=GAME.t; D.firstPushT=null;
+  const nb=D.beats[D.i+1]; if(nb) nb.loudIn=true; /* and so does the next one */
+  D.music=Math.max(D.music,.8); wkDirLog('loud',{why:D.why});
+  for(const E of enemies) if(!E.dead&&!E.wkSleep&&E.wkBeat!=null&&typeof wickPush==='function') wickPush(E);
+  protoEmit('wickLoud',D.why); protoEmit('stat','wickLoud',D.why); }
+
+function wkCleared(b){ const men=wkMenOf(b.i); if(b.target){ const T=men.find(E=>E.wkTarget); return !!T&&T.dead; }
+  return men.every(E=>E.dead)&&(b.waves||[]).every((w,k)=>b.waveDone[k]); }
+function wkWaves(b){ const men=wkMenOf(b.i),alive=men.filter(E=>!E.dead&&!E.wkHeld).length;
+  (b.waves||[]).forEach((w,k)=>{ if(b.waveDone[k]) return; const go=w.t!=null?WICK_DIR.t>=w.t:w.alive!=null&&alive<=w.alive; if(!go) return;
+    const awake=enemies.filter(E=>!E.dead&&!E.wkSleep).length; if(awake>=wnum('dir','waveCap',8)) return; /* the awake cap: the Quest's limit is per beat */
+    b.waveDone[k]=true; let n=0;
+    for(const E of men){ if(E.wkWave!==k||!E.wkHeld) continue; E.wkHeld=false; if(E.dead) continue; const p=navSpotNear(w.from[0],w.from[1],1.2)||w.from; wkTeleport(E,p[0],p[1]); wkSleep(E,false); b.n0++; n++; E.hd=Math.atan2(PL.x-E.pos[0],PL.z-E.pos[1]); if(typeof wickPush==='function') wickPush(E,true); }
+    wkDirLog('wave',{k,n}); protoEmit('wickWave',b,k); }); }
+
+function wkArrived(b){ if(!b.marker||WICK_DIR.t<wnum('dir','minT',1.5)) return false; return Math.hypot(PL.x-b.marker[0],PL.z-b.marker[1])<=wnum('dir','arriveR',1.4); }
+
+/* the last man of a beat: a second of slow motion, free. Agent R's wickSlowBurst; a local stand-in until it's in */
+function wkSlow(sec){ if(typeof wickSlowBurst==='function'){ wickSlowBurst(sec); return; } WICK_DIR.slowT=sec; GAME.slow=true; }
+protoOn('death',E=>{ const D=WICK_DIR; if(!D.on||!E||E.wkBeat==null||!D.beat||E.wkBeat!==D.i) return;
+  const b=D.beat,left=wkMenOf(D.i).filter(O=>O!==E&&!O.dead).length,pending=(b.waves||[]).some((w,k)=>!b.waveDone[k]);
+  if(!left&&!pending&&!b.cleared){ b.cleared=true; wkSlow(wnum('dir','slowSec',1.2)); wkDirLog('lastMan',{who:E.name}); protoEmit('wickClear',b); } });
+
+function wkKitSnap(){ const D=WICK_DIR; D.kit={hands:[HANDS.R,HANDS.L].map(h=>h.item?{key:h.item.key,ammo:h.item.ammo,sup:h.item.sup}:null),pouch:PL.pouch?JSON.parse(JSON.stringify(PL.pouch)):null,hp:PL.hp};
+  D.loose0=new Set(LOOSE); }
+function wickDirTick(gdt,dt){ const D=WICK_DIR; if(!D.on||!GAME.started) return;
+  if(D.slowT>0){ D.slowT-=dt; if(D.slowT<=0&&typeof wickSlowBurst!=='function'){ GAME.slow=false; } }
+  /* dying restarts the beat. The shell's card and fade run first (89-shell.js); it signals the core with PL.deadT=1e3 */
+  if(PL.dead){ const sh=typeof SHELL!=='undefined'&&SHELL.dying; if(PL.deadT>=(sh?100:wnum('dir','deadT',2.6))) wickBeatRestart(); return; }
+  if(D.kitDirty){ D.kitDirty=false; wkKitSnap(); }
+  if(D.done) return; const b=D.beat; if(!b) return; D.t+=gdt; D.total+=gdt;
+  /* a sleeping man hurt or grabbed wakes, and he knows */
+  for(const E of enemies) if(E.wkSleep&&(E.dead||E.wounds.length||E.grabbed||E.stun>.05||E.st==='down')){ wkSleep(E,false); E.wkHeld=false; if(!E.dead&&typeof wickPush==='function') wickPush(E); }
+  if(!D.loud&&!b.quiet&&b.space&&typeof wkRoomAt==='function'){ const r=wkRoomAt(PL.x,PL.z); if(r&&r.id===b.space) wickLoud('beat'); }
+  if(D.loud) wkWaves(b);
+  if(b.update) b.update(D.t,b);
+  const cl=wkCleared(b),ar=!cl&&wkArrived(b);
+  if(cl||ar){ b.moved=cl?'cleared':'arrive'; wkDirLog('moveOn',{by:b.moved,left:wkMenOf(D.i).filter(wkAlive).length,bt:+D.t.toFixed(1)}); wkNext(); } }
+protoOn('tick',(gdt,dt)=>{ if(WICK.on) wickDirTick(gdt,dt); });
+
+/* dying restarts the beat, not the level. The shell (stage 6) will call this; until then the director calls it itself */
+function wickBeatRestart(){ const D=WICK_DIR,b=D.beat; if(!D.on||!b){ if(typeof restartLevel==='function') restartLevel(); return; }
+  for(const E of enemies.slice()) if(E.wkBeat!=null&&(E.wkBeat>=D.i||!E.dead&&!E.wkSleep)) wkRemove(E); /* this beat's men, the next one's, and anyone still up from before */
+  for(const P of LOOSE.slice()) if(D.loose0&&!D.loose0.has(P)) removePickup(P);
+  for(let k=D.i;k<D.beats.length;k++){ const q=D.beats[k]; q.spawned=false; q.cleared=false; q.waveDone=[]; }
+  b.loudIn=!!b.loudIn0; const nb=D.beats[D.i+1]; if(nb) nb.loudIn=false;
+  const s=b.start||[FLOOR.start.x,FLOOR.start.z,FLOOR.start.yaw];
+  Object.assign(PL,{x:s[0],z:s[1],yaw:s[2]??PL.yaw,pitch:0,y:0,dead:false,deadT:0,hurtT:9,kickCd:0}); PL.hp=D.kit&&D.kit.hp>0?Math.max(D.kit.hp,wnum('rules','hp',100)):wnum('rules','hp',100);
+  if(PL.wounds) PL.wounds.length=0; if(typeof RAYDROPS!=='undefined') RAYDROPS.length=0; if(PL.grab) PL.grab=null;
+  const K=D.kit; if(K){ [HANDS.R,HANDS.L].forEach((h,k)=>{ const it=K.hands[k]; equip(h,it?newItem(it.key,it.ammo,it.sup):null); }); if(K.pouch&&PL.pouch) Object.assign(PL.pouch,JSON.parse(JSON.stringify(K.pouch))); }
+  GAME.slow=false; GAME.ts=1; D.slowT=0; $('msg').hidden=true; $('sblood').innerHTML='';
+  if(typeof SHELL!=='undefined'){ const out=!!SHELL.dying; SHELL.dying=null; SHELL.deadSeen=false; if(typeof shellCards==='function') shellCards(); if(out){ SHELL.fadeIn=pnum('shell','fadeIn',.7); GAME.fade=1; } }
+  if(XR.on&&typeof vrRecenter==='function'){ const st=FLOOR.start; FLOOR.start={x:s[0],z:s[1],yaw:s[2]??st.yaw}; vrRecenter(); FLOOR.start=st; }
+  wkDirLog('restart'); protoEmit('wickRestart',b);
+  D.i--; D.beat=null; wkNext(); } /* back into the same beat: wkNext steps to it and posts its men again */
+
+/* where you're heading, for the watch (agent R draws it) and the flat-screen hint: {x,z,d,bearing} or null. bearing: radians from your facing, + is to the right */
+function wickMarker(){ const m=WICK_DIR.marker; if(!m) return null; const dx=m[0]-PL.x,dz=m[1]-PL.z,yaw=XR.on&&XR.head?Math.atan2(-XR.head.f[0],-XR.head.f[2]):PL.yaw;
+  return {x:m[0],z:m[1],d:Math.hypot(dx,dz),bearing:wrapA(yaw-Math.atan2(-dx,-dz))}; }
+
+/* ?wick=1&play=1: the club with live men (91d-wick-art.js wkBoot loads it; its reset calls this) */
+function wickPlayReset(){ if(typeof HIDES!=='undefined') HIDES.length=0; if(typeof SHEETS!=='undefined') SHEETS.length=0; PL.hide=null; /* no hiding in this game */
+  wickDirStart(WK_TEST_BEATS); }
+
+/* =====================================================================
+   WICK stage 4: the enemies. Plan sections 2b, 2c and 6.2-6.3. Everything here only runs with WICK.on.
+   Quiet beat: men stand posts and walk short loops; the notice meter (83-hunt.js huntPerceive) fills with sight. A noise turns a
+   man toward it; nobody goes searching. It goes loud on a body found, an unsuppressed shot (yours or theirs), or a man who knows
+   you're there and is still on his feet (or has his gun up from the floor) WICK.ai.grace seconds later. Kill him first and you're
+   still quiet (Gunman Contracts does the same).
+   Loud beat: every man knows where you are the whole time (E.tracks: no searching, no hiding). Two push straight at you (the
+   tower's 'hunt' role, a short rage to get them moving), the rest hold; every WICK.ai.pushEvery s, if fewer than two are on you,
+   the nearest holder comes. Two shooters at a time beyond 3.5 m (84-fight.js FGT.token2), everyone inside it.
+   Violence is fun (plan 2c): no begging, pleading, sobbing or long screams (lines and voices are swapped for grunts and swearing
+   at bark() and vox()); a man down either brings his gun up from the floor within a second or so, or dies within seconds; wounds
+   bleed WICK.ai.bleedK times faster and a second body round finishes him; every hit shoves harder, a shoulder hit turns him, a
+   close shotgun load throws him back a step; surrender is rare (the last man of a beat, sometimes), short, and he goes for his
+   gun; as their numbers drop the lines go from orders to "who IS this guy" to fear, and the target bargains.
+   The horror prototype's hunt (83-hunt.js huntAlert/huntThink), its searching (52-senses.js startSearch), its director
+   (83a-director.js) and hiding (86-hide.js spots) are switched off with WICK.on; the hooks in those files call in here.
+   ?w.ai.<key>=n sets any number below.
+   ===================================================================== */
+WICK.ai={ grace:1.3, supHear:4, push:1.1, spin:1.15, throwN:3, throwV:3.2, throwStep:.7, bleedK:2.5,
+  down:[1.6,2.8], downFight:.55, downFightLife:[5,8], downAim:[.5,1.0], second:[.3,.7],
+  surrP:.4, surrT:[1.5,2.4], pushEvery:6, pushers:2, pushRage:5, nearR:5, shooters:2, fearGap:[3.5,6], bargainGap:[4.5,7] };
+wickUrlSet('ai');
+const WK_AI={pushT:0,fearT:3,bargT:2,lastFire:{t:-99,sup:true}};
+if(WICK.on) PROTO.hunt.hear.sup=wnum('ai','supHear',4); /* the plan's suppressor: heard a few metres off (the prototype's was 10) */
+if(WICK.on) PROTO.fight.retreat=0; /* hurt men don't back off into a dark room to wait: they come at you or go down */
+
+/* ---------- what they say: grunts, swearing, orders. Never begging ---------- */
+const WK_GRUNT=['*grunts*','Hnn—','Agh—','...fuck.','Hhh—'];
+const WK_SWEAR=['Fuck!','Son of a bitch—','You motherfucker—','Shit!','Fuck you!'];
+const WK_DOWNGUN=['Fuck you—','Come here—','Hnn— got you—'];
+const WK_FEAR=[ ['Push him!','Go, go, go!','Move up!','Cut him off!','Get on him!','Box him in!'],
+  ['It\'s him— it\'s HIM!','Who the hell is this guy?!','He\'s killing everybody!','How is he still standing?!','Where\'s everybody else?!'],
+  ['Stay back! STAY BACK!','This isn\'t worth it—','Jesus Christ—','Somebody shoot him!','I\'m not dying for Sorel!'] ];
+const WK_BARGAIN=['Whatever they\'re paying you, I\'ll double it!','Name a number. Any number.','We can talk about this.','You know what I can give you?','Walk away and you\'re a rich man.'];
+const WK_SURR=['Alright. Alright.','Easy. Easy, man.','You win. You win.'],WK_SPRING=['...the hell I am.','Fuck it—','Like hell.'];
+if(WICK.on){ Object.assign(LINES,{ alert:['Hey! HEY!','Who the hell—','Gun! GUN!','Contact!','He\'s here!'],
+    leg:['Agh— my leg—','Fuck!','Hnn— son of a—'], torso:['Fuck— I\'m hit!','Agh!','Son of a bitch—'], arm:['Agh! My arm!','Fuck— my hand—'],
+    stab:['Hnn—!','Agh—','You fuck—'], beg:['Fuck you.','...hnn.','*grunts*','Come on then.'], crawl:['*grunts*','Hnn...','...fuck.'], dying:['...','Hhh...'],
+    call:n=>[`${n}! He's here!`,`${n}! Get him!`] });
+  HOSTAGE_LINES.splice(0,HOSTAGE_LINES.length,'Shoot him! SHOOT HIM!','Take the shot!','Don\'t mind me— shoot!','Do it! DO IT!','Get him off me!');
+  SURR_LINES.splice(0,SURR_LINES.length,...WK_SURR); }
+/* every line passes here (50-game.js bark()). Anything pleading or pitiful becomes a grunt or a curse */
+const WK_PLEAD=/\bplease\b|don'?t shoot|don'?t do (it|this)|don'?t[—.]|kids|daughter|\bmom\b|oh god|\bhelp\b|no no|\*sob|\*whimper|\*crying|\*screaming|i'?m done|water|so cold|wanna die|\bstop\b|okay! okay|okay— okay|i just live|i owe|no more|not him|get up, man|i can'?t (feel|stand|breathe)|where'?s my|my (leg|arm|hand)— (it|where)/i;
+function wickBark(E,text){ if(!WICK.on||typeof text!=='string'||!WK_PLEAD.test(text)) return text; return pick(E&&(E.st==='down'||E.st==='kneel')?WK_GRUNT:WK_SWEAR); }
+/* and every voice (55-voice.js vox()): no sobbing, no pleading, no long screams */
+const WK_VOX={agony:'grunt',cry:'shout',plead:'grunt',whimper:null,sob:null,scream:'shout',groan:'grunt',stabbed:'grunt'};
+function wickVox(type){ return WICK.on&&type in WK_VOX?WK_VOX[type]:type; }
+
+/* ---------- the hunt's alerts, Wick's way (83-hunt.js huntAlert calls this instead of running a hunt) ---------- */
+function wickHuntAlert(reason,pos,strength,E){ const D=WICK_DIR; pos=pos||[PL.x,PL.z];
+  if(!D.on){ /* ?wick=1 on floor 01: no director, so anything real brings the men near it */
+    if(reason==='seen'||reason==='body'||reason==='shot'||reason==='scream'||reason==='radio'){ const R=reason==='shot'?40:15; for(const O of enemies) if(!O.dead&&!O.civ&&!O.ally&&Math.hypot(O.pos[0]-pos[0],O.pos[1]-pos[1])<R) wickPush(O); } /* a gunshot carries the floor */
+    else if(E&&!E.aware&&typeof huntTurn==='function') huntTurn(E,pos); return; }
+  if(D.loud){ if(E&&!E.dead&&!E.wkSleep) wickPush(E); return; }
+  if(reason==='body'){ wickLoud('body'); return; }
+  if(reason==='shot'&&GAME.t-WK_AI.lastFire.t<.5&&!WK_AI.lastFire.sup){ wickLoud('shot'); return; }
+  /* a noise, a glimpse, a scream: he turns to it (and so does anyone free right by him). No looking around the room for you */
+  if(reason==='seen') return; /* the witness rule below decides */
+  if(E&&!E.aware&&!E.dead&&typeof huntTurn==='function') huntTurn(E,pos);
+  for(const O of enemies) if(O!==E&&!O.dead&&!O.wkSleep&&!O.aware&&upright(O)&&Math.hypot(O.pos[0]-pos[0],O.pos[1]-pos[1])<4&&typeof huntTurn==='function') huntTurn(O,pos); }
+/* 52-senses.js startSearch: in this game nobody searches. A man who lost you comes for you */
+function wickNoSearch(E,c,why){ if(!WICK.on||E.civ||E.ally) return false; if(E.aware||WICK_DIR.loud||!WICK_DIR.on) wickPush(E); return true; }
+/* he knows where you are and comes (loud) */
+function wickPush(E,wave){ if(!E||E.dead||E.civ||E.ally||E.wkSleep) return; setAware(E,wave?'told':'told',[PL.x,PL.z]);
+  E.tracks=true; E.wkLoud=true; E.lkp=[PL.x,PL.z]; E.lostT=0; E.mind='hunt'; E.goHome=false; E.patrol=null; E.hTurn=null; E.hReact=0;
+  if(E.hj&&typeof huntUnjob==='function') huntUnjob(E); if(E.st==='idle') E.st='alert'; }
+
+protoOn('fire',(h,it,info)=>{ if(!WICK.on) return; WK_AI.lastFire={t:GAME.t,sup:!!(info&&info.sup)}; if(!(info&&info.sup)&&WICK_DIR.on) wickLoud('shot'); });
+protoOn('noise',(src,rad,o)=>{ if(WICK.on&&WICK_DIR.on&&o&&o.kind==='eshot') wickLoud('theirShot'); }); /* one of theirs fired */
+
+/* ---------- a man down ---------- */
+/* 50-game.js toDown: does he keep his gun under him? (then 69-standoff.js keeps it hidden till he brings it up) */
+function wickDownKeep(E){ return !E.wkDownDone&&!!E.C.wpn&&!!RANGED[E.kind]&&E.wpnHeld&&Math.random()<wnum('ai','downFight',.55); }
+function wkDownTick(E,dt,dist){ const A=WICK.ai;
+  if(E.st==='kneel'&&!E.surr){ toDown(E); return; } /* no kneeling: that's the begging posture */
+  if(E.st!=='down'||E.knocked) return; /* knocked flat by a kick or out cold: he gets up as before */
+  if(!E.wkDown){ if(!E.fakeDead&&E.C.wpn&&RANGED[E.kind]&&!E.wpnHeld&&Math.random()<A.downFight){ /* he went down through his knees and let go of it: it's by his hand, he takes it back */
+      const hp=X_(E.B,PI_['hd'+(E.wpnHand||'R')]),key=KIND_WPN[E.kind],P=LOOSE.find(P=>P.item&&P.item.key===key&&Math.hypot(P.node.p[0]-hp[0],P.node.p[2]-hp[2])<1.6);
+      if(P){ removePickup(P); fakeDeadStart(E); } }
+    const fight=!!E.fakeDead; E.wkDownDone=true; E.wkDown={t:0,fight,aimAt:rnd(A.downAim[0],A.downAim[1])};
+    E.dieT=Math.min(E.dieT??99,fight?rnd(A.downFightLife[0],A.downFightLife[1]):rnd(A.down[0],A.down[1])); }
+  const W=E.wkDown; W.t+=dt;
+  if(W.fight&&E.fakeDead&&!E.gShoot&&W.t>=W.aimAt&&E.cons>.3&&E.C.wpn&&dist<14){ const h=X_(E.B,PI_.head);
+    if(sightClear(h,[PL.x,1.5,PL.z])){ E.gShoot={t:0}; E.wpnHeld=true; E.wpnHand='R'; E.C.wpn.vis=true; setGrip(E.J,'R',true); E.atkCd=rnd(.25,.45); E.aware=true; sfx('click',.8,h); bark(E,pick(WK_DOWNGUN),1.4); } }
+  if(!E.gShoot&&E.downMode!=='writhe'){ E.downMode='still'; E.crawlF=null; } /* no crawling away, no cowering */
+  if(E.face==='beg'){ E.face='hurt'; E.J.headMesh.mesh.mats[0]=E.C.faceM.hurt; E.J.headMesh.mesh.runs=null; } }
+
+/* ---------- hits: faster bleeding, the second body round, a harder shove ---------- */
+protoOn('enemyHit',(E,seg,weapon,o)=>{ if(!WICK.on||!E||E.dead) return; (E.wkHq||(E.wkHq=[])).push({part:seg[3],weapon,pellet:!!(o&&o.pellet)});
+  if(weapon==='gun'&&/^(chest|belly)/.test(seg[3])) E.wkBody=(E.wkBody||0)+1; });
+function wkHitTick(E,dist){ const A=WICK.ai;
+  for(const w of E.wounds) if(!w.wkB){ w.wkB=1; w.rate*=A.bleedK; }
+  if(E.wkBody>=2&&!E.wkFin){ E.wkFin=true; E.dieT=Math.min(E.dieT??99,rnd(A.second[0],A.second[1])); }
+  const q=E.wkHq; if(!q||!q.length) return; const d=E.hitDir||[0,0,0],l=Math.hypot(d[0],d[2]); let pel=0,sh=null;
+  for(const h of q){ if(h.pellet) pel++; if(/^uarm[LR]$/.test(h.part)) sh=h; } q.length=0; if(l<1e-6||!E.B) return;
+  const f=[d[0]/l,0,d[2]/l],up=E.st==='alert'||E.st==='idle',B=E.B;
+  for(const i of [PI_.chest,PI_.neck,PI_.shL,PI_.shR,PI_.pelvis]) kickV(B,i,v3.sc(f,A.push),H);
+  if(sh&&up&&!E.dead){ const s=sh.part.slice(-1),sp=X_(B,PI_['sh'+s]),pc=X_(B,PI_.pelvis),ty=(sp[2]-pc[2])*f[0]-(sp[0]-pc[0])*f[2]; /* the push on that shoulder, about his spine */
+    E.hd+=Math.sign(ty||1)*A.spin*rnd(.8,1.1); kickV(B,PI_['sh'+s],v3.sc(f,A.push*1.6),H); E.stun=Math.max(E.stun,.35); E.wkSpin=(E.wkSpin||0)+1; }
+  if(pel>=A.throwN){ const k=A.throwV*clamp((7-dist)/4,.3,1.2); for(let i=0;i<NP;i++) kickV(B,i,v3.add(v3.sc(f,k),[0,.5,0]),H); if(!E.dead&&up){ E.pos[0]+=f[0]*A.throwStep; E.pos[1]+=f[2]*A.throwStep; pushOutXZ(E.pos,.3,'walker'); } E.stun=Math.max(E.stun,.9); E.settle=Math.max(E.settle||0,1); E.wkThrown=(E.wkThrown||0)+1; } }
+
+/* ---------- surrender: rare, short, and he goes for his gun ---------- */
+function wickSurrOk(E,why){ return !WICK.on||!!E.wkSurr||!!E.civ; }
+function wkSurrTick(dt){ const D=WICK_DIR,b=D.beat;
+  for(const E of enemies){ if(!E.wkSurr||E.dead) continue; if(!E.surr){ E.wkSurr=false; continue; } E.surr.hold=99; E.wkSurrT-=dt;
+    if(E.wkSurrT<=0){ E.wkSurr=false; springBack(E); E.surr=null; bark(E,pick(WK_SPRING),1.4); GAME.barkGlobal=.8; wickPush(E); } }
+  if(!D.on||!b||!D.loud||b.surrDone||(b.n0||0)<3) return;
+  const left=wkMenOf(D.i).filter(O=>!O.dead&&!O.wkHeld); if(left.length!==1||(b.waves||[]).some((w,k)=>!b.waveDone[k])) return;
+  const E=left[0]; if(E.wkTarget||!upright(E)||!armed(E)||!E.canSee||E.surr||Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)>7) return;
+  b.surrDone=true; if(Math.random()>=wnum('ai','surrP',.4)) return;
+  E.wkSurr=true; E.wkSurrT=rnd(WICK.ai.surrT[0],WICK.ai.surrT[1]); E.wpnHeld=false; if(E.C.wpn) E.C.wpn.vis=false; setGrip(E.J,'R',false); setGrip(E.J,'L',false); /* the gun goes behind his back, not on the floor */
+  surrender(E,'alone'); if(E.surr) E.surr.hold=99; wkDirLog('surrender',{who:E.name}); }
+
+/* ---------- loud: who pushes, two shooters, the first push ---------- */
+function wkToken2(){ if(typeof FGT==='undefined'||typeof fxTokOk!=='function') return; let T=FGT.token2; const ok=E=>fxTokOk(E)&&E.canSee&&E!==FGT.token;
+  if(T&&(!ok(T)||(T.fx&&T.fx.unseen>.6))) FGT.token2=T=null; if(T||PL.dead||!FGT.token||wnum('ai','shooters',2)<2) return;
+  let best=null,bd=1e9; for(const E of enemies){ if(!ok(E)) continue; const d=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z); if(d<bd&&d<=pnum('fight','range',25)){ bd=d; best=E; } }
+  if(best){ FGT.token2=best; best.atkCd=Math.max(best.atkCd,rnd(.3,.6)); } }
+function wkPushTick(dt){ const D=WICK_DIR,A=WICK.ai; if(!D.loud||PL.dead) return;
+  const men=enemies.filter(E=>!E.dead&&!E.wkSleep&&E.aware&&upright(E)&&!E.surr&&!E.civ&&!E.ally),dP=E=>Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z);
+  if(D.firstPushT==null&&D.loudT!=null){ const E=men.find(E=>dP(E)<A.nearR); if(E){ D.firstPushT=+(GAME.t-D.loudT).toFixed(2); wkDirLog('firstPush',{s:D.firstPushT,by:E.name}); protoEmit('stat','wickPush',D.firstPushT); } }
+  WK_AI.pushT-=dt; if(WK_AI.pushT>0) return; WK_AI.pushT=A.pushEvery;
+  let pushing=men.filter(E=>E.role==='hunt'&&E.rage>0||dP(E)<A.nearR).length;
+  for(const E of men.slice().sort((a,b)=>dP(a)-dP(b))){ if(pushing>=A.pushers) break; if(E.rage>0||dP(E)<A.nearR) continue;
+    E.role='hunt'; E.hold=null; E.rage=Math.max(E.rage||0,A.pushRage); if(E.fx){ E.fx.cov=null; E.fx.ret=null; } pushing++; }
+  if(typeof SQ!=='undefined'&&SQ.jobs) for(const E of men) if(E.rage>0) SQ.jobs.delete(E); } /* a man told to push isn't also told to hang back */
+
+/* ---------- fear: the lines change as their numbers drop; the target bargains ---------- */
+function wkFearTick(dt){ const D=WICK_DIR,b=D.beat; if(!D.on||!b||!D.loud) return; WK_AI.fearT-=dt; WK_AI.bargT-=dt;
+  const men=wkMenOf(D.i),n0=Math.max(1,b.n0||men.length),alive=men.filter(E=>!E.dead&&!E.wkHeld&&upright(E)),frac=alive.length/n0;
+  const T=men.find(E=>E.wkTarget&&!E.dead);
+  if(T&&WK_AI.bargT<=0&&T.canSee&&T.barkCd<=0&&Math.hypot(T.pos[0]-PL.x,T.pos[1]-PL.z)<11&&(alive.length<=2||T.wounds.length)){ WK_AI.bargT=rnd(WICK.ai.bargainGap[0],WICK.ai.bargainGap[1]); bark(T,pick(WK_BARGAIN),2.6); GAME.barkGlobal=1; if(typeof vox==='function') vox(T,'shout',.7); }
+  if(WK_AI.fearT>0||GAME.barkGlobal>0) return; WK_AI.fearT=rnd(WICK.ai.fearGap[0],WICK.ai.fearGap[1]);
+  const tier=frac>.66?0:frac>.34?1:2,S=alive.filter(E=>!E.wkTarget&&E.barkCd<=0&&Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)<15);
+  if(!S.length) return; const E=pick(S); bark(E,pick(WK_FEAR[tier]),2.2); GAME.barkGlobal=1; if(typeof vox==='function') vox(E,'shout',.8); E.wkFear=tier; }
+
+/* ---------- quiet: the witness rule ---------- */
+function wkQuietTick(){ const D=WICK_DIR; if(!D.on||!D.beat||D.loud) return; const g=wnum('ai','grace',1.3);
+  for(const E of enemies){ if(E.dead||E.wkSleep||E.wkBeat==null||E.civ||E.ally) continue;
+    if(!E.aware){ E.wkSawT=null; continue; } if(E.wkSawT==null) E.wkSawT=GAME.t;
+    if(GAME.t-E.wkSawT>=g&&(upright(E)||E.gShoot)){ wkDirLog('witness',{who:E.name}); wickLoud('seen'); return; } } }
+
+/* ---------- 84-fight.js fxRooms on the club: its rooms and doorways (rooms are all lit) ---------- */
+function wickFightRooms(){ const out=[]; for(const r of WK.rooms){ const R={x0:r.x0,x1:r.x1,z0:r.z0,z1:r.z1,lit:true,doors:[],id:r.id,src:null};
+    for(const o of WK_OPEN){ if(o.a!==r.id&&o.b!==r.id) continue; const x=o.axis==='z'?o.c:o.at,z=o.axis==='z'?o.at:o.c;
+      for(const n of [[1,0],[-1,0],[0,1],[0,-1]]) if(x+n[0]*.7>R.x0&&x+n[0]*.7<R.x1&&z+n[1]*.7>R.z0&&z+n[1]*.7<R.z1){ R.doors.push({x,z,n}); break; } }
+    out.push(R); } return out; }
+
+protoOn('tick',(gdt,dt)=>{ if(!WICK.on||!GAME.started) return;
+  for(const E of enemies){ if(E.civ||E.ally||E.wkSleep||E.dead&&!(E.wkHq&&E.wkHq.length)) continue; const dist=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z); wkHitTick(E,dist); if(!E.dead) wkDownTick(E,gdt,dist); } /* the shot that killed him still throws him */
+  wkQuietTick(); wkSurrTick(gdt); wkToken2(); wkPushTick(gdt); wkFearTick(gdt); });
+protoOn('reset',()=>{ if(typeof FGT!=='undefined') FGT.token2=null; WK_AI.pushT=0; WK_AI.fearT=3; });
+protoOn('wickRestart',()=>{ if(typeof FGT!=='undefined'){ FGT.token=null; FGT.token2=null; } WK_AI.pushT=0; WK_AI.fearT=3; });
+protoOn('wickLoud',()=>{ WK_AI.pushT=0; WK_AI.fearT=rnd(2,3.5); });
 
 /* =====================================================================
    WICK stage 0: the stress spawn. Needs the game's functions, so it lives inside the engine's scope (06-wick.js can't see them).

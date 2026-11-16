@@ -28,7 +28,7 @@ function coveredBy(E,aims){ const B=E.B;
   return false; }
 const lookingAt=(p,deg)=>{ const c=camBasis(),v=norm3(v3.sub(p,c.eye)); return v3.dot(v,c.f)>Math.cos(deg*Math.PI/180); };
 
-function surrender(E,why){ if(E.dead||E.surr||E.ally) return;
+function surrender(E,why){ if(E.dead||E.surr||E.ally) return; if(WICK.on&&typeof wickSurrOk==='function'&&!wickSurrOk(E,why)) return; /* the hitman: rare and short (94b-wick-ai.js) */
   E.surr={ph:'reach',t:0,why,hold:rnd(.9,1.6)}; E.role=null; E.atkCd=1e9; E.burstN=0; E.atkT=-1; E.fakeWait=rnd(1.2,2.6);
   E.backup=!E.civ&&psychOf(E)==='fake'&&!!E.C.wpn&&!!RANGED[E.kind];
   if(E.barkCd<=0||why!=='civ'){ bark(E,pick(E.civ?FREEZE_LINES:E.concealed?SURR_PLAIN:SURR_LINES),2.2); GAME.barkGlobal=.8; } /* plain clothes: only what a tenant would say too */

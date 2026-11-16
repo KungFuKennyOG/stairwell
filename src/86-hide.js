@@ -447,7 +447,7 @@ function hideHud(){ if(!HIDE.test||!GAME.started) return; const S=PL.hide,e=PL.h
 
 /* ---------- wiring ---------- */
 function hideFrame(dt){ dt=Math.min(dt,.05); let B=hideBody(); hideCrouchTick(dt,B); hideFlatSpeed(); B=hideBody();
-  hideSpotTick(dt,B); hideMouthTick(B); hideSaveTick(B); sheetsTick(dt,B); sheetHandsTick(B); hideHud(); }
+  if(!WICK.on){ hideSpotTick(dt,B); hideMouthTick(B); hideSaveTick(B); } /* the hitman doesn't hide */ sheetsTick(dt,B); sheetHandsTick(B); hideHud(); }
 function hideReset(){ if(!PROTO.on) return; const fresh=hideFresh(); if(fresh){ HIDES.length=0; SHEETS.length=0; }
   PL.hide=null; PL.hideExp=1; PL.crawl=false; HIDE.crawlD=0; HIDE.low=0; HIDE.passers.clear(); HIDE.soundT=-99; HIDE.sp=null; HIDE.lx=null;
   PL.dropY=PL.crouchT?(hideIsVR()?HIDE.togOff:1.62-HIDEP.flatEye):0; for(const k in HIDE_KIND_SAVES) delete HIDE_KIND_SAVES[k];
