@@ -126,3 +126,6 @@ function wkHud(){ if(XR.on) return; if(!WR.hud){ const br=$('br'); if(!br) retur
   [...H.blocks.children].forEach((c,i)=>{ const f=clamp((PL.hp-i*B)/B,0,1); c.firstChild.style.width=(f*100).toFixed(0)+'%'; c.firstChild.style.opacity=f>=1?'1':'.55'; });
   H.bt.style.width=(WICK_BT.t/WICK_BT.max*100).toFixed(1)+'%'; H.bt.style.background=WR.flash>0?'#eef4f8':GAME.slow?'#e2a33d':'#7fa6c4';
   H.btL.style.color=GAME.slow?'#e2a33d':''; H.chain.textContent=ch>=2?'CHAIN X'+ch:''; }
+
+/* a beat restart (94-wick-director.js) isn't a level reset: the meter comes back full and the chain starts again */
+protoOn('wickRestart',()=>{ if(!WICK.on) return; WICK_BT.t=WICK_BT.max; Object.assign(WICK_CHAIN,{n:0,t:-9,rt:-9}); if(GAME.slow&&typeof wickBTToggle==='function') GAME.slow=false; });

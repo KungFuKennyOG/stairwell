@@ -190,7 +190,8 @@ function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye
   it.ammo--; it.cd=w.rof; h.rec=(w.pump?1.8:w.cup&&h.support?.5:1)*(it.sup?.8:1); sfx(it.sup?(w.pump?'suppsg':'supp'):w.snd||'gun',it.sup&&w.auto?.8:1); earShot(it.key,it.sup); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
   if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }
   const Mi=itemM(h),mz=mulP(Mi,canMuzzle(w,it)),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); if(!it.sup) muzzle(mz,bd,!!w.pellets); muzzleSmoke(mz,bd,!!w.pellets,!!it.sup); if(!w.loadOne) ejectBrass(h,Mi,w); GAME.shotT=GAME.t;
-  const o=aim?aim.o:mz,d0=aim?aim.d:bd; protoEmit('fire',h,it,{o,d:d0,muzzle:mz,sup:!!it.sup}); if(it.sup) noise([PL.x,0,PL.z],GUN_SUP[it.key]||4); else noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true}); /* loud, but not floor-wide: a wall or a shut door halves it */
+  let o=aim?aim.o:mz; const d0=aim?aim.d:bd; if(WICK.on&&!aim){ const e=camBasis().eye; if(!sightClear(e,mz)) o=e; } /* Wick: a muzzle poked through a wall fires from your side of it (the wall stops the round) */
+  protoEmit('fire',h,it,{o,d:d0,muzzle:mz,sup:!!it.sup}); if(it.sup) noise([PL.x,0,PL.z],GUN_SUP[it.key]||4); else noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true}); /* loud, but not floor-wide: a wall or a shut door halves it */
   const n=w.pellets||1,sp=(w.spread||.006)*(WICK.on&&typeof wickSpreadK==='function'?wickSpreadK(h):1),tally=new Map(); /* Wick: an arm hit widens it for 10 s (92-wick-rules.js) */
   for(let i=0;i<n;i++){ const r=bullet(o,norm3(v3.add(d0,[rnd(-sp,sp),rnd(-sp,sp),rnd(-sp,sp)])),w,h); if(r) tally.set(r.E,{n:(tally.get(r.E)||{n:0}).n+1,t:r.t}); }
   if(w.pellets){
