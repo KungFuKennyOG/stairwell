@@ -324,4 +324,4 @@ protoOn('reset',()=>{ if(!PROTO.on) return; PL.hp=pnum('ray','hp',100); PL.wound
   PL.pouch.mags=[{gun:'pistol',rounds:pnum('ray','pouch',7),cap:WPN.pistol.mag}]; PL.pouch.loose={'9mm':0,'12g':0,'38':0};
   Object.assign(RAY,{hitT:-9,knock:{t:-9},heal:null,flatT:0,breathT:3,lx:PL.x,lz:PL.z,moved:0,still:0,fresh:true}); RAY.bq.length=0; RAY.blood.L=RAY.blood.R=0;
   for(const h of [HANDS.L,HANDS.R]){ h.wrapSt=null; h.abT=null; } rayBandsClear(); rayLimbs(); rayBloodShow();
-  GAME.slow=false; GAME.ts=1; for(const id of ['bSlow','bSlowT']){ const b=$(id); if(b) b.style.display='none'; } });
+  GAME.slow=false; GAME.ts=1; if(!WICK.on) for(const id of ['bSlow','bSlowT']){ const b=$(id); if(b) b.style.display='none'; } }); /* the hitman keeps bullet time (06-wick.js) */
