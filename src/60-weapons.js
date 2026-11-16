@@ -1,6 +1,6 @@
 /* =====================================================================
    WEAPONS: what Ray holds.
-   VR: each hand holds one thing or makes a fist. Grip grabs (from the rack, the floor, a body) and grip again
+   VR: each hand holds one thing or makes a fist. Hold grip to hold (from the rack, the floor, a body); open the hand and it
    drops or throws. Trigger fires that hand's gun; pointing it at the floor for half a second reloads it (A/X too). Melee is physical: a fist or blade has to
    actually move fast into a body, and harder swings hit harder.
    Flat screen (testing): the right hand holds what you pick with 1-8, click uses it; the left hand keeps a knife (F).
@@ -118,7 +118,7 @@ function updateAmmoLabel(h){ const it=h.item; if(!it||!WPN[it.key].gun) return; 
 /* ---------- two hands on one weapon ----------
    Shotgun, SMG: grip with the free hand near the fore-end and it takes hold; the weapon then points from the back hand to the front hand.
    Pistol, revolver (cup): grip with the free hand next to the gun hand and it wraps around it. The gun still aims where the gun hand
-   points; the second hand steadies it (half the recoil). Pull the hands more than ~25 cm apart, or grip again, to let go. */
+   points; the second hand steadies it (half the recoil). Pull the hands more than ~25 cm apart, or open the support hand, to let go. */
 const otherHand=h=>h===HANDS.R?HANDS.L:HANDS.R;
 function forePt(h){ return mulP(itemM(h),WPN[h.item.key].fore); }
 function cupPos(o,sg){ const G=mulP(o.M,FIST),X=colOf(o.M,0),Y=colOf(o.M,1),Z=colOf(o.M,2); return v3.add(G,v3.add(v3.sc(X,sg*.052),v3.add(v3.sc(Y,-.018),v3.sc(Z,.008)))); }

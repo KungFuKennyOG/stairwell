@@ -142,7 +142,7 @@ body.touch #testPanel .tp-keys{display:none}
     <div class="startrow"><button id="start" type="button">Start</button><button id="vrBtn" type="button" hidden>Play in VR</button></div>
     <div class="startrow"><button class="btn" id="micBtn" type="button" aria-pressed="false">Allow mic</button><button class="btn protoshow" id="protoBack" type="button">Back to the 15 floors</button></div>
     <p class="vrnote protohide">Mic: talk and the men close by hear a voice; shout and everyone knows where you are, but the people who can see you do what they're told (hands up, get down, stop). Whispering is silent. The bar under the FPS on your left wrist shows your level. Flat screen: H shouts.</p>
-    <p class="vrnote protohide">You leave the lobby with Novak's pistol; the men upstairs have the rest (a shotgun on 02, an MP5 on 03). Grip grabs a weapon off a table, the floor or a body, or grabs a man (collar, wrist, neck from behind); grip again drops or throws. Trigger fires; point a gun at the floor for half a second to reload it (A/X works too), B/Y kicks. Punch and cut by actually swinging. Step onto the east landing to go up a floor (it fades straight there); the game saves on the stairs, and dying puts you back at the start of the floor. Left stick moves, click it for bullet time; right stick turns, click it for sharpness. Your frame rate is on your left wrist. Test levels: the stash house, tunnel and warehouse, with the rack and the spawn board.</p>
+    <p class="vrnote protohide">You leave the lobby with Novak's pistol; the men upstairs have the rest (a shotgun on 02, an MP5 on 03). Grip grabs a weapon off a table, the floor or a body, or grabs a man (collar, wrist, neck from behind); hold grip to keep it, open your hand to drop it (throw by letting go mid-swing). Trigger fires; point a gun at the floor for half a second to reload it (A/X works too), B/Y kicks. Punch and cut by actually swinging. Step onto the east landing to go up a floor (it fades straight there); the game saves on the stairs, and dying puts you back at the start of the floor. Left stick moves, click it for bullet time; right stick turns, click it for sharpness. Your frame rate is on your left wrist. Test levels: the stash house, tunnel and warehouse, with the rack and the spawn board.</p>
     <dl class="keys protoshow"><dt>Grip</dt><dd>Grab a weapon, a body or a man; again to drop or throw</dd><dt>Trigger</dt><dd>Fire</dd><dt>A / X</dt><dd>Tap to reload. Hold to count the rounds by feel</dd><dt>B / Y</dt><dd>Kick</dd><dt>Left stick</dt><dd>Move. Click to crouch</dd><dt>Right stick</dt><dd>Turn. Click for sharpness</dd><dt>Swing</dt><dd>Punch and cut by actually swinging</dd></dl>
     <p class="vrnote protoshow">No bullet time. Health doesn't come back. Ammo is what you find. The mic is optional: whispering is silent, talking carries a few metres, a shout brings them. Dying puts you back at the stairs. Your frame rate is on your left wrist.</p>
   </div>
@@ -6602,7 +6602,11 @@ function xrFrame(t,xf){
     const trig=edge(0),grip=edge(1),stickC=edge(3),ab=edge(4),by=edge(5); h.trigHeld=pressed(0);
     h.trigV=b[0]?b[0].value:0; h.gripV=b[1]?b[1].value:0; h.thumbT=[3,4,5,6].some(i=>b[i]&&(b[i].touched||b[i].pressed)); /* the fingers follow the controller (59-hands.js) */
     if(PL.dead){ if(trig) restartLevel(); continue; }
-    if(grip){ if(!h.item&&!h.grab&&nearGoggles(fp,eye,f,u)) cycleVision(); else grabOrDrop(h); }
+    /* hold to hold: squeeze grabs, opening the hand lets go (and throws if the hand is moving). Hysteresis on the analog value so a
+       loosening squeeze mid-throw doesn't drop it early. Something that landed in an open hand drops on the next squeeze. */
+    { const gv=h.gripV,was=!!h.gripOn,on=was?(gv>.3||pressed(1)&&gv===0):(gv>.6||pressed(1)); h.gripOn=on; const full=!!(h.item||h.grab||h.supportOf||h.stuck);
+      if(on&&!was){ if(!full&&nearGoggles(fp,eye,f,u)) cycleVision(); else grabOrDrop(h); }
+      else if(!on&&was&&full) grabOrDrop(h); }
     if(h.item&&WPN[h.item.key].gun){ if(trig||(WPN[h.item.key].auto&&pressed(0))) fireHand(h); }
     if(ab){ if(h.item&&WPN[h.item.key].melee) flipGrip(h); else if(!PROTO.on) reloadHand(h); } if(PROTO.on) rayABTick(h,pressed(4),dt); /* tap reloads, hold counts (80-ray.js) */ if(by) kick();
     /* point-down reload: aim the barrel at the floor for half a second (a shotgun keeps feeding shells while you hold it there) */
@@ -7377,7 +7381,7 @@ function handMeasure(h,gripHandM,rayM){ const H=h.hm; if(!H) return; const d=[-r
 
 /* =====================================================================
    WEAPONS: what Ray holds.
-   VR: each hand holds one thing or makes a fist. Grip grabs (from the rack, the floor, a body) and grip again
+   VR: each hand holds one thing or makes a fist. Hold grip to hold (from the rack, the floor, a body); open the hand and it
    drops or throws. Trigger fires that hand's gun; pointing it at the floor for half a second reloads it (A/X too). Melee is physical: a fist or blade has to
    actually move fast into a body, and harder swings hit harder.
    Flat screen (testing): the right hand holds what you pick with 1-8, click uses it; the left hand keeps a knife (F).
@@ -7495,7 +7499,7 @@ function updateAmmoLabel(h){ const it=h.item; if(!it||!WPN[it.key].gun) return; 
 /* ---------- two hands on one weapon ----------
    Shotgun, SMG: grip with the free hand near the fore-end and it takes hold; the weapon then points from the back hand to the front hand.
    Pistol, revolver (cup): grip with the free hand next to the gun hand and it wraps around it. The gun still aims where the gun hand
-   points; the second hand steadies it (half the recoil). Pull the hands more than ~25 cm apart, or grip again, to let go. */
+   points; the second hand steadies it (half the recoil). Pull the hands more than ~25 cm apart, or open the support hand, to let go. */
 const otherHand=h=>h===HANDS.R?HANDS.L:HANDS.R;
 function forePt(h){ return mulP(itemM(h),WPN[h.item.key].fore); }
 function cupPos(o,sg){ const G=mulP(o.M,FIST),X=colOf(o.M,0),Y=colOf(o.M,1),Z=colOf(o.M,2); return v3.add(G,v3.add(v3.sc(X,sg*.052),v3.add(v3.sc(Y,-.018),v3.sc(Z,.008)))); }

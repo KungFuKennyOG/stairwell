@@ -1418,7 +1418,11 @@ function xrFrame(t,xf){
     const trig=edge(0),grip=edge(1),stickC=edge(3),ab=edge(4),by=edge(5); h.trigHeld=pressed(0);
     h.trigV=b[0]?b[0].value:0; h.gripV=b[1]?b[1].value:0; h.thumbT=[3,4,5,6].some(i=>b[i]&&(b[i].touched||b[i].pressed)); /* the fingers follow the controller (59-hands.js) */
     if(PL.dead){ if(trig) restartLevel(); continue; }
-    if(grip){ if(!h.item&&!h.grab&&nearGoggles(fp,eye,f,u)) cycleVision(); else grabOrDrop(h); }
+    /* hold to hold: squeeze grabs, opening the hand lets go (and throws if the hand is moving). Hysteresis on the analog value so a
+       loosening squeeze mid-throw doesn't drop it early. Something that landed in an open hand drops on the next squeeze. */
+    { const gv=h.gripV,was=!!h.gripOn,on=was?(gv>.3||pressed(1)&&gv===0):(gv>.6||pressed(1)); h.gripOn=on; const full=!!(h.item||h.grab||h.supportOf||h.stuck);
+      if(on&&!was){ if(!full&&nearGoggles(fp,eye,f,u)) cycleVision(); else grabOrDrop(h); }
+      else if(!on&&was&&full) grabOrDrop(h); }
     if(h.item&&WPN[h.item.key].gun){ if(trig||(WPN[h.item.key].auto&&pressed(0))) fireHand(h); }
     if(ab){ if(h.item&&WPN[h.item.key].melee) flipGrip(h); else if(!PROTO.on) reloadHand(h); } if(PROTO.on) rayABTick(h,pressed(4),dt); /* tap reloads, hold counts (80-ray.js) */ if(by) kick();
     /* point-down reload: aim the barrel at the floor for half a second (a shotgun keeps feeding shells while you hold it there) */
