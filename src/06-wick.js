@@ -20,7 +20,9 @@ WICK.stress={ n:0, alert:0, god:1, near:4, far:12 }; /* stage 0: extra gunmen to
 function wnum(sys,key,def){ const t=WICK[sys]; return t&&t[key]!==undefined?t[key]:def; }
 
 /* URL overrides */
-(()=>{ if(!WICK.on) return; const q=new URLSearchParams(location.search),SHORT={hp:'rules.hp',bt:'bt.max',stress:'stress.n',salert:'stress.alert',sgod:'stress.god'};
+(()=>{ if(!WICK.on) return; const q=new URLSearchParams(location.search),SHORT={hp:'rules.hp',bt:'bt.max',stress:'stress.n',salert:'stress.alert',sgod:'stress.god',
+    block:'rules.block',regen:'rules.regenT',regenv:'rules.regenV',pdmg:'rules.pistol',dmgk:'rules.dmgK',woundt:'rules.woundT',legk:'rules.legK',spread:'rules.armSpread',
+    mags:'rules.mags',merge:'rules.merge',btk:'bt.kill',bth:'bt.head',btl:'bt.link',chain:'bt.chainT',bts:'bt.ts',burst:'bt.burst',bt0:'bt.start'}; /* stage 2 (92-wick-rules.js) */
   const set=(path,v)=>{ const [s,k]=path.split('.'); const n=Number(v); if(!WICK[s]||!k||!isFinite(n)) return; WICK[s][k]=n; };
   for(const [k,v] of q){ if(SHORT[k]) set(SHORT[k],v); else if(k.startsWith('w.')) set(k.slice(2),v); } })();
 

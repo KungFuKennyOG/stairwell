@@ -61,7 +61,7 @@ function rayLoad(it,w){ const P=PL.pouch,cal=RAY_CAL[it.key]||'9mm';
     const tot=m.rounds+ch; if(tot>w.mag) P.loose[cal]+=tot-w.mag; return Math.min(w.mag,tot); }
   const n=Math.min(w.mag-it.ammo,P.loose[cal]); P.loose[cal]-=n; return it.ammo+n; }
 /* a gun off a dead man, or wrestled off a live one: a few rounds left in it */
-function rayDropRounds(key){ const w=WPN[key],D=pnum('ray','drop',[2,6]); return Math.min(w.mag,D[0]+Math.floor(Math.random()*(D[1]-D[0]+1))); }
+function rayDropRounds(key){ if(WICK.on&&typeof wickDropRounds==='function') return wickDropRounds(key); /* a real magazine's worth (92-wick-rules.js) */ const w=WPN[key],D=pnum('ray','drop',[2,6]); return Math.min(w.mag,D[0]+Math.floor(Math.random()*(D[1]-D[0]+1))); }
 /* a handful of loose rounds for the floor builder: rayRoundsItem(5) -> a 'rounds' item holding 5 (item.n, item.cal) */
 function rayRoundsItem(n,cal){ return Object.assign(newItem('rounds'),{n:n|0,cal:cal||'9mm'}); }
 /* grabbing loose rounds: they go in the pouch, the pickup disappears */
@@ -202,7 +202,7 @@ WPN.strip=Object.assign({label:'Strip of sheet',build:pRayStrip,tool:'strip'},RA
 if(!WPN.medkit) WPN.medkit=Object.assign({label:'First aid kit',build:pRayKit,tool:'medkit',fallback:true},RAY_TOOL);
 if(!WPN.rounds) WPN.rounds=Object.assign({label:'Loose rounds',build:pRayRounds,tool:'rounds',n:4,fallback:true},RAY_TOOL);
 /* a strip torn off something: agent G calls this when Ray tears a hung sheet. h: the hand (or the free one). false if no free hand */
-function giveStrip(h){ if(!h||h.item){ const o=h&&!otherHand(h).item?otherHand(h):null; h=o||(!HANDS.L.item?HANDS.L:!HANDS.R.item?HANDS.R:null); } if(!h) return false; /* that hand busy: the other one */
+function giveStrip(h){ if(WICK.on) return false; /* no bandages for the hitman: his blocks come back */ if(!h||h.item){ const o=h&&!otherHand(h).item?otherHand(h):null; h=o||(!HANDS.L.item?HANDS.L:!HANDS.R.item?HANDS.R:null); } if(!h) return false; /* that hand busy: the other one */
   equip(h,newItem('strip')); sfx('rip',.8); if(XR.on) buzz(h.hand,.7,70); const tn=pnum('ray','tearNoise',3); if(tn>0) noise([PL.x,0,PL.z],tn); protoEmit('stat','strip',1); return true; }
 /* any bed, mattress, sofa or hung sheet in reach of the hand: something to tear a strip from */
 function rayClothNear(p,r){ if(typeof HIDES!=='undefined'&&Array.isArray(HIDES)) for(const S of HIDES){ if(!/bed|sheet|mattress|sofa|laundry/.test(S.kind||'')) continue;
@@ -210,7 +210,7 @@ function rayClothNear(p,r){ if(typeof HIDES!=='undefined'&&Array.isArray(HIDES))
   for(const f of FLOOR.furn||[]){ if(!/bed|mattress|couch/.test(f.kind)) continue; const sz=f.info&&f.info.size||[1,1]; if(Math.hypot(p[0]-f.x,p[2]-f.z)<Math.max(sz[0],sz[1])/2+r&&p[1]<1.1) return f; }
   return null; }
 /* grip with an empty hand on nothing else grabbable: by a bed or sheet, it tears a strip */
-function rayGripCloth(h){ if(h.item||PL.dead) return false; const p=rayHandPos(h);
+function rayGripCloth(h){ if(h.item||PL.dead||WICK.on) return false; const p=rayHandPos(h);
   if(typeof sheetNearest==='function'&&sheetNearest(p,.2)) return false; /* a hung sheet (86-hide.js): the grip holds it aside; a yank down tears the strip */
   return !!rayClothNear(p,.15)&&giveStrip(h); }
 /* the first-aid kit: held to the chest with the trigger squeezed (flat: U held), 25 hp over 3 s, then it's gone. Let go early and what's

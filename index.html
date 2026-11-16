@@ -199,7 +199,9 @@ WICK.stress={ n:0, alert:0, god:1, near:4, far:12 }; /* stage 0: extra gunmen to
 function wnum(sys,key,def){ const t=WICK[sys]; return t&&t[key]!==undefined?t[key]:def; }
 
 /* URL overrides */
-(()=>{ if(!WICK.on) return; const q=new URLSearchParams(location.search),SHORT={hp:'rules.hp',bt:'bt.max',stress:'stress.n',salert:'stress.alert',sgod:'stress.god'};
+(()=>{ if(!WICK.on) return; const q=new URLSearchParams(location.search),SHORT={hp:'rules.hp',bt:'bt.max',stress:'stress.n',salert:'stress.alert',sgod:'stress.god',
+    block:'rules.block',regen:'rules.regenT',regenv:'rules.regenV',pdmg:'rules.pistol',dmgk:'rules.dmgK',woundt:'rules.woundT',legk:'rules.legK',spread:'rules.armSpread',
+    mags:'rules.mags',merge:'rules.merge',btk:'bt.kill',bth:'bt.head',btl:'bt.link',chain:'bt.chainT',bts:'bt.ts',burst:'bt.burst',bt0:'bt.start'}; /* stage 2 (92-wick-rules.js) */
   const set=(path,v)=>{ const [s,k]=path.split('.'); const n=Number(v); if(!WICK[s]||!k||!isFinite(n)) return; WICK[s][k]=n; };
   for(const [k,v] of q){ if(SHORT[k]) set(SHORT[k],v); else if(k.startsWith('w.')) set(k.slice(2),v); } })();
 
@@ -6448,7 +6450,7 @@ addEventListener('keydown',e=>{ KEYS[e.code]=true; if(!GAME.started) return;
   else if(e.code==='KeyQ'&&HANDS.R.item){ HANDS.R.vel=v3.sc(camBasis().f,4); grabOrDrop(HANDS.R); } });
 addEventListener('mousedown',e=>{ if(e.button===0) KEYS.Mouse0=true; }); addEventListener('mouseup',e=>{ if(e.button===0) KEYS.Mouse0=false; });
 addEventListener('keyup',e=>{ KEYS[e.code]=false; });
-function toggleSlow(){ if(PROTO.on&&!WICK.on) return; /* no bullet time in the horror prototype; the hitman has it (06-wick.js) */ GAME.slow=!GAME.slow; sfx(GAME.slow?'slowin':'slowout'); $('bSlow').setAttribute('aria-pressed',String(GAME.slow)); $('bSlowT').setAttribute('aria-pressed',String(GAME.slow)); }
+function toggleSlow(){ if(PROTO.on&&!WICK.on) return; /* no bullet time in the horror prototype; the hitman has it (06-wick.js) */ if(WICK.on&&typeof wickBTToggle==='function'){ wickBTToggle(); return; } /* the hitman's is a meter (92-wick-rules.js) */ GAME.slow=!GAME.slow; sfx(GAME.slow?'slowin':'slowout'); $('bSlow').setAttribute('aria-pressed',String(GAME.slow)); $('bSlowT').setAttribute('aria-pressed',String(GAME.slow)); }
 let drag=null;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('pointerdown',e=>{ if(!GAME.started) return; audio();
@@ -6476,7 +6478,7 @@ document.addEventListener('pointerlockchange',()=>{ $('lockHint').hidden=!!docum
 function resize(){ const dpr=Math.min(devicePixelRatio||1,2),w=Math.max(1,Math.round(innerWidth*dpr)),h=Math.max(1,Math.round(innerHeight*dpr)); if(cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; } }
 const clip=(p)=>{ const v=mulP(view,p),c=[proj[0]*v[0]+proj[4]*v[1]+proj[8]*v[2]+proj[12],proj[1]*v[0]+proj[5]*v[1]+proj[9]*v[2]+proj[13],proj[3]*v[0]+proj[7]*v[1]+proj[11]*v[2]+proj[15]]; return c; };
 function update(dt,now){
-  GAME.ts=lerp(GAME.ts,GAME.slow?.22:1,Math.min(1,dt*6)); const gdt=dt*GAME.ts; GAME.t+=gdt; GAME.barkGlobal-=gdt;
+  GAME.ts=lerp(GAME.ts,GAME.slow?(WICK.on?wnum('bt','ts',.22):.22):1,Math.min(1,dt*6)); /* Wick: ?bts=.3 */ const gdt=dt*GAME.ts; GAME.t+=gdt; GAME.barkGlobal-=gdt;
   if(GAME.started&&!PL.dead&&!XR.on){ let mx=(KEYS.KeyD||KEYS.ArrowRight?1:0)-(KEYS.KeyA||KEYS.ArrowLeft?1:0)+stick.dx,mz=(KEYS.KeyW||KEYS.ArrowUp?1:0)-(KEYS.KeyS||KEYS.ArrowDown?1:0)-stick.dy;
     const l=Math.hypot(mx,mz); if(l>1){ mx/=l; mz/=l; } const sp=2.6*dt*Math.max(GAME.ts,.3)*(PL.moveK??1)*(PROTO.on?raySpeedK():1),fx=-Math.sin(PL.yaw),fz=-Math.cos(PL.yaw),rx=Math.cos(PL.yaw),rz=-Math.sin(PL.yaw);
     PL.x+=(fx*mz+rx*mx)*sp; PL.z+=(fz*mz+rz*mx)*sp; collidePlayer(); }
@@ -7513,7 +7515,7 @@ function makeHand(side){ const n=N(world);
 const HANDS={L:makeHand('L'),R:makeHand('R')};
 /* frame rate on the inside of the left wrist (VR) */
 const fpsTex=tex(24,8,'#0a0b0d'); const fpsN=mk(plane(.045,.015),M(fpsTex,{unlit:true}),HANDS.L.armN,ARM_LBL_X,0,-.07,0,Math.PI/2,0); fpsN.vis=false;
-function drawFps(v){ fpsN.vis=XR.on; const g=fpsTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,24,8); const s=String(v); text(g,s,(24-textW(s))>>1,1,v>=68?'#7ec27a':v>=55?'#e2a33d':'#ff3b30');
+function drawFps(v){ fpsN.vis=XR.on&&!WICK.on; /* Wick: the watch face shows it (92-wick-rules.js) */ const g=fpsTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,24,8); const s=String(v); text(g,s,(24-textW(s))>>1,1,v>=68?'#7ec27a':v>=55?'#e2a33d':'#ff3b30');
   if(fpsTex.glt){ gl.bindTexture(gl.TEXTURE_2D,fpsTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,fpsTex.c); } }
 function equip(h,item){
   if(h.stuck) unstick(h); if(h.support) releaseSupport(h.support); if(h.supportOf) releaseSupport(h);
@@ -7618,7 +7620,7 @@ function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye
   if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }
   const Mi=itemM(h),mz=mulP(Mi,canMuzzle(w,it)),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); if(!it.sup) muzzle(mz,bd,!!w.pellets); muzzleSmoke(mz,bd,!!w.pellets,!!it.sup); if(!w.loadOne) ejectBrass(h,Mi,w); GAME.shotT=GAME.t;
   const o=aim?aim.o:mz,d0=aim?aim.d:bd; protoEmit('fire',h,it,{o,d:d0,muzzle:mz,sup:!!it.sup}); if(it.sup) noise([PL.x,0,PL.z],GUN_SUP[it.key]||4); else noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true}); /* loud, but not floor-wide: a wall or a shut door halves it */
-  const n=w.pellets||1,sp=w.spread||.006,tally=new Map();
+  const n=w.pellets||1,sp=(w.spread||.006)*(WICK.on&&typeof wickSpreadK==='function'?wickSpreadK(h):1),tally=new Map(); /* Wick: an arm hit widens it for 10 s (92-wick-rules.js) */
   for(let i=0;i<n;i++){ const r=bullet(o,norm3(v3.add(d0,[rnd(-sp,sp),rnd(-sp,sp),rnd(-sp,sp)])),w,h); if(r) tally.set(r.E,{n:(tally.get(r.E)||{n:0}).n+1,t:r.t}); }
   if(w.pellets){
     for(const [E,r] of tally) shotgunShove(E,d0,r.n,r.t); }
@@ -7706,6 +7708,7 @@ function grabOrDrop(h){
   if(g.rack){ if(g.rack.key==='fists') return; equip(h,newItem(g.rack.key)); g.rack.taken=.8; g.rack.node.vis=false; }
   else if(g.emb) takeEmbedded(h,g.emb);
   else if(PROTO.on&&rayTakeLoose(h,g.pick)) return; /* loose rounds go in the pouch (80-ray.js) */
+  else if(WICK.on&&typeof wickTakeMag==='function'&&wickTakeMag(h,g.pick)) return; /* a gun of a type you carry gives a magazine (92-wick-rules.js) */
   else { equip(h,g.pick.item); removePickup(g.pick); }
   sfx('click',.6); buzz(h.hand,.5,40); }
 function tickRack(dt){ for(const R of RACK) if(R.taken>0){ R.taken-=dt; if(R.taken<=0) R.node.vis=true; } }
@@ -10413,7 +10416,7 @@ function rayLoad(it,w){ const P=PL.pouch,cal=RAY_CAL[it.key]||'9mm';
     const tot=m.rounds+ch; if(tot>w.mag) P.loose[cal]+=tot-w.mag; return Math.min(w.mag,tot); }
   const n=Math.min(w.mag-it.ammo,P.loose[cal]); P.loose[cal]-=n; return it.ammo+n; }
 /* a gun off a dead man, or wrestled off a live one: a few rounds left in it */
-function rayDropRounds(key){ const w=WPN[key],D=pnum('ray','drop',[2,6]); return Math.min(w.mag,D[0]+Math.floor(Math.random()*(D[1]-D[0]+1))); }
+function rayDropRounds(key){ if(WICK.on&&typeof wickDropRounds==='function') return wickDropRounds(key); /* a real magazine's worth (92-wick-rules.js) */ const w=WPN[key],D=pnum('ray','drop',[2,6]); return Math.min(w.mag,D[0]+Math.floor(Math.random()*(D[1]-D[0]+1))); }
 /* a handful of loose rounds for the floor builder: rayRoundsItem(5) -> a 'rounds' item holding 5 (item.n, item.cal) */
 function rayRoundsItem(n,cal){ return Object.assign(newItem('rounds'),{n:n|0,cal:cal||'9mm'}); }
 /* grabbing loose rounds: they go in the pouch, the pickup disappears */
@@ -10554,7 +10557,7 @@ WPN.strip=Object.assign({label:'Strip of sheet',build:pRayStrip,tool:'strip'},RA
 if(!WPN.medkit) WPN.medkit=Object.assign({label:'First aid kit',build:pRayKit,tool:'medkit',fallback:true},RAY_TOOL);
 if(!WPN.rounds) WPN.rounds=Object.assign({label:'Loose rounds',build:pRayRounds,tool:'rounds',n:4,fallback:true},RAY_TOOL);
 /* a strip torn off something: agent G calls this when Ray tears a hung sheet. h: the hand (or the free one). false if no free hand */
-function giveStrip(h){ if(!h||h.item){ const o=h&&!otherHand(h).item?otherHand(h):null; h=o||(!HANDS.L.item?HANDS.L:!HANDS.R.item?HANDS.R:null); } if(!h) return false; /* that hand busy: the other one */
+function giveStrip(h){ if(WICK.on) return false; /* no bandages for the hitman: his blocks come back */ if(!h||h.item){ const o=h&&!otherHand(h).item?otherHand(h):null; h=o||(!HANDS.L.item?HANDS.L:!HANDS.R.item?HANDS.R:null); } if(!h) return false; /* that hand busy: the other one */
   equip(h,newItem('strip')); sfx('rip',.8); if(XR.on) buzz(h.hand,.7,70); const tn=pnum('ray','tearNoise',3); if(tn>0) noise([PL.x,0,PL.z],tn); protoEmit('stat','strip',1); return true; }
 /* any bed, mattress, sofa or hung sheet in reach of the hand: something to tear a strip from */
 function rayClothNear(p,r){ if(typeof HIDES!=='undefined'&&Array.isArray(HIDES)) for(const S of HIDES){ if(!/bed|sheet|mattress|sofa|laundry/.test(S.kind||'')) continue;
@@ -10562,7 +10565,7 @@ function rayClothNear(p,r){ if(typeof HIDES!=='undefined'&&Array.isArray(HIDES))
   for(const f of FLOOR.furn||[]){ if(!/bed|mattress|couch/.test(f.kind)) continue; const sz=f.info&&f.info.size||[1,1]; if(Math.hypot(p[0]-f.x,p[2]-f.z)<Math.max(sz[0],sz[1])/2+r&&p[1]<1.1) return f; }
   return null; }
 /* grip with an empty hand on nothing else grabbable: by a bed or sheet, it tears a strip */
-function rayGripCloth(h){ if(h.item||PL.dead) return false; const p=rayHandPos(h);
+function rayGripCloth(h){ if(h.item||PL.dead||WICK.on) return false; const p=rayHandPos(h);
   if(typeof sheetNearest==='function'&&sheetNearest(p,.2)) return false; /* a hung sheet (86-hide.js): the grip holds it aside; a yank down tears the strip */
   return !!rayClothNear(p,.15)&&giveStrip(h); }
 /* the first-aid kit: held to the chest with the trigger squeezed (flat: U held), 25 hp over 3 s, then it's gone. Let go early and what's
@@ -16156,6 +16159,135 @@ function wkKitOnce(){ if(WKKIT) return; WKKIT=true; const T=wkT(),SK='#b98a6a';
   mk(box(.086,.078,.02),bk,a,0,0,-.07); mk(box(.012,.05,.05),st,a,.034,0,-.07); mk(box(.006,.012,.012),st,a,.036,.03,-.07); }
 function wkKit(){ wkKitOnce(); equip(HANDS.R,newItem('pistol',undefined,true)); equip(HANDS.L,null); }
 if(WICK.on) protoOn('reset',()=>{ if(FLOOR.mode!=='wick') wkKitOnce(); });
+
+/* =====================================================================
+   WICK stage 2: the rules (plan section 4, the rule parts of 2b and 2c). Agent R. Everything here acts only with WICK.on.
+   - Health is 100 in four blocks of 25. Only the block you are in comes back, after 4 s without being hit: mortal, but no medkit hunt.
+   - A pistol round costs 25 to 30 wherever it lands (Ray's hit test still decides where). Three or four hits.
+   - Wounds are short and clean: a leg hit slows you for 10 s, an arm hit widens that hand's spread for 10 s. No bleeding out, no shakes,
+     no heavy breathing, no tearing bandages: the block regen replaces all of it.
+   - The kit: a suppressed 9 mm with 12, two spare magazines of 12, a knife on the belt (left hip holster once agent H's are in;
+     the left hand on the flat screen).
+   - A gun of a type you already carry (other hand or a holster) gives its rounds as a magazine when you grip it; grip the empty gun
+     again and it comes into the hand.
+   - Bullet time is a meter of 4 s (WICK_BT). Left stick click toggles it, it drains in real time and switches off when empty. Kills
+     refill it: 25% a kill, 40% a headshot kill, nothing over time. Kills under 2 s apart (real time) make a chain (WICK_CHAIN), and each
+     link adds 10% more, up to 40% more.
+   - wickSlowBurst(sec): free slow motion that ignores the meter (the director's last-man moment).
+   - The watch on the left wrist: FPS, the meter, the chain, four health pips. The flat screen: the same in the corner.
+   Events: protoEmit('wickChain', n) on every kill from the second link on; protoEmit('wickMag', key, rounds) when a gun gives a magazine.
+   ===================================================================== */
+Object.assign(WICK.rules,{ block:25, regenT:4, regenV:15,            /* hp a block holds; seconds unhit before it refills; hp per second while it does */
+  pistol:28, pistolLimb:25, pistolHead:30, dmgK:1,                       /* a 9 mm round on you: torso, arm/leg, head; everything times dmgK */
+  woundT:10, legK:.7, armSpread:4,                                       /* wound effects: seconds, walking speed with a leg hit, spread times this with an arm hit */
+  gun:12, mags:2, merge:1, dropLo:.5, dropHi:1 },                        /* the kit; a carried type gives a magazine (0 turns it off); a dead man's gun holds mag x 0.5-1 */
+  Object.assign({},WICK.rules));                                         /* URL values (06-wick.js) win over these defaults */
+Object.assign(WICK.bt,{ kill:.25, head:.4, link:.1, linkMax:.4, chainT:2, ts:.22, burst:1, start:1 },Object.assign({},WICK.bt)); /* refills as a share of max; chain window s; world speed; default burst s; start full */
+/* what each weapon does to you, by where it lands. Pistol rows come from the scalars above so the URL can tune them */
+WICK.dmg={ revolver:{head:40,torso:35,arm:30,leg:30}, smg:{head:22,torso:18,arm:15,leg:15},
+  shotgun:{head:12,torso:8,arm:6,leg:6},                                 /* per pellet, times the range falloff in 80-ray.js: a close blast takes two to three blocks */
+  machete:{head:40,torso:35,arm:25,leg:25}, knife:{head:35,torso:30,arm:20,leg:20}, bottle:{head:25,torso:20,arm:15,leg:15}, fist:{head:12,torso:10,arm:6,leg:6} };
+
+var WICK_BT={t:4,max:4}, WICK_CHAIN={n:0,t:-9,rt:-9,best:0}, WICK_KIT={R:null,knife:null,slot:'hipL'};
+const WR={want:false,burst:0,unhit:99,legT:0,armT:{L:0,R:0},clk:0,fresh:false,face:null,faceKey:'',hud:null,hudKey:'',flash:0};
+
+/* Ray's tables (80-ray.js) take Wick's numbers: same code, different rules */
+function wkRayTables(){ const R=WICK.rules,k=R.dmgK,T={pistol:{head:R.pistolHead,torso:R.pistol,arm:R.pistolLimb,leg:R.pistolLimb}};
+  for(const w in WICK.dmg) T[w]=WICK.dmg[w]; const D={}; for(const w in T){ D[w]={}; for(const p in T[w]) D[w][p]=Math.round(T[w][p]*k); }
+  Object.assign(PROTO.ray,{ hp:R.hp, gun:R.gun, dmg:D, open:{gun:{torso:0,arm:0,leg:0},blade:{torso:0,arm:0,leg:0}}, bleed:0,
+    tremorHp:0, breathHp:0, slowK:1, slowT:0 }); } /* no shakes, no breathing you can be heard by, no bleeding; the hit knock stays */
+if(WICK.on) wkRayTables();
+
+/* ---------- the meter and slow motion ---------- */
+function wkSlowApply(){ const on=!PL.dead&&(WR.burst>0||WR.want&&WICK_BT.t>0); if(on===GAME.slow) return; GAME.slow=on; sfx(on?'slowin':'slowout');
+  for(const id of ['bSlow','bSlowT']){ const b=$(id); if(b) b.setAttribute('aria-pressed',String(on)); } }
+/* toggleSlow (50-game.js) comes here with Wick on: the left stick click, T, the slow-mo buttons */
+function wickBTToggle(){ if(!GAME.started||PL.dead) return;
+  if(!WR.want&&WICK_BT.t<=.05){ sfx('click',.5); if(XR.on) buzz('left',.3,30); return; } /* empty: a dry tick, nothing else */
+  WR.want=!WR.want; wkSlowApply(); }
+function wickSlowBurst(sec){ if(!WICK.on||PL.dead) return; WR.burst=Math.max(WR.burst,sec??wnum('bt','burst',1)); wkSlowApply(); }
+function wickBTAdd(share){ WICK_BT.t=Math.min(WICK_BT.max,WICK_BT.t+share*WICK_BT.max); WR.flash=.35; }
+
+/* a kill: refill, and the chain */
+protoOn('death',E=>{ if(!WICK.on||!E||E.ally||E.civ||PL.dead) return; const C=WICK_CHAIN,B=WICK.bt;
+  C.n=C.n>0&&WR.clk-C.rt<=B.chainT?C.n+1:1; C.rt=WR.clk; C.t=GAME.t; C.best=Math.max(C.best,C.n);
+  const head=!!(E.headshot||E.cut&&E.cut.head); wickBTAdd((head?B.head:B.kill)+Math.min(B.linkMax,B.link*(C.n-1)));
+  if(XR.on){ buzz('left',head?.7:.5,head?70:45); if(C.n>=3) buzz('right',1,140); }
+  if(C.n>=2) protoEmit('wickChain',C.n); protoEmit('stat','wickKill',head?'head':'body'); });
+
+/* a hit on you: the regen waits, a leg or an arm hit starts its timer */
+protoOn('hurt',(d,src)=>{ if(!WICK.on||PL.dead||src.kind==='bleed') return; WR.unhit=0; const T=WICK.rules.woundT;
+  for(const h of src.hits||(src.part?[{part:src.part,side:src.side}]:[])){ if(h.part==='leg') WR.legT=T; else if(h.part==='arm') WR.armT[h.side==='L'?'L':'R']=T; } });
+/* fireHand (60-weapons.js) multiplies its spread by this */
+function wickSpreadK(h){ return WICK.on&&h&&WR.armT[h.side]>0?WICK.rules.armSpread:1; }
+
+/* ---------- ammo ---------- */
+function wickDropRounds(key){ const w=WPN[key],R=WICK.rules; return Math.max(1,Math.min(w.mag,Math.round(w.mag*rnd(R.dropLo,R.dropHi)))); }
+/* do you already carry a gun of this kind: the other hand, or a holster (agent H's wickHolsters) */
+function wkCarries(key,h){ for(const o of [HANDS.L,HANDS.R]) if(o!==h&&o.item&&o.item.key===key) return true;
+  if(typeof wickHolsters!=='undefined'&&Array.isArray(wickHolsters)) for(const s of wickHolsters) if(s&&s.item&&s.item.key===key) return true; return false; }
+/* grabOrDrop (60-weapons.js) asks first: a gun lying there of a type you carry gives its rounds; the empty gun stays where it was */
+function wickTakeMag(h,P){ if(!WICK.on||!WICK.rules.merge) return false; const it=P&&P.item,w=it&&WPN[it.key]; if(!w||!w.gun||it.ammo<=0||!wkCarries(it.key,h)) return false;
+  const n=it.ammo; if(w.loadOne) PL.pouch.loose[RAY_CAL[it.key]||'9mm']+=n; else PL.pouch.mags.push({gun:it.key,rounds:n,cap:w.mag}); /* a tube or a cylinder: loose rounds */
+  it.ammo=0; if(w.pump) it.chambered=false; raySnd('rattle',.9); sfx('click',.5); if(XR.on) buzz(h.hand,.6,50);
+  protoEmit('wickMag',it.key,n); protoEmit('stat','wickMag',n); return true; }
+
+/* ---------- the kit ---------- */
+function wkArtView(){ return typeof WKART!=='undefined'&&WKART.on; } /* the approved art shots keep their hands as they were */
+function wickKit(){ const R=WICK.rules,g=newItem('pistol',Math.min(WPN.pistol.mag,R.gun),true); g.rayN=true; /* rayN: 80-ray.js leaves its count alone */
+  PL.pouch.mags=Array.from({length:R.mags|0},()=>({gun:'pistol',rounds:WPN.pistol.mag,cap:WPN.pistol.mag})); PL.pouch.loose={'9mm':0,'12g':0,'38':0};
+  if(wkArtView()) return; const k=newItem('knife'); WICK_KIT.R=g; WICK_KIT.knife=k; equip(HANDS.R,g); equip(HANDS.L,XR.on?null:k); }
+/* the knife on the belt, once the holsters exist (agent H): wickHolsterPut(slot, item) if H gives one, else straight into the slot */
+function wkBelt(){ const k=WICK_KIT.knife; if(!k||!XR.on||HANDS.L.item===k||HANDS.R.item===k) return;
+  if(typeof wickHolsterPut==='function'){ wickHolsterPut(WICK_KIT.slot,k); return; }
+  if(typeof wickHolsters!=='undefined'&&Array.isArray(wickHolsters)){ const s=wickHolsters.find(s=>s.slot===WICK_KIT.slot)||wickHolsters.find(s=>!s.item&&s.slot!=='back'); if(s&&!s.item) s.item=k; } }
+
+protoOn('reset',()=>{ if(!WICK.on) return; wkRayTables(); wickKit();
+  WICK_BT.max=WICK.bt.max; WICK_BT.t=WICK.bt.max*clamp(WICK.bt.start,0,1); Object.assign(WICK_CHAIN,{n:0,t:-9,rt:-9,best:0});
+  Object.assign(WR,{want:false,burst:0,unhit:99,legT:0,flash:0,fresh:true}); WR.armT.L=WR.armT.R=0; GAME.slow=false; });
+
+/* ---------- every frame ---------- */
+protoOn('tick',(gdt,dt)=>{ if(!WICK.on) return;
+  if(WR.fresh){ WR.fresh=false; wkBelt(); } /* after every other system's reset */
+  if(GAME.started){ WR.clk+=dt;
+    if(PL.dead){ WR.want=false; WR.burst=0; }
+    else { /* the meter: real seconds, and nothing while a free burst runs */
+      if(WR.burst>0) WR.burst=Math.max(0,WR.burst-dt); else if(WR.want&&GAME.slow){ WICK_BT.t=Math.max(0,WICK_BT.t-dt); if(WICK_BT.t<=0) WR.want=false; }
+      /* the block you're in comes back; game time, so bullet time doesn't heal you faster */
+      WR.unhit+=gdt; const B=WICK.rules.block,top=Math.min(WICK.rules.hp,Math.ceil(PL.hp/B-1e-6)*B);
+      if(WR.unhit>=WICK.rules.regenT&&PL.hp<top) PL.hp=Math.min(top,PL.hp+WICK.rules.regenV*gdt);
+      WR.legT=Math.max(0,WR.legT-gdt); WR.armT.L=Math.max(0,WR.armT.L-gdt); WR.armT.R=Math.max(0,WR.armT.R-gdt); }
+    if(WICK_CHAIN.n>0&&WR.clk-WICK_CHAIN.rt>WICK.bt.chainT) WICK_CHAIN.n=0;
+    wkSlowApply(); }
+  /* Ray's wound effects come from the timers, not wounds (raySpeedK reads RAY.legK; PL.limp feeds the men's callouts) */
+  RAY.legK=WR.legT>0?WICK.rules.legK:1; PL.limp=WR.legT>0?1:0; PL.armWeak.L=PL.armWeak.R=0; RAY.sway.L=RAY.sway.R=0;
+  WR.flash=Math.max(0,WR.flash-dt); wkFace(); wkHud(); });
+
+/* ---------- the watch face, on the left wrist (VR) ----------
+   24 x 24 pixels over 4.2 cm, on the steel case from 91d-wick-art.js: the FPS (green/amber/red as before), the meter (steel blue, white
+   when it refills, amber while you're in it), the chain (x2, x3... in gold while it's alive), four pips for the health blocks. */
+const WK_FACE={W:24,H:24};
+function wkFace(){ if(!WR.face){ const t=tex(WK_FACE.W,WK_FACE.H,'#0a0b0d'),n=mk(plane(.042,.042),M(t,{unlit:true}),HANDS.L.armN,.0445,0,-.07,0,Math.PI/2,0); WR.face={t,n}; }
+  const F=WR.face; F.n.vis=XR.on; const fps=XR.fps||0,m=Math.round(WICK_BT.t/WICK_BT.max*20),ch=WICK_CHAIN.n,B=WICK.rules.block,hp=Math.max(0,PL.hp);
+  const key=fps+'|'+m+'|'+ch+'|'+GAME.slow+'|'+(WR.flash>0)+'|'+Math.round(hp); if(key===WR.faceKey) return; WR.faceKey=key;
+  const g=F.t.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,24,24);
+  const s=String(fps); text(g,s,(24-textW(s))>>1,1,fps>=68?'#7ec27a':fps>=55?'#e2a33d':'#ff3b30');
+  g.fillStyle='#1c2229'; g.fillRect(2,8,20,4); g.fillStyle=WR.flash>0?'#eef4f8':GAME.slow?'#e2a33d':'#7fa6c4'; g.fillRect(2,8,m,4);
+  if(ch>=2){ const c='X'+ch; text(g,c,(24-textW(c))>>1,13,'#e8c25a'); }
+  const nb=Math.round(WICK.rules.hp/B); for(let i=0;i<nb&&i<5;i++){ const f=clamp((hp-i*B)/B,0,1),x=2+i*(20/nb|0); g.fillStyle='#2a2522'; g.fillRect(x,20,(20/nb|0)-1,2); if(f>0){ g.fillStyle=f>=1?'#c4bfb3':'#8a5a48'; g.fillRect(x,20,Math.max(1,Math.round(((20/nb|0)-1)*f)),2); } }
+  if(F.t.glt){ gl.bindTexture(gl.TEXTURE_2D,F.t.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,F.t.c); } }
+
+/* ---------- the flat screen: blocks, the meter and the chain over the ammo count ---------- */
+function wkHud(){ if(XR.on) return; if(!WR.hud){ const br=$('br'); if(!br) return; const d=document.createElement('div'); d.id='wkHud';
+    d.style.cssText='display:grid;gap:4px;justify-items:end;font-size:11px;letter-spacing:.14em';
+    d.innerHTML='<span id="wkChain" style="color:#e8c25a;min-height:1em"></span><div style="display:flex;gap:6px;align-items:center"><span id="wkBtL">BT</span><div style="width:110px;height:5px;background:rgba(0,0,0,.6);border:1px solid var(--line)"><div id="wkBt" style="height:100%;width:100%;background:#7fa6c4"></div></div></div><div id="wkBlocks" style="display:flex;gap:3px"></div>';
+    br.insertBefore(d,br.firstChild); const hb=br.querySelector('.hpbar'); if(hb) hb.style.display='none'; WR.hud={d,chain:$('wkChain'),bt:$('wkBt'),btL:$('wkBtL'),blocks:$('wkBlocks'),n:-1}; }
+  const H=WR.hud,B=WICK.rules.block,nb=Math.round(WICK.rules.hp/B),ch=WICK_CHAIN.n,key=Math.round(PL.hp)+'|'+Math.round(WICK_BT.t*20)+'|'+ch+'|'+GAME.slow+'|'+(WR.flash>0);
+  if(key===WR.hudKey) return; WR.hudKey=key;
+  if(H.n!==nb){ H.n=nb; H.blocks.innerHTML=''; for(let i=0;i<nb;i++){ const c=document.createElement('div'); c.style.cssText='width:34px;height:6px;background:rgba(0,0,0,.6);border:1px solid var(--line)'; c.innerHTML='<div style="height:100%;background:var(--ink)"></div>'; H.blocks.append(c); } }
+  [...H.blocks.children].forEach((c,i)=>{ const f=clamp((PL.hp-i*B)/B,0,1); c.firstChild.style.width=(f*100).toFixed(0)+'%'; c.firstChild.style.opacity=f>=1?'1':'.55'; });
+  H.bt.style.width=(WICK_BT.t/WICK_BT.max*100).toFixed(1)+'%'; H.bt.style.background=WR.flash>0?'#eef4f8':GAME.slow?'#e2a33d':'#7fa6c4';
+  H.btL.style.color=GAME.slow?'#e2a33d':''; H.chain.textContent=ch>=2?'CHAIN X'+ch:''; }
 
 /* =====================================================================
    WICK stage 0: the stress spawn. Needs the game's functions, so it lives inside the engine's scope (06-wick.js can't see them).

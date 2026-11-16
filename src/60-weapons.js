@@ -86,7 +86,7 @@ function makeHand(side){ const n=N(world);
 const HANDS={L:makeHand('L'),R:makeHand('R')};
 /* frame rate on the inside of the left wrist (VR) */
 const fpsTex=tex(24,8,'#0a0b0d'); const fpsN=mk(plane(.045,.015),M(fpsTex,{unlit:true}),HANDS.L.armN,ARM_LBL_X,0,-.07,0,Math.PI/2,0); fpsN.vis=false;
-function drawFps(v){ fpsN.vis=XR.on; const g=fpsTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,24,8); const s=String(v); text(g,s,(24-textW(s))>>1,1,v>=68?'#7ec27a':v>=55?'#e2a33d':'#ff3b30');
+function drawFps(v){ fpsN.vis=XR.on&&!WICK.on; /* Wick: the watch face shows it (92-wick-rules.js) */ const g=fpsTex.c.getContext('2d'); g.fillStyle='#0a0b0d'; g.fillRect(0,0,24,8); const s=String(v); text(g,s,(24-textW(s))>>1,1,v>=68?'#7ec27a':v>=55?'#e2a33d':'#ff3b30');
   if(fpsTex.glt){ gl.bindTexture(gl.TEXTURE_2D,fpsTex.glt); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,fpsTex.c); } }
 function equip(h,item){
   if(h.stuck) unstick(h); if(h.support) releaseSupport(h.support); if(h.supportOf) releaseSupport(h);
@@ -191,7 +191,7 @@ function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye
   if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }
   const Mi=itemM(h),mz=mulP(Mi,canMuzzle(w,it)),bd=norm3(v3.sub(mz,mulP(Mi,[0,w.axisY,0]))); if(!it.sup) muzzle(mz,bd,!!w.pellets); muzzleSmoke(mz,bd,!!w.pellets,!!it.sup); if(!w.loadOne) ejectBrass(h,Mi,w); GAME.shotT=GAME.t;
   const o=aim?aim.o:mz,d0=aim?aim.d:bd; protoEmit('fire',h,it,{o,d:d0,muzzle:mz,sup:!!it.sup}); if(it.sup) noise([PL.x,0,PL.z],GUN_SUP[it.key]||4); else noise([PL.x,0,PL.z],GUN_LOUD[it.key]||17,{alarm:true}); /* loud, but not floor-wide: a wall or a shut door halves it */
-  const n=w.pellets||1,sp=w.spread||.006,tally=new Map();
+  const n=w.pellets||1,sp=(w.spread||.006)*(WICK.on&&typeof wickSpreadK==='function'?wickSpreadK(h):1),tally=new Map(); /* Wick: an arm hit widens it for 10 s (92-wick-rules.js) */
   for(let i=0;i<n;i++){ const r=bullet(o,norm3(v3.add(d0,[rnd(-sp,sp),rnd(-sp,sp),rnd(-sp,sp)])),w,h); if(r) tally.set(r.E,{n:(tally.get(r.E)||{n:0}).n+1,t:r.t}); }
   if(w.pellets){
     for(const [E,r] of tally) shotgunShove(E,d0,r.n,r.t); }
@@ -279,6 +279,7 @@ function grabOrDrop(h){
   if(g.rack){ if(g.rack.key==='fists') return; equip(h,newItem(g.rack.key)); g.rack.taken=.8; g.rack.node.vis=false; }
   else if(g.emb) takeEmbedded(h,g.emb);
   else if(PROTO.on&&rayTakeLoose(h,g.pick)) return; /* loose rounds go in the pouch (80-ray.js) */
+  else if(WICK.on&&typeof wickTakeMag==='function'&&wickTakeMag(h,g.pick)) return; /* a gun of a type you carry gives a magazine (92-wick-rules.js) */
   else { equip(h,g.pick.item); removePickup(g.pick); }
   sfx('click',.6); buzz(h.hand,.5,40); }
 function tickRack(dt){ for(const R of RACK) if(R.taken>0){ R.taken-=dt; if(R.taken<=0) R.node.vis=true; } }
