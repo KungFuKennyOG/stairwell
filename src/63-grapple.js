@@ -123,7 +123,7 @@ function hostageTick(G,dt){ const E=G.E; if(!gunToHead(G)){ if(G.hostage){ G.hos
   E.hgT=(E.hgT||0)-dt; if(E.hgT<=0&&E.barkCd<=0){ E.hgT=rnd(1.6,2.8); bark(E,pick(HOSTAGE_LINES),1.8); vox(E,Math.random()<.5?'plead':'whimper',.8); }
   return true; }
 /* everyone who can see it happening */
-function hostageWorld(dt){ const G=GAME.hostageNow; GAME.hostage=G?G.E:null;
+function hostageWorld(dt){ let G=GAME.hostageNow; if(G&&WICK.on&&typeof wickShieldOver==='function'&&wickShieldOver(G.E)) G=null; /* Wick: past the hold they shoot through him (93-wick-hands.js) */ GAME.hostage=G?G.E:null;
   if(!G){ for(const O of enemies) O.hsT=0; return; }
   for(const O of enemies){ if(O===G.E||O.dead||O.civ||O.ally||O.surr||O.st!=='alert'||!O.aware) continue;
     const oh=X_(O.B,PI_.head); if(Math.hypot(oh[0]-PL.x,oh[2]-PL.z)>14||!sightClear(oh,X_(G.E.B,PI_.head))) continue;

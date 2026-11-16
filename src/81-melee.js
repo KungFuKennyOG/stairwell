@@ -200,7 +200,7 @@ function melSweep(h,dt){ const S=melState(h);
   /* contacts held: let a man go once the weapon is well clear of him */
   for(const [E,t] of S.lock){ if(!enemies.includes(E)||GAME.t-t>1.2||GAME.t-t>.12&&melClear(E,caps,cur,.04)) S.lock.delete(E); }
   if(!prev||S.stopT>0||h.cd>0) return; /* h.cd: a hit knocked your hands (80-ray.js); that jolt is not a swing */
-  const wall=!S.wall&&(w.melee||!h.item||w.gun&&S.clubK>.5)&&!h.support?melWallHit(h,S,w,key,caps,prev,cur):null,wallU=wall?wall.f:2; /* a wall in the way this frame: only what comes before it counts */
+  const wall=!S.wall&&(w.melee||!h.item||w.gun&&S.clubK>.5&&!WICK.on)&&!h.support?melWallHit(h,S,w,key,caps,prev,cur):null,wallU=wall?wall.f:2; /* a wall in the way this frame: only what comes before it counts */
   const hp=colOf(cur,3),cand=[];
   for(const E of enemies){ if(S.lock.has(E)) continue; const x=E.B.x; if(Math.hypot(x[0]-hp[0],x[2]-hp[2])<1.9){ cand.push(E); melTrack(E,dt); if(!E.melC) melSkin(E); } } /* x[0..2]: his pelvis. His skin index is built as he comes in reach, not on the frame you hit him */
   if(!cand.length){ if(wall) wall.apply(); return; }
