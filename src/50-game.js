@@ -1041,7 +1041,7 @@ function enemyShoot(E,inBurst){
   const g=gunRay(E),mz=g.mz,KS=kst(E),W=WPN[KIND_WPN[E.kind]],AP=PROTO.on?fightAimPt():[PL.x,1.45,PL.z]; /* prototype: aim at Ray's real head height (84-fight.js) */
   if(!inBurst&&E.C.support&&!E.oneHand&&(E.aimW||0)<.8) return false; /* the gun comes up to the eyes before the first shot */
   if(!inBurst&&v3.dot(g.d,norm3(v3.sub(AP,mz)))<Math.cos(.6)) return false; /* not on target yet: hold fire instead of shooting the ceiling */
-  if(!inBurst){ const blk=bodyInLine(mz,[AP[0],AP[1]-.05,AP[2]],E); if(blk&&!blk.E.dead&&Math.random()<.75){ if(E.barkCd<=0) bark(E,blk.E.grabbed?pick([`Let ${blk.E.name} go!`,'Let him go, man!','I can\'t get a shot—']):'Move!',1.6); return false; } } /* friends in the way: mostly hold fire */
+  if(!inBurst){ const blk=bodyInLine(mz,[AP[0],AP[1]-.05,AP[2]],E); if(blk&&!blk.E.dead&&(WICK.on&&typeof wickShieldHold==='function'?wickShieldHold(E,blk.E):Math.random()<.75)){ /* Wick: a man you hold, 1.5 s (93-wick-hands.js) */ if(E.barkCd<=0) bark(E,blk.E.grabbed?pick([`Let ${blk.E.name} go!`,'Let him go, man!','I can\'t get a shot—']):'Move!',1.6); return false; } } /* friends in the way: mostly hold fire */
   GAME.eShots=(GAME.eShots||0)+1; muzzle(mz,g.d,!!KS.shotgun); muzzleSmoke(mz,g.d,!!KS.shotgun,false); sfx(W.snd||'gun',.8,mz); noise([E.pos[0],0,E.pos[1]],14,{alarm:true,from:E}); /* his friends come to the shooting */
   const toPl=Math.hypot(...v3.sub(AP,mz)),n=KS.shotgun?6:1,hurtArm=Math.min(E.hp.armL,E.hp.armR)>=.45?1:.55;
   /* how likely a shot finds you: better close, worse far, worse with a hurt arm, worse while you're in bullet time? no: bullet time is yours */
@@ -1049,7 +1049,7 @@ function enemyShoot(E,inBurst){
   let dmg=0,hits=0;
   for(let k=0;k<n;k++){ const tgt=[AP[0]+rnd(-.35,.35),Math.max(.05,AP[1]+rnd(-.3,.25)),AP[2]+rnd(-.35,.35)],d=norm3(v3.add(norm3(v3.sub(tgt,mz)),KS.shotgun?[rnd(-.06,.06),rnd(-.05,.05),rnd(-.06,.06)]:[0,0,0]));
     const bl=rayBoxes(mz,d,toPl); if(bl){ const hp=v3.add(v3.add(mz,v3.sc(d,bl.t)),v3.sc(bl.n,.004)); addDecal(DEC.hole,hp,bl.n,.025,140); impactFx(hp,bl.n,!!KS.shotgun); if(k<2) sfx('ric',.7,hp); continue; } /* your cover takes it */
-    const bb=bodyInLine(mz,v3.add(mz,v3.sc(d,toPl)),E); if(bb){ hitEnemy(bb.E,bb.seg,bb.p,bb.dir,'gun',{bleed:KS.shotgun?.5:1,sever:KS.shotgun?.7:1,pellet:!!KS.shotgun}); continue; } /* the body in front takes it */
+    const bb=bodyInLine(mz,v3.add(mz,v3.sc(d,toPl)),E); if(bb){ hitEnemy(bb.E,bb.seg,bb.p,bb.dir,'gun',{bleed:KS.shotgun?.5:1,sever:KS.shotgun?.7:1,pellet:!!KS.shotgun}); if(!(WICK.on&&typeof wickShieldPass==='function'&&wickShieldPass(bb.E))) continue; } /* Wick: some go through your shield */ /* the body in front takes it */
     if(Math.random()<pHit){ dmg+=KS.shotgun?KS.dmg/n*clamp(1.4-toPl/7,.25,1.4):KS.dmg; hits++; }
     else { const r=rayRoom(mz,d),hp=v3.add(v3.add(mz,v3.sc(d,r.t)),v3.sc(r.n,.004)); addDecal(DEC.hole,hp,r.n,.025,140);
       const e=camBasis().eye,tc=clamp(v3.dot(v3.sub(e,mz),d),0,r.t),cp=v3.add(mz,v3.sc(d,tc)); if(k<2&&Math.hypot(...v3.sub(cp,e))<1.6&&tc>1) sfx('whiz',.9,cp); /* it went past your head */
@@ -1071,7 +1071,7 @@ function kick(){ if(!GAME.started||PL.dead||PL.kickCd>0) return; PL.kickCd=.8; c
   let best=null; for(const E of enemies){ const pel=X_(E.B,PI_.pelvis),d=Math.hypot(pel[0]-PL.x,pel[2]-PL.z),dir=norm3([pel[0]-PL.x,0,pel[2]-PL.z]); if(d<1.45&&v3.dot(dir,fl)>.55&&(!best||d<best.d)) best={E,d}; }
   if(!best){ const D=doorNear(PL.x+fl[0]*.7,PL.z+fl[2]*.7,.95); if(D&&D.state==='closed'){ kickDoor(D); return; } sfx('swish'); return; } const E=best.E; sfx('kick');
   for(const i of [PI_.pelvis,PI_.chest,PI_.hipL,PI_.hipR,PI_.neck]) kickV(E.B,i,v3.add(v3.sc(fl,5.5),[0,.6,0]),H);
-  E.stun=Math.min(1,E.stun+1.1); E.shoveT=0; E.slamT=Math.max(E.slamT||0,.7); kickedDown(E,fl); setAware(E,'kick'); if(E.st==='kneel'){ toDown(E); } }
+  E.stun=Math.min(1,E.stun+1.1); E.shoveT=0; E.slamT=Math.max(E.slamT||0,.7); kickedDown(E,fl); setAware(E,'kick'); if(E.st==='kneel'){ toDown(E); } if(WICK.on&&typeof wickKicked==='function') wickKicked(E,fl); }
 function hurtPlayer(d,src){ if(PL.dead) return; src=src||{}; if(PROTO.on){ d=rayHurtDmg(d,src); if(d<=0) return; } /* by weapon and body part; 0 when his cover took it (80-ray.js) */ protoEmit('hurt',d,src); PL.hp-=d; PL.hurtT=0; XR.flash=PROTO.on?pnum('ray','flash',0):.35; if(XR.on){ buzz('left',1,120); buzz('right',1,120); } $('flash').classList.remove('on'); void $('flash').offsetWidth; $('flash').classList.add('on'); screenBlood(2); sfx('hurt');
   if(PL.hp<=0){ PL.hp=0; PL.dead=true; PL.deadT=0; showMsg('YOU DIED','Back to the start of the level.'); } }
 
@@ -1437,7 +1437,7 @@ function xrFrame(t,xf){
     if(ab){ if(h.item&&WPN[h.item.key].melee) flipGrip(h); else if(!PROTO.on) reloadHand(h); } if(PROTO.on) rayABTick(h,pressed(4),dt); /* tap reloads, hold counts (80-ray.js) */ if(by) kick();
     /* point-down reload: aim the barrel at the floor for half a second (a shotgun keeps feeding shells while you hold it there) */
     if(h.item&&WPN[h.item.key].gun){ const it=h.item,w=WPN[it.key],Mi=itemM(h),bd=norm3(v3.sub(mulP(Mi,w.muzzle),mulP(Mi,[0,w.axisY,0])));
-      h.downT=bd[1]<-.87?(h.downT||0)+dt:0; if(h.downT>.5&&!(it.reload>0)){ reloadHand(h); if(it.reload>0) buzz(h.hand,.35,40); } } else h.downT=0;
+      h.downT=bd[1]<-.87&&!(WICK.on&&typeof wickReloadBlocked==='function'&&wickReloadBlocked(h))?(h.downT||0)+dt:0; /* Wick: not at a holster (93-wick-hands.js) */ if(h.downT>.5&&!(it.reload>0)){ reloadHand(h); if(it.reload>0) buzz(h.hand,.35,40); } } else h.downT=0;
     if(hand==='left'){ const sx=ax[2]||0,sz=ax[3]||0; if(GAME.started&&Math.hypot(sx,sz)>.15){ const fl=norm3([f[0],0,f[2]]),rl=[-fl[2],0,fl[0]],sp=2.2*dt*Math.max(GAME.ts,.3)*(PL.moveK??1)*(PROTO.on?rayStickK():1); /* bullet time slows you too; moveK: held by a man (82-clinch.js); prototype: hit, leg wound, crouch (80-ray.js) */
         const before=[PL.x,PL.z]; PL.x+=(rl[0]*sx-fl[0]*sz)*sp; PL.z+=(rl[2]*sx-fl[2]*sz)*sp; collidePlayer(); XR.origin[0]+=PL.x-before[0]; XR.origin[2]+=PL.z-before[1]; }
       if(stickC){ if(PROTO.on&&!WICK.on) hideCrouchToggle(); else toggleSlow(); } } /* the prototype: the click crouches (86-hide.js) instead of bullet time */

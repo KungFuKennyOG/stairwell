@@ -198,7 +198,7 @@ function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye
   if(it.ammo===0&&!XR.on) setTimeout(()=>reloadHand(h),250);
   return true; }
 function bullet(o,d,w,h){
-  const wall=rayRoom(o,d),hit=rayEnemiesExact(o,d,wall.t);
+  const wall=rayRoom(o,d); let hit=rayEnemiesExact(o,d,wall.t); if(WICK.on&&typeof wickHeadAssist==='function') hit=wickHeadAssist(o,d,wall.t,hit); /* Wick: close headshots are generous (93-wick-hands.js) */
   if(hit) protoEmit('shotHit',hit.E,hit.seg,hit.t); /* telemetry: one of Ray's bullets found someone (89-shell.js) */
   shotNear(o,d,hit?hit.t:wall.t,hit&&hit.E); /* who flinches (70-wounds.js) */
   if(hit){ const p=hit.p; hitEnemy(hit.E,hit.seg,p,d,'gun',{bleed:w.bleed||1,sever:w.sever||1,push:w.push||1,pellet:!!w.pellets,dist:hit.t}); hitMist(p,d,!!w.pellets);
@@ -206,6 +206,7 @@ function bullet(o,d,w,h){
     sfx('flesh',w.pellets?.45:.8,p); if(hit.t<1.3) screenBlood(w.pellets?1:3); hitMarker(); if(XR.on) buzz(h.hand,.4,40); return {E:hit.E,t:hit.t}; }
   else { const p=v3.add(v3.add(o,v3.sc(d,wall.t)),v3.sc(wall.n,.004)); if(wall.b&&wall.b.onHit) wall.b.onHit(p); addDecal(DEC.hole,p,wall.n,.028,140); if(!w.pellets||Math.random()<.3) sfx(Math.random()<.1?'ricw':'ric',w.pellets?.4:.6,p); if(h&&h.item&&h.item.sup) noise(p,3); impactFx(p,wall.n,!!w.pellets); } }
 function reloadHand(h){ const it=h.item; if(!it) return; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.ammo>=w.mag) return;
+  if(WICK.on&&typeof wickReloadBlocked==='function'&&wickReloadBlocked(h)) return; /* Wick: a gun at a holster never starts a reload (93-wick-hands.js) */
   if(PROTO.on&&!rayCanLoad(h)) return; /* prototype: only what you carry; nothing left is a dry click (80-ray.js) */
   it.reload=w.loadOne?.42:1.35; sfx(w.loadOne?'shell':'reload'); }
 function tickItem(h,dt){ const it=h.item; h.rec=Math.max(0,h.rec-dt*7); h.cd-=dt; if(!it) return; it.cd-=dt;
@@ -266,6 +267,7 @@ function nearestGrabbable(p,maxD){ let best=null,bd=maxD;
   for(const P of LOOSE){ const q=P.node.p,d=Math.hypot(p[0]-q[0],p[1]-q[1],p[2]-q[2]); if(d<bd){ bd=d; best={pick:P}; } }
   return best; }
 function grabOrDrop(h){
+  if(WICK.on&&typeof wickGrabOrDrop==='function'&&wickGrabOrDrop(h)) return; /* Wick: holsters, the magnet, throws (93-wick-hands.js) */
   if(h.stuck){ leaveEmbedded(h); return; } /* let go of a blade that's in him: it stays in him */
   if(h.grab){ endGrab(h.grab,Math.hypot(...h.vel)>1.5?v3.sc(h.vel,1.1):null); return; } /* let go of him, or throw him */
   if(h.supportOf){ releaseSupport(h); sfx('click',.4); return; }
