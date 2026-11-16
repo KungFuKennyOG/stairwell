@@ -9,6 +9,23 @@
 
 The stage is the one in the plan (project doc `claude/prototype-plan.md`, section 10) that does the work.
 
+## Violence is fun, not horror (Kenny, 2026-11-16)
+
+The horror prototype makes violence hurt to watch. Wick keeps the bodies and wounds and cuts the suffering. Plan section 2c.
+
+| Where | Prototype | Wick | Stage |
+|---|---|---|---|
+| `50-game.js` `LINES.beg`, `69-standoff.js` `plead`, pose `beg`/`downbeg`/`kneelup` | Men beg on their knees | Off: grunts, swearing, shouting only | 4 |
+| `63-grapple.js` `HOSTAGE_LINES` | "I got kids, man" | Change: tough-guy lines to his friends ("Shoot him! Shoot him!") | 4 |
+| `88-wounded.js` begging, screams, calling for friends, slow crawling | A man down is loud and pitiful for a minute | Change: a man down raises his gun or dies within seconds | 4 |
+| `70-wounds.js` shock, downed reactions | Long shock states | Retune: short | 4 |
+| `50-game.js` bleed rates (`LOSS`, wound bleed) | Bleeding out is slow and visible | Retune: fast; a second body shot finishes | 2 |
+| `50-game.js` hit push (`op`, `kickV` on hits) | Kept small (Kenny's Stairwell rule: no spinning when shot) | Retune: stronger push per weapon; shoulder hits turn him, shotgun throws him | 4 |
+| `50-game.js` sever, `CUTS` | Limbs lost in the horror sense | Keep; shotgun close range used for spectacle | 4 |
+| `69-standoff.js` surrender | Common, drawn out | Retune: rare and short | 4 |
+| `55-voice.js` `vox` agony, plead, cry | | Off under Wick; keep shout, grunt, pain | 4 |
+| Headshot | Instant kill | Keep; add crack sound, mist, wall splash, head snap | 6 |
+
 ## Done in stage 0
 
 | Where | What | Now |
