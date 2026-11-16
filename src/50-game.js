@@ -1072,7 +1072,7 @@ function kick(){ if(!GAME.started||PL.dead||PL.kickCd>0) return; PL.kickCd=.8; c
   if(!best){ const D=doorNear(PL.x+fl[0]*.7,PL.z+fl[2]*.7,.95); if(D&&D.state==='closed'){ kickDoor(D); return; } sfx('swish'); return; } const E=best.E; sfx('kick');
   for(const i of [PI_.pelvis,PI_.chest,PI_.hipL,PI_.hipR,PI_.neck]) kickV(E.B,i,v3.add(v3.sc(fl,5.5),[0,.6,0]),H);
   E.stun=Math.min(1,E.stun+1.1); E.shoveT=0; E.slamT=Math.max(E.slamT||0,.7); kickedDown(E,fl); setAware(E,'kick'); if(E.st==='kneel'){ toDown(E); } if(WICK.on&&typeof wickKicked==='function') wickKicked(E,fl); }
-function hurtPlayer(d,src){ if(PL.dead) return; src=src||{}; if(PROTO.on){ d=rayHurtDmg(d,src); if(d<=0) return; } /* by weapon and body part; 0 when his cover took it (80-ray.js) */ protoEmit('hurt',d,src); PL.hp-=d; PL.hurtT=0; XR.flash=PROTO.on?pnum('ray','flash',0):.35; if(XR.on){ buzz('left',1,120); buzz('right',1,120); } $('flash').classList.remove('on'); void $('flash').offsetWidth; $('flash').classList.add('on'); screenBlood(2); sfx('hurt');
+function hurtPlayer(d,src){ if(PL.dead) return; src=src||{}; if(PROTO.on){ d=rayHurtDmg(d,src); if(d<=0) return; } /* by weapon and body part; 0 when his cover took it (80-ray.js) */ if(WICK.on&&typeof wickLastStand==='function'&&wickLastStand(d,src)) return; /* Max Payne's last stand (92b-wick-payne.js) */ protoEmit('hurt',d,src); PL.hp-=d; PL.hurtT=0; XR.flash=PROTO.on?pnum('ray','flash',0):.35; if(XR.on){ buzz('left',1,120); buzz('right',1,120); } $('flash').classList.remove('on'); void $('flash').offsetWidth; $('flash').classList.add('on'); screenBlood(2); sfx('hurt');
   if(PL.hp<=0){ PL.hp=0; PL.dead=true; PL.deadT=0; showMsg('YOU DIED','Back to the start of the level.'); } }
 
 /* ---------- screen + sound ---------- */
