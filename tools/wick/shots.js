@@ -12,7 +12,7 @@ const VIEWS = require('./views.js');
   p.on('pageerror', e => errs.push(String(e.stack || e).slice(0, 400))); p.on('console', m => { if (m.type() === 'error' && !/fonts\./.test((m.location() || {}).url || '')) errs.push(m.text().slice(0, 300)); });
   await p.goto(file + '?wick=1&art=1' + (process.env.Q ? '&' + process.env.Q : ''), { timeout: 240000 }); await p.waitForFunction(() => window.__eval && window.__game, null, { timeout: 240000 });
   await p.click('#start', { timeout: 120000 }); await p.waitForTimeout(800);
-  await p.evaluate(r => window.__eval(`state.res=${r}; document.body.classList.add('shot'); GAME.started=false; window.__DC={n:0}; (()=>{ const d=gl.drawElements.bind(gl); gl.drawElements=(m,c,t,o)=>{ __DC.n++; d(m,c,t,o); }; })()`), RES);
+  await p.evaluate(r => window.__eval(`state.res=Math.max(state.res,${r}); document.body.classList.add('shot'); GAME.started=false; window.__DC={n:0}; (()=>{ const d=gl.drawElements.bind(gl); gl.drawElements=(m,c,t,o)=>{ __DC.n++; d(m,c,t,o); }; })()`), RES);
   await p.addStyleTag({ content: '#hud,.hud,#labels,#intro,.topbtns,#floorTag,#touch,header,.bark,#ammo,#hpbar,.card{display:none!important} body>*:not(canvas){visibility:hidden!important} canvas{visibility:visible!important}' });
   for (const [name, e, t, o] of VIEWS) { if (only.length && !only.includes(name)) continue;
     await p.evaluate(([e, t, o]) => window.__eval(`(()=>{ const d=[${t[0]}-(${e[0]}),${t[1]}-(${e[1]}),${t[2]}-(${e[2]})],l=Math.hypot(d[0],d[1],d[2]); PL.x=${e[0]}; PL.z=${e[2]}; PL.y=${e[1]}-1.62; PL.yaw=Math.atan2(-d[0],-d[2]); PL.pitch=Math.asin(d[1]/l); window.__wkShot=${JSON.stringify(o || {})}; if(typeof wkShotSet==='function') wkShotSet(window.__wkShot); })()`), [e, t, o || {}]);

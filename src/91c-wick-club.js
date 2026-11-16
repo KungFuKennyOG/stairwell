@@ -61,7 +61,7 @@ function wkOpening(pot,r,S,g){ const W=wkM(),o=g.o,n=S.n,T=WK_T,line=o.c,P=(s,y,
 }
 
 /* ---------- light ---------- */
-function wkLight(p,c,k,d,room){ k*=WK.lk; d*=1.3; const l={p,c:[c[0]*k,c[1]*k,c[2]*k],d,room:room&&WK.byId[room],w:1}; WK.lights.push(l); return l; }
+function wkLight(p,c,k,d,room){ k*=WK.lk*(WICK.look==='hitman'?1.25:1); d*=1.3; const l={p,c:[c[0]*k,c[1]*k,c[2]*k],d,room:room&&WK.byId[room],w:1}; WK.lights.push(l); return l; }
 /* a neon tube: the tube itself (unlit), a dithered halo on the wall behind, a reflection on the floor below */
 function wkNeon(pot,G,a,b,c,o={}){ const W=wkM(),m=c===WKC.magenta?W.neonM:c===WKC.cyan?W.neonC:c===WKC.red?W.neonR:W.neonG,d=v3.sub(b,a),L=Math.hypot(...d),mid=v3.sc(v3.add(a,b),.5);
   const along=Math.abs(d[1])>Math.max(Math.abs(d[0]),Math.abs(d[2]))?'y':Math.abs(d[0])>Math.abs(d[2])?'x':'z',r=o.r||.018;
@@ -187,7 +187,8 @@ function wkBuild(){ setWorld(14,9,4.2);
     if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.25) continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; break; } } nav[id]=bl?1:0; }
   for(const o of WK_OPEN){ for(let s=o.at-o.w/2+.25;s<=o.at+o.w/2-.25;s+=.25) for(const dc of [-.25,0,.25]){ const c=o.axis==='z'?navCell(o.c+dc,s):navCell(s,o.c+dc); if(c>=0) nav[c]=0; } }
   Object.assign(FLOOR,{nav,navHole:nav,space,seats:[],beds:[],furn:[],lights:WK.lights.map(l=>[l.p,l.c,l.d]),anim:[]});
-  setLights({amb:[.2,.205,.225],dir:[.3,1,.4],dirCol:[.03,.03,.035],fog:[.014,.015,.018],fogNear:9,fogFar:28,pl:[[[0,-50,0],[0,0,0],1]]});
+  const HL=WICK.look==='hitman'; if(HL){ texFilter=gl.LINEAR; state.res=Math.max(state.res,720); } /* the early-2000s look: smooth textures, a sharper frame, flatter brighter light (below) */
+  setLights({amb:HL?[.46,.45,.43]:[.2,.205,.225],dir:[.3,1,.4],dirCol:[.03,.03,.035],fog:HL?[.2,.21,.23]:[.014,.015,.018],fogNear:HL?4:9,fogFar:HL?24:28,pl:[[[0,-50,0],[0,0,0],1]]});
   boxGridDirty=true; navDirty=true; NAVF.clear(); navGen++;
   const tag=$('floorTag'); if(tag) tag.textContent='Velour · prototype';
   WK.built=true; }

@@ -191,6 +191,7 @@ const WICK=(()=>{ const q=new URLSearchParams(location.search);
 if(WICK.on) PROTO.on=true; /* the prototype's systems come with it; nothing between 05 and here reads PROTO.on at load */
 
 /* the tables. Stage 0 only uses stress; the rest are placeholders the later stages fill (plan sections 4-6) */
+WICK.look=new URLSearchParams(location.search).get('look')||'psx'; /* 'hitman': the early-2000s look test (Kenny, 2026-11-16): smooth filtering, no dither, a softer grade */
 WICK.rules={ hp:100 };
 WICK.bt={ max:4 };                          /* bullet time meter, seconds (stage 2) */
 WICK.stress={ n:0, alert:0, god:1, near:4, far:12 }; /* stage 0: extra gunmen to find the Quest's limit */
@@ -6533,13 +6534,16 @@ function renderWith(w,h,noUpd){
 function inWorld(n){ for(let p=n;p;p=p.par){ if(!p.vis) return false; if(p===world) return true; if(p.par&&!p.par.kids.includes(p)) return false; } return false; }
 const POST2=program(PVS,`#version 300 es
 precision highp float;
-uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash; uniform float uSmooth; uniform float uSlow; uniform float uFade; uniform float uHurt;
+uniform sampler2D tScene; uniform vec2 uRes; uniform float uFlash; uniform float uSmooth; uniform float uSlow; uniform float uFade; uniform float uHurt; uniform float uLook;
 in vec2 vUv; out vec4 outColor;
 float bayer2(vec2 a){ a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }
 float bayer4(vec2 a){ return bayer2(0.5 * a) * 0.25 + bayer2(a); }
 void main(){
   vec2 px = floor(vUv * uRes);
-  vec3 c = texture(tScene, uSmooth > 0.5 ? vUv : (px + 0.5) / uRes).rgb;
+  vec3 c = texture(tScene, uSmooth > 0.5 || uLook > 0.5 ? vUv : (px + 0.5) / uRes).rgb;
+  /* uLook 1 (the hitman prototype's early-2000s look, 06-wick.js): smooth, no dither; a little colour taken out, cool shadows,
+     warm highlights, blacks lifted to a soft grey, the way early 3D action games looked on a CRT */
+  if(uLook > 0.5){ float l0 = dot(c, vec3(0.3, 0.59, 0.11)); c = mix(vec3(l0), c, 0.72); c = mix(c * vec3(0.9, 0.98, 1.06), c * vec3(1.06, 1.0, 0.9), smoothstep(0.15, 0.7, l0)); c = 0.035 + c * 0.97; c = c * c * (3.0 - 2.0 * c) * 0.35 + c * 0.65; }
   /* bullet time: the world goes washed-out and warm like old film, and the blacks lift instead of crushing, so it gets
      brighter, not darker. Blood keeps its colour and pops. No vignette, no text. */
   float lum = dot(c, vec3(0.3, 0.59, 0.11));
@@ -6552,7 +6556,7 @@ void main(){
   c = mix(c, vec3(lum) * vec3(1.02, 0.97, 0.93), uHurt * 0.85 * (1.0 - blood));
   c = mix(c, vec3(0.5, 0.0, 0.0), uFlash);
   c *= 1.0 - uFade; /* the whole view to black and back: the prologue only. Even, edge to edge, never a vignette */
-  float L = 31.0; c += (bayer4(px) - 0.5) / L; c = floor(c * L + 0.5) / L;
+  if(uLook < 0.5){ float L = 31.0; c += (bayer4(px) - 0.5) / L; c = floor(c * L + 0.5) / L; }
   outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`);
 function post(targetFB,vx,vy,vw,vh,w,h){
@@ -6561,7 +6565,7 @@ function post(targetFB,vx,vy,vw,vh,w,h){
     gl.uniform1f(VP.loc.uDither,1); if(VP.loc.uTime) gl.uniform1f(VP.loc.uTime,GAME.t); if(VP.loc.uGain) gl.uniform1f(VP.loc.uGain,10); if(VP.loc.uFlash) gl.uniform1f(VP.loc.uFlash,XR.on?XR.flash*1.2:0);
     for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,XR.on?gl.LINEAR:gl.NEAREST); gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); return; }
   gl.useProgram(POST2.p); gl.bindVertexArray(emptyVAO); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,fbTex);
-  gl.uniform1i(POST2.loc.tScene,0); gl.uniform2f(POST2.loc.uRes,w,h); gl.uniform1f(POST2.loc.uFlash,XR.on?XR.flash*1.2:0); gl.uniform1f(POST2.loc.uSmooth,XR.on?1:0); gl.uniform1f(POST2.loc.uSlow,clamp((1-GAME.ts)/.78,0,1)); gl.uniform1f(POST2.loc.uFade,clamp(GAME.fade||0,0,1)); if(POST2.loc.uHurt) gl.uniform1f(POST2.loc.uHurt,PROTO.on&&!PL.dead?clamp((pnum('ray','hurtHp',60)-PL.hp)/(pnum('ray','hurtHp',60)-10),0,1):0);
+  gl.uniform1i(POST2.loc.tScene,0); gl.uniform2f(POST2.loc.uRes,w,h); gl.uniform1f(POST2.loc.uFlash,XR.on?XR.flash*1.2:0); gl.uniform1f(POST2.loc.uSmooth,XR.on?1:0); if(POST2.loc.uLook) gl.uniform1f(POST2.loc.uLook,WICK.look==='hitman'?1:0); gl.uniform1f(POST2.loc.uSlow,clamp((1-GAME.ts)/.78,0,1)); gl.uniform1f(POST2.loc.uFade,clamp(GAME.fade||0,0,1)); if(POST2.loc.uHurt) gl.uniform1f(POST2.loc.uHurt,PROTO.on&&!PL.dead?clamp((pnum('ray','hurtHp',60)-PL.hp)/(pnum('ray','hurtHp',60)-10),0,1):0);
   for(const k of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,k,XR.on?gl.LINEAR:gl.NEAREST); gl.drawArrays(gl.TRIANGLES,0,3); gl.bindVertexArray(null); gl.bindTexture(gl.TEXTURE_2D,null); }
 
 /* ---------- flat screen ---------- */
@@ -15992,7 +15996,7 @@ function wkOpening(pot,r,S,g){ const W=wkM(),o=g.o,n=S.n,T=WK_T,line=o.c,P=(s,y,
 }
 
 /* ---------- light ---------- */
-function wkLight(p,c,k,d,room){ k*=WK.lk; d*=1.3; const l={p,c:[c[0]*k,c[1]*k,c[2]*k],d,room:room&&WK.byId[room],w:1}; WK.lights.push(l); return l; }
+function wkLight(p,c,k,d,room){ k*=WK.lk*(WICK.look==='hitman'?1.25:1); d*=1.3; const l={p,c:[c[0]*k,c[1]*k,c[2]*k],d,room:room&&WK.byId[room],w:1}; WK.lights.push(l); return l; }
 /* a neon tube: the tube itself (unlit), a dithered halo on the wall behind, a reflection on the floor below */
 function wkNeon(pot,G,a,b,c,o={}){ const W=wkM(),m=c===WKC.magenta?W.neonM:c===WKC.cyan?W.neonC:c===WKC.red?W.neonR:W.neonG,d=v3.sub(b,a),L=Math.hypot(...d),mid=v3.sc(v3.add(a,b),.5);
   const along=Math.abs(d[1])>Math.max(Math.abs(d[0]),Math.abs(d[2]))?'y':Math.abs(d[0])>Math.abs(d[2])?'x':'z',r=o.r||.018;
@@ -16118,7 +16122,8 @@ function wkBuild(){ setWorld(14,9,4.2);
     if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.25) continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; break; } } nav[id]=bl?1:0; }
   for(const o of WK_OPEN){ for(let s=o.at-o.w/2+.25;s<=o.at+o.w/2-.25;s+=.25) for(const dc of [-.25,0,.25]){ const c=o.axis==='z'?navCell(o.c+dc,s):navCell(s,o.c+dc); if(c>=0) nav[c]=0; } }
   Object.assign(FLOOR,{nav,navHole:nav,space,seats:[],beds:[],furn:[],lights:WK.lights.map(l=>[l.p,l.c,l.d]),anim:[]});
-  setLights({amb:[.2,.205,.225],dir:[.3,1,.4],dirCol:[.03,.03,.035],fog:[.014,.015,.018],fogNear:9,fogFar:28,pl:[[[0,-50,0],[0,0,0],1]]});
+  const HL=WICK.look==='hitman'; if(HL){ texFilter=gl.LINEAR; state.res=Math.max(state.res,720); } /* the early-2000s look: smooth textures, a sharper frame, flatter brighter light (below) */
+  setLights({amb:HL?[.46,.45,.43]:[.2,.205,.225],dir:[.3,1,.4],dirCol:[.03,.03,.035],fog:HL?[.2,.21,.23]:[.014,.015,.018],fogNear:HL?4:9,fogFar:HL?24:28,pl:[[[0,-50,0],[0,0,0],1]]});
   boxGridDirty=true; navDirty=true; NAVF.clear(); navGen++;
   const tag=$('floorTag'); if(tag) tag.textContent='Velour · prototype';
   WK.built=true; }

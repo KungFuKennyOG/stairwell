@@ -12,6 +12,7 @@ const WICK=(()=>{ const q=new URLSearchParams(location.search);
 if(WICK.on) PROTO.on=true; /* the prototype's systems come with it; nothing between 05 and here reads PROTO.on at load */
 
 /* the tables. Stage 0 only uses stress; the rest are placeholders the later stages fill (plan sections 4-6) */
+WICK.look=new URLSearchParams(location.search).get('look')||'psx'; /* 'hitman': the early-2000s look test (Kenny, 2026-11-16): smooth filtering, no dither, a softer grade */
 WICK.rules={ hp:100 };
 WICK.bt={ max:4 };                          /* bullet time meter, seconds (stage 2) */
 WICK.stress={ n:0, alert:0, god:1, near:4, far:12 }; /* stage 0: extra gunmen to find the Quest's limit */
