@@ -16196,7 +16196,9 @@ const WK_PLACE=[ /* id, x, z, facing (0 = +z, north), pose */
   ['wk_floor2',-4.1,3.55,-.5,'lean'],['wk_floor3',2.2,3.5,2.6,'watch'],['wk_door2',5.6,1.0,-1.9,'watch'],
   ['wk_floor4',11.7,.9,-.7,'watch'],['wk_cook',-9.3,-2.2,-2.55,'watch'] ];
 function wkCastPlace(){ if(WKART.root){ disposeTree(WKART.root); const i=world.kids.indexOf(WKART.root); if(i>=0) world.kids.splice(i,1); } WKART.root=N(world); WKART.cast.length=0;
-  GEO_TEMP=true; for(const [id,x,z,rich] of [['wk_floor1',-1.7,2.5,false],['wk_floor1',-.6,2.5,true],['wk_boss',.5,2.5,true]]){ const slot=N(WKART.root,x,0,z,0,Math.PI,0),C=wkMakeChar(id,slot,'wick',rich); applyPose(C,'idle'); WKART.cast.push(C); } /* the build comparison: plain, richer, and the target */
+  GEO_TEMP=true; /* the build comparison at the bar: the tower's man, then imported bodies if their data is here */
+  { const slot=N(WKART.root,-1.7,0,2.5,0,Math.PI,0),C=wkMakeChar('wk_floor1',slot,'wick',false); applyPose(C,'idle'); WKART.cast.push(C); }
+  if(typeof WKMD!=='undefined') for(const [key,x,pose,gear] of [['Character_15',-.6,'idle',{}],['Character_05',.5,'fight',PISTOL],['Character_32',1.6,'idle',{}],['Character_02',2.7,'watch',{}]]){ if(!WKMD[key]) continue; const slot=N(WKART.root,x,0,2.5,0,Math.PI,0),C=wkModelChar(key,slot,'wick',gear); applyPose(C,C.poses[pose]?pose:'idle'); WKART.cast.push(C); }
   for(const [id,x,z,ry,pose] of WK_PLACE){ const slot=N(WKART.root,x,0,z,0,ry,0),C=wkMakeChar(id,slot); applyPose(C,C.poses[pose]?pose:'fight'); WKART.cast.push(C); } GEO_TEMP=false; }
 protoOn('tick',()=>{ if(FLOOR.mode!=='wick') return; for(const C of WKART.cast) skinUpdate(C); });
 
@@ -16212,6 +16214,25 @@ function wkKitOnce(){ if(WKKIT) return; WKKIT=true; const T=wkT(),SK='#b98a6a';
   mk(box(.086,.078,.02),bk,a,0,0,-.07); mk(box(.012,.05,.05),st,a,.034,0,-.07); mk(box(.006,.012,.012),st,a,.036,.03,-.07); }
 function wkKit(){ wkKitOnce(); equip(HANDS.R,newItem('pistol',undefined,true)); equip(HANDS.L,null); }
 if(WICK.on) protoOn('reset',()=>{ if(FLOOR.mode!=='wick') wkKitOnce(); });
+
+/* =====================================================================
+   WICK: imported bodies. A modelled, UV-mapped, photo-textured low-poly character (the late-PSX look: Silent Hill, not painted
+   tubes) on the tower's 16 joints, so poses, guns and (later) the body physics still drive it.
+   The data (WKMD, in 91g-wick-model-data.js) is made by a converter from rigged models: positions in metres, normals, uvs, two of
+   our bones per vertex, and where its joints are. This file is only the loader; without the data file nothing here runs.
+   ===================================================================== */
+const WKMT={};
+function wkModelTex(url,size=256){ const c=document.createElement('canvas'); c.width=c.height=size; const t={c,glt:null,f:-1},im=new Image();
+  im.onload=()=>{ c.getContext('2d').drawImage(im,0,0,size,size); if(t.glt){ gl.deleteTexture(t.glt); t.glt=null; } }; im.src=url; return t; }
+function wkModelChar(key,parent,grp='wick',gear={}){ const D=WKMD[key],o=Object.assign(baseMats('gunman'),{hf:1,w:1,torsoM:M(null),armM:M(null),legM:M(null),footM:M(null)});
+  const J=rig(o,parent),isJ=new Set(BONES.map(b=>J[b])); J.body.vis=false;
+  const strip=n=>{ n.mesh=null; n.kids.forEach(strip); }; for(const b of BONES) for(const k of J[b].kids) if(!isJ.has(k)) strip(k); /* the tower's head, hands and shoes: the nodes stay for the game's code (it shows and hides them), with nothing in them to draw */
+  for(const b of BONES){ const par=BONE_PARENT[b],p=D.J[b],pp=par?D.J[par]:[0,0,0]; J[b].p=[p[0]-pp[0],p[1]-pp[1],p[2]-pp[2]]; } /* our joints, where his are */
+  const g=new Geo(); g.P=D.P.slice(); g.Nm=D.N.slice(); g.T=D.U.slice(); g.I=Array.from({length:D.n},(_,i)=>i); g.groups=[{start:0,count:D.n,mi:0}]; g.noCull=true;
+  J.body=mk(g,[M(WKMT[key]||(WKMT[key]=wkModelTex(D.tex)))],J.root);
+  J.skin={geo:g,bi:Uint8Array.from(D.BI),bw:Float32Array.from(D.BW),bindP:new Float32Array(D.P),bindN:new Float32Array(D.N),P:new Float32Array(D.P),N:new Float32Array(D.N),bpos:BONES.map(b=>D.J[b]),rel:BONES.map(()=>m4.make()),loc:m4.make()};
+  const s=Object.assign({kind:'gunman',faces:FACE.gunman,grp,fight:{},showDrop:false},gear); if(s.two) s.fightHipsY=J.hips.p[1]-.055;
+  const C=finish(parent,J,o,s); C.model=key; if(typeof civPoses==='function') civPoses(C); return C; }
 
 /* =====================================================================
    WICK stage 2: the rules (plan section 4, the rule parts of 2b and 2c). Agent R. Everything here acts only with WICK.on.
