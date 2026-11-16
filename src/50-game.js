@@ -703,7 +703,7 @@ function rayEnemies(o,d,maxT,pad=0){ let best=null;
   return best; }
 
 /* damage */
-function bark(E,text,dur=2.6){ if(!text) return; E.barkEl.textContent=text; E.barkT=dur; E.barkCd=dur+rnd(.6,1.6); }
+function bark(E,text,dur=2.6){ if(WICK.on&&typeof wickBark==='function') text=wickBark(E,text); /* the hitman: no begging (94b-wick-ai.js) */ if(!text) return; E.barkEl.textContent=text; E.barkT=dur; E.barkCd=dur+rnd(.6,1.6); }
 /* he knows you're here. at: [x,z] where he thinks you are (a noise, a friend's scream); direct contact (seen, hit, kicked, grabbed) means where you actually are */
 function setAware(E,why,at){ if(E.dead||E.ally) return; /* your own team never turns on you */
   if(E.civ){ if(typeof twCivPanic==='function') twCivPanic(E,why); return; } /* tenants panic, they don't fight (66-tower.js) */ const p=at||[PL.x,PL.z];
@@ -1009,7 +1009,7 @@ function crawlGoal(E,pel){ if(PROTO.on&&typeof wdCrawlGoal==='function'){ const 
     const sc=dp-walk*.35+(sightClear([PL.x,1.5,PL.z],[x,.4,z])?0:2.5); if(sc>bs){ bs=sc; best=[cellX(c%NX),cellZ((c-c%NX)/NX)]; } }
   return E.cg=best; }
 function toDown(E,hard){ /* unless knocked flat, they buckle: held up on the way down to a knee, then let go */
-  const wasKneel=E.st==='kneel',faker=!E.dead&&!E.ally&&!E.civ&&armed(E)&&psychOf(E)==='fake'&&Math.random()<.7; /* some go down and play dead with the gun under them (69-standoff.js) */
+  const wasKneel=E.st==='kneel',faker=!E.dead&&!E.ally&&!E.civ&&armed(E)&&(WICK.on&&typeof wickDownKeep==='function'?wickDownKeep(E):psychOf(E)==='fake'&&Math.random()<.7); /* the hitman: a man down brings his gun up (94b-wick-ai.js) */ /* some go down and play dead with the gun under them (69-standoff.js) */
   E.st='down'; E.downT=0; E.settle=Math.max(E.settle||0,1.4); E.surr=null; E.civFreeze=false; if(faker) fakeDeadStart(E); else dropWeapon(E);
   const B=E.B,Rh=frameFrom(X_(B,PI_.hipL),X_(B,PI_.hipR),X_(B,PI_.pelvis),X_(B,PI_.chest)),fw=Rh[2];
   E.pos=[B.x[0],B.x[2]]; if(Math.hypot(fw[0],fw[2])>.3){ /* keep the heading he had unless his hips really turned: snapping to a noisy hip frame yanks the whole body round */
@@ -1266,7 +1266,7 @@ function update(dt,now){
   for(const h of [HANDS.L,HANDS.R]){ tickItem(h,dt); if(XR.on) tickCan(h); if(h.swingT>=0){ const hv=h.item&&WPN[h.item.key].heavy; h.swingT+=dt/(hv?.55:.34); if(!h.swingDone&&h.swingT>.42){ h.swingDone=true; flatSwingHit(h); } if(h.swingT>=1) h.swingT=-1; } }
   if(!XR.on&&KEYS.Mouse0&&document.pointerLockElement&&HANDS.R.item&&WPN[HANDS.R.item.key].auto) useRight();
   updateGrabs(gdt); footsteps(dt);
-  for(const E of enemies) think(E,gdt,GAME.t);
+  for(const E of enemies) if(!E.wkSleep) think(E,gdt,GAME.t); /* wkSleep: a later beat's man, posted and asleep (94-wick-director.js) */
   protoEmit('tick',gdt,dt); /* prototype systems (src/05-proto.js) */
   /* a body that falls asleep inside this frame's physics already had its rig set to the pose (pose space, at the origin) by targetsFor,
      so it still has to be driven back onto its particles this frame, or its head, hands and shoes stay floating at the origin while it sleeps */
@@ -1274,7 +1274,7 @@ function update(dt,now){
      come within 14 m or anything happens to him. A long level can hold a dozen people and still only pay for the few near you. */
   for(const E of enemies){ E.liveT=(E.liveT||0)+gdt;
     const far=Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z)>(E.dormant?(FLOOR.dormD||14):(FLOOR.dormD||14)+2),calm=!E.dead&&!E.aware&&(!E.mind||E.mind==='calm'||E.mind==='nervous'&&!E.goHome)&&E.st==='idle'&&!E.wounds.length&&!E.grabbed&&E.stun<.01&&!E.B.wake;
-    E.dormant=calm&&far&&E.liveT>1.5; }
+    E.dormant=calm&&far&&E.liveT>1.5||!!E.wkSleep&&E.liveT>.3; }
   for(const E of enemies){ E.posed=!E.asleep&&!E.dormant; if(E.posed) targetsFor(E,GAME.t,gdt); }
   GAME.acc+=gdt; let n=0; while(GAME.acc>=H&&n<14){ physics(H); GAME.acc-=H; n++; } if(n>=14) GAME.acc=0;
   for(const E of enemies){ if(!E.dormant&&(!E.asleep||E.posed)){ driveRig(E); skinUpdate(E.C); } bleedFx(E,gdt); poolFx(E,gdt); }

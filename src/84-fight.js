@@ -61,7 +61,7 @@ function fxLitAt(x,z){ if(typeof huntLitAt==='function') return huntLitAt(x,z);
 function fxFree(x,z){ const c=navCell(x,z); if(c<0||FLOOR.nav[c]) return false; const ci=c%NX;
   for(const q of [c-1,c+1,c-NX,c+NX]){ if(q<0||q>=FLOOR.nav.length||Math.abs((q%NX)-ci)>1||FLOOR.nav[q]) return false; } return true; }
 const fxIn=(r,x,z)=>!!r&&(r.src&&typeof pfIn==='function'?pfIn(r.src,x,z):x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1); /* the prototype's rooms can be L-shaped (85-pfloor.js) */
-function fxRooms(){ if(FGT.rooms) return FGT.rooms; const out=[];
+function fxRooms(){ if(FGT.rooms) return FGT.rooms; const out=[]; if(FLOOR.mode==='wick'&&typeof wickFightRooms==='function') return FGT.rooms=wickFightRooms(); /* the club (94b-wick-ai.js) */
   if(FLOOR.mode==='proto'&&typeof PF!=='undefined'&&PF&&PF.rooms){ for(const r of PF.rooms){ const R={x0:Math.min(r.x0,r.x1),x1:Math.max(r.x0,r.x1),z0:Math.min(r.z0,r.z1),z1:Math.max(r.z0,r.z1),lit:!!r.lit,doors:[],id:r.id,src:r.rects?r:null};
       for(const o of PF.openings||[]){ if(o.a!==r.id&&o.b!==r.id||o.kind==='chain'||o.kind==='hole') continue; for(const n of [[1,0],[-1,0],[0,1],[0,-1]]) if(fxIn(R,o.x+n[0]*.7,o.z+n[1]*.7)){ R.doors.push({x:o.x,z:o.z,n}); break; } }
       out.push(R); } }
@@ -114,7 +114,7 @@ function fightMayFire(E,dist){ if(dist>pnum('fight','range',25)) return false; c
   if(F.ret&&F.ret.ph==='wait'&&dist>3) return false; /* lying in wait: not till you're through the door */
   if(typeof closeHolding==='function'&&closeHolding(E)&&dist>3) return false; /* behind the doorframe: he fires when he leans out (84b-close.js) */
   if(E.rage>0||E.sprung>0||GAME.t-(F.sprangT??-99)<2||dist<(fxGunfight()?pnum('fight','gunFree',8):pnum('fight','closeFree',3.5))) return true; /* a man in a rage, a faker coming up and a man you're on top of don't wait their turn */
-  return FGT.token===E; }
+  return FGT.token===E||WICK.on&&FGT.token2===E; } /* the hitman: a second shooter (94b-wick-ai.js) */
 /* the token: one man shoots, whoever has the best line. It moves when he loses you, goes down or runs dry of reasons */
 const fxTokOk=E=>E&&!E.dead&&!E.civ&&!E.ally&&E.st==='alert'&&!E.surr&&armed(E)&&E.aware&&!E.grabbed&&!(E.fx&&(E.fx.run||E.fx.ret&&E.fx.ret.ph==='wait'));
 function fightToken(){ let T=FGT.token;

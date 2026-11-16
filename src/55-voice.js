@@ -38,7 +38,7 @@ const SHAPE={}; function shaper(ac,k){ const key=Math.round(k*10); if(SHAPE[key]
 function voiceListener(){ if(!AC) return; const L=AC.listener,{f,u,eye}=camBasis(); if(!eye) return;
   try{ if(L.positionX){ L.positionX.value=eye[0]; L.positionY.value=eye[1]; L.positionZ.value=eye[2]; L.forwardX.value=f[0]; L.forwardY.value=f[1]; L.forwardZ.value=f[2]; L.upX.value=u[0]; L.upY.value=u[1]; L.upZ.value=u[2]; }
     else { L.setPosition(eye[0],eye[1],eye[2]); L.setOrientation(f[0],f[1],f[2],u[0],u[1],u[2]); } }catch(_){} }
-function vox(E,type,vol=1){ const ac=AC; if(!ac||!E||!E.B) return; const D=VOX[type]; if(!D) return;
+function vox(E,type,vol=1){ if(WICK.on&&typeof wickVox==='function'){ type=wickVox(type); if(!type) return; } /* the hitman: no sobbing or pleading (94b-wick-ai.js) */ const ac=AC; if(!ac||!E||!E.B) return; const D=VOX[type]; if(!D) return;
   const now=ac.currentTime; if(E.voxEnd>now&&D.pri<=(E.voxPri||0)) return; /* busy with something that matters as much */
   const hp=X_(E.B,PI_.head),dist=Math.hypot(hp[0]-PL.x,hp[2]-PL.z); if(dist>15) return;
   if(VOXN>=VOX_MAX&&D.pri<3) return;

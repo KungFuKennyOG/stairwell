@@ -121,7 +121,8 @@ function huntPerceive(E,dt,dist,toP){ const P=PROTO.hunt,mood=huntMood(E),Tb=moo
   return E.pm>=1; }
 
 /* he's seen you: he says where, and the floor knows */
-function huntWhere(){ if(typeof pfRoomAt==='function'){ const r=pfRoomAt(PL.x,PL.z); if(r&&r.name) return /hall|corridor|landing|stair/i.test(r.name)?HL_.hall:HL_.room(String(r.name).toLowerCase()); }
+function huntWhere(){ if(FLOOR.mode==='wick'&&typeof wkRoomAt==='function'){ const r=wkRoomAt(PL.x,PL.z); return r?HL_.room(String(r.name).replace(/^the /,'')):null; } /* the club's rooms */
+  if(typeof pfRoomAt==='function'){ const r=pfRoomAt(PL.x,PL.z); if(r&&r.name) return /hall|corridor|landing|stair/i.test(r.name)?HL_.hall:HL_.room(String(r.name).toLowerCase()); }
   if(FLOOR.mode==='camp'&&FLOOR.space){ const c=navCell(PL.x,PL.z); if(c>=0&&(FLOOR.space[c]===-1||FLOOR.space[c]===-2)) return HL_.hall; } return null; }
 function huntSpotted(E){ const w=huntWhere(); if(w&&!(E.concealed&&!E.wpnHeld)){ bark(E,w,1.8); GAME.barkGlobal=Math.max(GAME.barkGlobal,1); }
   huntLog('spotted',{by:E.name,d:+Math.hypot(E.pos[0]-PL.x,E.pos[1]-PL.z).toFixed(1),lit:!!E.hLit,peek:E.hLos===1}); huntAlert('seen',[PL.x,PL.z],1,E); }
@@ -168,7 +169,7 @@ function huntLen(){ const P=PROTO.hunt; return Math.min(P.lenMax,P.len0+P.lenAdd
 function huntSetLkp(pos,t){ const H=HUNT; H.lkp=navSnap(pos[0],pos[1]); H.lkpT=t??GAME.t; H.rayAt=[PL.x,PL.z]; /* where he really was then: the steer measures how far he's gone since (a thrown bottle doesn't count) */
   if(H.state==='hunting'&&(!H.planAt||Math.hypot(H.planAt[0]-H.lkp[0],H.planAt[1]-H.lkp[1])>5)) huntPlanSpots(); }
 /* reason: 'seen'|'body'|'shot'|'scream'|'noise'|'radio'|'glimpse'. E: the man who saw or heard it (optional). ev: the noise it came from */
-function huntAlert(reason,pos,strength=1,E=null,ev=null,walls=0){ if(!PROTO.on||!GAME.started) return; const H=HUNT,P=PROTO.hunt;
+function huntAlert(reason,pos,strength=1,E=null,ev=null,walls=0){ if(!PROTO.on||!GAME.started) return; if(WICK.on&&typeof wickHuntAlert==='function'){ wickHuntAlert(reason,pos,strength,E); return; } /* the hitman: beats go quiet to loud, no hunts (94b-wick-ai.js) */ const H=HUNT,P=PROTO.hunt;
   pos=pos?[pos[0],pos[1]]:[PL.x,PL.z];
   if(ev){ if(ev.done){ if(walls<ev.w&&H.state==='hunting'&&GAME.t-ev.t<6){ ev.w=walls; huntSetLkp(pos,ev.t); } if(E&&!E.hj&&huntFree(E)) huntTurn(E,pos); return; } ev.done=true; ev.w=walls; }
   huntLog('alert',{reason,s:+strength.toFixed(2),by:E&&E.name,at:pos.map(v=>+v.toFixed(1))});
@@ -490,7 +491,7 @@ function huntTorchFx(){ if(FLOOR.mode==='proto'){ for(const E of enemies) if(E.t
 
 /* ---------- every frame: heads and bodies turning, the meter's reaction, the floor's clock ---------- */
 
-function huntTick(gdt){ if(!PROTO.on||!GAME.started||!FLOOR.nav) return; const H=HUNT,t=GAME.t; if(!H.rolesDone&&enemies.length) huntRoles();
+function huntTick(gdt){ if(!PROTO.on||!GAME.started||!FLOOR.nav) return; const H=HUNT,t=GAME.t; if(!H.rolesDone&&enemies.length&&!WICK.on) huntRoles();
   for(const E of enemies){ if(E.dead){ if(E.hUp){ E.hUp=false; huntFall(E); } continue; }
     const up=upright(E); if(E.hUp&&!up&&E.st==='down') huntFall(E); E.hUp=up; if(!up||E.aware||E.civ||E.ally) continue;
     let look=null;
@@ -511,7 +512,7 @@ function huntTick(gdt){ if(!PROTO.on||!GAME.started||!FLOOR.nav) return; const H
     if(w){ H.seenIn={spot:PL.hide,t}; huntLog('seenIn',{kind:PL.hide.kind,by:w.name}); } H.hideWas=PL.hide; }
   for(const E of enemies) if(E.torchOn) huntTorchAim(E);
   huntTorchFx();
-  H.acc+=gdt; if(H.acc>=.25){ const dt=H.acc; H.acc=0; huntThink(dt); }
+  H.acc+=gdt; if(H.acc>=.25){ const dt=H.acc; H.acc=0; if(!WICK.on) huntThink(dt); } /* the hitman: no hunt clock, pairs or search grid; the director runs the floor (94-wick-director.js) */
   if(H.dbg) huntDbg(); }
 function huntFall(E){ if(!E.civ&&!E.ally) huntWitness(E); const p=X_(E.B,PI_.pelvis); setTimeout(()=>noise([p[0],0,p[2]],PROTO.hunt.hear.fall,{kind:'fall',from:E}),350); } /* a body hitting the floor */
 

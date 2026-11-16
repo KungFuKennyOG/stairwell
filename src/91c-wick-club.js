@@ -40,7 +40,7 @@ function wkShell(pot,r){ const W=wkM(),T=WK_T/2,h=r.h,cx=(r.x0+r.x1)/2,cz=(r.z0+
     let s=S.a; const spans=[]; for(const g of gaps){ spans.push([s,g.s0,0,h]); spans.push([g.s0,g.s1,g.h,h]); s=g.s1; } spans.push([s,S.b,0,h]);
     for(const [s0,s1,y0,y1] of spans){ if(s1-s0<.01) continue; wkBands(pot,r,S,s0,s1,y0,y1); }
     /* collision: the solid spans, and over the openings */
-    for(const [s0,s1,y0,y1] of spans){ if(s1-s0<.01) continue; const lo=line-T,hi=line+T; if(S.axis==='x') addBox(s0,s1,lo,hi,y0,y1-y0,'wall'); else addBox(lo,hi,s0,s1,y0,y1-y0,'wall'); }
+    for(const [s0,s1,y0,y1] of spans){ if(s1-s0<.01) continue; const lo=line-T,hi=line+T; if(S.axis==='x') addBox(s0,s1,lo,hi,y0,y1,'wall'); else addBox(lo,hi,s0,s1,y0,y1,'wall'); /* addBox takes the top, not the height: the wall over an opening was blocking sight and bullets at head height */ }
     for(const g of gaps) wkOpening(pot,r,S,g); } }
 /* one wall span in bands: skirting, wainscot, a brass rail, silk above (the kitchen: white tile, then painted block) */
 function wkBands(pot,r,S,s0,s1,y0,y1){ const W=wkM(),n=S.n,len=s1-s0,mid=(s0+s1)/2,P=(s,y,off=0)=>S.axis==='x'?[s,y,S.c+n[2]*off]:[S.c+n[0]*off,y,s];

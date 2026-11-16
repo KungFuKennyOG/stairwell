@@ -76,5 +76,5 @@ function dirEdgeDrift(){ const F=fieldTo(PL.x,PL.z); let best=null,bd=1e9;
 
 /* close calls: a spot that held while a man was at it, a man passing right by him hidden */
 protoOn('hideSave',()=>{ DIRECTOR.close=GAME.t; });
-protoOn('tick',gdt=>{ if(!PROTO.on||!GAME.started||!FLOOR.nav||PL.dead) return; const D=DIRECTOR; D.acc+=gdt; if(D.acc>=PROTO.director.every){ const dt=D.acc; D.acc=0; dirTick(dt); } });
+protoOn('tick',gdt=>{ if(!PROTO.on||WICK.on||!GAME.started||!FLOOR.nav||PL.dead) return; const D=DIRECTOR; D.acc+=gdt; if(D.acc>=PROTO.director.every){ const dt=D.acc; D.acc=0; dirTick(dt); } });
 protoOn('reset',()=>dirReset()); protoOn('load',()=>dirReset());
