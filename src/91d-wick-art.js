@@ -18,7 +18,7 @@ const WK_PLACE=[ /* id, x, z, facing (0 = +z, north), pose */
 function wkCastPlace(){ if(WKART.root){ disposeTree(WKART.root); const i=world.kids.indexOf(WKART.root); if(i>=0) world.kids.splice(i,1); } WKART.root=N(world); WKART.cast.length=0;
   GEO_TEMP=true; /* the build comparison at the bar: the tower's man, then imported bodies if their data is here */
   { const slot=N(WKART.root,-1.7,0,2.5,0,Math.PI,0),C=wkMakeChar('wk_floor1',slot,'wick',false); applyPose(C,'idle'); WKART.cast.push(C); }
-  if(typeof WKMD!=='undefined') for(const [key,x,pose,gear] of [['Character_15',-.6,'idle',{}],['Character_05',.5,'fight',PISTOL],['Character_32',1.6,'idle',{}],['Character_02',2.7,'watch',{}]]){ if(!WKMD[key]) continue; const slot=N(WKART.root,x,0,2.5,0,Math.PI,0),C=wkModelChar(key,slot,'wick',gear); applyPose(C,C.poses[pose]?pose:'idle'); WKART.cast.push(C); }
+  { const D=wkDuskCast(); for(const [name,x,pose] of [['suit',-.6,'idle'],['heavy',.5,'fight'],['boss',1.6,'idle'],['door',2.7,'fight'],['floor',3.8,'fight']]){ const slot=N(WKART.root,x,0,2.5,0,Math.PI,0),C=wkDuskMan(D[name],slot); applyPose(C,C.poses[pose]?pose:'idle'); WKART.cast.push(C); } } /* the Dusk-built test cast */
   for(const [id,x,z,ry,pose] of WK_PLACE){ const slot=N(WKART.root,x,0,z,0,ry,0),C=wkMakeChar(id,slot); applyPose(C,C.poses[pose]?pose:'fight'); WKART.cast.push(C); } GEO_TEMP=false; }
 protoOn('tick',()=>{ if(FLOOR.mode!=='wick') return; for(const C of WKART.cast) skinUpdate(C); });
 
