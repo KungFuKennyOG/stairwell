@@ -13,6 +13,7 @@
    ===================================================================== */
 const GFONT={big:'"Big Shoulders Display","Arial Narrow",sans-serif',px:'"VT323","Courier New",monospace',btn:'"Silkscreen","Courier New",monospace'};
 const GUIDE={clock:0,tt:null,cards:[],done:{},seen:{},hint:null,queue:[],t:0,title:null,note:null,wrist:null,fontsOk:false,poll:0,dom:null,off:false};
+if(WICK.on) GUIDE.off=true; /* the horror prototype's tutorial hints ('hide', 'listen') don't belong in the hitman prototype (docs/wick/AUDIT.md) */
 const GINK='#e8e0cc',GDIM='#9d9585',GRED='#8f1b12',GPAPER='#151311';
 function gRng(s){ s=(s>>>0)%2147483646+1; return ()=>(s=s*16807%2147483647,(s-1)/2147483646); }
 function gHex(c){ const n=parseInt(c.slice(1),16); return [n>>16&255,n>>8&255,n&255]; }
