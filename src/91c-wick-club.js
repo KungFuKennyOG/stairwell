@@ -12,10 +12,10 @@ const WK_T=.2; /* wall thickness */
 const WK_ROOMS=[
   {id:'K',name:'the kitchen',x0:-13,z0:-6,x1:-7,z1:0,h:2.9,kind:'kitchen'},
   {id:'M',name:'the main room',x0:-7,z0:-6,x1:7,z1:6,h:4.2,kind:'main'},
-  {id:'V',name:'the VIP lounge',x0:7,z0:-1,x1:13,z1:6,h:3.1,kind:'vip'}];
+  {id:'V',name:'the office',x0:7,z0:-1,x1:13,z1:6,h:3.1,kind:'vip'}];
 /* openings: the two rooms, the wall line, where along it, width, height */
 const WK_OPEN=[ {a:'K',b:'M',axis:'z',c:-7,at:-3.6,w:1.3,h:2.3,kind:'pass'}, {a:'M',b:'V',axis:'z',c:7,at:2.3,w:1.9,h:2.6,kind:'arch'} ];
-const WK={lk:2.1,rooms:[],byId:{},lights:[],built:false,matC:new Map(),ticks:[]};
+const WK={ink:false,lk:3.0,rooms:[],byId:{},lights:[],built:false,matC:new Map(),ticks:[]};
 
 function wkRoomAt(x,z){ for(const r of WK.rooms) if(x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1) return r; return null; }
 /* a material per colour for glows and streaks, made once */
@@ -46,10 +46,10 @@ function wkShell(pot,r){ const W=wkM(),T=WK_T/2,h=r.h,cx=(r.x0+r.x1)/2,cz=(r.z0+
 function wkBands(pot,r,S,s0,s1,y0,y1){ const W=wkM(),n=S.n,len=s1-s0,mid=(s0+s1)/2,P=(s,y,off=0)=>S.axis==='x'?[s,y,S.c+n[2]*off]:[S.c+n[0]*off,y,s];
   const band=(m,ya,yb,tile)=>{ const a=Math.max(ya,y0),b=Math.min(yb,y1); if(b-a<.005) return; wkGrid(pot,m,P(mid,(a+b)/2),n,[0,1,0],len/2,(b-a)/2,tile,.5); };
   if(r.kind==='kitchen'){ band(W.tileD,0,2.0,[.6,.6]); band(W.block,2.0,r.h,[1.2,1.2]); if(y0<2.0&&y1>2.0) pot.box(W.steel,...(S.axis==='x'?[len,.04,.03]:[.03,.04,len]),...P(mid,2.0,.015)); return; }
-  band(W.walnut,0,1.05,[.9,1.05]); band(W.silk,1.11,r.h,[.6,1.2]);
+  band(W.walnut,0,1.05,[.9,1.05]); band(W.silk,1.11,r.h,[2.4,2.4]);
   const bx=(h,d,y,m)=>{ if(y<y0||y>y1) return; S.axis==='x'?pot.box(m,len,h,d,...P(mid,y,d/2)):pot.box(m,d,h,len,...P(mid,y,d/2)); };
   bx(.06,.04,1.08,W.brass); bx(.12,.025,.06,W.lacquer);
-  if(r.kind!=='kitchen') bx(.05,.05,r.h-.12,W.brassDk); /* a cornice line where the cove light sits */ }
+ }
 /* an opening: jambs and lintel in black lacquer with a brass edge; the arch into VIP gets velvet curtains tied back */
 function wkOpening(pot,r,S,g){ const W=wkM(),o=g.o,n=S.n,T=WK_T,line=o.c,P=(s,y,off=0)=>S.axis==='x'?[s,y,line+n[2]*off]:[line+n[0]*off,y,s];
   if(r.id!==o.a) return; /* the first room draws it, both sides */
@@ -58,10 +58,7 @@ function wkOpening(pot,r,S,g){ const W=wkM(),o=g.o,n=S.n,T=WK_T,line=o.c,P=(s,y,
     for(const sd of [-1,1]){ const q=P(s,g.h/2,sd*(T/2+.02)); ax?pot.box(W.brass,.08,g.h+.04,.02,q[0],q[1],q[2]):pot.box(W.brass,.02,g.h+.04,.08,q[0],q[1],q[2]); } }
   const p=P((g.s0+g.s1)/2,g.h); ax?pot.box(W.lacquer,g.s1-g.s0+.06,.06,T+.04,p[0],p[1],p[2]):pot.box(W.lacquer,T+.04,.06,g.s1-g.s0+.06,p[0],p[1],p[2]);
   for(const sd of [-1,1]){ const q=P((g.s0+g.s1)/2,g.h+.02,sd*(T/2+.02)); ax?pot.box(W.brass,g.s1-g.s0+.16,.08,.02,q[0],q[1],q[2]):pot.box(W.brass,.02,.08,g.s1-g.s0+.16,q[0],q[1],q[2]); }
-  if(o.kind==='arch'){ /* velvet drapes on the main-room side, gathered to each jamb with a gold tie */
-    for(const sd of [-1,1]){ const s=sd<0?g.s0+.18:g.s1-.18,q=P(s,g.h/2-.05,-(T/2+.12)); ax?pot.box(W.velvet,.36,g.h-.1,.08,q[0],q[1],q[2]):pot.box(W.velvet,.08,g.h-.1,.36,q[0],q[1],q[2]);
-      const t=P(s,1.1,-(T/2+.17)); ax?pot.box(W.brass,.4,.05,.03,t[0],t[1],t[2]):pot.box(W.brass,.03,.05,.4,t[0],t[1],t[2]); }
-    const v=P((g.s0+g.s1)/2,g.h+.25,-(T/2+.12)); ax?pot.box(W.velvet,g.s1-g.s0+.4,.5,.1,v[0],v[1],v[2]):pot.box(W.velvet,.1,.5,g.s1-g.s0+.4,v[0],v[1],v[2]); } }
+}
 
 /* ---------- light ---------- */
 function wkLight(p,c,k,d,room){ k*=WK.lk; d*=1.3; const l={p,c:[c[0]*k,c[1]*k,c[2]*k],d,room:room&&WK.byId[room],w:1}; WK.lights.push(l); return l; }
@@ -78,50 +75,34 @@ function wkPool(){ /* the real lights do this now */ }
 
 /* ---------- the rooms ---------- */
 function wkMain(pot,G,r){ const W=wkM(),h=r.h,N_=r.z1-WK_T/2,S_=r.z0+WK_T/2,W_=r.x0+WK_T/2,E_=r.x1-WK_T/2;
-  /* the bar: back wall of lit bottles, the sign, a marble-topped counter with a fluted walnut front and a brass foot rail */
+  /* the bar: a back wall of bottles lit warm from behind, a small red sign, a concrete-topped counter with a dark timber front */
   const bx0=-5,bx1=3,bmid=(bx0+bx1)/2,bz=4.55;
   for(let x=bx0;x<bx1-.01;x+=2){ mk(plane(2,1.5),W.bottles,G,x+1,1.75,N_-.06,0,Math.PI,0); }
-  pot.box(W.lacquer,bx1-bx0+.3,.08,.35,bmid,.97,N_-.18); pot.box(W.lacquer,bx1-bx0+.3,.08,.3,bmid,2.53,N_-.16); /* the back bar's shelf and cap */
+  pot.box(W.lacquer,bx1-bx0+.3,.08,.35,bmid,.97,N_-.18); pot.box(W.lacquer,bx1-bx0+.3,.08,.3,bmid,2.53,N_-.16);
   for(let x=bx0;x<=bx1+.01;x+=2) pot.box(W.brass,.05,1.6,.06,x,1.75,N_-.08);
-  wkNeon(pot,G,[bx0,2.62,N_-.1],[bx1,2.62,N_-.1],WKC.magenta,{wall:[0,0,-1],halo:.3});
-  mk(plane(3.2,.8),W.sign,G,bmid,3.35,N_-.03,0,Math.PI,0);
-  wkLight([bmid,2.2,N_-1.0],WKC.magenta,1.2,8,'M');
-  /* counter */
+  mk(plane(2.6,.65),W.sign,G,bmid,3.15,N_-.03,0,Math.PI,0); wkLight([bmid,3.1,N_-.8],[1,.3,.2],.35,4,'M');
+  wkLight([bmid,2.1,N_-1.0],WKC.amber,1.15,7.5,'M');
   const cl=bx1-bx0+.4; pot.box(W.wood,cl,1.0,.55,bmid,.5,bz); pot.box(W.marble,cl+.12,.06,.75,bmid,1.03,bz+.04);
-  for(let x=bx0-.15;x<=bx1+.15;x+=.12) pot.box(W.lacquer,.03,.88,.02,x,.5,bz-.285); /* the flutes */
-  pot.box(W.brass,cl,.035,.035,bmid,.18,bz-.42); for(let x=bx0;x<=bx1+.01;x+=1.6) pot.box(W.brass,.03,.16,.12,x,.12,bz-.36);
-  wkNeon(pot,G,[bx0-.2,.06,bz-.3],[bx1+.2,.06,bz-.3],WKC.cyan,{r:.012}); wkQuad(pot,wkMC('streak',WKC.cyan),[bmid,.004,bz-.62],[0,1,0],[0,0,-1],cl/2,.32,[0,0,cl/.16,1]);
-  for(let x=bx0;x<bx1-.01;x+=2) wkQuad(pot,W.bottlesR,[x+1,1.062,bz+.06],[0,1,0],[0,0,-1],1,.34,[1,0,0,1]); /* the bottle wall in the polished bar top */
-  /* glasses and a few bottles on the bar, an ice bucket */
-  const r2=rng(4411); for(let i=0;i<9;i++){ const x=bx0+.3+r2()*(cl-.8),z=bz+(r2()-.5)*.3; if(r2()<.5){ pot.cyl(W.glass,.035,.03,.1,8,x,1.11,z); pot.cyl(W.glass,.004,.004,.08,4,x,1.2,z); pot.cyl(W.glass,.04,.004,.05,8,x,1.27,z); } else pot.cyl(W.glass,.035,.03,.09,8,x,1.105,z); }
+  for(let x=bx0-.15;x<=bx1+.15;x+=.12) pot.box(W.lacquer,.03,.88,.02,x,.5,bz-.285);
+  pot.box(W.chrome,cl,.03,.03,bmid,.18,bz-.42); for(let x=bx0;x<=bx1+.01;x+=1.6) pot.box(W.chrome,.025,.16,.12,x,.12,bz-.36);
+  for(let x=bx0;x<bx1-.01;x+=2) wkQuad(pot,W.bottlesR,[x+1,1.062,bz+.06],[0,1,0],[0,0,-1],1,.34,[1,0,0,1]);
+  const r2=rng(4411); for(let i=0;i<9;i++){ const x=bx0+.3+r2()*(cl-.8),z=bz+(r2()-.5)*.3; pot.cyl(W.glass,.035,.03,.09,8,x,1.105,z); }
   pot.cyl(W.chrome,.11,.09,.22,10,bx1-.6,1.17,bz+.05);
-  /* stools: chrome stem, black leather seat */
-  for(let x=bx0+.4;x<bx1;x+=1.0){ pot.cyl(W.chrome,.025,.025,.72,6,x,.38,bz-.75); pot.cyl(W.chrome,.2,.2,.02,10,x,.01,bz-.75); pot.cyl(W.leatherBk,.2,.18,.09,10,x,.78,bz-.75); pot.cyl(W.brass,.16,.16,.02,10,x,.32,bz-.75); }
-  /* the fish tank: the west wall, wall to wall in brass, its light falling into the room */
-  const tz0=-1.6,tz1=4.4,tm=(tz0+tz1)/2,tl=tz1-tz0;
-  mk(plane(tl,1.9),W.fish,G,W_+.08,1.45,tm,0,Math.PI/2,0);
-  for(const y of [.47,2.43]) pot.box(W.brass,.12,.06,tl+.12,W_+.1,y,tm); for(const z of [tz0,tz1]) pot.box(W.brass,.12,2.02,.06,W_+.1,1.45,z);
-  pot.box(W.lacquer,.4,.45,tl+.2,W_+.2,.225,tm);
-  wkQuad(pot,wkMC('streak',WKC.cyan),[W_+.75,.004,tm],[0,1,0],[1,0,0],tl/2,.6,[0,0,tl/.3,1]);
-  wkLight([W_+1.2,1.5,tm],[.2,.7,1],1.0,6.5,'M');
-  wkQuad(pot,W.fishR,[W_+.4+1.0,.006,tm],[0,1,0],[1,0,0],tl/2,1.0,[1,0,0,1]);
-  /* the chandelier: three rings of crystal under a brass crown, over the dance floor; a warm pool on the marble below */
-  const chx=-.5,chz=-.4,ch=wkChandelier(pot,G,chx,h,chz); wkLight([chx,ch-.4,chz],WKC.gold,.62,8.5,'M'); wkPool(pot,chx,chz,2.6,[.5,.36,.18]);
-  /* the dance floor: inset cyan lines on the marble */
-  const fx0=-3,fx1=2,fz0=-2.6,fz1=1.4; for(let x=fx0;x<=fx1+.01;x+=1.25) pot.box(W.neonC,.025,.006,fz1-fz0,x,.003,(fz0+fz1)/2); for(let z=fz0;z<=fz1+.01;z+=1.0) pot.box(W.neonC,fx1-fx0,.006,.025,(fx0+fx1)/2,.003,z);
-  /* two black lacquer columns, each corner a cyan tube */
-  for(const px of [-4.2,3.4]){ const pz=-2.4; pot.box(W.lacquer,.5,h,.5,px,h/2,pz); for(const sx of [-1,1]) for(const sz of [-1,1]) pot.box(W.neonC,.02,h-.4,.02,px+sx*.26,h/2,pz+sz*.26); addBox(px-.25,px+.25,pz-.25,pz+.25,0,h,'wall');
-    pot.box(W.brass,.56,.06,.56,px,.1,pz); pot.box(W.brass,.56,.06,.56,px,h-.3,pz); wkPool(pot,px,pz,.9,[.05,.35,.45]); }
-  wkLight([1.5,3.7,-1],WKC.cyan,.4,9,'M');
-  /* booths along the south wall: three U-shaped black tufted banquettes, a round table, a little gold lamp each */
+  for(let x=bx0+.4;x<bx1;x+=1.0){ pot.cyl(W.brass,.025,.025,.72,6,x,.38,bz-.75); pot.cyl(W.brass,.2,.2,.02,10,x,.01,bz-.75); pot.cyl(W.leatherBk,.2,.18,.09,10,x,.78,bz-.75); }
+  /* three black pendants over the bar, warm bulbs */
+  for(const x of [bx0+1,bmid,bx1-1]){ pot.cyl(W.black,.006,.006,h-2.25,4,x,(h+2.25)/2,bz-.1); pot.cyl(W.black,.16,.05,.16,10,x,2.17,bz-.1); pot.cyl(W.bulb,.11,.11,.01,10,x,2.085,bz-.1); }
+  /* the west wall: tall windows onto the city at night, black steel mullions; the cold light they let in */
+  for(const z of [-.4,1.6,3.6]){ mk(plane(1.7,2.6),M(tNightWin,{unlit:true,color:0x9aa6c0,repeat:[1.2,2]}),G,W_+.03,1.75,z,0,Math.PI/2,0);
+    for(const dz of [-.87,.87]) pot.box(W.brass,.08,2.7,.06,W_+.05,1.75,z+dz); for(const y of [.42,3.08,1.75]) pot.box(W.brass,.08,.05,1.8,W_+.05,y,z); pot.box(W.brass,.08,2.6,.03,W_+.05,1.75,z); }
+  wkLight([W_+1.3,2.0,1.6],[.45,.6,1],.8,6.5,'M');
+  /* over the floor: three industrial pendants, and a warm pool under them */
+  for(const [x,z] of [[-2.2,-.6],[.2,-.6],[2.6,-.6]]){ pot.cyl(W.black,.006,.006,h-2.75,4,x,(h+2.75)/2,z); pot.cyl(W.black,.24,.07,.2,12,x,2.65,z); pot.cyl(W.bulb,.17,.17,.01,12,x,2.545,z); }
+  wkLight([.2,2.5,-.6],WKC.gold,.75,7.5,'M');
+  /* two concrete columns */
+  for(const px of [-4.2,3.4]){ const pz=-2.4; pot.box(W.conc,.5,h,.5,px,h/2,pz); addBox(px-.25,px+.25,pz-.25,pz+.25,0,h,'wall'); pot.box(W.brass,.54,.1,.54,px,.05,pz); }
+  /* booths along the south wall */
   for(const bxc of [-4.2,-.6,3.0]) wkBooth(pot,G,bxc,S_,W.leatherBk);
-  wkLight([-.6,1.0,S_+1.0],WKC.amber,.6,3.6,'M');
-  /* the cove: a cyan tube round the top of the walls, behind the cornice */
-  const cy=h-.2; wkNeon(pot,G,[W_+.06,cy,S_+.06],[E_-.06,cy,S_+.06],WKC.cyan,{r:.012,wall:[0,0,1],halo:.14}); wkNeon(pot,G,[W_+.06,cy,N_-.06],[E_-.06,cy,N_-.06],WKC.cyan,{r:.012,wall:[0,0,-1],halo:.14});
-  wkNeon(pot,G,[E_-.06,cy,S_+.06],[E_-.06,cy,N_-.06],WKC.cyan,{r:.012,wall:[-1,0,0],halo:.14}); wkNeon(pot,G,[W_+.06,cy,S_+.06],[W_+.06,cy,N_-.06],WKC.cyan,{r:.012,wall:[1,0,0],halo:.14});
-  /* a magenta tube up each side of the VIP arch, so you see where the money is from across the room */
-  for(const z of [2.3-1.05,2.3+1.05]) wkNeon(pot,G,[E_-.04,.3,z],[E_-.04,2.4,z],WKC.magenta,{wall:[-1,0,0],halo:.18,floor:1.2});
-  /* a high table and a lounge chair or two near the tank */
+  wkLight([-.6,1.0,S_+1.0],WKC.amber,.6,3.8,'M');
   wkCocktail(pot,-4.6,2.4); wkCocktail(pot,-3.4,3.1); }
 
 function wkChandelier(pot,G,x,h,z){ const W=wkM(),r=rng(5101),top=h-.05,bot=h-1.25;
@@ -168,26 +149,24 @@ function wkKitchen(pot,G,r){ const W=wkM(),h=r.h,N_=r.z1-WK_T/2,S_=r.z0+WK_T/2,W
   wkQuad(pot,wkMC('glow',WKC.green),[W_+.02,2.35,-1.2],[1,0,0],[0,1,0],.5,.4,[0,0,1,1]); }
 
 function wkVip(pot,G,r){ const W=wkM(),h=r.h,N_=r.z1-WK_T/2,S_=r.z0+WK_T/2,W_=r.x0+WK_T/2,E_=r.x1-WK_T/2,cx=(W_+E_)/2,cz=(S_+N_)/2;
-  /* red cove all round, a deep red leather banquette along the north and east walls, the card table under a gold pendant */
-  const cy=h-.18; wkNeon(pot,G,[W_+.05,cy,S_+.05],[E_-.05,cy,S_+.05],WKC.red,{r:.014,wall:[0,0,1],halo:.18}); wkNeon(pot,G,[W_+.05,cy,N_-.05],[E_-.05,cy,N_-.05],WKC.red,{r:.014,wall:[0,0,-1],halo:.18});
-  wkNeon(pot,G,[E_-.05,cy,S_+.05],[E_-.05,cy,N_-.05],WKC.red,{r:.014,wall:[-1,0,0],halo:.18});
-  wkLight([cx,h-.5,cz+1.5],WKC.red,.95,6,'V'); wkLight([cx+1.5,h-.5,cz-1.8],WKC.red,.7,5,'V');
-  const L=N_-S_-.4; pot.box(W.leatherRd,.6,.45,L,E_-.3,.225,cz); pot.box(W.leatherRd,.18,.75,L,E_-.09,.8,cz); addBox(E_-.6,E_,S_,N_,0,.9,'furn');
-  pot.box(W.leatherRd,E_-W_-1.2,.45,.6,cx+.3,.225,N_-.3); pot.box(W.leatherRd,E_-W_-1.2,.75,.18,cx+.3,.8,N_-.09); addBox(W_+.9,E_,N_-.6,N_,0,.9,'furn');
-  pot.box(W.brass,.03,.03,L,E_-.03,1.2,cz); pot.box(W.brass,E_-W_-1.2,.03,.03,cx+.3,1.2,N_-.03);
-  /* the card table: green felt, a walnut rail, chips in stacks, cards, a whisky glass; four chairs */
-  const tx=cx-.3,tz=cz+.2; pot.cyl(W.wood,.75,.75,.08,18,tx,.76,tz); pot.cyl(W.felt,.66,.66,.09,18,tx,.765,tz); pot.cyl(W.lacquer,.12,.2,.72,8,tx,.36,tz); addBox(tx-.75,tx+.75,tz-.75,tz+.75,0,.8,'furn');
-  const CH=[0xb8202a,0xe8e2d6,0x1a1a1e,0xc8a050,0x2850c0],r2=rng(7301);
-  for(let i=0;i<9;i++){ const a=r2()*6.28,rd=.15+r2()*.35,x=tx+Math.cos(a)*rd,z=tz+Math.sin(a)*rd,n=2+(r2()*6|0),m=M(null,{color:CH[r2()*CH.length|0]}); for(let k=0;k<n;k++) pot.cyl(m,.022,.022,.008,8,x,.815+k*.009,z); }
-  for(let i=0;i<5;i++) pot.box(W.white,.06,.003,.09,tx+(r2()-.5)*.6,.812,tz+(r2()-.5)*.6,r2()*3);
-  pot.cyl(W.glass,.04,.035,.08,8,tx+.45,.85,tz-.2);
-  for(let i=0;i<4;i++){ const a=i/4*Math.PI*2+.4,x=tx+Math.cos(a)*1.05,z=tz+Math.sin(a)*1.05; pot.box(W.leatherBk,.5,.08,.5,x,.46,z,-a); pot.box(W.leatherBk,.5,.5,.08,x+Math.cos(a)*.24,.75,z+Math.sin(a)*.24,-a+Math.PI/2); for(const s of [-1,1]) pot.box(W.brass,.03,.42,.03,x+Math.cos(a+s)*.22,.21,z+Math.sin(a+s)*.22); }
-  /* the pendant */
-  pot.cyl(W.brass,.008,.008,h-1.85,4,tx,(h+1.85)/2,tz); pot.cyl(W.brass,.32,.06,.2,14,tx,1.75,tz); pot.cyl(W.bulb,.25,.25,.01,14,tx,1.65,tz);
-  wkLight([tx,1.5,tz],WKC.gold,.9,3.4,'V'); wkPool(pot,tx,tz,1.3,[.35,.24,.1]);
-  /* champagne on ice, a smoked-glass screen at the arch */
-  pot.cyl(W.chrome,.12,.1,.26,10,E_-.75,.89,cz+1.6); pot.cyl(W.chrome,.015,.015,.6,4,E_-.75,.45,cz+1.6); pot.cyl(M(null,{color:0x0e2a14}),.045,.045,.3,8,E_-.72,1.05,cz+1.62,0,.25,0); pot.box(W.brass,.03,.06,.03,E_-.69,1.22,cz+1.64);
-  pot.box(W.smoked,.04,2.2,1.6,W_+1.2,1.1,S_+1.1); pot.box(W.brass,.06,.04,1.64,W_+1.2,2.22,S_+1.1); pot.box(W.brass,.06,.04,1.64,W_+1.2,.02,S_+1.1); addBox(W_+1.17,W_+1.23,S_+.3,S_+1.9,0,2.2,'wall'); }
+  /* the owner's office: the city in the east windows, a desk under one lamp, a leather sofa, shelves. Nothing in it is loud */
+  for(const z of [.6,2.5,4.4]){ mk(plane(1.6,2.2),M(tNightWin,{unlit:true,color:0xa6b0c8,repeat:[1.1,1.7]}),G,E_-.03,1.55,z,0,-Math.PI/2,0);
+    for(const dz of [-.82,.82]) pot.box(W.brass,.08,2.3,.06,E_-.05,1.55,z+dz); for(const y of [.42,2.68]) pot.box(W.brass,.08,.05,1.7,E_-.05,y,z); }
+  wkLight([E_-1.2,1.9,2.5],[.45,.6,1],.75,5.5,'V');
+  const dx=cx+.9,dz=cz-.2; /* the desk, side on to the windows */
+  pot.box(W.wood,.85,.05,1.9,dx,.76,dz); for(const z of [-.85,.85]) pot.box(W.brass,.7,.74,.04,dx,.37,dz+z); pot.box(W.wood,.04,.5,1.7,dx+.38,.48,dz); addBox(dx-.43,dx+.43,dz-.95,dz+.95,0,.8,'furn');
+  pot.box(W.black,.03,.3,.5,dx+.05,.96,dz-.15,0,0,.12); pot.box(M(null,{color:0x8aa0c8,unlit:true}),.005,.26,.46,dx+.03,.96,dz-.15,0,0,.12); pot.box(W.black,.2,.02,.2,dx+.1,.795,dz-.15); /* a monitor, lit */
+  pot.cyl(W.black,.07,.09,.02,8,dx-.1,.795,dz+.6); pot.cyl(W.black,.008,.008,.34,4,dx-.1,.97,dz+.6); pot.cyl(W.black,.13,.07,.1,10,dx-.1,1.18,dz+.6); pot.cyl(W.bulb,.08,.08,.01,10,dx-.1,1.128,dz+.6);
+  wkLight([dx-.15,1.2,dz+.55],WKC.gold,.95,3.6,'V');
+  for(let i=0;i<4;i++) pot.box(W.white,.21,.004,.3,dx-.12+i*.02,.79+i*.004,dz+.1+i*.03,.1*i); pot.cyl(W.glass,.04,.035,.08,8,dx-.2,.83,dz-.6); pot.box(M(null,{color:0x5a3010}),.07,.16,.07,dx-.05,.87,dz-.72);
+  pot.box(W.leatherBk,.55,.1,.55,dx+.95,.46,dz); pot.box(W.leatherBk,.1,.6,.55,dx+1.2,.78,dz); pot.cyl(W.brass,.03,.03,.42,6,dx+.95,.21,dz); pot.cyl(W.brass,.26,.26,.02,10,dx+.95,.01,dz);
+  /* the sofa along the north wall, a low table */
+  pot.box(W.leatherBk,2.4,.42,.8,cx-.6,.21,N_-.42); pot.box(W.leatherBk,2.4,.5,.2,cx-.6,.66,N_-.12); for(const sx of [-1,1]) pot.box(W.leatherBk,.2,.6,.8,cx-.6+sx*1.3,.3,N_-.42); addBox(cx-2,cx+.8,N_-.85,N_,0,.9,'furn');
+  pot.box(W.wood,1.1,.04,.55,cx-.6,.38,N_-1.5); pot.box(W.brass,1.0,.34,.45,cx-.6,.19,N_-1.5); addBox(cx-1.15,cx-.05,N_-1.8,N_-1.2,0,.4,'furn');
+  /* shelves on the south wall: files, books, a few bottles */
+  const r2=rng(7301),BK=[0x2a3440,0x40302a,0x1e2a24,0x4a4640,0x30283a,0x5a5248];
+  for(let k=0;k<4;k++){ const y=.35+k*.5; pot.box(W.wood,2.6,.035,.3,cx+.6,y,S_+.17); let x=cx-.6; while(x<cx+1.8){ const bw=.03+r2()*.05,bh=.2+r2()*.2; if(r2()<.8) pot.box(M(null,{color:BK[r2()*BK.length|0]}),bw,bh,.2,x,y+.02+bh/2,S_+.15); x+=bw+.006; } }
+  for(const x of [cx-.7,cx+1.9]) pot.box(W.wood,.04,2.1,.3,x,1.05,S_+.17); addBox(cx-.75,cx+1.95,S_,S_+.34,0,2.1,'furn'); }
 
 /* ---------- the build ---------- */
 function wkBuild(){ setWorld(14,9,4.2);
@@ -208,7 +187,7 @@ function wkBuild(){ setWorld(14,9,4.2);
     if(!bl) for(const b of boxesAt(x,z)){ if(b.y0>1.5||b.h<.25) continue; if(x>b.x0-.22&&x<b.x1+.22&&z>b.z0-.22&&z<b.z1+.22){ bl=true; break; } } nav[id]=bl?1:0; }
   for(const o of WK_OPEN){ for(let s=o.at-o.w/2+.25;s<=o.at+o.w/2-.25;s+=.25) for(const dc of [-.25,0,.25]){ const c=o.axis==='z'?navCell(o.c+dc,s):navCell(s,o.c+dc); if(c>=0) nav[c]=0; } }
   Object.assign(FLOOR,{nav,navHole:nav,space,seats:[],beds:[],furn:[],lights:WK.lights.map(l=>[l.p,l.c,l.d]),anim:[]});
-  setLights({amb:[.14,.15,.22],dir:[.3,1,.4],dirCol:[.02,.02,.03],fog:[.012,.014,.024],fogNear:9,fogFar:28,pl:[[[0,-50,0],[0,0,0],1]]});
+  setLights({amb:[.2,.205,.225],dir:[.3,1,.4],dirCol:[.03,.03,.035],fog:[.014,.015,.018],fogNear:9,fogFar:28,pl:[[[0,-50,0],[0,0,0],1]]});
   boxGridDirty=true; navDirty=true; NAVF.clear(); navGen++;
   const tag=$('floorTag'); if(tag) tag.textContent='Velour · prototype';
   WK.built=true; }
@@ -217,6 +196,6 @@ function wkBuild(){ setWorld(14,9,4.2);
 function wkLightsTick(){ if(FLOOR.mode!=='wick') return; const e=camBasis().eye,pr=wkRoomAt(e[0],e[2]);
   const C=WK.lights.map(l=>({l,s:Math.hypot(l.p[0]-e[0],l.p[2]-e[2])-l.d*.6-(pr&&l.room===pr?6:0)})).sort((a,b)=>a.s-b.s).slice(0,8);
   L.plPos.fill(0); L.plCol.fill(0); L.plDist.fill(1); C.forEach(({l},i)=>{ L.plPos.set(l.p,i*3); L.plCol.set(l.c,i*3); L.plDist[i]=l.d; });
-  L.rim=pr&&pr.kind==='kitchen'?[.5,.62,.8]:pr&&pr.kind==='vip'?[1.2,.12,.16]:[1.0,.22,.8]; /* the edge light on people and guns: the room's colour */
+  L.rim=[0,0,0]; /* no edge light: this game is drawn like the tower */
   for(const t of WK.ticks) t(GAME.t); }
 protoOn('tick',()=>{ if(WICK.on) wkLightsTick(); });

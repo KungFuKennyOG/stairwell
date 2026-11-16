@@ -27,11 +27,12 @@ let WKT=null;
 function wkT(){ if(WKT) return WKT; const T={};
 
   /* black marble: one 1.2 m slab per tile, cloudy, with pale veins and a hair of gold, a thin dark joint on two edges */
-  T.marble=wkImg(64,64,(I,w,h)=>{ wkFill(I,'#222632');
-    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ mul(I,x,y,1+.18*fbm(x*.04,y*.04,71,3));
-      const v=1-Math.abs(fbm(x*.03+fbm(x*.015,y*.015,73)*1.2,y*.022,72,3)*2.6); const vv=Math.pow(Math.max(0,v),22);
-      if(vv>.05) put(I,x,y,[.42,.45,.52],Math.min(.3,vv*.4)); }
-    softLine(I,0,0,64,0,'#05060a',.9,1); softLine(I,0,0,0,64,'#05060a',.9,1); softLine(I,1,1.5,64,1.5,'#3a4050',.3,1); softLine(I,1.5,1,1.5,64,'#3a4050',.2,1); wkGrain(I,.02,75); });
+  /* the floor: polished concrete in 1.2 m bays, a soft mottle, a thin saw-cut joint */
+  T.marble=wkImg(64,64,(I,w,h)=>{ wkFill(I,'#2c2e32'); for(let y=0;y<h;y++) for(let x=0;x<w;x++) mul(I,x,y,1+.16*fbm(x*.06,y*.06,71,4)+.05*fbm(x*.4,y*.4,72,2));
+    softLine(I,0,0,64,0,'#0c0d0f',.8,1); softLine(I,0,0,0,64,'#0c0d0f',.8,1); wkGrain(I,.03,75); });
+  /* board-formed concrete for the walls: the grain of the shuttering boards, tie holes */
+  T.conc=wkImg(64,64,(I,w,h)=>{ wkFill(I,'#4a4c50'); const r=rng(77); for(let b=0;b<8;b++){ const k=.9+r()*.2; for(let y=b*8;y<b*8+8;y++) for(let x=0;x<w;x++) mul(I,x,y,k*(1+.07*fbm(x*.05,y*.9+b*7,78,2))); softLine(I,0,b*8,64,b*8,'#2c2e30',.5,.8); }
+    for(const x of [16,48]) for(const y of [12,44]) softEll(I,x,y,1.3,1.3,'#26282a',.9,.5); wkNoise(I,.08,79,.08); wkGrain(I,.03,80); });
 
   /* walnut wainscot panel, 0.9 m wide x 1.05 m tall: a raised field in a frame, the grain running up */
   T.walnut=wkImg(48,56,(I,w,h)=>{ wkFill(I,WKC.walnut);
@@ -71,7 +72,7 @@ function wkT(){ if(WKT) return WKT; const T={};
   T.smoked=wkImg(16,16,(I)=>{ wkFill(I,'#151820'); for(let i=0;i<16;i++) softLine(I,i-4,0,i+4,16,'#3a4458',.08,1); });
 
   /* backlit bottle wall, one 2 m bay, three shelves: unlit, so this IS its brightness */
-  T.bottles=wkImg(128,96,(I,w,h)=>{ for(let y=0;y<h;y++){ const t=y/h; const c=lerp3([.32,.12,.06],[.42,.05,.26],t); for(let x=0;x<w;x++){ const e=1-Math.abs(x/w-.5)*.6; put(I,x,y,[c[0]*e,c[1]*e,c[2]*e],1); } }
+  T.bottles=wkImg(128,96,(I,w,h)=>{ for(let y=0;y<h;y++){ const t=y/h; const c=lerp3([.42,.2,.07],[.26,.12,.05],t); for(let x=0;x<w;x++){ const e=1-Math.abs(x/w-.5)*.6; put(I,x,y,[c[0]*e,c[1]*e,c[2]*e],1); } }
     const r=rng(171),GL=[['#c8761c','#ffd28a'],['#2a8a3c','#9af0a0'],['#d8eef4','#ffffff'],['#2850c0','#9ab8ff'],['#8a1c2c','#ff8a9a'],['#c8a050','#fff0b0']];
     for(const sy of [30,62,94]){ /* shelf top edge y; bottles stand on it */
       let x=2; while(x<w-4){ const bw=4+(r()*4|0),bh=14+(r()*12|0),gl=GL[r()*GL.length|0],nx=x+bw/2;
@@ -106,8 +107,7 @@ function wkT(){ if(WKT) return WKT; const T={};
 
   /* the club's sign over the bar: a neon script, its own dithered halo */
   T.sign=tex(256,64,null,g=>{ g.textAlign='center'; g.textBaseline='middle';
-    g.font='italic 700 46px Georgia,"Times New Roman",serif'; g.shadowColor='#ff2a9a'; g.shadowBlur=14; g.fillStyle='#ff4fb0'; g.fillText('Velour',128,30); g.shadowBlur=0; g.fillStyle='#ffd8ec'; g.fillText('Velour',128,30);
-    g.font='600 11px Georgia,serif'; g.fillStyle='#f0c070'; g.fillText('PRIVATE   MEMBERS   ONLY',128,56);
+    g.font='italic 700 44px Georgia,"Times New Roman",serif'; g.shadowColor='#ff5a30'; g.shadowBlur=10; g.fillStyle='#ff6a48'; g.fillText('Velour',128,32); g.shadowBlur=0; g.fillStyle='#ffe0d0'; g.fillText('Velour',128,32);
     const d=g.getImageData(0,0,256,64); for(let y=0;y<64;y++) for(let x=0;x<256;x++){ const j=(y*256+x)*4,a=d.data[j+3]/255; d.data[j+3]=wkDith(x,y,a*1.25)?255:0; if(a>.01){ d.data[j]=Math.min(255,d.data[j]/a); d.data[j+1]=Math.min(255,d.data[j+1]/a); d.data[j+2]=Math.min(255,d.data[j+2]/a); } }
     g.putImageData(d,0,0); });
   return WKT=T; }
@@ -116,10 +116,10 @@ function wkT(){ if(WKT) return WKT; const T={};
 let WKM=null;
 function wkM(){ if(WKM) return WKM; const T=wkT(),U=(c)=>M(null,{color:c,unlit:true});
   const rgb=a=>((Math.round(a[0]*255)<<16)|(Math.round(a[1]*255)<<8)|Math.round(a[2]*255));
-  WKM={ marble:M(T.marble), walnut:M(T.walnut), silk:M(T.silk), ceil:M(T.ceil),
+  WKM={ marble:M(T.marble), walnut:M(T.walnut,{color:0x9a8a80}), silk:M(T.conc), conc:M(T.conc), ceil:M(T.ceil),
     tileW:M(T.tileW), tileD:M(T.tileD), tileK:M(T.tileK), steel:M(T.steel,{color:0xd8dee2}), block:M(T.paintBlock),
     leatherBk:M(T.leatherBk), leatherRd:M(T.leatherRd), velvet:M(T.velvet,{double:true}), felt:M(T.felt), smoked:M(T.smoked,{color:0x9aa4b8}),
-    brass:M(null,{color:WKC.brass,emissive:0x2a1c08}), brassDk:M(null,{color:0x7a5a2a}), chrome:M(null,{color:0xd0d8e0,emissive:0x101418}),
+    brass:M(null,{color:0x2c2e33}), brassDk:M(null,{color:0x1c1d21}), /* the trim is black steel now (the names stay) */ chrome:M(null,{color:0xd0d8e0,emissive:0x101418}),
     black:M(null,{color:0x0c0d10}), lacquer:M(null,{color:0x111216}), wood:M(T.walnut,{color:0xd8c8b8}), white:M(null,{color:0xe8eaec}),
     bottles:M(T.bottles,{unlit:true}), fish:M(T.fish,{unlit:true}), fishR:M(T.fishR,{unlit:true,cut:true}), bottlesR:M(T.bottlesR,{unlit:true,cut:true}), sign:M(T.sign,{unlit:true,cut:true,double:true}),
     neonM:U(rgb(WKC.magenta)), neonC:U(rgb(WKC.cyan)), neonR:U(rgb(WKC.red)), neonG:U(rgb(WKC.gold)), tube:U(0xe8f2ff), bulb:U(0xfff0d0), crystal:M(null,{color:0xf4f8ff,emissive:0x8a9098}),

@@ -8,7 +8,7 @@
    Painted on first use (wkCastInit), so nothing here costs the other games anything.
    ===================================================================== */
 /* cut a painted texture's tone into bands (hue kept), with a little more contrast */
-function wkInk(t,levels=6,gain=1.1){ const w=t.c.width,h=t.c.height,c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.drawImage(t.c,0,0);
+function wkInk(t,levels=6,gain=1.1){ if(!WK.ink) return t; /* off: the cast is painted like the tower's (Kenny, 2026-11-16) */ const w=t.c.width,h=t.c.height,c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.drawImage(t.c,0,0);
   /* bands are even in sqrt(tone), so the darks keep their steps (a black suit stays black, with a fold or two) */
   const d=g.getImageData(0,0,w,h),p=d.data; for(let i=0;i<p.length;i+=4){ const v=Math.max(p[i],p[i+1],p[i+2])/255; if(v<.004) continue; const r=Math.round(Math.sqrt(Math.min(1,v*gain))*levels)/levels,q=Math.max(.012,r*r),k=q/v; p[i]=Math.min(255,p[i]*k); p[i+1]=Math.min(255,p[i+1]*k); p[i+2]=Math.min(255,p[i+2]*k); }
   g.putImageData(d,0,0); return {c,glt:null,f:-1}; }
@@ -59,39 +59,37 @@ const wkLeg=(seed,p)=>wkInk(legP(seed,()=>[p,'wool'],{decor:I=>{ softLine(I,32,0
 
 let WKCAST=null;
 function wkCastInit(){ if(WKCAST) return WKCAST;
-  SHAPES.tailor={rx:{0.86:.94,0.93:.93,1:.9,1.08:.9,1.18:.97,1.28:1.04,1.38:1.09,1.45:1.07},rz:{0.93:.95,1:.92,1.08:.92,1.18:.96,1.38:1.02},cz:{1.38:.004}};
-  Object.assign(HEADS,WKH); for(const k in WKH) FACE[k]={fight:wkInk(paintHead(WKH[k],'fight'),9,1.0)};
-  const shoe=wkInk(tShoeBlack,4),glove=flat(16,16,9201,WKS.white,'cotton',{grime:0}),gloveBk=flat(16,16,9202,'#0c0c0e','leather',{grime:0});
-  const body=(hf,w,x={})=>Object.assign({hf,w,depth:.98,lg:.9*w,ag:.86*w,headS:.93,jacket:.012,pants:.006,shoeW:.092,shape:'tailor'},x);
-  const head=k=>(J,o)=>wkHead(J,o,WKH[k]);
-  /* floor men: black on black, a gold tie and bar, white gloves */
-  const fT=(k,s,sq)=>wkTorso(k,s,{j:WKS.black,sh:WKS.black2,tie:WKS.gold,lap:'#30323c',p:WKS.black,sq,pin:'#e8c878'}),fA=wkArm(9211,WKS.black,WKS.white),fL=wkLeg(9212,WKS.black);
-  /* bodyguards: white dinner jacket, black satin lapels, black bow tie, black trousers */
-  const gT=(k,sd)=>wkTorso(k,sd,{j:WKS.cream,sh:WKS.white,bow:WKS.satin,lap:WKS.satin,p:WKS.black,sq:WKS.wine,btn:'#101014',drop:64,w0:17}),gA=wkArm(9221,WKS.cream,WKS.white),gL=wkLeg(9222,WKS.black);
-  /* door men: a long double-breasted black overcoat with gold buttons over a roll neck */
-  const dT=(k,sd)=>wkTorso(k,sd,{j:'#12131a',sh:'#08080a',lap:'#343642',p:'#12131a',db:'#d8b060',drop:26,w0:10}),dA=wkArm(9231,'#12131a','#08080a'),dL=wkLeg(9232,'#12131a');
-  /* the man you came for: wine velvet smoking jacket, black satin shawl lapels, a gold cravat */
-  const bT=wkTorso('wk_boss',9240,{j:WKS.wine,fab:'knit',sh:WKS.gold,lap:WKS.satin,p:WKS.black,sq:WKS.gold,btn:'#d8b060',drop:60,w0:18}),bA=wkArm(9241,WKS.wine,WKS.white,'knit'),bL=wkLeg(9242,WKS.black);
+  /* (unused now) */ SHAPES.tailor={rx:{0.86:.94,0.93:.93,1:.9,1.08:.9,1.18:.97,1.28:1.04,1.38:1.09,1.45:1.07},rz:{0.93:.95,1:.92,1.08:.92,1.18:.96,1.38:1.02},cz:{1.38:.004}};
+  Object.assign(HEADS,WKH); for(const k in WKH) FACE[k]={fight:paintHead(WKH[k],'fight')};
+  const shoe=tShoeBlack,gloveBk=flat(16,16,9202,'#0c0c0e','leather',{grime:0});
+  const body=(hf,w,x={})=>Object.assign({hf,w,depth:1,lg:w,ag:w,jacket:.008,pants:.008,shoeW:.095},x);
+  const head=k=>(J,o)=>{ if(WKH[k].ear) earpiece(J); };
+  for(const k of ['wk_a','wk_b','wk_e','wk_h','wk_f']) WKH[k].ear=true; WKH.wk_boss.glasses='#2a2a2e';
+  const suit=(k,sd,j,sh,x={})=>[wkTorso(k,sd,Object.assign({j,sh,lap:mix(j,'#ffffff',.1),p:j,btn:'#101014',drop:50,w0:13},x)),wkArm(sd+1,j,x.cuff||sh),wkLeg(sd+2,j)];
+  const CH='#25272d',NV='#1a2030',BKS='#131418',GR='#3b3d43',WHT='#d9d8d2',BLU='#aab8cc';
   /* the kitchen hand: whites, a black apron, sleeves rolled over tattoos */
-  const cT=wkInk(torsoP('wk_cook',9250,(x,y)=>{ const dx=Math.abs(x-64); if(y>T3.chest-8&&dx<30) return ['#111216','twill',.5]; if(y>T3.belt+2) return ['#1a1c22','twill',.6]; return ['#e2e0d8','cotton']; },{decor:I=>{ neckShadow(I); for(const s of [-1,1]) softLine(I,64+s*14,T3.neck+2,64+s*26,T3.chest-8,'#111216',1,2); for(const bx of [56,72]) for(let y=T3.neck+14;y<T3.chest-12;y+=14) softEll(I,bx,y,1.6,1.6,'#b8b6ae',1,.4); blob(I,70,T3.chest+30,6,9,.5,'#5a0a0a'); }}),5);
-  const cA=wkInk(armP(9251,(x,y)=>y<52?['#e2e0d8','cotton']:[WKH.wk_cook.skin,'skin',0],{decor:I=>{ softRect(I,0,48,64,5,'#c8c6be',.95,1); const r=rng(9252); for(let i=0;i<26;i++){ const x=6+r()*52,y=60+r()*56; softLine(I,x,y,x+(r()-.5)*12,y+(r()-.5)*12,'#1c2a3a',.7,1.3); } }}),5),cL=wkLeg(9253,'#1a1c22');
+  const cT=torsoP('wk_cook',9250,(x,y)=>{ const dx=Math.abs(x-64); if(y>T3.chest-8&&dx<30) return ['#111216','twill',.5]; if(y>T3.belt+2) return ['#1a1c22','twill',.6]; return ['#e2e0d8','cotton']; },{decor:I=>{ neckShadow(I); for(const s of [-1,1]) softLine(I,64+s*14,T3.neck+2,64+s*26,T3.chest-8,'#111216',1,2); for(const bx of [56,72]) for(let y=T3.neck+14;y<T3.chest-12;y+=14) softEll(I,bx,y,1.6,1.6,'#b8b6ae',1,.4); blob(I,70,T3.chest+30,6,9,.5,'#5a0a0a'); }});
+  const cA=armP(9251,(x,y)=>y<52?['#e2e0d8','cotton']:[WKH.wk_cook.skin,'skin',0],{decor:I=>{ softRect(I,0,48,64,5,'#c8c6be',.95,1); const r=rng(9252); for(let i=0;i<26;i++){ const x=6+r()*52,y=60+r()*56; softLine(I,x,y,x+(r()-.5)*12,y+(r()-.5)*12,'#1c2a3a',.7,1.3); } }}),cL=wkLeg(9253,'#1a1c22');
   const KNIFE={prop:pKnife,gripHand:true,wFight:{p:[0,-.075,0],r:[1.57,0,0]},fight:ONE_HAND};
-  const R=(as,name,role,k,o,tx,x={})=>Object.assign({as,side:'crew',name,role,color:'#c89a3c',o,torso:tx[0],arm:tx[1],leg:tx[2],foot:shoe,hand:tx[3]||glove,extra:head(k),wkHead:k},x);
+  const R=(as,name,role,k,o,tx,x={})=>Object.assign({as,side:'crew',name,role,color:'#8a8c90',o,torso:tx[0],arm:tx[1],leg:tx[2],foot:shoe,hand:tx[3],extra:head(k),wkHead:k},x);
+  /* grounded: hired security and the men who run the place. Dark suits with open collars, an overcoat, a leather jacket, roll-necks, earpieces */
+  const leather=[wkTorso('wk_g',9234,{j:'#2a1d15',fab:'leather',sh:'#15161a',lap:'#3a2a20',p:'#1c222c',btn:'#15161a',drop:34,w0:11}),wkArm(9235,'#2a1d15','#2a1d15','leather'),wkLeg(9236,'#1c222c')];
+  const coat=[wkTorso('wk_f',9233,{j:'#14151b',sh:'#0a0a0c',lap:'#2a2c36',p:'#14151b',db:'#2a2c32',drop:26,w0:10}),wkArm(9231,'#14151b','#0a0a0c'),wkLeg(9232,'#14151b'),gloveBk];
   Object.assign(ROSTER,{
-    wk_floor1:R('gunman','Anton','Floor · Velour','wk_a',body(1.05,1.0),[fT('wk_a',9261,WKS.gold),fA,fL],PISTOL),
-    wk_floor2:R('gunman','Marcus','Floor · Velour','wk_b',body(1.08,1.06),[fT('wk_b',9262,WKS.gold),fA,fL],PISTOL),
-    wk_floor3:R('gunman','Lev','Floor · Velour','wk_c',body(1.03,.97),[fT('wk_c',9263,WKS.gold),fA,fL],PISTOL),
-    wk_floor4:R('gunman','Rafael','Floor · Velour','wk_d',body(1.04,1.0),[fT('wk_d',9264,WKS.gold),fA,fL],PISTOL),
-    wk_guard1:R('enforcer','Oskar','Bodyguard','wk_e',body(1.1,1.1),[gT('wk_e',9223),gA,gL],TWO(pSMG,'smg')),
-    wk_guard2:R('enforcer','Dmitri','Bodyguard','wk_h',body(1.09,1.08),[gT('wk_h',9224),gA,gL],TWO(pSMG,'smg')),
-    wk_door1:R('doorman','Bishop','Door · Velour','wk_f',body(1.12,1.2,{jacket:.03,belly:1.04,headS:.97,shoeW:.105}),[dT('wk_f',9233),dA,dL,gloveBk],TWO(pShotgun,'shotgun')),
-    wk_door2:R('gunman','Cole','Door · Velour','wk_g',body(1.07,1.04,{jacket:.024}),[dT('wk_g',9234),dA,dL,gloveBk],PISTOL),
-    wk_boss:R('landlord','Valentin Sorel','The contract','wk_boss',body(1.02,1.0,{belly:1.06,jacket:.016}),[bT,bA,bL,null],REVOLVER),
-    wk_cook:R('cutter','Tomas','Kitchen','wk_cook',body(1.04,1.04,{jacket:.006,shape:null}),[cT,cA,cL,null],KNIFE) });
-  for(const id of ['wk_boss','wk_cook']) delete ROSTER[id].hand; /* bare hands */
+    wk_floor1:R('gunman','Anton','Floor security','wk_a',body(1.02,1.0),suit('wk_a',9261,CH,WHT),PISTOL),
+    wk_floor2:R('gunman','Marcus','Floor security','wk_b',body(1.05,1.08),suit('wk_b',9264,BKS,'#1b1c21'),PISTOL),
+    wk_floor3:R('gunman','Lev','Floor security','wk_c',body(1.0,.97),suit('wk_c',9267,NV,BLU),PISTOL),
+    wk_floor4:R('gunman','Rafael','Floor security','wk_d',body(1.01,1.0),suit('wk_d',9270,GR,WHT),PISTOL),
+    wk_guard1:R('enforcer','Oskar','Close protection','wk_e',body(1.06,1.1),suit('wk_e',9273,BKS,'#0c0c0e',{drop:16,w0:9}),TWO(pSMG,'smg')),
+    wk_guard2:R('enforcer','Dmitri','Close protection','wk_h',body(1.05,1.08),suit('wk_h',9276,CH,'#0c0c0e',{drop:16,w0:9}),TWO(pSMG,'smg')),
+    wk_door1:R('doorman','Bishop','Door','wk_f',body(1.08,1.2,{jacket:.024,belly:1.06,headS:1.03,shoeW:.105}),coat,TWO(pShotgun,'shotgun')),
+    wk_door2:R('gunman','Cole','Door','wk_g',body(1.03,1.04,{jacket:.014}),leather,PISTOL),
+    wk_boss:R('landlord','Valentin Sorel','The contract','wk_boss',body(1.0,1.02,{belly:1.08,jacket:.012}),suit('wk_boss',9240,'#3a4452',WHT,{sq:'#e8e6e0',drop:54}),REVOLVER),
+    wk_cook:R('cutter','Tomas','Kitchen','wk_cook',body(1.02,1.04,{jacket:.006}),[cT,cA,cL],KNIFE) });
+  for(const id in ROSTER) if(id.startsWith('wk_')&&!ROSTER[id].hand) delete ROSTER[id].hand; /* bare hands unless he wears gloves */
   return WKCAST=Object.keys(ROSTER).filter(k=>k.startsWith('wk_')); }
 
 /* one of them, standing in the world: returns the character (C) */
-function wkMakeChar(id,parent,grp='wick'){ wkCastInit(); const R_=ROSTER[id]; FACE[R_.wkHead]=FACE[R_.wkHead]||{fight:wkInk(paintHead(WKH[R_.wkHead],'fight'),9,1.0)};
+function wkMakeChar(id,parent,grp='wick'){ wkCastInit(); const R_=ROSTER[id]; FACE[R_.wkHead]=FACE[R_.wkHead]||{fight:paintHead(WKH[R_.wkHead],'fight')};
   HEADS[id]=WKH[R_.wkHead]; FACE[id]=FACE[R_.wkHead]; /* the kit looks heads up by roster id */
-  const C=makeChar(id,parent,grp); wkRim(parent,1); return C; }
+  return makeChar(id,parent,grp); }
