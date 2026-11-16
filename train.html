@@ -789,14 +789,14 @@ function rig(o,parent){
   /* the skinned body */
   const g=new Geo(),sk=[];
   const T=o.torsoRings,y0=T[0][0],yT=T[T.length-1][0];
-  tube(g,sk,T.map(([y,rx,rz,cz])=>({c:[0,y,cz],rx,rz,v:(y-y0)/(yT-y0),w:TORSO_W(y/hf)})),12,0,{capB:true,capT:true});
+  tube(g,sk,T.map(([y,rx,rz,cz])=>({c:[0,y,cz],rx,rz,v:(y-y0)/(yT-y0),w:TORSO_W(y/hf)})),o.seg?16:12,0,{capB:true,capT:true}); /* o.seg: a finer body (the hitman prototype's cast, 91b-wick-cast.js) */
   for(const s of [1,-1]){ const L_=s>0?'L':'R',S=P['arm'+L_],E=P['elbow'+L_],H=P['hand'+L_];
     const ax=y=>y>=S[1]?S[0]:y>=E[1]?E[0]+(S[0]-E[0])*(y-E[1])/(S[1]-E[1]):H[0]+(E[0]-H[0])*(y-H[1])/(E[1]-H[1]);
     const rings=ARM.map(([y,rx,rz])=>{ const Y=y*hf; return {c:[ax(Y),Y,0],rx:rx*ag+jk*.6,rz:rz*ag+jk*.6,v:(y-.9)/.6,w:ARM_W(y,L_)}; });
-    tube(g,sk,rings,10,s>0?1:2,{capB:true,capT:true}); }
+    tube(g,sk,rings,o.seg?14:10,s>0?1:2,{capB:true,capT:true}); }
   for(const s of [1,-1]){ const L_=s>0?'L':'R';
     const rings=LEG.map(([y,rx,rz,cz])=>({c:[s*.09*w,y*hf,cz],rx:rx*lg+pl,rz:rz*lg+pl,v:(y-.09)/.89,w:LEG_W(y,L_)}));
-    tube(g,sk,rings,10,s>0?3:4,{capB:true,capT:true}); }
+    tube(g,sk,rings,o.seg?14:10,s>0?3:4,{capB:true,capT:true}); }
   smoothNormals(g);
   const n=g.P.length/3,bi=new Uint8Array(n*2),bw=new Float32Array(n*2);
   sk.forEach((ws,i)=>{ ws.slice(0,2).forEach(([b,wt],k)=>{ bi[i*2+k]=BONES.indexOf(b); bw[i*2+k]=wt; }); });

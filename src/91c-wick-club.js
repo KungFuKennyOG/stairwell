@@ -15,7 +15,7 @@ const WK_ROOMS=[
   {id:'V',name:'the office',x0:7,z0:-1,x1:13,z1:6,h:3.1,kind:'vip'}];
 /* openings: the two rooms, the wall line, where along it, width, height */
 const WK_OPEN=[ {a:'K',b:'M',axis:'z',c:-7,at:-3.6,w:1.3,h:2.3,kind:'pass'}, {a:'M',b:'V',axis:'z',c:7,at:2.3,w:1.9,h:2.6,kind:'arch'} ];
-const WK={ink:false,lk:3.0,rooms:[],byId:{},lights:[],built:false,matC:new Map(),ticks:[]};
+const WK={rich:new URLSearchParams(location.search).get('rich')==='1' /* the richer build: a test until Kenny says yes */,ink:false,lk:3.0,rooms:[],byId:{},lights:[],built:false,matC:new Map(),ticks:[]};
 
 function wkRoomAt(x,z){ for(const r of WK.rooms) if(x>r.x0&&x<r.x1&&z>r.z0&&z<r.z1) return r; return null; }
 /* a material per colour for glows and streaks, made once */

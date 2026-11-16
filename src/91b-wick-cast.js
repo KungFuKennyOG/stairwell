@@ -29,10 +29,10 @@ const WKH={ /* heads: painted base (10-engine.js paintHead) + a 3D hairstyle and
 /* hair and eyewear on the head joint. hs: the head's scale */
 function wkHead(J,o,H){ const hs=o.headS||1,col=H.hairC?hexInt(H.hairC):0x0c0a0a,m=M(null,{color:col}),hi=M(null,{color:hexInt(mix(H.hairC||'#0c0a0a','#ffffff',.22))});
   const cr=(rings,mm=m,cz=-.01)=>crown(J,rings.map(([y,a,b])=>[y*hs,a*hs,b*hs]),mm,cz*hs);
-  if(H.do==='pomp'){ cr([[.168,.083,.103],[.205,.09,.11],[.245,.086,.108],[.278,.062,.086],[.292,0,0]]); mk(box(.11*hs,.05*hs,.07*hs,{tw:.8}),m,J.head,0,.262*hs,.07*hs,-.35); mk(box(.06*hs,.012*hs,.1*hs),hi,J.head,.02*hs,.288*hs,.03*hs,-.2); }
-  else if(H.do==='flat'){ cr([[.175,.08,.1],[.215,.084,.104],[.25,.08,.1],[.258,0,0]]); mk(box(.15*hs,.035*hs,.17*hs),m,J.head,0,.262*hs,-.004*hs); }
-  else if(H.do==='part'){ cr([[.17,.082,.102],[.21,.088,.108],[.248,.076,.098],[.268,0,0]]); mk(box(.1*hs,.04*hs,.15*hs,{tw:.9}),m,J.head,-.03*hs,.262*hs,.0,0,0,.25); mk(box(.004*hs,.03*hs,.12*hs),hi,J.head,.022*hs,.27*hs,.01*hs); }
-  else if(H.do==='sweep'){ cr([[.168,.083,.103],[.21,.09,.11],[.25,.082,.106],[.275,.05,.08],[.284,0,0]]); mk(box(.13*hs,.04*hs,.12*hs,{td:.7}),m,J.head,0,.262*hs,-.03*hs,.3); for(const s of [-1,1]) mk(box(.012*hs,.06*hs,.09*hs),hi,J.head,s*.082*hs,.17*hs,-.02*hs); }
+  if(H.do==='pomp'){ cr([[.168,.082,.102],[.205,.087,.107],[.238,.08,.1],[.258,.05,.07],[.266,0,0]]); }
+  else if(H.do==='flat'){ cr([[.175,.08,.1],[.215,.084,.104],[.246,.078,.098],[.256,0,0]]); }
+  else if(H.do==='part'){ cr([[.17,.082,.102],[.21,.087,.107],[.244,.076,.098],[.26,.03,.05],[.264,0,0]]); mk(box(.004*hs,.012*hs,.1*hs),hi,J.head,.024*hs,.258*hs,.01*hs); }
+  else if(H.do==='sweep'){ cr([[.168,.082,.102],[.21,.088,.108],[.244,.078,.1],[.26,.045,.07],[.266,0,0]]); }
   else if(H.do==='band'){ cr([[.178,.083,.103],[.22,.087,.107],[.246,.07,.09],[.254,0,0]],M(null,{color:0x16161a})); mk(box(.02*hs,.05*hs,.05*hs),M(null,{color:0x16161a}),J.head,.03*hs,.19*hs,-.11*hs,.4); }
   const y=.124*hs,z=.098*hs;
   if(H.eyes==='shades'){ const g=M(null,{color:0x050506,emissive:0x0a0c12}); mk(box(.136*hs,.03*hs,.012*hs),g,J.head,0,y,z); for(const s of [-1,1]) mk(box(.008*hs,.012*hs,.09*hs),g,J.head,s*.07*hs,y+.004*hs,z-.045*hs); }
@@ -63,7 +63,7 @@ function wkCastInit(){ if(WKCAST) return WKCAST;
   Object.assign(HEADS,WKH); for(const k in WKH) FACE[k]={fight:paintHead(WKH[k],'fight')};
   const shoe=tShoeBlack,gloveBk=flat(16,16,9202,'#0c0c0e','leather',{grime:0});
   const body=(hf,w,x={})=>Object.assign({hf,w,depth:1,lg:w,ag:w,jacket:.008,pants:.008,shoeW:.095},x);
-  const head=k=>(J,o)=>{ if(WKH[k].ear) earpiece(J); };
+  const head=k=>(J,o)=>{ if(WKH[k].ear) earpiece(J); if(WK_RICHNOW){ wkFace(J,o,WKH[k]); wkHead(J,o,Object.assign({},WKH[k],{eyes:'none',ring:false})); } };
   for(const k of ['wk_a','wk_b','wk_e','wk_h','wk_f']) WKH[k].ear=true; WKH.wk_boss.glasses='#2a2a2e';
   const suit=(k,sd,j,sh,x={})=>[wkTorso(k,sd,Object.assign({j,sh,lap:mix(j,'#ffffff',.1),p:j,btn:'#101014',drop:50,w0:13},x)),wkArm(sd+1,j,x.cuff||sh),wkLeg(sd+2,j)];
   const CH='#25272d',NV='#1a2030',BKS='#131418',GR='#3b3d43',WHT='#d9d8d2',BLU='#aab8cc';
@@ -89,7 +89,49 @@ function wkCastInit(){ if(WKCAST) return WKCAST;
   for(const id in ROSTER) if(id.startsWith('wk_')&&!ROSTER[id].hand) delete ROSTER[id].hand; /* bare hands unless he wears gloves */
   return WKCAST=Object.keys(ROSTER).filter(k=>k.startsWith('wk_')); }
 
+/* ---------- a richer build (WK.rich; &rich=0 for the plain one) ----------
+   The tower's men are one skin over a few rings, with everything else painted on. These keep that skeleton and skin (so the body
+   physics, wounds and poses are untouched) and add what paint can't do:
+   - twice the rings and a third more sides, with the shapes a body has: chest, waist, seat, calf, forearm, shoulder
+   - clothes with edges: lapels that stand off the chest, a shirt collar, the jacket's skirt over the hips, cuffs, buttons
+   - a face with relief: brow, the bridge and wings of the nose, cheekbones, a chin; and hair with volume */
+let WKR=null,WK_RICHNOW=false;
+function wkDense(T){ const out=[]; for(let i=0;i<T.length;i++){ out.push(T[i].slice()); if(i<T.length-1){ const p0=T[Math.max(0,i-1)],p1=T[i],p2=T[i+1],p3=T[Math.min(T.length-1,i+2)];
+      out.push(p1.map((v,k)=>k===0?(p1[0]+p2[0])/2:(-p0[k]+9*p1[k]+9*p2[k]-p3[k])/16)); } } return out; }
+function wkRichTables(){ if(WKR) return WKR; const B=(y,a,b)=>Math.max(0,1-Math.abs((y-(a+b)/2)/((b-a)/2))); /* a bump between a and b */
+  const torso=wkDense(TORSO).map(([y,rx,rz,cz])=>{ const ch=B(y,1.22,1.44),wa=B(y,.97,1.14),se=B(y,.86,.98),sh=B(y,1.36,1.48); return [y,rx*(1-.07*wa+.035*sh),rz*(1-.06*wa+.05*se+.04*ch),cz+.009*ch-.007*se]; });
+  const leg=wkDense(LEG).map(([y,rx,rz,cz])=>{ const ca=B(y,.26,.44),an=B(y,.06,.2),th=B(y,.58,.84),kn=B(y,.45,.55); return [y,rx*(1+.05*ca-.1*an-.05*kn+.03*th),rz*(1+.12*ca-.1*an+.05*th),cz-.009*ca+.005*th]; });
+  const arm=wkDense(ARM).map(([y,rx,rz])=>{ const fo=B(y,.98,1.12),wr=B(y,.88,.97),bi=B(y,1.22,1.4),de=B(y,1.4,1.52); return [y,rx*(1+.07*fo-.1*wr+.05*bi),rz*(1+.07*fo-.1*wr+.05*bi+.03*de)]; });
+  return WKR={torso,leg,arm}; }
+function wkRichRig(fn){ const R=wkRichTables(),set=(t,n)=>{ t.length=0; for(const r of n) t.push(r.slice()); },keep=[TORSO,LEG,ARM].map(t=>t.map(r=>r.slice()));
+  set(TORSO,R.torso); set(LEG,R.leg); set(ARM,R.arm); try{ return fn(); } finally { [TORSO,LEG,ARM].forEach((t,i)=>set(t,keep[i])); } }
+/* relief on the painted face. Rows of the head painting: brow .14, eye .124, nose tip .09, mouth .064, chin .037 (metres up the head) */
+function wkFace(J,o,H){ const hs=o.headS||1,C=(t)=>M(null,{color:hexInt(mix(H.skin,H.skinD,t))}),P=(g,m,x,y,z,rx=0,ry=0,rz=0)=>mk(g,m,J.head,x*hs,y*hs,z*hs,rx,ry,rz),S=v=>v*hs;
+  for(const s of [-1,1]) P(box(S(.046),S(.011),S(.02),{tw:.85}),C(.42),s*.029,.1425,.083,.22,0,s*-.1);                        /* the brow, a ridge over each eye */
+  P(box(S(.013),S(.046),S(.016),{tw:.65}),C(.06),0,.117,.094,-.2); P(box(S(.02),S(.014),S(.017),{tw:.8}),C(.1),0,.094,.099);   /* the bridge, the tip */
+  for(const s of [-1,1]) P(box(S(.01),S(.011),S(.013)),C(.26),s*.0125,.092,.092);                                              /* the wings */
+  const blob=(rx,ry,rz)=>smoothNormals(lathe([[-ry,rx*.25,rz*.25],[-ry*.4,rx,rz],[ry*.45,rx*.9,rz*.9],[ry,rx*.2,rz*.2]],6));
+  for(const s of [-1,1]) P(blob(S(.017),S(.012),S(.012)),C(.1),s*.047,.102,.064);                                              /* cheekbones */
+  P(blob(S(.024),S(.014),S(.014)),C(.14),0,.036,.068);                                                                         /* the chin */
+  for(const s of [-1,1]) P(box(S(.008),S(.03),S(.02),{tw:.8}),C(.3),s*.062,.062,.03,0,0,s*.2); }                               /* the corner of the jaw */
+/* clothes with edges, on the joints. S: {j jacket colour, collar shirt colour or null, roll: roll-neck colour, lapel, cuff colour, hem (how far down the skirt comes, in body heights), sq} */
+function wkDress(C,S){ const J=C.J,o=C.o,H=o.hf,col=(c,t=0)=>M(null,{color:hexInt(t?mix(c,'#ffffff',t):c),double:true}),mj=col(S.j,.05),mjl=col(S.j,.13),sy=1.09*H,hy=.99*H;
+  const fz=(y,m=0)=>frontAt(o,y,m);
+  if(S.lapel) for(const s of [-1,1]){ mk(box(.032,.23*H,.011,{tw:1.35}),col(S.j,.09),J.spine,s*.04,1.33*H-sy,fz(1.33,.005),-.1,0,s*-.19); } /* a lapel, and the shadow it throws */
+  if(S.collar){ for(const s of [-1,1]) mk(box(.05,.03,.012,{tw:.6}),col(S.collar),J.neck,s*.034,.012,.052,.5,s*.5,s*.5); collar(J,o,col(S.collar),.04,.006); } /* shirt collar: a band and two points */
+  if(S.roll) collar(J,o,col(S.roll),.07,.012);
+  const t0=torsoAt(o,.86*H),hem=(S.hem||.83)*H,fl=S.hem&&S.hem<.8?1.1:1.03; /* the jacket's skirt: a ring over the hips, flared a little, open at the bottom */
+  mk(smoothNormals(lathe([[hem-hy,t0[1]*fl+.016,t0[2]*fl+.018,t0[3]],[.9*H-hy,torsoAt(o,.9*H)[1]+.014,torsoAt(o,.9*H)[2]+.015,torsoAt(o,.9*H)[3]],[1.0*H-hy,torsoAt(o,H)[1]+.01,torsoAt(o,H)[2]+.011,torsoAt(o,H)[3]]],14,{capB:false,capT:false})),mj,J.hips);
+  if(S.cuff) for(const s of ['L','R']) mk(smoothNormals(lathe([[-.266*H,.027,.033],[-.24*H,.029,.035]],10,{capB:false,capT:false})),col(S.cuff),J['elbow'+s]);
+  if(S.lapel) for(const y of [1.2,1.13]) mk(box(.014,.014,.006),col('#0c0c0e'),J.spine,.004,y*H-sy,fz(y,.004));
+  if(S.sq) mk(box(.034,.012,.008),col(S.sq),J.spine,.088,1.365*H-sy,fz(1.365,.004)-.01,0,.25,0); }
+
 /* one of them, standing in the world: returns the character (C) */
-function wkMakeChar(id,parent,grp='wick'){ wkCastInit(); const R_=ROSTER[id]; FACE[R_.wkHead]=FACE[R_.wkHead]||{fight:paintHead(WKH[R_.wkHead],'fight')};
+function wkMakeChar(id,parent,grp='wick',rich=WK.rich){ wkCastInit(); const R_=ROSTER[id]; FACE[R_.wkHead]=FACE[R_.wkHead]||{fight:paintHead(WKH[R_.wkHead],'fight')};
   HEADS[id]=WKH[R_.wkHead]; FACE[id]=FACE[R_.wkHead]; /* the kit looks heads up by roster id */
-  return makeChar(id,parent,grp); }
+  if(!rich) return makeChar(id,parent,grp);
+  WK_RICHNOW=true; let C; try{ C=wkRichRig(()=>makeChar(id,parent,grp,{o:Object.assign({},R_.o,{seg:1})})); } finally { WK_RICHNOW=false; }
+  if(WK_SUIT[id]) wkDress(C,WK_SUIT[id]); return C; }
+const WK_SUIT={ wk_floor1:{j:'#25272d',collar:'#d9d8d2',lapel:1,cuff:'#d9d8d2'}, wk_floor2:{j:'#131418',collar:'#1b1c21',lapel:1,cuff:'#1b1c21'}, wk_floor3:{j:'#1a2030',collar:'#aab8cc',lapel:1,cuff:'#aab8cc'}, wk_floor4:{j:'#3b3d43',collar:'#d9d8d2',lapel:1,cuff:'#d9d8d2'},
+  wk_guard1:{j:'#131418',roll:'#0c0c0e',lapel:1}, wk_guard2:{j:'#25272d',roll:'#0c0c0e',lapel:1}, wk_door1:{j:'#14151b',roll:'#0a0a0c',lapel:1,hem:.66}, wk_door2:{j:'#2a1d15',roll:'#15161a',hem:.86},
+  wk_boss:{j:'#3a4452',collar:'#d9d8d2',lapel:1,cuff:'#d9d8d2',sq:'#e8e6e0'} };

@@ -16,7 +16,8 @@ const WK_PLACE=[ /* id, x, z, facing (0 = +z, north), pose */
   ['wk_floor2',-4.1,3.55,-.5,'lean'],['wk_floor3',2.2,3.5,2.6,'watch'],['wk_door2',5.6,1.0,-1.9,'watch'],
   ['wk_floor4',11.7,.9,-.7,'watch'],['wk_cook',-9.3,-2.2,-2.55,'watch'] ];
 function wkCastPlace(){ if(WKART.root){ disposeTree(WKART.root); const i=world.kids.indexOf(WKART.root); if(i>=0) world.kids.splice(i,1); } WKART.root=N(world); WKART.cast.length=0;
-  GEO_TEMP=true; for(const [id,x,z,ry,pose] of WK_PLACE){ const slot=N(WKART.root,x,0,z,0,ry,0),C=wkMakeChar(id,slot); applyPose(C,C.poses[pose]?pose:'fight'); WKART.cast.push(C); } GEO_TEMP=false; }
+  GEO_TEMP=true; for(const [id,x,z,rich] of [['wk_floor1',-1.7,2.5,false],['wk_floor1',-.6,2.5,true],['wk_boss',.5,2.5,true]]){ const slot=N(WKART.root,x,0,z,0,Math.PI,0),C=wkMakeChar(id,slot,'wick',rich); applyPose(C,'idle'); WKART.cast.push(C); } /* the build comparison: plain, richer, and the target */
+  for(const [id,x,z,ry,pose] of WK_PLACE){ const slot=N(WKART.root,x,0,z,0,ry,0),C=wkMakeChar(id,slot); applyPose(C,C.poses[pose]?pose:'fight'); WKART.cast.push(C); } GEO_TEMP=false; }
 protoOn('tick',()=>{ if(FLOOR.mode!=='wick') return; for(const C of WKART.cast) skinUpdate(C); });
 
 /* ---------- your hands, sleeve, watch and gun ---------- */
