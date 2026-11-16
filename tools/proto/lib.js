@@ -87,9 +87,10 @@ window.__PB=(function(){
     return finish({bot:'fetch',exitKind:X.kind,t:+(GAME.t-t0).toFixed(1),left:left(),died:PL.dead,toolFound:toolT!=null||holding(),toolT,atExit,toolToExit:toolT!=null&&left()?+((GAME.t-t0)-toolT).toFixed(1):null}); }
 
   /* ---- pistol fight: 0.6 s to react, 3 degrees of error, a shot every 0.3 s at most. Goes at the nearest man it knows is one of
-     them; with nobody left in view it heads for the exit. One death ends the run. Pass (20 runs): dies in 25 to 50% ---- */
+     them; with nobody left in view it heads for the exit. One death ends the run. Pass (20 runs): dies in 60 to 95% (2026-11-15; was 25 to 50% before two hits killed Ray) ---- */
   function pistol_(o){ settle(); const react=o.react??.6,sigma=o.sigma??3,gap=o.gap??.3,maxT=o.maxT||300,X=exitInfo(),t0=GAME.t;
     let gave=false; if(!HANDS.R.item||!WPN[HANDS.R.item.key].gun){ equip(HANDS.R,newItem('pistol')); gave=true; }
+    if(o.ammo!=null){ for(let i=0;i<3;i++) step(); HANDS.R.item.ammo=o.ammo; PL.pouch.mags=[]; PL.pouch.loose['9mm']=o.loose||0; } /* o.ammo/o.loose: what he really has on floor 01, not a full magazine */
     const seen=new Map(); let next=0,minHp=100,shots=0,idle=0,dryT=0;
     while(GAME.t-t0<maxT){ if(PL.dead||left()) break; minHp=Math.min(minHp,PL.hp); halt();
       const ey=eye(),T=enemies.filter(E=>obvious(E)&&!out(E)).map(E=>({E,d:dist(E,PL.x,PL.z)})).sort((a,b)=>a.d-b.d);

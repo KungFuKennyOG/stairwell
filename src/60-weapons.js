@@ -185,7 +185,7 @@ function updateSights(eye){
 /* ---------- guns ---------- */
 function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye down the crosshair) */
   const it=h.item; if(!it||!GAME.started||PL.dead) return false; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.cd>0) return false;
-  if(it.ammo<=0){ sfx('click'); it.cd=.25; if(!XR.on) reloadHand(h); return false; }
+  if(it.ammo<=0){ sfx('click'); it.cd=.25; if(typeof protoEmit==='function') protoEmit('dry',h,it); if(!XR.on) reloadHand(h); return false; }
   if(w.pump&&!it.chambered){ sfx('click'); it.cd=.2; if(XR.on) buzz(h.hand,.2,15); return false; } /* nothing in the chamber: rack it */
   it.ammo--; it.cd=w.rof; h.rec=(w.pump?1.8:w.cup&&h.support?.5:1)*(it.sup?.8:1); sfx(it.sup?(w.pump?'suppsg':'supp'):w.snd||'gun',it.sup&&w.auto?.8:1); earShot(it.key,it.sup); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
   if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }

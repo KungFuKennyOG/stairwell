@@ -14,7 +14,7 @@ const where = (bots.find(r => r.where) || (boot || []).find(o => o.boot === 'pro
 // still too easy: the pistol bot dies in 25-50% of its runs
 { const P = ran(pistol); const died = P.filter(r => r.died).length;
   if (!P.length) row('Still too easy', 'pistol bot, 20 runs', 'dies in 25-50%', 'N/A', 'no pistol runs', '');
-  else row('Still too easy', `pistol bot, ${P.length} runs`, 'dies in 25-50%', pct(died, P.length) >= 25 && pct(died, P.length) <= 50 ? 'PASS' : 'FAIL',
+  else row('Still too easy', `pistol bot, ${P.length} runs`, 'dies in 60-95%', pct(died, P.length) >= 60 && pct(died, P.length) <= 95 ? 'PASS' : 'FAIL', /* 2026-11-15: was 25-50% before Ray died in two hits and ammo got scarce; one magazine in the open shouldn't clear the floor */
     `died ${died}/${P.length} (${pct(died, P.length)}%)` + (P.length < 20 ? ', fewer than 20 runs' : '') + `; men killed ${P.reduce((s, r) => s + (r.menDead || 0), 0)}/${P.reduce((s, r) => s + (r.men || 0), 0)}`, 'A, D, E, F'); }
 
 // still skippable: the walk-through can't leave in under 90 s

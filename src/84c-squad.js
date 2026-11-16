@@ -117,3 +117,45 @@ function squadSiege(E,dt){ const S=SQ.siege,J=SQ.jobs.get(E); if(!S||!J||J.k!=='
   const e=SQ.ents[0]; if(!e) return null; const i=[...SQ.jobs].filter(([O,j])=>j.k==='press').findIndex(([O])=>O===E),p=i?[e.out[0]-e.side[0]*.7,e.out[1]-e.side[1]*.7]:e.beside;
   if(!S.said&&Math.hypot(E.pos[0]-p[0],E.pos[1]-p[1])<1.2){ S.said=true; sqSay(E,'siege'); } else if(Math.random()<dt*.08) sqSay(E,'siege');
   if(Math.hypot(E.pos[0]-p[0],E.pos[1]-p[1])<=.45||J.stk>3) return sqHold(E,e.in); if(stuck(E,dt)){ J.stk=(J.stk||0)+1; freshGoal(E); } return {goal:{x:p[0],z:p[1],sp:1.8},chase:false}; }
+
+/* ---------- a gun in his hand (2026-11-15, Kenny: "once u got a hold of the gun, it's pretty easy to kill everyone") ----------
+   The men without a gun used to run straight down its barrel. Once they know he has one (a shot anyone can hear, or a man
+   sees it in his hand) they stop: each gets out of his sight beside the way he has to come and waits for him there.
+   They go for him when: he's within arm's reach of the corner (rush), his back is to them (behind), his gun clicks empty or
+   he's reloading (dry), he's put it away, or after a long wait all of them go at once (patience -> push).
+   An empty gun keeps them back just as well, till he pulls the trigger on nothing. */
+PROTO.wary={ rush:2.8, behind:7, behindDot:-.3, dryT:4, dryR:11, patience:[16,26], pushT:7, sp:2.3, barkCd:6 };
+const WARY={knowT:-99,dryT:-99,pushAt:0,pushTill:-99,barkT:0,saidDry:-99};
+const WARY_L={know:['He\'s got a gun!','Gun! He\'s got a gun!','He\'s strapped! Get back!'],wait:['Let him come.','Wait for him.','Stay off the door.'],
+  dry:['He\'s out! He\'s OUT!','It\'s empty! Go!','He\'s dry! Get him!'],push:['All of us! Now!','Fuck it— GO!']};
+const rayGunIt=()=>{ for(const h of [HANDS.R,HANDS.L]){ const it=h.item; if(it&&WPN[it.key]&&WPN[it.key].gun) return it; } return null; };
+function waryKnow(E){ const now=GAME.t; if(WARY.knowT<0){ const P=PROTO.wary; WARY.pushAt=now+rnd(P.patience[0],P.patience[1]);
+    const m=E||sqMen().sort((a,b)=>sqD(a.pos,[PL.x,PL.z])-sqD(b.pos,[PL.x,PL.z]))[0]; if(m){ bark(m,pick(WARY_L.know),1.8); vox(m,'shout',.9); } protoEmit('squad','gun',m); }
+  WARY.knowT=now; }
+protoOn('fire',(h,it,info)=>{ if(PROTO.on&&!(info&&info.sup)) waryKnow(null); });
+protoOn('dry',()=>{ if(PROTO.on&&WARY.knowT>=0) WARY.dryT=GAME.t; });
+protoOn('reset',()=>{ Object.assign(WARY,{knowT:-99,dryT:-99,pushAt:0,pushTill:-99,barkT:0,saidDry:-99}); });
+protoOn('tick',(gdt,dt)=>{ if(!PROTO.on||!GAME.started||PL.dead) return; const now=GAME.t,P=PROTO.wary,it=rayGunIt();
+  if(it&&now-WARY.knowT>1){ const s=enemies.find(E=>!E.dead&&!E.civ&&E.st==='alert'&&E.canSee&&sqD(E.pos,[PL.x,PL.z])<14); if(s) waryKnow(WARY.knowT<0?s:null); }
+  if(WARY.knowT>=0&&now>WARY.pushAt&&now>WARY.pushTill){ /* they've waited long enough: everyone at once, then they wait again */
+    const men=sqMen().filter(E=>!armed(E)); if(men.length&&it){ WARY.pushTill=now+P.pushT; bark(men[0],pick(WARY_L.push),1.6); vox(men[0],'shout',1); }
+    WARY.pushAt=now+P.pushT+rnd(P.patience[0],P.patience[1]); } });
+/* somewhere near him he can't see: beside the door the man was sent to, or the nearest walkable spot out of his eye line */
+function warySpot(E,eye){ const W=E.wary||(E.wary={}),now=GAME.t; if(W.p&&now<W.pT&&!sightClear(eye,[W.p[0],1.5,W.p[1]])) return W.p;
+  const J=SQ.jobs.get(E),hid=p=>p&&navCell(p[0],p[1])>=0&&!FLOOR.nav[navCell(p[0],p[1])]&&!sightClear(eye,[p[0],1.5,p[1]])&&!sightClear(eye,[p[0],.9,p[1]]);
+  const cands=[]; const e=J&&J.e&&J.e.side?J.e:SQ.pe; if(J&&J.e&&!J.e.side) cands.push(J.e.beside); if(e&&e.side){ cands.push(e.beside,[e.out[0]-e.side[0]*.7,e.out[1]-e.side[1]*.7],[e.out[0]+e.side[0]*1.3,e.out[1]+e.side[1]*1.3],[e.out[0]-e.side[0]*1.3,e.out[1]-e.side[1]*1.3]); }
+  let best=null,bs=1e9; const taken=p=>enemies.some(O=>O!==E&&!O.dead&&O.wary&&O.wary.p&&sqD(O.wary.p,p)<.8);
+  for(const p of cands){ if(!hid(p)||taken(p)) continue; const s=sqD(E.pos,p); if(s<bs){ bs=s; best=p; } }
+  if(!best){ const F=fieldTo(PL.x,PL.z); for(const r of [1.2,2.2,3.4,4.8,6.5]){ for(let a=0;a<12;a++){ const q=navSnap(E.pos[0]+Math.sin(a*Math.PI/6)*r,E.pos[1]+Math.cos(a*Math.PI/6)*r); if(!q||!hid(q)||taken(q)) continue;
+        const s=sqD(E.pos,q)*1.5+(sqPath(F,q[0],q[1])??20)*.5; if(s<bs){ bs=s; best=q; } } if(best) break; } }
+  W.p=best; W.pT=now+2.5; return best; }
+function squadWary(E,dt,dist){ if(!PROTO.on||WARY.knowT<0||armed(E)||E.rage>0||E.grabbed) return null; const P=PROTO.wary,now=GAME.t,it=rayGunIt();
+  if(!it){ if(E.canSee) WARY.knowT=-99; return null; } /* they can see it's gone: back to rushing him */
+  if(dist<P.rush||now<WARY.pushTill) return null;
+  if(now-WARY.dryT<P.dryT||it.reload>0){ if(dist<P.dryR){ if(now-WARY.saidDry>P.barkCd&&E.barkT<=0){ WARY.saidDry=now; bark(E,pick(WARY_L.dry),1.6); vox(E,'shout',1); } return null; } }
+  const B=camBasis(),v=[E.pos[0]-B.eye[0],E.pos[1]-B.eye[2]],L=Math.hypot(...v)||1;
+  if(dist<P.behind&&(B.f[0]*v[0]+B.f[2]*v[1])/L<P.behindDot&&(sqPath(fieldTo(PL.x,PL.z),E.pos[0],E.pos[1])??99)<P.behind+2) return null; /* his back's turned and it's a short run */
+  const p=warySpot(E,B.eye); if(!p) return null; const W=E.wary;
+  if(Math.hypot(E.pos[0]-p[0],E.pos[1]-p[1])<=.4){ W.stk=0; if(now>WARY.barkT&&E.barkT<=0&&Math.random()<dt*.12&&dist<12){ WARY.barkT=now+P.barkCd; bark(E,pick(WARY_L.wait),1.5); } return sqHold(E,[PL.x,PL.z]); }
+  if(stuck(E,dt)){ W.stk=(W.stk||0)+1; freshGoal(E); if(W.stk>3){ W.p=null; W.stk=0; } }
+  return {goal:{x:p[0],z:p[1],sp:P.sp},chase:false}; }

@@ -6101,7 +6101,7 @@ function think(E,dt,t){
     /* attacks */
     E.atkCd-=dt;
     if(armed(E)){ if(E.burstN>0){ E.burstT-=dt; if(E.burstT<=0){ E.burstN--; E.burstT=.085; enemyShoot(E,true); } }
-      else if(E.aware&&E.canSee&&!E.grabbed&&E.atkCd<=0&&E.stun<.3&&(PROTO.on?fightMayFire(E,dist):dist<KS.range)){ E.atkCd=rnd(KS.cd[0],KS.cd[1])*(PROTO.on?pnum('fight','cdMul',1):1); /* prototype: 25 m for every gun, one shooter at a time (84-fight.js) */ if(enemyShoot(E)===false) E.atkCd=.25; else if(KS.burst){ E.burstN=KS.burst-1; E.burstT=.085; } } }
+      else if(E.aware&&E.canSee&&!E.grabbed&&E.atkCd<=0&&E.stun<.3&&(PROTO.on?fightMayFire(E,dist):dist<KS.range)){ E.atkCd=rnd(KS.cd[0],KS.cd[1])*(PROTO.on?(typeof fightCdMul==='function'?fightCdMul():pnum('fight','cdMul',1)):1); /* prototype: 25 m for every gun, one shooter at a time (84-fight.js) */ if(enemyShoot(E)===false) E.atkCd=.25; else if(KS.burst){ E.burstN=KS.burst-1; E.burstT=.085; } } }
     else if(E.aware&&E.atkT<0&&E.atkCd<=0&&dist<keep+.35&&E.stun<.3&&(!PROTO.on||fightSwingOk(E))){ E.atkT=0; if(PROTO.on) fightSwingStart(E); }
     if(E.atkT>=0){ if(PROTO.on) fightSwing(E,dt,dist,toP); /* prototype: a wind-up you can read, feints, blocks, wrist catches (84-fight.js) */ else { const before=E.atkT; E.atkT+=dt; if(before<.44&&E.atkT>=.44){ const f=[Math.sin(E.hd),Math.cos(E.hd)]; if(dist<1.75&&(toP[0]*f[0]+toP[1]*f[1])/(dist||1)>.5) hurtPlayer(E.wpnHeld?(KSTAT[E.kind].melee||9):7,{E,kind:'melee',w:E.wpnHeld?KIND_WPN[E.kind]:'fist'}); }
       if(E.atkT>.7){ E.atkT=-1; E.atkCd=rnd(1.4,2.4); } } } }
@@ -7562,7 +7562,7 @@ function updateSights(eye){
 /* ---------- guns ---------- */
 function fireHand(h,aim){ /* aim: optional {o,d} (flat screen fires from the eye down the crosshair) */
   const it=h.item; if(!it||!GAME.started||PL.dead) return false; const w=WPN[it.key]; if(!w.gun||it.reload>0||it.cd>0) return false;
-  if(it.ammo<=0){ sfx('click'); it.cd=.25; if(!XR.on) reloadHand(h); return false; }
+  if(it.ammo<=0){ sfx('click'); it.cd=.25; if(typeof protoEmit==='function') protoEmit('dry',h,it); if(!XR.on) reloadHand(h); return false; }
   if(w.pump&&!it.chambered){ sfx('click'); it.cd=.2; if(XR.on) buzz(h.hand,.2,15); return false; } /* nothing in the chamber: rack it */
   it.ammo--; it.cd=w.rof; h.rec=(w.pump?1.8:w.cup&&h.support?.5:1)*(it.sup?.8:1); sfx(it.sup?(w.pump?'suppsg':'supp'):w.snd||'gun',it.sup&&w.auto?.8:1); earShot(it.key,it.sup); if(XR.on){ buzz(h.hand,1,w.pellets?150:60); if(h.support) buzz(h.support.hand,1,w.pellets?150:40); }
   if(w.pump){ it.chambered=false; it.spent=true; if(!XR.on) setTimeout(()=>{ if(h.item===it&&it.ammo>0&&!it.chambered){ it.chambered=true; it.spent=false; sfx('pump',.7); } },380); }
@@ -10318,11 +10318,12 @@ TOWER.push(
    - His state shows on his own hands: blood builds up on them, they shake below 30 hp, his breathing gets heavy below 40.
    Events: rayWound(w), bandaged(w), rayDrop(drop); numbers for telemetry through protoEmit('stat', name, value).
    ===================================================================== */
-PROTO.ray={ hp:100, gun:9, pouch:7, drop:[2,6], flash:0,                      /* start: 75 hp, Novak's pistol with 9, one spare magazine of 7; a dead man's gun 2-6; no red screen wash in VR */
+PROTO.ray={ hp:100, gun:9, pouch:7, drop:[1,3], flash:0,                      /* start: 75 hp, Novak's pistol with 9, one spare magazine of 7; a dead man's gun 2-6; no red screen wash in VR */
   /* (2026-11-15) plain HP, 100 full: the old 75-point table times 4/3, so a fight costs what it did */
-  dmg:{ pistol:{head:93,torso:40,arm:20,leg:20}, revolver:{head:100,torso:53,arm:27,leg:27}, smg:{head:73,torso:27,arm:13,leg:13},
-        shotgun:{head:40,torso:21,arm:11,leg:11}, /* per pellet, times the falloff: a close load is near-lethal */
-        machete:{head:60,torso:37,arm:27,leg:27}, knife:{head:47,torso:29,arm:19,leg:19}, bottle:{head:24,torso:16,arm:12,leg:12}, fist:{head:12,torso:8,arm:5,leg:5} },
+  /* (2026-11-15, later) Kenny: "we should die much quicker". Was pistol 93/40/20, knife 47/29/19: now two rounds in the body or two good stabs kill */
+  dmg:{ pistol:{head:100,torso:70,arm:35,leg:35}, revolver:{head:100,torso:90,arm:45,leg:45}, smg:{head:100,torso:48,arm:24,leg:24},
+        shotgun:{head:70,torso:37,arm:19,leg:19}, /* per pellet, times the falloff: a close load kills */
+        machete:{head:100,torso:65,arm:45,leg:45}, knife:{head:80,torso:50,arm:32,leg:32}, bottle:{head:42,torso:28,arm:20,leg:20}, fist:{head:22,torso:14,arm:9,leg:9} },
   open:{ gun:{torso:0,arm:0,leg:0}, blade:{torso:0,arm:0,leg:0} }, maxWounds:4,  /* chance a hit opens a bleeding wound: off (Kenny: no bleeding out, no limping, just HP) */
   bleed:.25, dropEvery:2, dropStill:10, dropCap:80,                            /* hp per second per open wound; a drop every 2 m, or every 10 s standing */
   knock:[.15,.25], knockT:.4, knockRot:.13, slowK:1, slowT:0,     /* hands knocked; never slowed (slowK 1) */               /* hit reaction */
@@ -10622,7 +10623,7 @@ function rayHeart(v){ const ac=audio(); if(!ac) return; const t=ac.currentTime,o
 
 /* every start and restart: hurt, one spare magazine, clean hands, no bullet time */
 protoOn('reset',()=>{ if(!PROTO.on) return; PL.hp=pnum('ray','hp',100); PL.wounds.length=0; RAYDROPS.length=0;
-  PL.pouch.mags=[{gun:'pistol',rounds:pnum('ray','pouch',7),cap:WPN.pistol.mag}]; PL.pouch.loose={'9mm':0,'12g':0,'38':0};
+  PL.pouch.mags=typeof PF_DEF!=='undefined'&&PF_DEF.kit===null&&!window.__keepPouch?[]:[{gun:'pistol',rounds:pnum('ray','pouch',7),cap:WPN.pistol.mag}]; PL.pouch.loose={'9mm':0,'12g':0,'38':0}; /* floor 01 starts with nothing: no spare magazine either */
   Object.assign(RAY,{hitT:-9,knock:{t:-9},heal:null,flatT:0,breathT:3,lx:PL.x,lz:PL.z,moved:0,still:0,fresh:true}); RAY.bq.length=0; RAY.blood.L=RAY.blood.R=0;
   for(const h of [HANDS.L,HANDS.R]){ h.wrapSt=null; h.abT=null; } rayBandsClear(); rayLimbs(); rayBloodShow();
   GAME.slow=false; GAME.ts=1; for(const id of ['bSlow','bSlowT']){ const b=$(id); if(b) b.style.display='none'; } });
@@ -12145,6 +12146,7 @@ PROTO.fight={
   freshGap:3,                                 /* s out of sight before a new sighting is fresh again (first-shot timing) */
   cdMul:1,                                    /* the shooter's cadence, x KSTAT cd (agent A's damage already makes each round count) */
   takeGap:[.3,.6],                            /* s a man who just took the token waits before firing */
+  gunFirst:.55, gunCd:.7, gunFree:8,          /* once they know he has a gun (84c-squad.js WARY): x the first-shot wait, x the cadence, and inside this many metres nobody waits his turn (2026-11-15: three gunmen got off 0 to 6 rounds in a whole fight) */
   closeFree:3.5,                              /* m: this close, nobody waits his turn (the token is for gunfights across a room, not arm's length) */
   flashR:40, flashSupR:6, flashT:2.5,         /* who sees your flash, and how long it shows you to him */
   flashAim:[.15,.3], darkAcc:.8,              /* the answer: time to swing the gun on; aimed at a flash, not a man */
@@ -12213,17 +12215,19 @@ function fightSense(E,dt,dist){ if(E.civ||E.ally) return; const F=fxOf(E),now=GA
   if(sure){ F.unseen=0;
     if(!F.sure){ F.sure=true;
       if(now-(F.quickT??-99)<.6){} /* answering your flash: already swinging the gun on */
-      else if(now-(F.lostAt??-99)>pnum('fight','freshGap',3)&&armed(E)){ E.atkCd=fxR('first'); F.firstPend=true; } } }
+      else if(now-(F.lostAt??-99)>pnum('fight','freshGap',3)&&armed(E)){ E.atkCd=fxR('first')*(fxGunfight()?pnum('fight','gunFirst',.55):1); F.firstPend=true; } } }
   else { if(F.sure){ F.sure=false; F.lostAt=now; } F.unseen=(F.unseen||0)+dt; }
   /* hit early: some fighters back off into a dark room and wait at its door */
   if(E.hitT<.05){ if(!F.hitSeen){ F.hitSeen=true; fightHurt(E,dist); } } else F.hitSeen=false; }
 
 /* ---------- may he fire? (think(), with his line, cooldown and stun already checked) ---------- */
+const fxGunfight=()=>typeof WARY!=='undefined'&&WARY.knowT>=0&&!!rayGunIt();
+const fightCdMul=()=>pnum('fight','cdMul',1)*(fxGunfight()?pnum('fight','gunCd',.7):1);
 function fightMayFire(E,dist){ if(dist>pnum('fight','range',25)) return false; const F=E.fx||{};
   if(F.run) return false;
   if(F.ret&&F.ret.ph==='wait'&&dist>3) return false; /* lying in wait: not till you're through the door */
   if(typeof closeHolding==='function'&&closeHolding(E)&&dist>3) return false; /* behind the doorframe: he fires when he leans out (84b-close.js) */
-  if(E.rage>0||E.sprung>0||GAME.t-(F.sprangT??-99)<2||dist<pnum('fight','closeFree',3.5)) return true; /* a man in a rage, a faker coming up and a man you're on top of don't wait their turn */
+  if(E.rage>0||E.sprung>0||GAME.t-(F.sprangT??-99)<2||dist<(fxGunfight()?pnum('fight','gunFree',8):pnum('fight','closeFree',3.5))) return true; /* a man in a rage, a faker coming up and a man you're on top of don't wait their turn */
   return FGT.token===E; }
 /* the token: one man shoots, whoever has the best line. It moves when he loses you, goes down or runs dry of reasons */
 const fxTokOk=E=>E&&!E.dead&&!E.civ&&!E.ally&&E.st==='alert'&&!E.surr&&armed(E)&&E.aware&&!E.grabbed&&!(E.fx&&(E.fx.run||E.fx.ret&&E.fx.ret.ph==='wait'));
@@ -12258,7 +12262,7 @@ function fightMove(E,dt,fighting,dist){ const F=E.fx; if(!F||E.civ||E.ally) retu
     if(!armed(E)) return dist<1.3&&E.canSee?{goal:null,chase:false}:{goal:{x:tgt[0],z:tgt[1],sp:(kst(E)||{}).run||3},chase:E.canSee}; /* blades already come flat out; a rage just never stops coming */
     if(Math.hypot(tgt[0]-E.pos[0],tgt[1]-E.pos[1])<2.2) return {goal:null,chase:false};
     return {goal:{x:tgt[0],z:tgt[1],sp:pnum('fight','rageSp',2.6)},chase:false}; } /* walking straight at you, firing */
-  if(typeof squadMove==='function'){ const Q=squadSiege(E,dt)||squadMove(E,dt,fighting,dist); if(Q) return Q; } /* a job from the squad: flank, cut, guard, cover, siege (84c-squad.js) */
+  if(typeof squadMove==='function'){ const Q=squadSiege(E,dt)||squadMove(E,dt,fighting,dist)||(typeof squadWary==='function'?squadWary(E,dt,dist):null); if(Q) return Q; } /* a job from the squad: flank, cut, guard, cover, siege (84c-squad.js) */
   if(typeof closeMove==='function'){ const Q=closeMove(E,dt,fighting,dist); if(Q) return Q; } /* doorways, spacing, regroup, blades circling (84b-close.js) */
   const S=fightSpace(E,dt,dist); if(S) return S;
   const L=fightLight(E,dt,fighting,dist); if(L) return L;
@@ -12693,6 +12697,48 @@ function squadSiege(E,dt){ const S=SQ.siege,J=SQ.jobs.get(E); if(!S||!J||J.k!=='
   const e=SQ.ents[0]; if(!e) return null; const i=[...SQ.jobs].filter(([O,j])=>j.k==='press').findIndex(([O])=>O===E),p=i?[e.out[0]-e.side[0]*.7,e.out[1]-e.side[1]*.7]:e.beside;
   if(!S.said&&Math.hypot(E.pos[0]-p[0],E.pos[1]-p[1])<1.2){ S.said=true; sqSay(E,'siege'); } else if(Math.random()<dt*.08) sqSay(E,'siege');
   if(Math.hypot(E.pos[0]-p[0],E.pos[1]-p[1])<=.45||J.stk>3) return sqHold(E,e.in); if(stuck(E,dt)){ J.stk=(J.stk||0)+1; freshGoal(E); } return {goal:{x:p[0],z:p[1],sp:1.8},chase:false}; }
+
+/* ---------- a gun in his hand (2026-11-15, Kenny: "once u got a hold of the gun, it's pretty easy to kill everyone") ----------
+   The men without a gun used to run straight down its barrel. Once they know he has one (a shot anyone can hear, or a man
+   sees it in his hand) they stop: each gets out of his sight beside the way he has to come and waits for him there.
+   They go for him when: he's within arm's reach of the corner (rush), his back is to them (behind), his gun clicks empty or
+   he's reloading (dry), he's put it away, or after a long wait all of them go at once (patience -> push).
+   An empty gun keeps them back just as well, till he pulls the trigger on nothing. */
+PROTO.wary={ rush:2.8, behind:7, behindDot:-.3, dryT:4, dryR:11, patience:[16,26], pushT:7, sp:2.3, barkCd:6 };
+const WARY={knowT:-99,dryT:-99,pushAt:0,pushTill:-99,barkT:0,saidDry:-99};
+const WARY_L={know:['He\'s got a gun!','Gun! He\'s got a gun!','He\'s strapped! Get back!'],wait:['Let him come.','Wait for him.','Stay off the door.'],
+  dry:['He\'s out! He\'s OUT!','It\'s empty! Go!','He\'s dry! Get him!'],push:['All of us! Now!','Fuck it— GO!']};
+const rayGunIt=()=>{ for(const h of [HANDS.R,HANDS.L]){ const it=h.item; if(it&&WPN[it.key]&&WPN[it.key].gun) return it; } return null; };
+function waryKnow(E){ const now=GAME.t; if(WARY.knowT<0){ const P=PROTO.wary; WARY.pushAt=now+rnd(P.patience[0],P.patience[1]);
+    const m=E||sqMen().sort((a,b)=>sqD(a.pos,[PL.x,PL.z])-sqD(b.pos,[PL.x,PL.z]))[0]; if(m){ bark(m,pick(WARY_L.know),1.8); vox(m,'shout',.9); } protoEmit('squad','gun',m); }
+  WARY.knowT=now; }
+protoOn('fire',(h,it,info)=>{ if(PROTO.on&&!(info&&info.sup)) waryKnow(null); });
+protoOn('dry',()=>{ if(PROTO.on&&WARY.knowT>=0) WARY.dryT=GAME.t; });
+protoOn('reset',()=>{ Object.assign(WARY,{knowT:-99,dryT:-99,pushAt:0,pushTill:-99,barkT:0,saidDry:-99}); });
+protoOn('tick',(gdt,dt)=>{ if(!PROTO.on||!GAME.started||PL.dead) return; const now=GAME.t,P=PROTO.wary,it=rayGunIt();
+  if(it&&now-WARY.knowT>1){ const s=enemies.find(E=>!E.dead&&!E.civ&&E.st==='alert'&&E.canSee&&sqD(E.pos,[PL.x,PL.z])<14); if(s) waryKnow(WARY.knowT<0?s:null); }
+  if(WARY.knowT>=0&&now>WARY.pushAt&&now>WARY.pushTill){ /* they've waited long enough: everyone at once, then they wait again */
+    const men=sqMen().filter(E=>!armed(E)); if(men.length&&it){ WARY.pushTill=now+P.pushT; bark(men[0],pick(WARY_L.push),1.6); vox(men[0],'shout',1); }
+    WARY.pushAt=now+P.pushT+rnd(P.patience[0],P.patience[1]); } });
+/* somewhere near him he can't see: beside the door the man was sent to, or the nearest walkable spot out of his eye line */
+function warySpot(E,eye){ const W=E.wary||(E.wary={}),now=GAME.t; if(W.p&&now<W.pT&&!sightClear(eye,[W.p[0],1.5,W.p[1]])) return W.p;
+  const J=SQ.jobs.get(E),hid=p=>p&&navCell(p[0],p[1])>=0&&!FLOOR.nav[navCell(p[0],p[1])]&&!sightClear(eye,[p[0],1.5,p[1]])&&!sightClear(eye,[p[0],.9,p[1]]);
+  const cands=[]; const e=J&&J.e&&J.e.side?J.e:SQ.pe; if(J&&J.e&&!J.e.side) cands.push(J.e.beside); if(e&&e.side){ cands.push(e.beside,[e.out[0]-e.side[0]*.7,e.out[1]-e.side[1]*.7],[e.out[0]+e.side[0]*1.3,e.out[1]+e.side[1]*1.3],[e.out[0]-e.side[0]*1.3,e.out[1]-e.side[1]*1.3]); }
+  let best=null,bs=1e9; const taken=p=>enemies.some(O=>O!==E&&!O.dead&&O.wary&&O.wary.p&&sqD(O.wary.p,p)<.8);
+  for(const p of cands){ if(!hid(p)||taken(p)) continue; const s=sqD(E.pos,p); if(s<bs){ bs=s; best=p; } }
+  if(!best){ const F=fieldTo(PL.x,PL.z); for(const r of [1.2,2.2,3.4,4.8,6.5]){ for(let a=0;a<12;a++){ const q=navSnap(E.pos[0]+Math.sin(a*Math.PI/6)*r,E.pos[1]+Math.cos(a*Math.PI/6)*r); if(!q||!hid(q)||taken(q)) continue;
+        const s=sqD(E.pos,q)*1.5+(sqPath(F,q[0],q[1])??20)*.5; if(s<bs){ bs=s; best=q; } } if(best) break; } }
+  W.p=best; W.pT=now+2.5; return best; }
+function squadWary(E,dt,dist){ if(!PROTO.on||WARY.knowT<0||armed(E)||E.rage>0||E.grabbed) return null; const P=PROTO.wary,now=GAME.t,it=rayGunIt();
+  if(!it){ if(E.canSee) WARY.knowT=-99; return null; } /* they can see it's gone: back to rushing him */
+  if(dist<P.rush||now<WARY.pushTill) return null;
+  if(now-WARY.dryT<P.dryT||it.reload>0){ if(dist<P.dryR){ if(now-WARY.saidDry>P.barkCd&&E.barkT<=0){ WARY.saidDry=now; bark(E,pick(WARY_L.dry),1.6); vox(E,'shout',1); } return null; } }
+  const B=camBasis(),v=[E.pos[0]-B.eye[0],E.pos[1]-B.eye[2]],L=Math.hypot(...v)||1;
+  if(dist<P.behind&&(B.f[0]*v[0]+B.f[2]*v[1])/L<P.behindDot&&(sqPath(fieldTo(PL.x,PL.z),E.pos[0],E.pos[1])??99)<P.behind+2) return null; /* his back's turned and it's a short run */
+  const p=warySpot(E,B.eye); if(!p) return null; const W=E.wary;
+  if(Math.hypot(E.pos[0]-p[0],E.pos[1]-p[1])<=.4){ W.stk=0; if(now>WARY.barkT&&E.barkT<=0&&Math.random()<dt*.12&&dist<12){ WARY.barkT=now+P.barkCd; bark(E,pick(WARY_L.wait),1.5); } return sqHold(E,[PL.x,PL.z]); }
+  if(stuck(E,dt)){ W.stk=(W.stk||0)+1; freshGoal(E); if(W.stk>3){ W.p=null; W.stk=0; } }
+  return {goal:{x:p[0],z:p[1],sp:P.sp},chase:false}; }
 
 /* =====================================================================
    FLOOR 01, RE-LAID-OUT (the prototype floor, agent F). ?proto=1 (J's start card calls pfLoad), or ?pfdev=1 to boot straight in.
@@ -13202,8 +13248,8 @@ function pfItems(){ pfEnsureTools(); PF.items.length=0; const SP=PF.spot||{}; if
   if(WPN.pipe) put(item('pipe'),SP.guttedFloor);
   put(item('bottle'),SP.cardTable); put(item('bottle'),[-9.3,0,-7.4,2.0]);
   if(typeof pfThrowables==='function') pfThrowables(put); /* mugs, plates, cans, a shoe: things to throw (87c-clutter.js) */
-  /* loose rounds (A's) in three places, 12 in all; two first-aid tins */
-  put(rounds(4),SP.cardPot); put(rounds(5),SP.storeShelf&&[SP.storeShelf[0],SP.storeShelf[1],SP.storeShelf[2]-.32,0]); inside('N1','cupboard',1,()=>rounds(3),SP.daniBack);
+  /* loose rounds (A's) in three places, 6 in all (was 12: a gun made the floor easy); two first-aid tins */
+  put(rounds(2),SP.cardPot); put(rounds(2),SP.storeShelf&&[SP.storeShelf[0],SP.storeShelf[1],SP.storeShelf[2]-.32,0]); inside('N1','cupboard',1,()=>rounds(2),SP.daniBack);
   if(WPN.medkit){ put(item('medkit'),SP.bathroom); inside('S5','cupboard',0,()=>item('medkit'),SP.tenantsTable); inside('N1','fridge',0,()=>item('bottle')); } }
 
 /* ---------- every frame ---------- */

@@ -917,7 +917,7 @@ function think(E,dt,t){
     /* attacks */
     E.atkCd-=dt;
     if(armed(E)){ if(E.burstN>0){ E.burstT-=dt; if(E.burstT<=0){ E.burstN--; E.burstT=.085; enemyShoot(E,true); } }
-      else if(E.aware&&E.canSee&&!E.grabbed&&E.atkCd<=0&&E.stun<.3&&(PROTO.on?fightMayFire(E,dist):dist<KS.range)){ E.atkCd=rnd(KS.cd[0],KS.cd[1])*(PROTO.on?pnum('fight','cdMul',1):1); /* prototype: 25 m for every gun, one shooter at a time (84-fight.js) */ if(enemyShoot(E)===false) E.atkCd=.25; else if(KS.burst){ E.burstN=KS.burst-1; E.burstT=.085; } } }
+      else if(E.aware&&E.canSee&&!E.grabbed&&E.atkCd<=0&&E.stun<.3&&(PROTO.on?fightMayFire(E,dist):dist<KS.range)){ E.atkCd=rnd(KS.cd[0],KS.cd[1])*(PROTO.on?(typeof fightCdMul==='function'?fightCdMul():pnum('fight','cdMul',1)):1); /* prototype: 25 m for every gun, one shooter at a time (84-fight.js) */ if(enemyShoot(E)===false) E.atkCd=.25; else if(KS.burst){ E.burstN=KS.burst-1; E.burstT=.085; } } }
     else if(E.aware&&E.atkT<0&&E.atkCd<=0&&dist<keep+.35&&E.stun<.3&&(!PROTO.on||fightSwingOk(E))){ E.atkT=0; if(PROTO.on) fightSwingStart(E); }
     if(E.atkT>=0){ if(PROTO.on) fightSwing(E,dt,dist,toP); /* prototype: a wind-up you can read, feints, blocks, wrist catches (84-fight.js) */ else { const before=E.atkT; E.atkT+=dt; if(before<.44&&E.atkT>=.44){ const f=[Math.sin(E.hd),Math.cos(E.hd)]; if(dist<1.75&&(toP[0]*f[0]+toP[1]*f[1])/(dist||1)>.5) hurtPlayer(E.wpnHeld?(KSTAT[E.kind].melee||9):7,{E,kind:'melee',w:E.wpnHeld?KIND_WPN[E.kind]:'fist'}); }
       if(E.atkT>.7){ E.atkT=-1; E.atkCd=rnd(1.4,2.4); } } } }

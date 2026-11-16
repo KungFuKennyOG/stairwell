@@ -32,6 +32,7 @@ PROTO.fight={
   freshGap:3,                                 /* s out of sight before a new sighting is fresh again (first-shot timing) */
   cdMul:1,                                    /* the shooter's cadence, x KSTAT cd (agent A's damage already makes each round count) */
   takeGap:[.3,.6],                            /* s a man who just took the token waits before firing */
+  gunFirst:.55, gunCd:.7, gunFree:8,          /* once they know he has a gun (84c-squad.js WARY): x the first-shot wait, x the cadence, and inside this many metres nobody waits his turn (2026-11-15: three gunmen got off 0 to 6 rounds in a whole fight) */
   closeFree:3.5,                              /* m: this close, nobody waits his turn (the token is for gunfights across a room, not arm's length) */
   flashR:40, flashSupR:6, flashT:2.5,         /* who sees your flash, and how long it shows you to him */
   flashAim:[.15,.3], darkAcc:.8,              /* the answer: time to swing the gun on; aimed at a flash, not a man */
@@ -100,17 +101,19 @@ function fightSense(E,dt,dist){ if(E.civ||E.ally) return; const F=fxOf(E),now=GA
   if(sure){ F.unseen=0;
     if(!F.sure){ F.sure=true;
       if(now-(F.quickT??-99)<.6){} /* answering your flash: already swinging the gun on */
-      else if(now-(F.lostAt??-99)>pnum('fight','freshGap',3)&&armed(E)){ E.atkCd=fxR('first'); F.firstPend=true; } } }
+      else if(now-(F.lostAt??-99)>pnum('fight','freshGap',3)&&armed(E)){ E.atkCd=fxR('first')*(fxGunfight()?pnum('fight','gunFirst',.55):1); F.firstPend=true; } } }
   else { if(F.sure){ F.sure=false; F.lostAt=now; } F.unseen=(F.unseen||0)+dt; }
   /* hit early: some fighters back off into a dark room and wait at its door */
   if(E.hitT<.05){ if(!F.hitSeen){ F.hitSeen=true; fightHurt(E,dist); } } else F.hitSeen=false; }
 
 /* ---------- may he fire? (think(), with his line, cooldown and stun already checked) ---------- */
+const fxGunfight=()=>typeof WARY!=='undefined'&&WARY.knowT>=0&&!!rayGunIt();
+const fightCdMul=()=>pnum('fight','cdMul',1)*(fxGunfight()?pnum('fight','gunCd',.7):1);
 function fightMayFire(E,dist){ if(dist>pnum('fight','range',25)) return false; const F=E.fx||{};
   if(F.run) return false;
   if(F.ret&&F.ret.ph==='wait'&&dist>3) return false; /* lying in wait: not till you're through the door */
   if(typeof closeHolding==='function'&&closeHolding(E)&&dist>3) return false; /* behind the doorframe: he fires when he leans out (84b-close.js) */
-  if(E.rage>0||E.sprung>0||GAME.t-(F.sprangT??-99)<2||dist<pnum('fight','closeFree',3.5)) return true; /* a man in a rage, a faker coming up and a man you're on top of don't wait their turn */
+  if(E.rage>0||E.sprung>0||GAME.t-(F.sprangT??-99)<2||dist<(fxGunfight()?pnum('fight','gunFree',8):pnum('fight','closeFree',3.5))) return true; /* a man in a rage, a faker coming up and a man you're on top of don't wait their turn */
   return FGT.token===E; }
 /* the token: one man shoots, whoever has the best line. It moves when he loses you, goes down or runs dry of reasons */
 const fxTokOk=E=>E&&!E.dead&&!E.civ&&!E.ally&&E.st==='alert'&&!E.surr&&armed(E)&&E.aware&&!E.grabbed&&!(E.fx&&(E.fx.run||E.fx.ret&&E.fx.ret.ph==='wait'));
@@ -145,7 +148,7 @@ function fightMove(E,dt,fighting,dist){ const F=E.fx; if(!F||E.civ||E.ally) retu
     if(!armed(E)) return dist<1.3&&E.canSee?{goal:null,chase:false}:{goal:{x:tgt[0],z:tgt[1],sp:(kst(E)||{}).run||3},chase:E.canSee}; /* blades already come flat out; a rage just never stops coming */
     if(Math.hypot(tgt[0]-E.pos[0],tgt[1]-E.pos[1])<2.2) return {goal:null,chase:false};
     return {goal:{x:tgt[0],z:tgt[1],sp:pnum('fight','rageSp',2.6)},chase:false}; } /* walking straight at you, firing */
-  if(typeof squadMove==='function'){ const Q=squadSiege(E,dt)||squadMove(E,dt,fighting,dist); if(Q) return Q; } /* a job from the squad: flank, cut, guard, cover, siege (84c-squad.js) */
+  if(typeof squadMove==='function'){ const Q=squadSiege(E,dt)||squadMove(E,dt,fighting,dist)||(typeof squadWary==='function'?squadWary(E,dt,dist):null); if(Q) return Q; } /* a job from the squad: flank, cut, guard, cover, siege (84c-squad.js) */
   if(typeof closeMove==='function'){ const Q=closeMove(E,dt,fighting,dist); if(Q) return Q; } /* doorways, spacing, regroup, blades circling (84b-close.js) */
   const S=fightSpace(E,dt,dist); if(S) return S;
   const L=fightLight(E,dt,fighting,dist); if(L) return L;
