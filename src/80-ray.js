@@ -16,7 +16,7 @@
    - His state shows on his own hands: blood builds up on them, they shake below 30 hp, his breathing gets heavy below 40.
    Events: rayWound(w), bandaged(w), rayDrop(drop); numbers for telemetry through protoEmit('stat', name, value).
    ===================================================================== */
-PROTO.ray={ hp:100, gun:9, pouch:7, drop:[1,3], flash:0,                      /* start: 75 hp, Novak's pistol with 9, one spare magazine of 7; a dead man's gun 2-6; no red screen wash in VR */
+PROTO.ray={ hp:100, gun:9, pouch:7, drop:[2,6], flash:0,                      /* start: 75 hp, Novak's pistol with 9, one spare magazine of 7; a dead man's gun 2-6; no red screen wash in VR */
   /* (2026-11-15) plain HP, 100 full: the old 75-point table times 4/3, so a fight costs what it did */
   /* (2026-11-15, later) Kenny: "we should die much quicker". Was pistol 93/40/20, knife 47/29/19: now two rounds in the body or two good stabs kill */
   dmg:{ pistol:{head:100,torso:70,arm:35,leg:35}, revolver:{head:100,torso:90,arm:45,leg:45}, smg:{head:100,torso:48,arm:24,leg:24},
@@ -321,7 +321,7 @@ function rayHeart(v){ const ac=audio(); if(!ac) return; const t=ac.currentTime,o
 
 /* every start and restart: hurt, one spare magazine, clean hands, no bullet time */
 protoOn('reset',()=>{ if(!PROTO.on) return; PL.hp=pnum('ray','hp',100); PL.wounds.length=0; RAYDROPS.length=0;
-  PL.pouch.mags=typeof PF_DEF!=='undefined'&&PF_DEF.kit===null&&!window.__keepPouch?[]:[{gun:'pistol',rounds:pnum('ray','pouch',7),cap:WPN.pistol.mag}]; PL.pouch.loose={'9mm':0,'12g':0,'38':0}; /* floor 01 starts with nothing: no spare magazine either */
+  PL.pouch.mags=[{gun:'pistol',rounds:pnum('ray','pouch',7),cap:WPN.pistol.mag}]; PL.pouch.loose={'9mm':0,'12g':0,'38':0};
   Object.assign(RAY,{hitT:-9,knock:{t:-9},heal:null,flatT:0,breathT:3,lx:PL.x,lz:PL.z,moved:0,still:0,fresh:true}); RAY.bq.length=0; RAY.blood.L=RAY.blood.R=0;
   for(const h of [HANDS.L,HANDS.R]){ h.wrapSt=null; h.abT=null; } rayBandsClear(); rayLimbs(); rayBloodShow();
   GAME.slow=false; GAME.ts=1; for(const id of ['bSlow','bSlowT']){ const b=$(id); if(b) b.style.display='none'; } });
